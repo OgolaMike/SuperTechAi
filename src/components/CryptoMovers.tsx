@@ -1,0 +1,184 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Coins, Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  fetchCryptoMovers,
+  formatChange,
+  formatCompactUsd,
+  formatUsd,
+  type CryptoMover,
+} from '@/lib/cryptoMovers';
+
+const LEADERBOARD_SIZE = 10;
+
+type LoadState = { movers: CryptoMover[]; error: string | null; loading: boolean };
+
+export function CryptoMovers() {
+  const [load, setLoad] = useState<LoadState>({ movers: [], error: null, loading: true });
+  const [reloadKey, setReloadKey] = useState(0);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoad((previous) => ({ ...previous, loading: true }));
+    fetchCryptoMovers()
+      .then((movers) => {
+        if (!cancelled) setLoad({ movers, error: null, loading: false });
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setLoad((previous) => ({ movers: previous.movers, error: err.message, loading: false }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  const dates = useMemo(() => [...new Set(load.movers.map((mover) => mover.tradeDate))], [load.movers]);
+  const activeDate = selectedDate && dates.includes(selectedDate) ? selectedDate : dates[0] ?? null;
+  const dayMovers = useMemo(
+    () => load.movers.filter((mover) => mover.tradeDate === activeDate).sort((a, b) => a.volumeRank - b.volumeRank),
+    [load.movers, activeDate],
+  );
+  const gainers = useMemo(
+    () => [...dayMovers].sort((a, b) => b.changePct - a.changePct).slice(0, LEADERBOARD_SIZE),
+    [dayMovers],
+  );
+  const losers = useMemo(
+    () => [...dayMovers].sort((a, b) => a.changePct - b.changePct).slice(0, LEADERBOARD_SIZE),
+    [dayMovers],
+  );
+
+  return (
+    <section className="mt-8 flex flex-col gap-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Crypto watch list</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">Previous day's top movers</h2>
+          <p className="mt-1 max-w-2xl text-sm text-ink-2">
+            The 100 most-traded USDT pairs on Binance, ranked by volume. Each day runs from 00:00 to 23:59 UTC.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setReloadKey((value) => value + 1)}
+          aria-label="Reload crypto movers"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-line/10 bg-surface/[0.03] text-ink-2 transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+        >
+          <RefreshCw className={`h-4 w-4 ${load.loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {load.error && (
+        <div className="rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">
+          Crypto data could not be loaded: {load.error}
+        </div>
+      )}
+
+      {load.loading && load.movers.length === 0 ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] p-6 text-sm text-ink-2">
+          <Loader2 className="h-4 w-4 animate-spin text-accent" />
+          Loading crypto movers…
+        </div>
+      ) : !activeDate ? (
+        <div className="rounded-2xl border border-line/10 bg-surface/[0.03] px-6 py-12 text-center text-sm text-ink-2">
+          <Coins className="mx-auto mb-3 h-6 w-6 text-ink-3" />
+          No crypto snapshot has been stored yet. The first one is taken at 00:10 UTC.
+        </div>
+      ) : (
+        <>
+          <div role="tablist" className="flex flex-wrap gap-2">
+            {dates.map((date) => (
+              <button
+                key={date}
+                type="button"
+                role="tab"
+                aria-selected={date === activeDate}
+                onClick={() => setSelectedDate(date)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium tabular-nums transition-all duration-200 ${
+                  date === activeDate
+                    ? 'border-accent/40 bg-accent/10 text-accent'
+                    : 'border-line/10 bg-surface/[0.03] text-ink-2 hover:text-ink'
+                }`}
+              >
+                {date}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Leaderboard title="Top gainers" tone="up" movers={gainers} />
+            <Leaderboard title="Top losers" tone="down" movers={losers} />
+          </div>
+
+          <WatchListTable movers={dayMovers} />
+        </>
+      )}
+    </section>
+  );
+}
+
+function Leaderboard({ title, tone, movers }: { title: string; tone: 'up' | 'down'; movers: CryptoMover[] }) {
+  const Icon = tone === 'up' ? TrendingUp : TrendingDown;
+  const toneClass = tone === 'up' ? 'text-up bg-up/10' : 'text-down bg-down/10';
+  return (
+    <div className="hud-panel rounded-2xl border border-line/10 bg-surface/[0.03] p-5 hover:shadow-glow">
+      <div className="mb-3 flex items-center gap-2">
+        <Icon className={`h-4 w-4 ${tone === 'up' ? 'text-up' : 'text-down'}`} />
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      </div>
+      <ul className="divide-y divide-line/10">
+        {movers.map((mover, index) => (
+          <li key={mover.symbol} className="flex items-center justify-between gap-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="w-5 text-xs tabular-nums text-ink-3">{index + 1}</span>
+              <span className="break-words text-sm font-semibold text-ink">{mover.base}</span>
+              <span className="hidden text-xs text-ink-3 sm:inline">/ USDT</span>
+            </div>
+            <div className="flex items-center gap-4 text-right">
+              <span className="hidden font-mono text-xs tabular-nums text-ink-2 sm:inline">{formatUsd(mover.close)}</span>
+              <span className={`min-w-[64px] rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${toneClass}`}>
+                {formatChange(mover.changePct)}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function WatchListTable({ movers }: { movers: CryptoMover[] }) {
+  return (
+    <div className="hud-panel overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.03]">
+      <div className="flex items-center justify-between border-b border-line/10 px-5 py-3">
+        <h3 className="text-sm font-semibold text-ink">Full watch list</h3>
+        <span className="text-xs text-ink-3">{movers.length} pairs · source: Binance</span>
+      </div>
+      <div className="max-h-[480px] overflow-auto">
+        <table className="w-full min-w-[560px] border-collapse text-left text-xs">
+          <thead className="sticky top-0 bg-canvas/95 text-xs uppercase tracking-wider text-ink-3 backdrop-blur">
+            <tr>
+              <th className="px-5 py-2.5 font-semibold">#</th>
+              <th className="px-3 py-2.5 font-semibold">Pair</th>
+              <th className="px-3 py-2.5 text-right font-semibold">Close</th>
+              <th className="px-3 py-2.5 text-right font-semibold">Change</th>
+              <th className="px-5 py-2.5 text-right font-semibold">Volume</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line/10">
+            {movers.map((mover) => (
+              <tr key={mover.symbol} className="transition-colors hover:bg-surface/[0.03]">
+                <td className="px-5 py-2.5 tabular-nums text-ink-3">{mover.volumeRank}</td>
+                <td className="px-3 py-2.5 font-medium text-ink">{mover.base}/USDT</td>
+                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-ink">{formatUsd(mover.close)}</td>
+                <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${mover.changePct >= 0 ? 'text-up' : 'text-down'}`}>
+                  {formatChange(mover.changePct)}
+                </td>
+                <td className="px-5 py-2.5 text-right tabular-nums text-ink-2">{formatCompactUsd(mover.quoteVolume)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

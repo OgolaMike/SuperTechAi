@@ -1,0 +1,11 @@
+[functions.scanner]
+verify_jwt = true
+
+[functions.push]
+verify_jwt = true
+
+[functions.crypto-movers]
+verify_jwt = true
+
+[functions.admin-users]
+verify_jwt = true

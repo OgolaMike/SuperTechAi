@@ -1,0 +1,21 @@
+{
+  "projectId": "72142675",
+  "functions": {
+    "admin-users": {
+      "hasChanged": false,
+      "hash": "679b5a79382ac0c850476c3b3cd5667bc48a79702ff477fc4c6b2bc2f9855709"
+    },
+    "crypto-movers": {
+      "hasChanged": false,
+      "hash": "e71b7f7bed6e6f750da56af7575e2f1ca0c7d77bec55316aea3cebc717e98645"
+    },
+    "push": {
+      "hasChanged": false,
+      "hash": "fe7c3630fab3e557c98a1af59264e40b5aa4d3c1b27bd32cfe3b3493aa6f4a65"
+    },
+    "scanner": {
+      "hasChanged": false,
+      "hash": "a100fd97193999c6146ee34729c6e929d6ab21c6ed9cb9764abafd2971cf324d"
+    }
+  }
+}
