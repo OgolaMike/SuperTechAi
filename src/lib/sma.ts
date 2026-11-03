@@ -16,6 +16,7 @@ export const TIMEFRAMES: Timeframe[] = [
   { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: 200 },
   { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: 200 },
   { granularity: 300, label: 'M5', role: 'Momentum', candleCount: 200 },
+  { granularity: 60, label: 'M1', role: 'Very short-term momentum', candleCount: 200 },
 ];
 
 export type Asset = {
