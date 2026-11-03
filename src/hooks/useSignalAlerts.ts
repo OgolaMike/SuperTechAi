@@ -80,7 +80,9 @@ function toastFor(
   };
   if (kind === 'signal' || kind === 'reversal') {
     const reversalMessage = previous
-      ? `${previous.signal.direction} → ${signal.direction} reversal confirmed. If you entered the previous ${previous.signal.direction}, consider closing it.`
+      ? signal.direction === 'SELL'
+        ? 'The market is turning down. If you entered the previous BUY signal, consider closing it.'
+        : 'The market is turning up. If you entered the previous SELL signal, consider closing it.'
       : 'New signal on candle close';
     return {
       ...base,
@@ -182,13 +184,10 @@ export function useSignalAlerts(
     const signalToasts = created.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal');
     for (const toast of signalToasts) {
       if (soundsEnabled) playAlertTone(toast.tone);
-      const reversalPrefix = toast.kind === 'reversal'
-        ? `Previous ${toast.previousDirection} signal reversed. `
-        : '';
       void showSignalNotification(
         toast.tag,
-        `${toast.kind === 'reversal' ? 'SIGNAL REVERSAL' : 'NEW SIGNAL'}: ${toast.assetName} ${toast.timeframe} ${toast.direction}`,
-        `${reversalPrefix}${toast.message} Entry ${formatPrice(toast.levels.entry, toast.digits)}, stop-loss ${formatPrice(toast.levels.stopLoss, toast.digits)}`,
+        `${toast.direction} SIGNAL: ${toast.assetName} ${toast.timeframe}`,
+        `${toast.message} Entry ${formatPrice(toast.levels.entry, toast.digits)}, stop-loss ${formatPrice(toast.levels.stopLoss, toast.digits)}`,
       ).catch(() => undefined);
     }
     const hitToast = created.find((toast) => toast.kind === 'hit');
