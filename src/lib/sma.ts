@@ -9,14 +9,14 @@ export type Timeframe = {
 };
 
 export const TIMEFRAMES: Timeframe[] = [
-  { granularity: 86400, label: 'D1', role: 'Daily bias', candleCount: 366 },
-  { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: 200 },
-  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: 200 },
-  { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: 200 },
-  { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: 200 },
-  { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: 200 },
-  { granularity: 300, label: 'M5', role: 'Momentum', candleCount: 200 },
   { granularity: 60, label: 'M1', role: 'Very short-term momentum', candleCount: 200 },
+  { granularity: 300, label: 'M5', role: 'Momentum', candleCount: 200 },
+  { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: 200 },
+  { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: 200 },
+  { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: 200 },
+  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: 200 },
+  { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: 200 },
+  { granularity: 86400, label: 'D1', role: 'Daily bias', candleCount: 366 },
 ];
 
 export type Asset = {
