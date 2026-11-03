@@ -3,11 +3,11 @@ import { formatDateTime, formatPrice } from '@/lib/sma';
 import type { Direction, SignalStatus } from '@/lib/signals';
 
 export const STATUS_TEXT: Record<SignalStatus, string> = {
-  Open: 'Open',
-  TP1: 'Target 1 reached',
-  TP2: 'Target 2 reached',
-  TP3: 'Target 3 reached',
-  Stopped: 'Stop-loss hit',
+  Open: 'Trade is open',
+  TP1: 'First profit level reached',
+  TP2: 'Second profit level reached',
+  TP3: 'Final profit level reached',
+  Stopped: 'Stop-loss reached',
 };
 
 export function statusTone(status: SignalStatus): string {
@@ -18,8 +18,8 @@ export function statusTone(status: SignalStatus): string {
 
 export function directionExplanation(direction: Direction): string {
   return direction === 'BUY'
-    ? 'Price has moved up through its recent average, a sign of upward momentum.'
-    : 'Price has moved down through its recent average, a sign of downward momentum.';
+    ? 'The price has crossed above its average. The market may move up.'
+    : 'The price has crossed below its average. The market may move down.';
 }
 
 type EntryTimeProps = { epoch: number; direction: Direction };
@@ -28,7 +28,7 @@ export function EntryTime({ epoch, direction }: EntryTimeProps) {
   const tone = direction === 'BUY' ? 'text-up' : 'text-down';
   return (
     <div className="rounded-xl border border-line/10 bg-surface/[0.04] px-4 py-3">
-      <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">Entry time</div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">Signal time</div>
       <div className={`mt-1 font-mono text-2xl font-semibold tabular-nums ${tone}`}>{formatDateTime(epoch)}</div>
     </div>
   );
@@ -40,8 +40,8 @@ export function CurrentPrice({ price, entry, direction, digits }: CurrentPricePr
   if (price === undefined) {
     return (
       <div className="flex items-center justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.02] px-4 py-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Current price</span>
-        <span className="text-sm text-ink-3">Waiting for live price</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Live price</span>
+        <span className="text-sm text-ink-3">Waiting for price</span>
       </div>
     );
   }
@@ -49,7 +49,7 @@ export function CurrentPrice({ price, entry, direction, digits }: CurrentPricePr
   const tone = favourable ? 'text-up' : 'text-down';
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.02] px-4 py-3">
-      <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Current price</span>
+      <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Live price</span>
       <span className={`font-mono text-lg font-semibold tabular-nums ${tone}`}>{formatPrice(price, digits)}</span>
     </div>
   );
@@ -76,7 +76,7 @@ export function LevelList({ rows, digits }: LevelListProps) {
               <span>{row.label}</span>
             </div>
             <div className="mt-0.5 text-xs leading-relaxed text-ink-3">
-              {row.hitEpoch !== null ? `Hit at ${formatDateTime(row.hitEpoch)}` : row.hint}
+              {row.hitEpoch !== null ? `Reached at ${formatDateTime(row.hitEpoch)}` : row.hint}
             </div>
           </div>
           <span className={`flex-shrink-0 font-mono text-lg font-semibold tabular-nums ${row.tone}`}>
