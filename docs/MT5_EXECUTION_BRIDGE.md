@@ -178,3 +178,18 @@ Important limitations before this can be used to authorize trades:
 - Deposits, withdrawals, credits, corrections, and broker balance operations can distort an equity-only daily change. These must be detected and reconciled from MT5 deal history before automated enforcement.
 - The daily snapshot table is service-role only and is not exposed to members.
 - The worker still does not accept trade commands or call the risk preflight. This is monitoring groundwork, not execution authorization.
+
+## UTC-day deal-history reconciliation (added; monitoring only)
+
+The Windows worker now queries MT5 deal history from UTC midnight on every heartbeat and reports a compact aggregate:
+- balance, credit, charge, correction and bonus operations as a cash-flow adjustment;
+- realized trading profit/loss including commissions, swaps and fees;
+- deal count, latest deal timestamp and whether the history query completed.
+
+The Edge Function validates these values and updates the service-only daily risk snapshot. It subtracts reported cash-flow adjustments from the observed equity change so deposits, withdrawals and broker balance operations are not mistaken for trading profit or loss. Trading costs remain included in realized trading net. The worker recomputes the full current-day history each heartbeat, so a restart does not double-count deals.
+
+Important limits:
+- The daily opening equity remains the first successful observation for that UTC date. If the worker starts late, earlier intraday equity movement and floating P/L changes before that first observation are not reconstructed.
+- Deal-history reconciliation improves cash-flow treatment; it does not make the daily loss figure a perfect midnight-to-now mark-to-market measure.
+- If MT5 cannot return deal history, the heartbeat fails closed rather than silently reporting a complete history.
+- These figures are monitoring data only. The risk preflight is still not wired to trade execution, and the worker still rejects all trading commands.
