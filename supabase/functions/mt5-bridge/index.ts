@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
       if (dailyError) throw dailyError;
       const midnight = Date.parse(utcDate + "T00:00:00.000Z");
       if (!daily || Number(daily.starting_equity) <= 0 || daily.history_complete !== true ||
-          Date.parse(daily.first_observed_at) > midnight + 5 * 60 * 1000 ||
+          Date.parse(daily.first_observed_at) > midnight + 30 * 1000 ||
           Date.now() - Date.parse(daily.updated_at) > 30000) {
         return json({ error: "daily_risk_baseline_or_deal_history_not_execution_grade" }, 409);
       }
@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
       if (dailyError) throw dailyError;
       const midnight = Date.parse(utcDate + "T00:00:00.000Z");
       if (!daily || Number(daily.starting_equity) <= 0 || daily.history_complete !== true ||
-          Date.parse(daily.first_observed_at) > midnight + 5 * 60 * 1000 ||
+          Date.parse(daily.first_observed_at) > midnight + 30 * 1000 ||
           Date.now() - Date.parse(daily.updated_at) > 30000) {
         return json({ error: "daily_risk_baseline_or_deal_history_not_execution_grade" }, 409);
       }
@@ -421,7 +421,7 @@ Deno.serve(async (req) => {
       if (dailyError) throw dailyError;
       const midnight = Date.parse(utcDate + "T00:00:00.000Z");
       if (!daily || Number(daily.starting_equity) <= 0 || daily.history_complete !== true ||
-          Date.parse(daily.first_observed_at) > midnight + 5 * 60 * 1000 ||
+          Date.parse(daily.first_observed_at) > midnight + 30 * 1000 ||
           Date.now() - Date.parse(daily.updated_at) > 30000) {
         return json({ error: "daily_risk_baseline_or_deal_history_not_execution_grade" }, 409);
       }
