@@ -154,3 +154,17 @@ The dashboard also stores per-account risk limits with database constraints and 
 - Maximum spread and slippage: default 0 points. These must be explicitly configured to broker-appropriate values before risk controls can be enabled.
 
 Saving these preferences does not activate execution. The worker still rejects every trade command. The risk engine must calculate volume from the actual symbol's tick size/value, contract size, account currency and stop distance; enforce daily loss and concurrent-position limits; check broker spread/deviation, volume steps, margin and stop/freeze levels; and reconcile strategy-owned orders before any execution feature is released. A zero spread or slippage ceiling is a fail-closed setting, not a promise that zero spread/slippage is achievable.
+
+## MT5 order-risk preflight module (added; not wired to execution)
+
+The Windows worker now includes `mt5-worker/risk.py`, a fail-closed preflight module for a proposed BUY or SELL. It:
+
+- Calculates volume from the member's risk percentage and the broker's own `order_calc_profit` result for one lot between entry and stop loss, so the loss estimate is in the account's deposit currency.
+- Rounds volume down to the broker's volume step and rejects trades where the minimum allowed lot would exceed the risk budget.
+- Requires the member's new-order permission and risk-controls switch.
+- Rejects unconfigured spread/slippage limits, spread above the member's cap, invalid stop/target placement, broker minimum stop distances, disabled symbol/account trading, daily-loss breaches, open-position cap breaches and insufficient free-margin buffer.
+- Returns a proposed volume and risk estimate only. It never calls `order_send`.
+
+Unit tests cover sizing, a valid preflight, permission denial, daily-loss denial, zero-spread fail-closed behavior and minimum-lot rejection. GitHub Actions now runs these Python tests alongside the web typecheck/lint/build.
+
+Important remaining integration: the worker does not yet calculate the trusted UTC-day loss figure or current strategy-owned position count, fetch risk settings as part of an execution request, or call this module from a trade command. No trade command is currently accepted. The risk module is a tested preflight foundation, not an enabled trading engine.
