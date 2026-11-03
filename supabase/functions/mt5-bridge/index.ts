@@ -63,6 +63,8 @@ Deno.serve(async (req) => {
         adopt_pending_orders: false,
         manage_existing_positions: false,
         place_new_orders: false,
+        live_execution_enabled: false,
+        emergency_stop: true,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
       if (settingsError) throw settingsError;
@@ -198,6 +200,7 @@ Deno.serve(async (req) => {
     if (body.action === "approve_pending_order") {
       const memberId = await memberIdFromToken(bearer);
       if (!memberId) return json({ error: "member_unauthorized" }, 401);
+      const approvalTime = new Date().toISOString();
       const preflightId = String(body.preflightCommandId ?? "");
       const idempotencyKey = String(body.idempotencyKey ?? "");
       if (!/^[0-9a-f-]{36}$/i.test(preflightId) || !/^[0-9a-f-]{36}$/i.test(idempotencyKey)) {
@@ -213,7 +216,7 @@ Deno.serve(async (req) => {
         return json({ error: "successful_broker_preflight_required" }, 409);
       }
       const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
-        .select("login,server,bridge_status,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop")
+        .select("login,server,bridge_status,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop,max_daily_loss_pct")
         .eq("user_id", memberId).maybeSingle();
       if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
       if (settings.bridge_status !== "connected" || settings.place_new_orders !== true ||
@@ -243,14 +246,13 @@ Deno.serve(async (req) => {
       const dailyLossPct = Math.max(0, -((Number(daily.latest_equity) -
         Number(daily.starting_equity) - Number(daily.cash_flow_adjustment ?? 0)) /
         Number(daily.starting_equity)) * 100);
-      if (dailyLossPct >= Number((await db.from("mt5_account_settings").select("max_daily_loss_pct")
-        .eq("user_id", memberId).single()).data?.max_daily_loss_pct ?? 0)) {
+      if (dailyLossPct >= Number(settings.max_daily_loss_pct)) {
         return json({ error: "daily_loss_limit_reached" }, 409);
       }
       const { data: inserted, error: queueError } = await db.from("mt5_bridge_commands").insert({
         user_id: memberId, idempotency_key: idempotencyKey, command_type: "place_pending_order",
         payload: { ...preflight.payload, authorized_worker_id: worker.worker_id,
-          source_preflight_command_id: preflightId, approved_at: now },
+          source_preflight_command_id: preflightId, approved_at: approvalTime },
       }).select("id").single();
       if (queueError) {
         if (queueError.code === "23505") return json({ error: "duplicate_execution_request" }, 409);
