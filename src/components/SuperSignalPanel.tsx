@@ -40,8 +40,7 @@ export function SuperSignalPanel({ signals, prices, loaded }: Props) {
         </div>
         <h3 className="text-lg font-semibold text-ink">No open opportunities right now</h3>
         <p className="max-w-md text-sm leading-relaxed text-ink-2">
-          A Super Signal appears when a fresh move starts on the 15-minute chart and has not yet hit its stop-loss or final target.
-          Each one is checked against longer-term charts before it is shown.
+          A Super Signal appears only when all eight timeframes (M1, M5, M15, M30, H1, H2, H4 and D1) agree on the same direction.
         </p>
       </div>
     );
@@ -107,6 +106,7 @@ function SuperSignalCard({ signal, price }: { signal: SuperSignal; price: number
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">Signal strength</div>
           <p className="mt-1 text-sm leading-relaxed text-ink-2">{signal.explanation}</p>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-up">{signal.agreeing}/{signal.validReads} timeframes confirmed</p>
         </div>
         <span
           className={`flex-shrink-0 rounded-full border px-3 py-1 text-sm font-semibold ${STRENGTH_STYLE[signal.classification]}`}
