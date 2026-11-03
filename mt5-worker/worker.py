@@ -380,7 +380,7 @@ def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
     command_type = command.get("command_type")
     if command_type == "pause_trading":
         # Safe no-op acknowledgement: this worker has no trade execution path.
-        return {"paused": True, "message": "Read-only worker; no orders can be sent."}
+        return {"paused": True, "message": "The server-side emergency stop blocks new submissions. This command does not change broker orders."}
     mt5_ready()
     if command_type == "sync_account":
         return safe_account_snapshot()
@@ -434,7 +434,7 @@ def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
                 "account_login": str(account.login), "account_server": str(account.server),
                 "account_trade_mode": int(account.trade_mode), **result}
     # Explicit deny-by-default. Never attempt an unknown or trading command.
-    raise ValueError("command_not_supported_by_read_only_worker")
+    raise ValueError("command_not_supported_by_worker")
 
 
 def complete(token: str, command_id: str, succeeded: bool,
@@ -450,7 +450,7 @@ def complete(token: str, command_id: str, succeeded: bool,
 
 def main() -> None:
     token = get_worker_token()
-    log.info("Starting SuperTech AI MT5 read-only worker %s on %s", VERSION, platform.node())
+    log.info("Starting SuperTech AI guarded MT5 worker %s on %s", VERSION, platform.node())
     backoff = 2
     while True:
         try:
