@@ -46,7 +46,6 @@ export function Mt5AutoTrading() {
   useEffect(() => {
     if (!syncId) return;
     let active = true;
-    let timer: number | undefined;
     const refresh = async () => {
       const { data, error } = await supabase.functions.invoke('mt5-bridge', {
         body: { action: 'read_only_sync_status', syncId },
@@ -60,9 +59,9 @@ export function Mt5AutoTrading() {
         if (timer) window.clearInterval(timer);
       }
     };
+    const timer = window.setInterval(() => void refresh(), 3000);
     void refresh();
-    timer = window.setInterval(() => void refresh(), 3000);
-    return () => { active = false; if (timer) window.clearInterval(timer); };
+    return () => { active = false; window.clearInterval(timer); };
   }, [syncId]);
 
   const requestSync = async () => {
