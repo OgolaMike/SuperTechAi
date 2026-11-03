@@ -184,6 +184,8 @@ def main() -> None:
                 "account": {
                     "login": account_snapshot["login"],
                     "server": account_snapshot["server"],
+                    "balance": account_snapshot["balance"],
+                    "equity": account_snapshot["equity"],
                 },
             })
             response = api_call(token, {"action": "poll"})
