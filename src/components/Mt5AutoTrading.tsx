@@ -3,6 +3,13 @@ import { AlertTriangle, Bot, Cable, CircleHelp, Copy, LockKeyhole, ShieldCheck }
 import { supabase } from '@/lib/supabase';
 
 type PairResult = { ok: boolean; workerId: string; workerToken: string; message: string };
+type SyncResult = {
+  login?: string; server?: string; currency?: string; balance?: number; equity?: number; margin_free?: number;
+  pending_orders?: Array<{ ticket: number; symbol: string; type: number; volume_current: number; price_open: number }>;
+  positions?: Array<{ ticket: number; symbol: string; type: number; volume: number; price_open: number; price_current: number; profit: number }>;
+  count?: number;
+};
+type SyncCommand = { command_type: string; status: string; result?: SyncResult | null; error_code?: string | null };
 
 export function Mt5AutoTrading() {
   const [adoptPending, setAdoptPending] = useState(false);
@@ -15,6 +22,10 @@ export function Mt5AutoTrading() {
   const [pairResult, setPairResult] = useState<PairResult | null>(null);
   const [bridgeStatus, setBridgeStatus] = useState('not_connected');
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
+  const [syncId, setSyncId] = useState<string | null>(null);
+  const [syncCommands, setSyncCommands] = useState<SyncCommand[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -31,6 +42,46 @@ export function Mt5AutoTrading() {
     const timer = window.setInterval(() => void refresh(), 10000);
     return () => { active = false; window.clearInterval(timer); };
   }, []);
+
+  useEffect(() => {
+    if (!syncId) return;
+    let active = true;
+    let timer: number | undefined;
+    const refresh = async () => {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: { action: 'read_only_sync_status', syncId },
+      });
+      if (!active || error || !data?.commands) return;
+      const commands = data.commands as SyncCommand[];
+      setSyncCommands(commands);
+      if (commands.length === 3 && commands.every((command) => command.status === 'succeeded' || command.status === 'failed')) {
+        setSyncing(false);
+        setSyncMessage('MT5 read-only sync finished.');
+        if (timer) window.clearInterval(timer);
+      }
+    };
+    void refresh();
+    timer = window.setInterval(() => void refresh(), 3000);
+    return () => { active = false; if (timer) window.clearInterval(timer); };
+  }, [syncId]);
+
+  const requestSync = async () => {
+    setSyncing(true);
+    setSyncMessage('');
+    setSyncCommands([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: { action: 'request_read_only_sync' },
+      });
+      if (error) throw error;
+      if (!data?.syncId) throw new Error(data?.error ?? 'Could not request MT5 sync.');
+      setSyncId(data.syncId);
+      setSyncMessage('Reading account, pending orders and open positions…');
+    } catch (error) {
+      setSyncing(false);
+      setSyncMessage(error instanceof Error ? error.message : 'MT5 sync request failed.');
+    }
+  };
 
   const pairWorker = async () => {
     setPairError('');
@@ -110,6 +161,42 @@ export function Mt5AutoTrading() {
           )}
           <p className="mt-4 text-xs leading-5 text-ink-2">Demo and live accounts are both supported. The worker checks that its logged-in MT5 account number and server exactly match the details entered here. A mismatch prevents the worker from coming online.</p>
           {lastSeenAt && <p className="mt-2 text-xs text-ink-2">Last worker heartbeat: {new Date(lastSeenAt).toLocaleString()}</p>}
+          <button type="button" onClick={requestSync} disabled={syncing || bridgeStatus !== 'connected'} className="mt-4 rounded-xl border border-accent/30 px-4 py-2.5 text-sm font-semibold text-accent disabled:cursor-not-allowed disabled:opacity-40">
+            {syncing ? 'Reading MT5 account…' : 'Read account, orders and positions'}
+          </button>
+          {syncMessage && <p className="mt-2 text-xs text-ink-2">{syncMessage}</p>}
+          {syncCommands.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {syncCommands.map((command) => (
+                <div key={command.command_type} className="rounded-xl border border-line/10 bg-canvas/60 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-ink">{command.command_type === 'sync_account' ? 'Account details' : command.command_type === 'list_pending_orders' ? 'Pending orders' : 'Open positions'}</p>
+                    <span className="text-xs text-ink-2">{command.status}</span>
+                  </div>
+                  {command.status === 'succeeded' && command.result && (
+                    <div className="mt-2 space-y-1 text-xs text-ink-2">
+                      {command.command_type === 'sync_account' && (
+                        <p>Account {command.result.login} · {command.result.server} · {command.result.currency} · Balance {command.result.balance} · Equity {command.result.equity} · Free margin {command.result.margin_free}</p>
+                      )}
+                      {command.command_type === 'list_pending_orders' && (
+                        <>
+                          <p>{command.result.count ?? command.result.pending_orders?.length ?? 0} pending orders found. They have not been changed.</p>
+                          {command.result.pending_orders?.map((order) => <p key={order.ticket}>#{order.ticket} · {order.symbol} · {order.volume_current} lots · {order.price_open}</p>)}
+                        </>
+                      )}
+                      {command.command_type === 'list_positions' && (
+                        <>
+                          <p>{command.result.count ?? command.result.positions?.length ?? 0} open positions found. They have not been changed.</p>
+                          {command.result.positions?.map((position) => <p key={position.ticket}>#{position.ticket} · {position.symbol} · {position.volume} lots · P/L {position.profit}</p>)}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {command.status === 'failed' && <p className="mt-2 text-xs text-red-500">Could not read this item ({command.error_code ?? 'worker_error'}).</p>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
