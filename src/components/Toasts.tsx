@@ -39,8 +39,10 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   const style = TONE_STYLE[toast.tone];
   const Icon = toast.tone === 'BUY' ? ArrowUpRight : toast.tone === 'SELL' ? ArrowDownRight : toast.tone === 'TARGET' ? Target : ShieldAlert;
   const { levels, digits } = toast;
-  const isSignal = toast.kind === 'signal';
-  const title = isSignal ? toast.direction : toast.tone === 'STOP' ? 'Stop-loss hit' : 'Target reached';
+  const isSignal = toast.kind === 'signal' || toast.kind === 'reversal';
+  const title = toast.kind === 'reversal'
+    ? `${toast.previousDirection} → ${toast.direction} REVERSAL`
+    : isSignal ? toast.direction : toast.tone === 'STOP' ? 'Stop-loss hit' : 'Target reached';
 
   return (
     <div
@@ -62,9 +64,14 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
           </div>
           <p className="break-words text-xs text-ink-2">{toast.assetName}</p>
           <p className="mt-1.5 text-xs font-medium text-ink">{toast.message}</p>
+          {toast.kind === 'reversal' && toast.previousSignalEpoch ? (
+            <p className="mt-1 text-[10px] text-ink-3">
+              Previous {toast.previousDirection} signal: {new Date(toast.previousSignalEpoch * 1000).toLocaleString()}
+            </p>
+          ) : null}
           {isSignal ? (
             <dl className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1 font-mono text-xs tabular-nums">
-              <Cell label="Entry" value={formatPrice(levels.entry, digits)} />
+              <Cell label="New entry" value={formatPrice(levels.entry, digits)} />
               <Cell label="SL" value={formatPrice(levels.stopLoss, digits)} tone="text-down" />
               <Cell label="TP1" value={formatPrice(levels.tp1, digits)} tone="text-up" />
               <Cell label="TP2" value={formatPrice(levels.tp2, digits)} tone="text-up" />
