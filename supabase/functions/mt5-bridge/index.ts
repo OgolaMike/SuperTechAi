@@ -20,6 +20,17 @@ function randomToken() {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function memberIdFromToken(token: string): Promise<string | null> {
+  if (!token) return null;
+  const authClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { auth: { persistSession: false } },
+  );
+  const { data, error } = await authClient.auth.getUser(token);
+  return error || !data.user ? null : data.user.id;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -33,13 +44,8 @@ Deno.serve(async (req) => {
     // a one-time worker credential. No MT5 password is requested or stored.
     if (body.action === "pair") {
       if (!bearer) return json({ error: "member_unauthorized" }, 401);
-      const authClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${bearer}` } } },
-      );
-      const { data: authData, error: authError } = await authClient.auth.getUser(bearer);
-      if (authError || !authData.user) return json({ error: "member_unauthorized" }, 401);
+      const memberId = await memberIdFromToken(bearer);
+      if (!memberId) return json({ error: "member_unauthorized" }, 401);
 
       const login = String(body.accountLogin ?? "").trim();
       const server = String(body.server ?? "").trim();
@@ -47,7 +53,7 @@ Deno.serve(async (req) => {
         return json({ error: "valid_mt5_login_and_server_required" }, 400);
       }
 
-      const userId = authData.user.id;
+      const userId = memberId;
       const { error: settingsError } = await db.from("mt5_account_settings").upsert({
         user_id: userId,
         login,
@@ -83,6 +89,40 @@ Deno.serve(async (req) => {
         workerToken,
         message: "Copy this worker token now. It is returned once and cannot be retrieved again.",
       });
+    }
+
+
+    if (body.action === "request_read_only_sync") {
+      const memberId = await memberIdFromToken(bearer);
+      if (!memberId) return json({ error: "member_unauthorized" }, 401);
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("bridge_status").eq("user_id", memberId).maybeSingle();
+      if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
+      if (settings.bridge_status !== "connected") return json({ error: "mt5_worker_not_connected" }, 409);
+      const syncId = crypto.randomUUID();
+      const commands = ["sync_account", "list_pending_orders", "list_positions"].map((commandType) => ({
+        user_id: memberId,
+        idempotency_key: `${syncId}:${commandType}`,
+        command_type: commandType,
+        payload: {},
+      }));
+      const { error } = await db.from("mt5_bridge_commands").insert(commands);
+      if (error) throw error;
+      return json({ ok: true, syncId, queued: commands.length });
+    }
+
+    if (body.action === "read_only_sync_status") {
+      const memberId = await memberIdFromToken(bearer);
+      if (!memberId) return json({ error: "member_unauthorized" }, 401);
+      const syncId = String(body.syncId ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(syncId)) return json({ error: "invalid_sync_id" }, 400);
+      const { data, error } = await db.from("mt5_bridge_commands")
+        .select("command_type,status,result,error_code,created_at,completed_at")
+        .eq("user_id", memberId)
+        .like("idempotency_key", `${syncId}:%`)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return json({ commands: data ?? [] });
     }
 
     const workerId = req.headers.get("x-mt5-worker-id")?.trim() ?? "";
