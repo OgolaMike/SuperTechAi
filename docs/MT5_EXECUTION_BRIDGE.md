@@ -193,3 +193,17 @@ Important limits:
 - Deal-history reconciliation improves cash-flow treatment; it does not make the daily loss figure a perfect midnight-to-now mark-to-market measure.
 - If MT5 cannot return deal history, the heartbeat fails closed rather than silently reporting a complete history.
 - These figures are monitoring data only. The risk preflight is still not wired to trade execution, and the worker still rejects all trading commands.
+
+
+## Persistent MT5 trade inventory (added; read-only)
+
+Successful `list_pending_orders` and `list_positions` sync results are now reconciled into the service-only `mt5_trade_inventory` table. Each record is keyed by member, exact paired MT5 account, object type and broker ticket. It retains the broker identifier, symbol, side/type, volume, entry/current price, SL/TP, floating P/L, magic number, broker reason/comment and last-seen sync timestamp.
+
+Ownership is deliberately conservative:
+- Every newly discovered object defaults to `discovered_unowned`.
+- An object is only labelled `strategy_tagged_unverified` when both the reserved magic number 601025 and the `STAI:` comment prefix match.
+- A strategy tag is not proof of ownership and does not grant management permission.
+- Existing adoption/management statuses are not overwritten by subsequent inventory refreshes.
+- No discovered order or position is modified, cancelled or closed.
+
+The next stage must add an explicit member adoption workflow with a confirmation step, immutable ownership audit and server-side scope checks before any management command can be accepted. Strategy-created orders must carry a unique strategy tag and be reconciled against broker tickets/history before they are considered strategy-owned.
