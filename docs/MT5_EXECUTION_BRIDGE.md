@@ -229,3 +229,18 @@ This is an ownership registry, not an order-management release. Before any broke
 The bridge now accepts an authenticated `preflight_pending_order` request for BUY_STOP, SELL_STOP, BUY_LIMIT and SELL_LIMIT proposals. It checks the member's separate new-order permission, enabled risk controls, configured spread/slippage ceilings and UTC-day risk snapshot before queueing the proposal. The Windows worker then rechecks the exact logged-in account, symbol availability, live bid/ask, broker minimum stop distance, pending-order placement relative to market, current open-position count, broker-calculated risk volume and margin buffer.
 
 A successful result is a broker-side preflight approval only. The worker does not call `order_send`, place, modify or cancel anything. Duplicate idempotency keys are rejected. This is not yet a live execution release: a member-facing proposal/status experience, execution idempotency and reconciliation, final server-side authorization at send time, and broker end-to-end tests remain required.
+
+
+## Controlled pending-order execution (added; broker testing required)
+
+The bridge now has a controlled pending-order execution path for member-approved BUY_STOP, SELL_STOP, BUY_LIMIT and SELL_LIMIT orders. This is not unattended signal automation: the member submits a proposal, the connected worker performs a dry-run broker preflight, and the member must separately confirm the exact order in the dashboard.
+
+Before a worker can call MT5 order_send, all of the following must pass:
+- The member's separate new-order permission, risk-controls switch and live-execution switch are enabled, and the emergency stop is off.
+- The member explicitly approves a successful dry-run proposal. The approval is single-use per preflight proposal and is bound to the currently paired worker.
+- The server rechecks the exact account, worker heartbeat, UTC-day risk snapshot and deal-history freshness at dispatch time and again immediately before send.
+- Daily baseline must have been captured within 30 seconds of UTC midnight and full broker deal history must be available and current. If the worker missed that opening window, new execution is blocked for that UTC day rather than guessing the missing loss.
+- The worker verifies the currently logged-in account, terminal algorithmic-trading permission, symbol trading mode, live bid/ask, pending-order geometry, broker stop distance, spread, daily loss, maximum positions including existing pending orders, risk-based volume, margin and broker order_check.
+- The server persists a dispatching attempt before order_send. The broker request carries magic 601025 and a unique STAI comment. If the worker restarts after a send attempt, it reconciles live orders and broker history by that comment. If the result cannot be established, it marks the attempt uncertain and never blindly resends it.
+
+The worker only places pending orders from this explicitly confirmed dashboard workflow. It does not yet convert live AI signals into unattended MT5 orders, manage existing positions, trail stops, close positions or cancel pending orders. A successful API/build test is not a broker integration test. Before enabling a live account, deploy the migration and Edge Function, install the updated worker on the member's private Windows host, verify the exact account identity and complete a broker end-to-end test. Demo or live account choice remains with the member; no demo-only restriction is imposed.
