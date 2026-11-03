@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, Bot, Cable, CircleHelp, LockKeyhole, RefreshCw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bot, Cable, CircleHelp, LockKeyhole, ShieldCheck } from 'lucide-react';
 
 export function Mt5AutoTrading() {
   const [login, setLogin] = useState('');
