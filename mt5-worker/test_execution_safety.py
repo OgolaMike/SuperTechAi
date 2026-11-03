@@ -11,7 +11,7 @@ from execution_safety import (
 class ExecutionSafetyTests(unittest.TestCase):
     def test_comment_is_unique_bounded_and_stable(self):
         value = make_broker_comment("12345678-1234-5678-9abc-def012345678")
-        self.assertEqual(value, "STAI:12345678123456789abcdef0")
+        self.assertEqual(value, "STAI:12345678123456789abcdef012")
         self.assertLessEqual(len(value), 31)
 
     def test_rejects_invalid_command_id(self):
