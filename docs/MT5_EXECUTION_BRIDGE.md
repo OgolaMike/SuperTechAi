@@ -106,3 +106,30 @@ A limit idea is shown only when all of these checks pass:
 - The trained historical-outcome model can score the M5 signal and returns at least 70/100.
 
 If the model is not trained sufficiently, or any M5 condition fails, the limit idea is withheld. This is intentionally conservative: it can reduce the number of limit ideas, and it does not guarantee profitable fills. The UI displays the M5 AI score and momentum score on approved limit ideas.
+
+## Windows read-only worker and member pairing (added)
+
+The repository now includes `mt5-worker/`, a Windows Python worker that connects to an already logged-in MetaTrader 5 desktop terminal. It supports both demo and live accounts and deliberately has no broker-password input or order-send implementation.
+
+The MT5 dashboard now offers member-authenticated worker pairing. A signed-in member enters only the MT5 account number and exact broker server. The Edge Function validates the member's Supabase session, stores those account identifiers and creates a worker ID plus a cryptographically random 32-byte token. Only the SHA-256 token hash is stored in the database; the raw token is returned once for the member to provision into Windows Credential Manager. Re-pairing revokes prior worker tokens for that member.
+
+On every heartbeat, the worker reports its actual terminal login and server. The Edge Function compares both values with the member's saved account details. A mismatch marks the bridge as an error and refuses to mark the worker online. The dashboard reads the member's own connection status and last heartbeat through RLS.
+
+### Current worker command support
+
+- Read account identity, balance, equity and free margin.
+- Read pending orders without changing them.
+- Read open positions without changing them.
+- Report heartbeat and connection status.
+- Reject every unsupported command, including all order placement, modification, cancellation and position-closing commands.
+
+### Setup
+
+1. Deploy the `mt5-bridge` Edge Function and apply the bridge database migrations.
+2. Open MT5 Auto Trading in the signed-in app and enter the account number and exact broker server (no password).
+3. Copy the one-time worker ID and token shown by the app.
+4. Install `mt5-worker` on the Windows computer/VPS, log into the matching MT5 account in the official terminal, and follow its README.
+5. Provision the token using the hidden prompt so it is stored in Windows Credential Manager.
+6. Keep the terminal and worker running. The dashboard should show Connected after a matching heartbeat.
+
+This is a read-only connectivity milestone, not automated trading. The worker does not adopt or alter existing trades. New-order execution, separate permissions persistence, risk limits, trade reconciliation and broker-level end-to-end tests remain future work.
