@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 import keyring
 import MetaTrader5 as mt5
 from risk import preflight_new_order, RiskRejected
+from pending_orders import validate_pending_order_geometry, PendingOrderRejected
 
 SERVICE_NAME = "SuperTechAI-MT5-Bridge"
 VERSION = "0.1.0"
@@ -225,22 +226,16 @@ def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
         entry = float(payload.get("entry", 0))
         stop_loss = float(payload.get("stop_loss", 0))
         take_profit = float(payload.get("take_profit", 0))
-        if order_type not in {"BUY_STOP", "SELL_STOP", "BUY_LIMIT", "SELL_LIMIT"}:
-            raise RiskRejected("unsupported_pending_order_type")
-        point = float(symbol_info.point)
-        min_distance = max(1, int(getattr(symbol_info, "trade_stops_level", 0))) * point
-        if direction == "BUY":
-            if order_type == "BUY_STOP" and entry < float(tick.ask) + min_distance:
-                raise RiskRejected("buy_stop_entry_not_above_market")
-            if order_type == "BUY_LIMIT" and entry > float(tick.ask) - min_distance:
-                raise RiskRejected("buy_limit_entry_not_below_market")
-        elif direction == "SELL":
-            if order_type == "SELL_STOP" and entry > float(tick.bid) - min_distance:
-                raise RiskRejected("sell_stop_entry_not_below_market")
-            if order_type == "SELL_LIMIT" and entry < float(tick.bid) + min_distance:
-                raise RiskRejected("sell_limit_entry_not_above_market")
-        else:
-            raise RiskRejected("invalid_direction")
+        try:
+            validate_pending_order_geometry(
+                order_type=order_type, direction=direction, entry=entry,
+                stop_loss=stop_loss, take_profit=take_profit,
+                bid=float(tick.bid), ask=float(tick.ask),
+                point=float(symbol_info.point),
+                stops_level=int(getattr(symbol_info, "trade_stops_level", 0)),
+            )
+        except PendingOrderRejected as exc:
+            raise RiskRejected(str(exc)) from None
         result = preflight_new_order(
             mt5, settings=payload.get("settings") or {}, account=account,
             symbol_info=symbol_info, tick=tick, direction=direction,
