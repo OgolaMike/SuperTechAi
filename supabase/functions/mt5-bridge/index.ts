@@ -332,6 +332,60 @@ Deno.serve(async (req) => {
     if (authError || !worker) return json({ error: "worker_unauthorized" }, 401);
 
     const now = new Date().toISOString();
+    if (body.action === "confirm_pending_order_send") {
+      const commandId = String(body.commandId ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(commandId)) return json({ error: "invalid_command_id" }, 400);
+      const { data: command, error: commandError } = await db.from("mt5_bridge_commands")
+        .select("id,payload,status,claimed_by,command_type")
+        .eq("id", commandId).eq("user_id", worker.user_id)
+        .eq("claimed_by", workerId).eq("status", "claimed")
+        .eq("command_type", "place_pending_order").maybeSingle();
+      if (commandError) throw commandError;
+      if (!command || command.payload?.authorized_worker_id !== workerId) {
+        return json({ error: "execution_command_not_authorized_for_worker" }, 403);
+      }
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("login,server,bridge_status,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop,max_daily_loss_pct")
+        .eq("user_id", worker.user_id).maybeSingle();
+      if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
+      if (settings.bridge_status !== "connected" || settings.place_new_orders !== true ||
+          settings.risk_controls_enabled !== true || settings.live_execution_enabled !== true ||
+          settings.emergency_stop !== false) {
+        return json({ error: "live_execution_revoked_or_emergency_stop_active" }, 403);
+      }
+      const { data: workerState, error: workerStateError } = await db.from("mt5_bridge_workers")
+        .select("status,last_seen_at").eq("worker_id", workerId).eq("user_id", worker.user_id).single();
+      if (workerStateError) throw workerStateError;
+      if (workerState.status !== "online" || !workerState.last_seen_at ||
+          Date.now() - Date.parse(workerState.last_seen_at) > 30000) {
+        return json({ error: "worker_heartbeat_stale" }, 409);
+      }
+      const utcDate = now.slice(0, 10);
+      const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
+        .select("starting_equity,latest_equity,cash_flow_adjustment,history_complete,first_observed_at,updated_at")
+        .eq("user_id", worker.user_id).eq("utc_date", utcDate).maybeSingle();
+      if (dailyError) throw dailyError;
+      const midnight = Date.parse(utcDate + "T00:00:00.000Z");
+      if (!daily || Number(daily.starting_equity) <= 0 || daily.history_complete !== true ||
+          Date.parse(daily.first_observed_at) > midnight + 5 * 60 * 1000 ||
+          Date.now() - Date.parse(daily.updated_at) > 30000) {
+        return json({ error: "daily_risk_baseline_or_deal_history_not_execution_grade" }, 409);
+      }
+      const lossPct = Math.max(0, -((Number(daily.latest_equity) -
+        Number(daily.starting_equity) - Number(daily.cash_flow_adjustment ?? 0)) /
+        Number(daily.starting_equity)) * 100);
+      if (lossPct >= Number(settings.max_daily_loss_pct)) return json({ error: "daily_loss_limit_reached" }, 409);
+      const { data: attempt, error: attemptError } = await db.from("mt5_execution_attempts")
+        .select("state,worker_id,account_login,account_server")
+        .eq("command_id", commandId).eq("user_id", worker.user_id).maybeSingle();
+      if (attemptError) throw attemptError;
+      if (!attempt || attempt.state !== "dispatching" || attempt.worker_id !== workerId ||
+          attempt.account_login !== settings.login || attempt.account_server !== settings.server) {
+        return json({ error: "execution_attempt_not_authorized" }, 409);
+      }
+      return json({ ok: true, final_authorization: true });
+    }
+
     if (body.action === "authorize_pending_order_execution") {
       const commandId = String(body.commandId ?? "");
       if (!/^[0-9a-f-]{36}$/i.test(commandId)) return json({ error: "invalid_command_id" }, 400);
