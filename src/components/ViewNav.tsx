@@ -1,10 +1,11 @@
-import { Bell, Coins, Database, LayoutDashboard, Sparkles, Users } from 'lucide-react';
+import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users } from 'lucide-react';
 
-export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'alerts' | 'admin';
+export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin';
 
 const VIEWS: { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'records', label: 'Signals', icon: Database },
+  { id: 'orders', label: 'Limit & Orders', icon: ListOrdered },
   { id: 'crypto', label: 'Crypto', icon: Coins },
   { id: 'super', label: 'Super Signal', icon: Sparkles },
   { id: 'alerts', label: 'Alerts', icon: Bell },
