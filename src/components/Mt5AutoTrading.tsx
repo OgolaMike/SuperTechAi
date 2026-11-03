@@ -22,6 +22,8 @@ export function Mt5AutoTrading() {
   const [adoptPending, setAdoptPending] = useState(false);
   const [managePositions, setManagePositions] = useState(false);
   const [placeNewOrders, setPlaceNewOrders] = useState(false);
+  const [liveExecutionEnabled, setLiveExecutionEnabled] = useState(false);
+  const [emergencyStop, setEmergencyStop] = useState(true);
   const [riskEnabled, setRiskEnabled] = useState(false);
   const [riskPerTrade, setRiskPerTrade] = useState('0.50');
   const [dailyLossLimit, setDailyLossLimit] = useState('2.00');
@@ -53,6 +55,10 @@ export function Mt5AutoTrading() {
   const [preflightCommandId, setPreflightCommandId] = useState<string | null>(null);
   const [preflightCommand, setPreflightCommand] = useState<PreflightCommand | null>(null);
   const [preflightMessage, setPreflightMessage] = useState('');
+  const [executionCommandId, setExecutionCommandId] = useState<string | null>(null);
+  const [executionCommand, setExecutionCommand] = useState<PreflightCommand | null>(null);
+  const [executionMessage, setExecutionMessage] = useState('');
+  const [executionBusy, setExecutionBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -74,12 +80,14 @@ export function Mt5AutoTrading() {
     let active = true;
     const loadSettings = async () => {
       const { data } = await supabase.from('mt5_account_settings')
-        .select('adopt_pending_orders,manage_existing_positions,place_new_orders,risk_controls_enabled,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points')
+        .select('adopt_pending_orders,manage_existing_positions,place_new_orders,live_execution_enabled,emergency_stop,risk_controls_enabled,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points')
         .maybeSingle();
       if (!active || !data) return;
       setAdoptPending(Boolean(data.adopt_pending_orders));
       setManagePositions(Boolean(data.manage_existing_positions));
       setPlaceNewOrders(Boolean(data.place_new_orders));
+      setLiveExecutionEnabled(Boolean(data.live_execution_enabled));
+      setEmergencyStop(data.emergency_stop !== false);
       setRiskEnabled(Boolean(data.risk_controls_enabled));
       setRiskPerTrade(String(data.max_risk_per_trade_pct ?? 0.5));
       setDailyLossLimit(String(data.max_daily_loss_pct ?? 2));
@@ -134,6 +142,68 @@ export function Mt5AutoTrading() {
     void refresh();
     return () => { active = false; window.clearInterval(timer); };
   }, [preflightCommandId]);
+
+  useEffect(() => {
+    if (!executionCommandId) return;
+    let active = true;
+    const refresh = async () => {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: { action: 'pending_order_execution_status', commandId: executionCommandId },
+      });
+      if (!active || error || !data?.command) return;
+      const command = data.command as PreflightCommand;
+      setExecutionCommand(command);
+      if (command.status === 'succeeded' || command.status === 'failed') {
+        setExecutionBusy(false);
+        const state = command.result?.execution_state;
+        setExecutionMessage(state === 'accepted'
+          ? 'Broker accepted the order. Refresh MT5 inventory to verify its current status.'
+          : state === 'uncertain'
+            ? 'The send outcome is uncertain. The system did not resend it. Check the broker terminal before taking any further action.'
+            : 'The broker rejected the order or a final safety check failed.');
+        window.clearInterval(timer);
+      }
+    };
+    const timer = window.setInterval(() => void refresh(), 2500);
+    void refresh();
+    return () => { active = false; window.clearInterval(timer); };
+  }, [executionCommandId]);
+
+  const approvePendingOrder = async () => {
+    if (!preflightCommand || preflightCommand.status !== 'succeeded' ||
+        preflightCommand.result?.preflight !== 'approved' ||
+        preflightCommand.result?.dry_run_only !== true) {
+      setExecutionMessage('A successful broker preflight is required first.');
+      return;
+    }
+    const confirmed = window.confirm(
+      'LIVE MT5 ORDER APPROVAL\\n\\n' +
+      proposalType + ' ' + proposalSymbol.toUpperCase() +
+      '\\nEntry: ' + proposalEntry + '\\nStop loss: ' + proposalStopLoss +
+      '\\nTake profit: ' + proposalTakeProfit +
+      '\\n\\nThis sends a real pending order to the connected MT5 account if final checks pass. Continue?'
+    );
+    if (!confirmed) return;
+    setExecutionBusy(true);
+    setExecutionMessage('Requesting final server authorization…');
+    setExecutionCommand(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: {
+          action: 'approve_pending_order',
+          preflightCommandId: preflightCommand.id,
+          idempotencyKey: crypto.randomUUID(),
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok || !data.commandId) throw new Error(data?.error ?? 'Live execution approval was refused.');
+      setExecutionCommandId(data.commandId);
+      setExecutionMessage('Approved request queued. MT5 worker will repeat the checks before sending.');
+    } catch (error) {
+      setExecutionBusy(false);
+      setExecutionMessage(error instanceof Error ? error.message : 'Could not approve the order.');
+    }
+  };
 
   const requestPendingOrderPreflight = async () => {
     setPreflightMessage('');
@@ -198,6 +268,8 @@ export function Mt5AutoTrading() {
         adopt_pending_orders: adoptPending,
         manage_existing_positions: managePositions,
         place_new_orders: placeNewOrders,
+        live_execution_enabled: liveExecutionEnabled,
+        emergency_stop: emergencyStop,
         risk_controls_enabled: riskEnabled,
         max_risk_per_trade_pct: risk,
         max_daily_loss_pct: daily,
@@ -207,7 +279,7 @@ export function Mt5AutoTrading() {
         updated_at: new Date().toISOString(),
       }).eq('user_id', authData.user.id);
       if (error) throw error;
-      setSettingsMessage('Your MT5 permissions and risk limits have been saved. Trading is still disabled until execution is separately released.');
+      setSettingsMessage('MT5 permissions and risk limits saved. Live order placement still requires a successful preflight and a separate confirmation for each order.');
     } catch (error) {
       setSettingsMessage(error instanceof Error ? error.message : 'Could not save MT5 settings.');
     } finally {
@@ -391,7 +463,19 @@ export function Mt5AutoTrading() {
                 {preflightCommand.result && (
                   <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs text-ink-2">{JSON.stringify(preflightCommand.result, null, 2)}</pre>
                 )}
-                <p className="mt-2 text-xs text-ink-2">A successful check is not approval to trade. No order has been sent.</p>
+                {preflightCommand.status === 'succeeded' && preflightCommand.result?.preflight === 'approved' && (
+                  <button type="button" onClick={() => void approvePendingOrder()} disabled={executionBusy || !liveExecutionEnabled || emergencyStop || !placeNewOrders || !riskEnabled} className="mt-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-600 disabled:cursor-not-allowed disabled:opacity-40">
+                    {executionBusy ? 'Sending approval…' : 'Confirm and place this MT5 pending order'}
+                  </button>
+                )}
+                {executionMessage && <p role="status" className="mt-2 text-xs text-ink-2">{executionMessage}</p>}
+                {executionCommand && (
+                  <div className="mt-2 rounded-lg border border-line/10 p-3">
+                    <p className="text-xs font-semibold text-ink">Execution: {executionCommand.status}</p>
+                    {executionCommand.error_code && <p className="mt-1 text-xs text-red-500">{executionCommand.error_code}</p>}
+                    {executionCommand.result && <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs text-ink-2">{JSON.stringify(executionCommand.result, null, 2)}</pre>}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -462,6 +546,8 @@ export function Mt5AutoTrading() {
             <label className="mt-5 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={adoptPending} onChange={(event) => setAdoptPending(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow importing existing pending orders</strong><span className="text-xs text-ink-2">Permission for a future import workflow. Does not modify broker orders.</span></span></label>
             <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={managePositions} onChange={(event) => setManagePositions(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow management of existing positions</strong><span className="text-xs text-ink-2">Separate permission; manual trades will not be touched unless explicitly adopted later.</span></span></label>
             <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={placeNewOrders} onChange={(event) => setPlaceNewOrders(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow new strategy orders</strong><span className="text-xs text-ink-2">Future permission for SuperTech AI-generated orders only. Not active yet.</span></span></label>
+            <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={liveExecutionEnabled} onChange={(event) => setLiveExecutionEnabled(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Enable live broker execution</strong><span className="text-xs text-ink-2">Separate switch. Off by default. Each pending order still needs your confirmation.</span></span></label>
+            <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={emergencyStop} onChange={(event) => setEmergencyStop(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Emergency stop — block all new orders</strong><span className="text-xs text-ink-2">Keep this on to block execution. Turn it off only when you are ready to authorize new orders.</span></span></label>
             <div className="mt-5 border-t border-line/10 pt-4">
               <h4 className="text-sm font-semibold text-ink">Account risk limits</h4>
               <p className="mt-1 text-xs leading-5 text-ink-2">Conservative starting limits. They will be enforced by the execution worker before any order is released.</p>
