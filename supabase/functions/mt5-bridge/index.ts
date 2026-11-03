@@ -63,6 +63,8 @@ Deno.serve(async (req) => {
         adopt_pending_orders: false,
         manage_existing_positions: false,
         place_new_orders: false,
+        live_execution_enabled: false,
+        emergency_stop: true,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
       if (settingsError) throw settingsError;
@@ -195,6 +197,89 @@ Deno.serve(async (req) => {
       return json({ ok: true, commandId: inserted.id, message: "Pending order proposal queued for broker-side dry-run validation. No order will be placed." });
     }
 
+    if (body.action === "approve_pending_order") {
+      const memberId = await memberIdFromToken(bearer);
+      if (!memberId) return json({ error: "member_unauthorized" }, 401);
+      const approvalTime = new Date().toISOString();
+      const preflightId = String(body.preflightCommandId ?? "");
+      const idempotencyKey = String(body.idempotencyKey ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(preflightId) || !/^[0-9a-f-]{36}$/i.test(idempotencyKey)) {
+        return json({ error: "invalid_execution_approval" }, 400);
+      }
+      const { data: preflight, error: preflightError } = await db.from("mt5_bridge_commands")
+        .select("id,status,result,payload")
+        .eq("id", preflightId).eq("user_id", memberId)
+        .eq("command_type", "preflight_pending_order").maybeSingle();
+      if (preflightError) throw preflightError;
+      if (!preflight || preflight.status !== "succeeded" ||
+          preflight.result?.preflight !== "approved" || preflight.result?.dry_run_only !== true) {
+        return json({ error: "successful_broker_preflight_required" }, 409);
+      }
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("login,server,bridge_status,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop,max_daily_loss_pct")
+        .eq("user_id", memberId).maybeSingle();
+      if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
+      if (settings.bridge_status !== "connected" || settings.place_new_orders !== true ||
+          settings.risk_controls_enabled !== true || settings.live_execution_enabled !== true ||
+          settings.emergency_stop !== false) {
+        return json({ error: "live_execution_not_authorized_or_emergency_stop_active" }, 403);
+      }
+      const { data: workers, error: workerError } = await db.from("mt5_bridge_workers")
+        .select("worker_id,last_seen_at").eq("user_id", memberId).eq("status", "online")
+        .order("last_seen_at", { ascending: false }).limit(1);
+      if (workerError) throw workerError;
+      const worker = workers?.[0];
+      if (!worker?.last_seen_at || Date.now() - Date.parse(worker.last_seen_at) > 30000) {
+        return json({ error: "mt5_worker_heartbeat_stale" }, 409);
+      }
+      const utcDate = approvalTime.slice(0, 10);
+      const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
+        .select("starting_equity,latest_equity,cash_flow_adjustment,history_complete,first_observed_at,updated_at")
+        .eq("user_id", memberId).eq("utc_date", utcDate).maybeSingle();
+      if (dailyError) throw dailyError;
+      const midnight = Date.parse(utcDate + "T00:00:00.000Z");
+      if (!daily || Number(daily.starting_equity) <= 0 || daily.history_complete !== true ||
+          Date.parse(daily.first_observed_at) > midnight + 30 * 1000 ||
+          Date.now() - Date.parse(daily.updated_at) > 30000) {
+        return json({ error: "daily_risk_baseline_or_deal_history_not_execution_grade" }, 409);
+      }
+      const dailyLossPct = Math.max(0, -((Number(daily.latest_equity) -
+        Number(daily.starting_equity) - Number(daily.cash_flow_adjustment ?? 0)) /
+        Number(daily.starting_equity)) * 100);
+      if (dailyLossPct >= Number(settings.max_daily_loss_pct)) {
+        return json({ error: "daily_loss_limit_reached" }, 409);
+      }
+      const { data: inserted, error: queueError } = await db.from("mt5_bridge_commands").insert({
+        user_id: memberId, idempotency_key: "execute:" + preflightId, command_type: "place_pending_order",
+        payload: { ...preflight.payload, authorized_worker_id: worker.worker_id,
+          source_preflight_command_id: preflightId, approved_at: approvalTime },
+      }).select("id").single();
+      if (queueError) {
+        if (queueError.code === "23505") return json({ error: "duplicate_execution_request" }, 409);
+        throw queueError;
+      }
+      await db.from("mt5_execution_audit").insert({
+        user_id: memberId, worker_id: worker.worker_id, event_type: "pending_order_live_execution_approved",
+        idempotency_key: "execute:" + preflightId, details: { commandId: inserted.id, preflightId,
+          symbol: preflight.payload?.symbol, orderType: preflight.payload?.order_type },
+      });
+      return json({ ok: true, commandId: inserted.id, message: "Explicit order approval recorded; worker will repeat all checks before broker submission." });
+    }
+
+    if (body.action === "pending_order_execution_status") {
+      const memberId = await memberIdFromToken(bearer);
+      if (!memberId) return json({ error: "member_unauthorized" }, 401);
+      const commandId = String(body.commandId ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(commandId)) return json({ error: "invalid_command_id" }, 400);
+      const { data, error } = await db.from("mt5_bridge_commands")
+        .select("id,command_type,status,result,error_code,created_at,completed_at")
+        .eq("id", commandId).eq("user_id", memberId)
+        .eq("command_type", "place_pending_order").maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "execution_request_not_found" }, 404);
+      return json({ command: data });
+    }
+
     if (body.action === "list_inventory" || body.action === "adopt_inventory" || body.action === "revoke_inventory_adoption") {
       const memberId = await memberIdFromToken(bearer);
       if (!memberId) return json({ error: "member_unauthorized" }, 401);
@@ -247,6 +332,128 @@ Deno.serve(async (req) => {
     if (authError || !worker) return json({ error: "worker_unauthorized" }, 401);
 
     const now = new Date().toISOString();
+    if (body.action === "confirm_pending_order_send") {
+      const commandId = String(body.commandId ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(commandId)) return json({ error: "invalid_command_id" }, 400);
+      const { data: command, error: commandError } = await db.from("mt5_bridge_commands")
+        .select("id,payload,status,claimed_by,command_type")
+        .eq("id", commandId).eq("user_id", worker.user_id)
+        .eq("claimed_by", workerId).eq("status", "claimed")
+        .eq("command_type", "place_pending_order").maybeSingle();
+      if (commandError) throw commandError;
+      if (!command || command.payload?.authorized_worker_id !== workerId) {
+        return json({ error: "execution_command_not_authorized_for_worker" }, 403);
+      }
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("login,server,bridge_status,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop,max_daily_loss_pct")
+        .eq("user_id", worker.user_id).maybeSingle();
+      if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
+      if (settings.bridge_status !== "connected" || settings.place_new_orders !== true ||
+          settings.risk_controls_enabled !== true || settings.live_execution_enabled !== true ||
+          settings.emergency_stop !== false) {
+        return json({ error: "live_execution_revoked_or_emergency_stop_active" }, 403);
+      }
+      const { data: workerState, error: workerStateError } = await db.from("mt5_bridge_workers")
+        .select("status,last_seen_at").eq("worker_id", workerId).eq("user_id", worker.user_id).single();
+      if (workerStateError) throw workerStateError;
+      if (workerState.status !== "online" || !workerState.last_seen_at ||
+          Date.now() - Date.parse(workerState.last_seen_at) > 30000) {
+        return json({ error: "worker_heartbeat_stale" }, 409);
+      }
+      const utcDate = now.slice(0, 10);
+      const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
+        .select("starting_equity,latest_equity,cash_flow_adjustment,history_complete,first_observed_at,updated_at")
+        .eq("user_id", worker.user_id).eq("utc_date", utcDate).maybeSingle();
+      if (dailyError) throw dailyError;
+      const midnight = Date.parse(utcDate + "T00:00:00.000Z");
+      if (!daily || Number(daily.starting_equity) <= 0 || daily.history_complete !== true ||
+          Date.parse(daily.first_observed_at) > midnight + 30 * 1000 ||
+          Date.now() - Date.parse(daily.updated_at) > 30000) {
+        return json({ error: "daily_risk_baseline_or_deal_history_not_execution_grade" }, 409);
+      }
+      const lossPct = Math.max(0, -((Number(daily.latest_equity) -
+        Number(daily.starting_equity) - Number(daily.cash_flow_adjustment ?? 0)) /
+        Number(daily.starting_equity)) * 100);
+      if (lossPct >= Number(settings.max_daily_loss_pct)) return json({ error: "daily_loss_limit_reached" }, 409);
+      const { data: attempt, error: attemptError } = await db.from("mt5_execution_attempts")
+        .select("state,worker_id,account_login,account_server")
+        .eq("command_id", commandId).eq("user_id", worker.user_id).maybeSingle();
+      if (attemptError) throw attemptError;
+      if (!attempt || attempt.state !== "dispatching" || attempt.worker_id !== workerId ||
+          attempt.account_login !== settings.login || attempt.account_server !== settings.server) {
+        return json({ error: "execution_attempt_not_authorized" }, 409);
+      }
+      return json({ ok: true, final_authorization: true });
+    }
+
+    if (body.action === "authorize_pending_order_execution") {
+      const commandId = String(body.commandId ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(commandId)) return json({ error: "invalid_command_id" }, 400);
+      const { data: command, error: commandError } = await db.from("mt5_bridge_commands")
+        .select("id,payload,status,claimed_by,command_type")
+        .eq("id", commandId).eq("user_id", worker.user_id)
+        .eq("claimed_by", workerId).eq("status", "claimed")
+        .eq("command_type", "place_pending_order").maybeSingle();
+      if (commandError) throw commandError;
+      if (!command || command.payload?.authorized_worker_id !== workerId) {
+        return json({ error: "execution_command_not_authorized_for_worker" }, 403);
+      }
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("login,server,bridge_status,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points")
+        .eq("user_id", worker.user_id).maybeSingle();
+      if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
+      if (settings.bridge_status !== "connected" || settings.place_new_orders !== true ||
+          settings.risk_controls_enabled !== true || settings.live_execution_enabled !== true ||
+          settings.emergency_stop !== false) {
+        return json({ error: "live_execution_not_authorized_or_emergency_stop_active" }, 403);
+      }
+      const { data: workerState, error: workerStateError } = await db.from("mt5_bridge_workers")
+        .select("status,last_seen_at").eq("worker_id", workerId).eq("user_id", worker.user_id).single();
+      if (workerStateError) throw workerStateError;
+      if (workerState.status !== "online" || !workerState.last_seen_at ||
+          Date.now() - Date.parse(workerState.last_seen_at) > 30000) {
+        return json({ error: "worker_heartbeat_stale" }, 409);
+      }
+      const utcDate = now.slice(0, 10);
+      const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
+        .select("starting_equity,latest_equity,cash_flow_adjustment,history_complete,first_observed_at,updated_at")
+        .eq("user_id", worker.user_id).eq("utc_date", utcDate).maybeSingle();
+      if (dailyError) throw dailyError;
+      const midnight = Date.parse(utcDate + "T00:00:00.000Z");
+      if (!daily || Number(daily.starting_equity) <= 0 || daily.history_complete !== true ||
+          Date.parse(daily.first_observed_at) > midnight + 30 * 1000 ||
+          Date.now() - Date.parse(daily.updated_at) > 30000) {
+        return json({ error: "daily_risk_baseline_or_deal_history_not_execution_grade" }, 409);
+      }
+      const dailyLossPct = Math.max(0, -((Number(daily.latest_equity) -
+        Number(daily.starting_equity) - Number(daily.cash_flow_adjustment ?? 0)) /
+        Number(daily.starting_equity)) * 100);
+      if (dailyLossPct >= Number(settings.max_daily_loss_pct)) return json({ error: "daily_loss_limit_reached" }, 409);
+      const payload = command.payload ?? {};
+      if (String(payload.login) !== settings.login || String(payload.server) !== settings.server) {
+        return json({ error: "execution_account_identity_mismatch" }, 409);
+      }
+      const brokerComment = "STAI:" + command.id.replace(/-/g, "").slice(0, 26);
+      const { error: attemptError } = await db.from("mt5_execution_attempts").insert({
+        command_id: command.id, user_id: worker.user_id, worker_id: workerId,
+        state: "dispatching", account_login: settings.login, account_server: settings.server,
+        broker_comment: brokerComment,
+      }).select("command_id,state,broker_ticket,broker_deal,broker_retcode,broker_message").single();
+      if (attemptError && attemptError.code !== "23505") throw attemptError;
+      if (attemptError?.code === "23505") {
+        const { data: existing, error: existingError } = await db.from("mt5_execution_attempts")
+          .select("command_id,state,broker_ticket,broker_deal,broker_retcode,broker_message,broker_comment")
+          .eq("command_id", command.id).eq("user_id", worker.user_id).maybeSingle();
+        if (existingError) throw existingError;
+        if (!existing) return json({ error: "execution_idempotency_conflict" }, 409);
+        return json({ ok: true, new_attempt: false, attempt: existing });
+      }
+      return json({ ok: true, new_attempt: true, broker_comment: brokerComment,
+        settings: { place_new_orders: settings.place_new_orders, risk_controls_enabled: settings.risk_controls_enabled,
+          max_risk_per_trade_pct: settings.max_risk_per_trade_pct, max_daily_loss_pct: settings.max_daily_loss_pct,
+          max_open_positions: settings.max_open_positions, max_spread_points: settings.max_spread_points,
+          max_slippage_points: settings.max_slippage_points }, daily_loss_pct: dailyLossPct });
+    }
     if (body.action === "heartbeat") {
       const account = body.account && typeof body.account === "object" ? body.account : {};
       const { data: settings, error: settingsError } = await db
@@ -422,6 +629,20 @@ Deno.serve(async (req) => {
               .eq("ownership_status", "discovered_unowned");
           }
         }
+      }
+
+      if (command.command_type === "place_pending_order") {
+        const executionState = ["accepted", "rejected", "uncertain"].includes(String(result.execution_state))
+          ? String(result.execution_state) : (succeeded ? "uncertain" : "rejected");
+        const { error: attemptUpdateError } = await db.from("mt5_execution_attempts").update({
+          state: executionState,
+          broker_ticket: Number.isSafeInteger(Number(result.broker_ticket)) && Number(result.broker_ticket) > 0 ? Number(result.broker_ticket) : null,
+          broker_deal: Number.isSafeInteger(Number(result.broker_deal)) && Number(result.broker_deal) > 0 ? Number(result.broker_deal) : null,
+          broker_retcode: Number.isInteger(Number(result.broker_retcode)) ? Number(result.broker_retcode) : null,
+          broker_message: String(result.broker_message ?? "").slice(0, 120),
+          updated_at: now,
+        }).eq("command_id", commandId).eq("user_id", worker.user_id);
+        if (attemptUpdateError) throw attemptUpdateError;
       }
 
       const { data, error } = await db.from("mt5_bridge_commands").update({

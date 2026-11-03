@@ -1,8 +1,7 @@
-"""SuperTech AI MT5 bridge worker (read-only first release).
+"""SuperTech AI MT5 bridge worker.
 
-Run on Windows beside a MetaTrader 5 terminal that the account owner has
-already logged into. This worker never accepts/stores broker passwords and
-never places, modifies, or closes trades.
+Places only explicitly approved SuperTech AI pending orders. It never
+accepts/stores broker passwords or manages unowned manual trades.
 """
 from __future__ import annotations
 
@@ -11,7 +10,7 @@ import logging
 import os
 import platform
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -20,9 +19,10 @@ import keyring
 import MetaTrader5 as mt5
 from risk import preflight_new_order, RiskRejected
 from pending_orders import validate_pending_order_geometry, PendingOrderRejected
+from execution_safety import make_broker_comment, classify_existing_attempt, classify_send_result, broker_order_check_passed
 
 SERVICE_NAME = "SuperTechAI-MT5-Bridge"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 POLL_SECONDS = max(3, int(os.getenv("STAI_POLL_SECONDS", "5")))
 API_URL = os.environ["STAI_BRIDGE_URL"].rstrip("/") + "/functions/v1/mt5-bridge"
 WORKER_ID = os.environ["STAI_WORKER_ID"]
@@ -190,6 +190,192 @@ def positions_snapshot() -> dict[str, Any]:
     return {"positions": rows, "count": len(rows), "observed_at": utc_now()}
 
 
+
+def find_broker_order_by_comment(comment: str) -> dict[str, Any] | None:
+    """Find an earlier submission in live or historical broker records."""
+    orders = mt5.orders_get()
+    if orders is not None:
+        for order in orders:
+            if str(getattr(order, "comment", "")) == comment:
+                return {"ticket": int(order.ticket), "state": "pending",
+                        "symbol": str(order.symbol), "price": float(order.price_open)}
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=7)
+    history_orders = mt5.history_orders_get(start, end)
+    if history_orders is not None:
+        for order in history_orders:
+            if str(getattr(order, "comment", "")) == comment:
+                return {"ticket": int(order.ticket), "state": "history",
+                        "symbol": str(order.symbol), "price": float(order.price_open)}
+    deals = mt5.history_deals_get(start, end)
+    if deals is not None:
+        for deal in deals:
+            if str(getattr(deal, "comment", "")) == comment:
+                return {"ticket": int(getattr(deal, "order", 0)),
+                        "deal": int(deal.ticket), "state": "deal_history",
+                        "symbol": str(deal.symbol), "price": float(deal.price)}
+    return None
+
+
+def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]:
+    mt5_ready()
+    payload = command.get("payload") or {}
+    command_id = str(command.get("id", ""))
+    account = mt5.account_info()
+    if account is None:
+        raise RiskRejected("account_snapshot_unavailable")
+    if str(account.login) != str(payload.get("login")) or str(account.server) != str(payload.get("server")):
+        raise RiskRejected("account_identity_mismatch")
+
+    authorization = api_call(token, {
+        "action": "authorize_pending_order_execution",
+        "commandId": command_id,
+    })
+    if authorization.get("error") or not authorization.get("ok"):
+        raise RiskRejected(str(authorization.get("error", "server_execution_authorization_failed")))
+    attempt = authorization.get("attempt") or {}
+    broker_comment = str(authorization.get("broker_comment") or attempt.get("broker_comment") or "")
+    if not broker_comment:
+        broker_comment = make_broker_comment(command_id)
+
+    if not authorization.get("new_attempt"):
+        existing_state = str(attempt.get("state", "unknown"))
+        if existing_state == "accepted":
+            return {"execution_state": "accepted", "reconciled": True,
+                    "broker_ticket": attempt.get("broker_ticket"),
+                    "broker_deal": attempt.get("broker_deal"),
+                    "broker_retcode": attempt.get("broker_retcode"),
+                    "broker_message": "Previously accepted execution; not resubmitted."}
+        if existing_state == "rejected":
+            return {"execution_state": "rejected", "reconciled": True,
+                    "broker_message": "This execution attempt was already rejected; it will not be resubmitted."}
+        found = find_broker_order_by_comment(broker_comment)
+        state = classify_existing_attempt(existing_state, found)
+        if state == "accepted":
+            return {"execution_state": "accepted", "reconciled": True,
+                    "broker_ticket": found.get("ticket") if found else attempt.get("broker_ticket"),
+                    "broker_deal": found.get("deal") if found else attempt.get("broker_deal"),
+                    "broker_message": "Matched an existing broker order/deal by unique SuperTech AI comment. Not resubmitted."}
+        return {"execution_state": "uncertain", "reconciled": False,
+                "broker_message": "A prior send attempt exists but no matching broker record was found. NOT resent; manual broker review is required."}
+
+    try:
+        symbol_name = str(payload.get("symbol", "")).strip()
+        if not symbol_name or len(symbol_name) > 40 or not mt5.symbol_select(symbol_name, True):
+            raise RiskRejected("symbol_not_available")
+        symbol_info = mt5.symbol_info(symbol_name)
+        tick = mt5.symbol_info_tick(symbol_name)
+        positions = mt5.positions_get()
+        pending_orders = mt5.orders_get()
+        terminal = mt5.terminal_info()
+        if symbol_info is None or tick is None or positions is None or pending_orders is None or terminal is None:
+            raise RiskRejected("live_market_or_positions_unavailable")
+        if bool(getattr(terminal, "tradeapi_disabled", False)):
+            raise RiskRejected("terminal_algorithmic_trading_disabled")
+        direction = str(payload.get("direction", "")).upper()
+        order_type = str(payload.get("order_type", "")).upper()
+        entry = float(payload.get("entry", 0))
+        stop_loss = float(payload.get("stop_loss", 0))
+        take_profit = float(payload.get("take_profit", 0))
+        try:
+            validate_pending_order_geometry(
+                order_type=order_type, direction=direction, entry=entry,
+                stop_loss=stop_loss, take_profit=take_profit,
+                bid=float(tick.bid), ask=float(tick.ask),
+                point=float(symbol_info.point),
+                stops_level=int(getattr(symbol_info, "trade_stops_level", 0)),
+            )
+        except PendingOrderRejected as exc:
+            raise RiskRejected(str(exc)) from None
+
+        trade_mode = int(getattr(symbol_info, "trade_mode", 0))
+        if trade_mode in {
+            int(getattr(mt5, "SYMBOL_TRADE_MODE_DISABLED", -1)),
+            int(getattr(mt5, "SYMBOL_TRADE_MODE_CLOSEONLY", -2)),
+        }:
+            raise RiskRejected("symbol_not_open_for_new_trades")
+        if trade_mode == int(getattr(mt5, "SYMBOL_TRADE_MODE_LONGONLY", -3)) and direction != "BUY":
+            raise RiskRejected("symbol_allows_long_only")
+        if trade_mode == int(getattr(mt5, "SYMBOL_TRADE_MODE_SHORTONLY", -4)) and direction != "SELL":
+            raise RiskRejected("symbol_allows_short_only")
+
+        settings = authorization.get("settings") or {}
+        sizing = preflight_new_order(
+            mt5, settings=settings, account=account, symbol_info=symbol_info, tick=tick,
+            direction=direction, entry=entry, stop_loss=stop_loss, take_profit=take_profit,
+            daily_loss_pct=float(authorization.get("daily_loss_pct", 100)),
+            current_open_positions=len(positions) + len(pending_orders),
+        )
+        order_types = {
+            "BUY_STOP": mt5.ORDER_TYPE_BUY_STOP,
+            "SELL_STOP": mt5.ORDER_TYPE_SELL_STOP,
+            "BUY_LIMIT": mt5.ORDER_TYPE_BUY_LIMIT,
+            "SELL_LIMIT": mt5.ORDER_TYPE_SELL_LIMIT,
+        }
+        if order_type not in order_types:
+            raise RiskRejected("unsupported_pending_order_type")
+        request = {
+            "action": mt5.TRADE_ACTION_PENDING,
+            "symbol": symbol_name,
+            "volume": sizing["volume"],
+            "type": order_types[order_type],
+            "price": entry,
+            "sl": stop_loss,
+            "tp": take_profit,
+            "deviation": int(settings["max_slippage_points"]),
+            "magic": 601025,
+            "comment": broker_comment,
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": mt5.ORDER_FILLING_RETURN,
+        }
+        check = mt5.order_check(request)
+        if not broker_order_check_passed(check):
+            raise RiskRejected("broker_order_check_rejected")
+        final_auth = api_call(token, {
+            "action": "confirm_pending_order_send",
+            "commandId": command_id,
+        })
+        if final_auth.get("error") or final_auth.get("final_authorization") is not True:
+            raise RiskRejected(str(final_auth.get("error", "final_server_authorization_failed")))
+    except Exception as exc:
+        message = str(exc)[:120] if isinstance(exc, RiskRejected) else "Final broker pre-check failed."
+        return {"execution_state": "rejected", "broker_message": message}
+
+    # The server has already persisted a dispatching attempt. Ambiguous send
+    # outcomes are never blindly retried; later leases reconcile by comment.
+    try:
+        result = mt5.order_send(request)
+    except Exception:
+        return {"execution_state": "uncertain",
+                "broker_message": "MT5 send raised an exception; outcome unknown. Do not retry automatically."}
+    if result is None:
+        return {"execution_state": "uncertain",
+                "broker_message": "MT5 returned no send result. Outcome unknown; do not retry automatically."}
+
+    retcode = int(getattr(result, "retcode", -1))
+    accepted_codes = {
+        int(getattr(mt5, "TRADE_RETCODE_PLACED", 10008)),
+        int(getattr(mt5, "TRADE_RETCODE_DONE", 10009)),
+    }
+    send_state = classify_send_result(True, retcode, accepted_codes)
+    if send_state != "accepted":
+        return {"execution_state": send_state, "broker_retcode": retcode,
+                "broker_message": str(getattr(result, "comment", "Broker rejected request"))[:120]}
+    return {
+        "execution_state": "accepted",
+        "broker_ticket": int(getattr(result, "order", 0) or 0) or None,
+        "broker_deal": int(getattr(result, "deal", 0) or 0) or None,
+        "broker_retcode": retcode,
+        "broker_message": str(getattr(result, "comment", "Pending order accepted"))[:120],
+        "symbol": symbol_name, "order_type": order_type,
+        "volume": sizing["volume"], "estimated_loss": sizing["estimated_loss"],
+        "risk_amount": sizing["risk_amount"], "entry": entry,
+        "stop_loss": stop_loss, "take_profit": take_profit,
+        "account_login": str(account.login), "account_server": str(account.server),
+        "account_trade_mode": int(account.trade_mode), "broker_comment": broker_comment,
+    }
+
+
 def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
     command_type = command.get("command_type")
     if command_type == "pause_trading":
@@ -246,7 +432,7 @@ def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
         return {"preflight": "approved", "dry_run_only": True, "order_type": order_type,
                 "entry": entry, "stop_loss": stop_loss, "take_profit": take_profit,
                 "account_login": str(account.login), "account_server": str(account.server),
-                **result}
+                "account_trade_mode": int(account.trade_mode), **result}
     # Explicit deny-by-default. Never attempt an unknown or trading command.
     raise ValueError("command_not_supported_by_read_only_worker")
 
@@ -287,12 +473,17 @@ def main() -> None:
                 if not command_id:
                     continue
                 try:
-                    result = execute_read_only(command)
-                    complete(token, command_id, True, result=result)
+                    if command.get("command_type") == "place_pending_order":
+                        result = execute_pending_order(token, command)
+                        state = result.get("execution_state")
+                        complete(token, command_id, state in {"accepted", "uncertain"}, result=result,
+                                 error_code=None if state in {"accepted", "uncertain"} else "broker_order_rejected")
+                    else:
+                        result = execute_read_only(command)
+                        complete(token, command_id, True, result=result)
                 except Exception as exc:
-                    # Only a fixed error category is returned; never expose local paths/secrets.
                     log.warning("Command %s rejected or failed: %s", command_id, type(exc).__name__)
-                    complete(token, command_id, False, error_code="read_only_command_failed")
+                    complete(token, command_id, False, error_code="worker_command_failed")
             backoff = 2
             time.sleep(POLL_SECONDS)
         except KeyboardInterrupt:
