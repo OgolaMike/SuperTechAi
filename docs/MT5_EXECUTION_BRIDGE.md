@@ -137,3 +137,20 @@ This is a read-only connectivity milestone, not automated trading. The worker do
 ### Read-only account synchronization
 
 Once the dashboard reports the worker as connected, the member can request a read-only sync. The authenticated Edge Function enqueues three account-scoped commands: `sync_account`, `list_pending_orders` and `list_positions`. The worker executes only these allowlisted read operations and reports results. The member can view the returned account snapshot and order/position lists in the dashboard. Every request uses a unique idempotency prefix, and the status endpoint filters by the authenticated member ID so one member cannot inspect another member's command results.
+
+## Per-account permissions and risk controls (added)
+
+The MT5 dashboard now loads and saves execution permissions against the signed-in member's own `mt5_account_settings` row using its existing RLS policy. Permissions are independent:
+
+- Import existing pending orders.
+- Manage existing positions (future strategy-owned/adopted positions only; never implicitly all manual positions).
+- Place new SuperTech AI strategy orders.
+
+The dashboard also stores per-account risk limits with database constraints and conservative defaults:
+
+- Maximum planned risk per new trade: 0.50% of account equity (configurable up to 2.00%).
+- Daily equity-loss stop: 2.00% (configurable up to 5.00%).
+- Maximum strategy-owned open positions: 3 (configurable 1–20).
+- Maximum spread and slippage: default 0 points. These must be explicitly configured to broker-appropriate values before risk controls can be enabled.
+
+Saving these preferences does not activate execution. The worker still rejects every trade command. The risk engine must calculate volume from the actual symbol's tick size/value, contract size, account currency and stop distance; enforce daily loss and concurrent-position limits; check broker spread/deviation, volume steps, margin and stop/freeze levels; and reconcile strategy-owned orders before any execution feature is released. A zero spread or slippage ceiling is a fail-closed setting, not a promise that zero spread/slippage is achievable.
