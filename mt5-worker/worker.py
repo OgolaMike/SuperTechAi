@@ -218,6 +218,7 @@ def find_broker_order_by_comment(comment: str) -> dict[str, Any] | None:
 
 
 def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]:
+    mt5_ready()
     payload = command.get("payload") or {}
     command_id = str(command.get("id", ""))
     account = mt5.account_info()
@@ -326,6 +327,12 @@ def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]
         check = mt5.order_check(request)
         if not broker_order_check_passed(check):
             raise RiskRejected("broker_order_check_rejected")
+        final_auth = api_call(token, {
+            "action": "confirm_pending_order_send",
+            "commandId": command_id,
+        })
+        if final_auth.get("error") or final_auth.get("final_authorization") is not True:
+            raise RiskRejected(str(final_auth.get("error", "final_server_authorization_failed")))
     except Exception as exc:
         message = str(exc)[:120] if isinstance(exc, RiskRejected) else "Final broker pre-check failed."
         return {"execution_state": "rejected", "broker_message": message}
