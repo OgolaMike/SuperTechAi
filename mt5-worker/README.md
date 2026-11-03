@@ -1,6 +1,6 @@
 # SuperTech AI MT5 Windows Worker
 
-This worker supports read-only account synchronization plus explicitly member-approved pending-order placement. It does not accept broker passwords, manage existing positions, trail stops, cancel pending orders or close trades.
+This worker supports account synchronization and explicitly member-approved pending-order placement. It never accepts broker passwords. It does not yet execute SuperTech AI signals automatically or manage open positions, trail stops, cancel pending orders or close trades.
 
 ## Requirements
 
@@ -71,4 +71,4 @@ Execution is fail-closed unless the member enables new-order permission, risk co
 5. Submit a pending-order proposal, wait for the worker's successful dry-run, review the exact symbol/entry/SL/TP and separately confirm the order.
 6. Verify the broker ticket in MT5 and refresh the app's order inventory.
 
-The first release is member-confirmed pending orders only. Automatic execution from SuperTech AI signals, position management, trailing stops and order cancellation are not included in this stage. Do not assume a GitHub green check proves the broker accepted an order. Start with the smallest risk you can tolerate and verify every first broker submission.
+Current delivery boundary: member-confirmed pending orders only. Unattended execution from SuperTech AI signals, automatic position management, staged trailing stops and pending-order cancellation are not implemented. An Android device cannot host the worker; a private Windows PC or Windows VPS must run MT5 and the worker continuously. Broker execution is not production-verified until the matching migration and Edge Function are deployed and an actual broker end-to-end test succeeds. Do not assume a GitHub green check proves the broker accepted an order. Start with the smallest risk you can tolerate and verify every first broker submission.
