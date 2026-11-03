@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, Bot, Cable, CircleHelp, Copy, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -13,6 +13,24 @@ export function Mt5AutoTrading() {
   const [pairing, setPairing] = useState(false);
   const [pairError, setPairError] = useState('');
   const [pairResult, setPairResult] = useState<PairResult | null>(null);
+  const [bridgeStatus, setBridgeStatus] = useState('not_connected');
+  const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      const { data } = await supabase.from('mt5_account_settings')
+        .select('bridge_status,last_seen_at')
+        .maybeSingle();
+      if (active && data) {
+        setBridgeStatus(data.bridge_status);
+        setLastSeenAt(data.last_seen_at);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 10000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
 
   const pairWorker = async () => {
     setPairError('');
@@ -55,7 +73,7 @@ export function Mt5AutoTrading() {
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2"><Cable className="h-5 w-5 text-accent" /><h3 className="font-semibold text-ink">Pair your MT5 terminal</h3></div>
-            <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-500">{pairResult ? 'Worker paired' : 'Awaiting worker'}</span>
+            <span className={`rounded-full border px-3 py-1 text-xs font-medium ${bridgeStatus === 'connected' ? 'border-up/20 bg-up/10 text-up' : 'border-amber-400/20 bg-amber-400/10 text-amber-500'}`}>{bridgeStatus === 'connected' ? 'Connected' : pairResult ? 'Worker paired' : bridgeStatus === 'error' ? 'Account check failed' : 'Awaiting worker'}</span>
           </div>
           <div className="flex items-start gap-3 rounded-xl border border-accent/20 bg-accent/5 p-4">
             <LockKeyhole className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
@@ -73,7 +91,7 @@ export function Mt5AutoTrading() {
               <input value={server} onChange={(event) => setServer(event.target.value)} autoComplete="off" placeholder="e.g. Broker-Live 2" className="mt-1.5 w-full rounded-xl border border-line/20 bg-canvas px-3 py-2.5 text-sm text-ink outline-none focus:border-accent" />
             </label>
           </div>
-          <button type="button" onClick={pairWorker} disabled={pairing || !/^\\d{4,20}$/.test(accountLogin.trim()) || !server.trim()} className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={pairWorker} disabled={pairing || !/^\d{4,20}$/.test(accountLogin.trim()) || !server.trim()} className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
             {pairing ? 'Pairing…' : 'Create secure Windows worker pairing'}
           </button>
           {pairError && <p role="alert" className="mt-3 text-sm text-red-500">{pairError}</p>}
@@ -91,6 +109,7 @@ export function Mt5AutoTrading() {
             </div>
           )}
           <p className="mt-4 text-xs leading-5 text-ink-2">Demo and live accounts are both supported. The worker checks that its logged-in MT5 account number and server exactly match the details entered here. A mismatch prevents the worker from coming online.</p>
+          {lastSeenAt && <p className="mt-2 text-xs text-ink-2">Last worker heartbeat: {new Date(lastSeenAt).toLocaleString()}</p>}
         </div>
 
         <div className="space-y-4">
