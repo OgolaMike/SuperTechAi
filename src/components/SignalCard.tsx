@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target, Brain } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
