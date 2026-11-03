@@ -372,7 +372,7 @@ def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]
         "risk_amount": sizing["risk_amount"], "entry": entry,
         "stop_loss": stop_loss, "take_profit": take_profit,
         "account_login": str(account.login), "account_server": str(account.server),
-        "broker_comment": broker_comment,
+        "account_trade_mode": int(account.trade_mode), "broker_comment": broker_comment,
     }
 
 
@@ -432,7 +432,7 @@ def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
         return {"preflight": "approved", "dry_run_only": True, "order_type": order_type,
                 "entry": entry, "stop_loss": stop_loss, "take_profit": take_profit,
                 "account_login": str(account.login), "account_server": str(account.server),
-                **result}
+                "account_trade_mode": int(account.trade_mode), **result}
     # Explicit deny-by-default. Never attempt an unknown or trading command.
     raise ValueError("command_not_supported_by_read_only_worker")
 
