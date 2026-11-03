@@ -93,3 +93,16 @@ Worker authentication uses a per-worker random bearer token. The database stores
 5. Configure the worker to call the endpoint over HTTPS using the worker ID header and bearer token.
 
 The function is a command transport only. It does not log in to a broker, store MT5 passwords, create trades, or execute order commands. No command should be enqueued for trade execution until the credential vault, broker session, account authorization, risk checks, reconciliation and worker execution implementation are deployed and tested.
+
+## Pending limit-order momentum filter
+
+The existing signal-generation and reversal rules are unchanged. The added quality gate applies only to educational Buy Limit and Sell Limit ideas in `src/lib/pendingOrders.ts`; Buy Stop and Sell Stop generation is deliberately left on its previous path.
+
+A limit idea is shown only when all of these checks pass:
+
+- The latest confirmed M5 signal is active, fresh (no older than six M5 bars), and points in the same direction as the existing eight-timeframe agreement.
+- At least four of the latest five closed M5 candle bodies point in the intended direction.
+- The five-candle directional move is efficient (not choppy), candle bodies make up at least half of the total candle range, and the net move is at least 0.3 of the M5 rolling standard deviation.
+- The trained historical-outcome model can score the M5 signal and returns at least 70/100.
+
+If the model is not trained sufficiently, or any M5 condition fails, the limit idea is withheld. This is intentionally conservative: it can reduce the number of limit ideas, and it does not guarantee profitable fills. The UI displays the M5 AI score and momentum score on approved limit ideas.
