@@ -60,8 +60,9 @@ close existing trades. Reading them is not permission to manage them.
 
 ## Current limits
 
-The repository still needs a credential-enrollment/secret-vault service,
-member pairing UI, account ownership verification, broker execution policy,
-risk engine, order reconciliation and end-to-end tests before trade execution
-can be enabled. Do not enable trade commands or send trading commands to this
+The repository still needs persisted member execution permissions, account
+ownership enforcement for adopted orders, a broker execution policy, risk
+engine, order reconciliation and end-to-end tests before trade execution can
+be enabled. This local-terminal design does not require SuperTech AI to collect
+or centrally store broker passwords. Do not enable trade commands or send trading commands to this
 worker. Do not run this on a shared/untrusted Windows machine.
