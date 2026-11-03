@@ -266,8 +266,12 @@ def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]
         symbol_info = mt5.symbol_info(symbol_name)
         tick = mt5.symbol_info_tick(symbol_name)
         positions = mt5.positions_get()
-        if symbol_info is None or tick is None or positions is None:
+        pending_orders = mt5.orders_get()
+        terminal = mt5.terminal_info()
+        if symbol_info is None or tick is None or positions is None or pending_orders is None or terminal is None:
             raise RiskRejected("live_market_or_positions_unavailable")
+        if bool(getattr(terminal, "tradeapi_disabled", False)):
+            raise RiskRejected("terminal_algorithmic_trading_disabled")
         direction = str(payload.get("direction", "")).upper()
         order_type = str(payload.get("order_type", "")).upper()
         entry = float(payload.get("entry", 0))
@@ -300,7 +304,7 @@ def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]
             mt5, settings=settings, account=account, symbol_info=symbol_info, tick=tick,
             direction=direction, entry=entry, stop_loss=stop_loss, take_profit=take_profit,
             daily_loss_pct=float(authorization.get("daily_loss_pct", 100)),
-            current_open_positions=len(positions),
+            current_open_positions=len(positions) + len(pending_orders),
         )
         order_types = {
             "BUY_STOP": mt5.ORDER_TYPE_BUY_STOP,
