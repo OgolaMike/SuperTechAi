@@ -148,40 +148,20 @@ Deno.serve(async (req) => {
       if (!objectType || !Number.isSafeInteger(ticket) || ticket <= 0) {
         return json({ error: "valid_object_type_and_ticket_required" }, 400);
       }
-      const allowed = objectType === "pending_order"
-        ? settings.adopt_pending_orders === true
-        : settings.manage_existing_positions === true;
-      if (!allowed) return json({ error: "adoption_permission_not_enabled" }, 403);
-
-      const { data: item, error: itemError } = await db.from("mt5_trade_inventory")
-        .select("ownership_status").eq("user_id", memberId)
-        .eq("account_login", settings.login).eq("account_server", settings.server)
-        .eq("object_type", objectType).eq("ticket", ticket).maybeSingle();
-      if (itemError || !item) return json({ error: "inventory_item_not_found" }, 404);
-
       const adopting = body.action === "adopt_inventory";
-      const allowedSourceStatuses = adopting
-        ? ["discovered_unowned", "strategy_tagged_unverified"]
-        : ["explicitly_adopted"];
-      if (!allowedSourceStatuses.includes(item.ownership_status)) {
-        return json({ error: "inventory_ownership_state_conflict", currentStatus: item.ownership_status }, 409);
-      }
-      const nextStatus = adopting ? "explicitly_adopted" : "discovered_unowned";
-      const { data: changed, error: updateError } = await db.from("mt5_trade_inventory")
-        .update({ ownership_status: nextStatus })
-        .eq("user_id", memberId).eq("account_login", settings.login)
-        .eq("account_server", settings.server).eq("object_type", objectType)
-        .eq("ticket", ticket).eq("ownership_status", item.ownership_status)
-        .select("ticket").maybeSingle();
-      if (updateError) throw updateError;
-      if (!changed) return json({ error: "inventory_ownership_state_conflict" }, 409);
-
-      const { error: auditError } = await db.from("mt5_trade_adoption_audit").insert({
-        user_id: memberId, account_login: settings.login, account_server: settings.server,
-        object_type: objectType, ticket, action: adopting ? "adopt" : "revoke",
-        previous_status: item.ownership_status, new_status: nextStatus,
+      const { data: nextStatus, error: adoptionError } = await db.rpc("set_mt5_trade_adoption", {
+        p_user_id: memberId,
+        p_object_type: objectType,
+        p_ticket: ticket,
+        p_adopt: adopting,
       });
-      if (auditError) throw auditError;
+      if (adoptionError) {
+        const message = adoptionError.message ?? "";
+        if (message.includes("adoption_permission_not_enabled")) return json({ error: "adoption_permission_not_enabled" }, 403);
+        if (message.includes("inventory_item_not_found")) return json({ error: "inventory_item_not_found" }, 404);
+        if (message.includes("inventory_ownership_state_conflict")) return json({ error: "inventory_ownership_state_conflict" }, 409);
+        throw adoptionError;
+      }
       return json({ ok: true, ticket, objectType, ownershipStatus: nextStatus,
         message: adopting ? "This specific item is marked as adopted. No broker order was changed." : "Adoption was revoked. No broker order was changed." });
     }
