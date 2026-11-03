@@ -114,20 +114,8 @@ export function computeTfState(timeframe: Timeframe, candles: Candle[], nowEpoch
       direction,
       signalEpoch: confirmed[i].epoch,
       levels,
-      outcome: evaluateOutcome(direction, levels, []),
+      outcome: evaluateOutcome(direction, levels, confirmed.slice(i + 1)),
     });
-  }
-
-  // A confirmed opposite-direction signal closes the preceding signal record.
-  // Keep the candle that confirms the reversal in the old signal's outcome window.
-  for (let index = 0; index < signals.length; index += 1) {
-    const signal = signals[index];
-    const nextOpposite = signals.slice(index + 1).find((candidate) => candidate.direction !== signal.direction);
-    const candlesAfter = confirmed.filter((candle) => candle.epoch > signal.signalEpoch);
-    signals[index] = {
-      ...signal,
-      outcome: evaluateOutcome(signal.direction, signal.levels, candlesAfter, nextOpposite?.signalEpoch ?? null),
-    };
   }
 
   const lastIndex = confirmed.length - 1;
