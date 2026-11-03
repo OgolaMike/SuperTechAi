@@ -1,10 +1,12 @@
 # MT5 execution bridge — implementation contract
 
-## Current delivery boundary
+## Current delivery boundary (source of truth)
 
-The web app is a React/Vite client with Supabase authentication, database and Edge Functions. It does not contain a running MetaTrader 5 terminal or a broker execution process. A browser-only login form cannot execute MT5 orders.
+The web app pairs a member account to a private Windows MT5 worker. The worker supports account/order/position reads and guarded placement of BUY_STOP, SELL_STOP, BUY_LIMIT and SELL_LIMIT orders after a successful dry-run, saved risk/permission checks, explicit member confirmation and final server/broker authorization.
 
-The MT5 dashboard entry is intentionally a setup foundation. It does not claim a broker connection, accept credentials while the bridge is offline, or place trades. The UI explicitly tells members not to enter or send MT5 credentials until the secure bridge is deployed.
+The current release is **not unattended signal automation**. It does not yet turn live SuperTech AI signals into orders, modify/manage open positions, implement staged trailing stops, cancel pending orders or close positions. Existing manual trades remain untouched unless explicitly adopted; adoption currently records ownership intent rather than enabling a management workflow.
+
+A private Windows PC or Windows VPS with the official MT5 desktop terminal and worker running is required. Android can operate the dashboard but cannot host the worker. Broker execution is not production-verified until the matching Supabase migrations and Edge Function are deployed and an actual broker end-to-end test succeeds. The app never collects the broker password.
 
 ## Required runtime
 
@@ -109,7 +111,7 @@ If the model is not trained sufficiently, or any M5 condition fails, the limit i
 
 ## Windows worker and member pairing (added)
 
-The repository now includes `mt5-worker/`, a Windows Python worker that connects to an already logged-in MetaTrader 5 desktop terminal. It supports both demo and live accounts and deliberately has no broker-password input or order-send implementation.
+The repository includes `mt5-worker/`, a Windows Python worker that connects to an already logged-in MetaTrader 5 desktop terminal. It supports both demo and live accounts, has no broker-password input, and sends only individually approved pending orders after repeated safety checks.
 
 The MT5 dashboard now offers member-authenticated worker pairing. A signed-in member enters only the MT5 account number and exact broker server. The Edge Function validates the member's Supabase session, stores those account identifiers and creates a worker ID plus a cryptographically random 32-byte token. Only the SHA-256 token hash is stored in the database; the raw token is returned once for the member to provision into Windows Credential Manager. Re-pairing revokes prior worker tokens for that member.
 
