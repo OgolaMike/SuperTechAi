@@ -10,6 +10,12 @@ type SyncResult = {
   count?: number;
 };
 type SyncCommand = { command_type: string; status: string; result?: SyncResult | null; error_code?: string | null };
+type InventoryItem = {
+  object_type: 'pending_order' | 'position'; ticket: number; symbol: string;
+  side_or_type: number; volume: number; price_open: number; price_current: number | null;
+  stop_loss: number; take_profit: number; profit: number | null;
+  magic_number: number; broker_comment: string; ownership_status: string; last_seen_at: string;
+};
 
 export function Mt5AutoTrading() {
   const [adoptPending, setAdoptPending] = useState(false);
@@ -34,6 +40,9 @@ export function Mt5AutoTrading() {
   const [syncCommands, setSyncCommands] = useState<SyncCommand[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventoryBusy, setInventoryBusy] = useState(false);
+  const [inventoryMessage, setInventoryMessage] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -155,6 +164,46 @@ export function Mt5AutoTrading() {
     }
   };
 
+  const loadInventory = async () => {
+    setInventoryBusy(true);
+    setInventoryMessage('');
+    try {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: { action: 'list_inventory' },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setInventory((data?.inventory ?? []) as InventoryItem[]);
+      setInventoryMessage('Inventory refreshed. Items remain unchanged at the broker.');
+    } catch (error) {
+      setInventoryMessage(error instanceof Error ? error.message : 'Could not load MT5 inventory.');
+    } finally {
+      setInventoryBusy(false);
+    }
+  };
+
+  const changeAdoption = async (item: InventoryItem, adopt: boolean) => {
+    setInventoryMessage('');
+    setInventoryBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: {
+          action: adopt ? 'adopt_inventory' : 'revoke_inventory_adoption',
+          objectType: item.object_type,
+          ticket: item.ticket,
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? 'Could not update adoption.');
+      setInventoryMessage(data.message ?? 'Adoption status updated.');
+      await loadInventory();
+    } catch (error) {
+      setInventoryMessage(error instanceof Error ? error.message : 'Could not update adoption.');
+    } finally {
+      setInventoryBusy(false);
+    }
+  };
+
   const pairWorker = async () => {
     setPairError('');
     setPairResult(null);
@@ -272,6 +321,32 @@ export function Mt5AutoTrading() {
         </div>
 
         <div className="space-y-4">
+          <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
+            <h3 className="font-semibold text-ink">Existing MT5 trade inventory</h3>
+            <p className="mt-1 text-xs leading-5 text-ink-2">Refresh the broker inventory, then explicitly adopt individual pending orders or positions. Adoption records permission only; it does not change the trade at MT5.</p>
+            <button type="button" onClick={loadInventory} disabled={inventoryBusy || bridgeStatus !== 'connected'} className="mt-3 rounded-xl border border-accent/30 px-3 py-2 text-sm font-semibold text-accent disabled:opacity-40">{inventoryBusy ? 'Working…' : 'Refresh trade inventory'}</button>
+            {inventoryMessage && <p role="status" className="mt-2 text-xs text-ink-2">{inventoryMessage}</p>}
+            <div className="mt-3 space-y-2">
+              {inventory.map((item) => (
+                <div key={item.object_type + ':' + item.ticket} className="rounded-xl border border-line/10 bg-canvas/60 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-ink">{item.symbol} · #{item.ticket}</p>
+                      <p className="mt-1 text-xs text-ink-2">{item.object_type === 'pending_order' ? 'Pending order' : 'Open position'} · {item.volume} lots · Entry {item.price_open}</p>
+                      <p className="mt-1 text-xs text-ink-2">SL {item.stop_loss} · TP {item.take_profit}{item.profit == null ? '' : ' · P/L ' + item.profit}</p>
+                      <p className="mt-1 text-xs text-ink-2">Ownership: {item.ownership_status.replaceAll('_', ' ')}</p>
+                    </div>
+                    {item.ownership_status === 'explicitly_adopted' ? (
+                      <button type="button" disabled={inventoryBusy} onClick={() => void changeAdoption(item, false)} className="rounded-lg border border-line/20 px-2.5 py-1.5 text-xs text-ink">Revoke</button>
+                    ) : (item.ownership_status === 'discovered_unowned' || item.ownership_status === 'strategy_tagged_unverified') ? (
+                      <button type="button" disabled={inventoryBusy || (item.object_type === 'pending_order' ? !adoptPending : !managePositions)} onClick={() => void changeAdoption(item, true)} className="rounded-lg bg-accent px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Adopt</button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              {inventory.length === 0 && <p className="text-xs text-ink-2">No inventory loaded yet. Connect MT5 and refresh after a successful read-only sync.</p>}
+            </div>
+          </div>
           <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
             <div className="flex items-center gap-2"><Bot className="h-5 w-5 text-accent" /><h3 className="font-semibold text-ink">Execution permissions</h3></div>
             <p className="mt-1 text-xs text-ink-2">Save separate permissions for this MT5 account. They are recorded now but cannot activate trades while the worker remains read-only.</p>
