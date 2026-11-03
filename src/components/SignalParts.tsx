@@ -8,10 +8,12 @@ export const STATUS_TEXT: Record<SignalStatus, string> = {
   TP2: 'Target 2 reached',
   TP3: 'Target 3 reached',
   Stopped: 'Stop-loss hit',
+  Reversed: 'Reversed by opposite signal',
 };
 
 export function statusTone(status: SignalStatus): string {
   if (status === 'Stopped') return 'border-down/40 bg-down/10 text-down';
+  if (status === 'Reversed') return 'border-warn/40 bg-warn/10 text-warn';
   if (status === 'Open') return 'border-line/15 bg-surface/[0.04] text-ink-2';
   return 'border-up/40 bg-up/10 text-up';
 }
