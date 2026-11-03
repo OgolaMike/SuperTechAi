@@ -10,6 +10,13 @@ type SyncResult = {
   count?: number;
 };
 type SyncCommand = { command_type: string; status: string; result?: SyncResult | null; error_code?: string | null };
+type PreflightCommand = { id: string; status: string; result?: Record<string, unknown> | null; error_code?: string | null; created_at: string; completed_at?: string | null };
+type InventoryItem = {
+  object_type: 'pending_order' | 'position'; ticket: number; symbol: string;
+  side_or_type: number; volume: number; price_open: number; price_current: number | null;
+  stop_loss: number; take_profit: number; profit: number | null;
+  magic_number: number; broker_comment: string; ownership_status: string; last_seen_at: string;
+};
 
 export function Mt5AutoTrading() {
   const [adoptPending, setAdoptPending] = useState(false);
@@ -34,6 +41,18 @@ export function Mt5AutoTrading() {
   const [syncCommands, setSyncCommands] = useState<SyncCommand[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventoryBusy, setInventoryBusy] = useState(false);
+  const [inventoryMessage, setInventoryMessage] = useState('');
+  const [proposalSymbol, setProposalSymbol] = useState('');
+  const [proposalType, setProposalType] = useState('BUY_STOP');
+  const [proposalEntry, setProposalEntry] = useState('');
+  const [proposalStopLoss, setProposalStopLoss] = useState('');
+  const [proposalTakeProfit, setProposalTakeProfit] = useState('');
+  const [preflightBusy, setPreflightBusy] = useState(false);
+  const [preflightCommandId, setPreflightCommandId] = useState<string | null>(null);
+  const [preflightCommand, setPreflightCommand] = useState<PreflightCommand | null>(null);
+  const [preflightMessage, setPreflightMessage] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -92,6 +111,65 @@ export function Mt5AutoTrading() {
     void refresh();
     return () => { active = false; window.clearInterval(timer); };
   }, [syncId]);
+
+  useEffect(() => {
+    if (!preflightCommandId) return;
+    let active = true;
+    const refresh = async () => {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: { action: 'pending_order_preflight_status', commandId: preflightCommandId },
+      });
+      if (!active || error || !data?.command) return;
+      const command = data.command as PreflightCommand;
+      setPreflightCommand(command);
+      if (command.status === 'succeeded' || command.status === 'failed') {
+        setPreflightBusy(false);
+        setPreflightMessage(command.status === 'succeeded'
+          ? 'Broker validation finished. No trade was placed.'
+          : 'Broker validation could not be completed.');
+        window.clearInterval(timer);
+      }
+    };
+    const timer = window.setInterval(() => void refresh(), 2500);
+    void refresh();
+    return () => { active = false; window.clearInterval(timer); };
+  }, [preflightCommandId]);
+
+  const requestPendingOrderPreflight = async () => {
+    setPreflightMessage('');
+    setPreflightCommand(null);
+    const entry = Number(proposalEntry), stopLoss = Number(proposalStopLoss), takeProfit = Number(proposalTakeProfit);
+    if (!proposalSymbol.trim() || ![entry, stopLoss, takeProfit].every((value) => Number.isFinite(value) && value > 0)) {
+      setPreflightMessage('Enter a symbol and valid positive entry, stop-loss and take-profit prices.');
+      return;
+    }
+    const isBuy = proposalType.startsWith('BUY');
+    if ((isBuy && !(stopLoss < entry && takeProfit > entry)) ||
+        (!isBuy && !(takeProfit < entry && stopLoss > entry))) {
+      setPreflightMessage('Check your prices: for BUY, SL must be below entry and TP above. For SELL, TP must be below entry and SL above.');
+      return;
+    }
+    setPreflightBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: {
+          action: 'preflight_pending_order',
+          symbol: proposalSymbol.trim().toUpperCase(),
+          direction: isBuy ? 'BUY' : 'SELL',
+          orderType: proposalType,
+          entry, stopLoss, takeProfit,
+          idempotencyKey: crypto.randomUUID(),
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok || !data.commandId) throw new Error(data?.error ?? 'Could not submit this proposal.');
+      setPreflightCommandId(data.commandId);
+      setPreflightMessage('Proposal sent to your connected MT5 worker for dry-run checks…');
+    } catch (error) {
+      setPreflightBusy(false);
+      setPreflightMessage(error instanceof Error ? error.message : 'Preflight request failed.');
+    }
+  };
 
   const saveExecutionSettings = async () => {
     setSettingsMessage('');
@@ -152,6 +230,46 @@ export function Mt5AutoTrading() {
     } catch (error) {
       setSyncing(false);
       setSyncMessage(error instanceof Error ? error.message : 'MT5 sync request failed.');
+    }
+  };
+
+  const loadInventory = async () => {
+    setInventoryBusy(true);
+    setInventoryMessage('');
+    try {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: { action: 'list_inventory' },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setInventory((data?.inventory ?? []) as InventoryItem[]);
+      setInventoryMessage('Inventory refreshed. Items remain unchanged at the broker.');
+    } catch (error) {
+      setInventoryMessage(error instanceof Error ? error.message : 'Could not load MT5 inventory.');
+    } finally {
+      setInventoryBusy(false);
+    }
+  };
+
+  const changeAdoption = async (item: InventoryItem, adopt: boolean) => {
+    setInventoryMessage('');
+    setInventoryBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mt5-bridge', {
+        body: {
+          action: adopt ? 'adopt_inventory' : 'revoke_inventory_adoption',
+          objectType: item.object_type,
+          ticket: item.ticket,
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? 'Could not update adoption.');
+      setInventoryMessage(data.message ?? 'Adoption status updated.');
+      await loadInventory();
+    } catch (error) {
+      setInventoryMessage(error instanceof Error ? error.message : 'Could not update adoption.');
+    } finally {
+      setInventoryBusy(false);
     }
   };
 
@@ -237,6 +355,46 @@ export function Mt5AutoTrading() {
             {syncing ? 'Reading MT5 account…' : 'Read account, orders and positions'}
           </button>
           {syncMessage && <p className="mt-2 text-xs text-ink-2">{syncMessage}</p>}
+          <div className="mt-6 rounded-xl border border-line/10 bg-canvas/60 p-4">
+            <h3 className="text-sm font-semibold text-ink">Pending-order broker check</h3>
+            <p className="mt-1 text-xs leading-5 text-ink-2">Submit a proposed pending order for live quote, broker-distance, spread, margin and risk checks. This is a simulation only; the worker cannot place it.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs text-ink-2">MT5 symbol
+                <input value={proposalSymbol} onChange={(event) => setProposalSymbol(event.target.value)} placeholder="e.g. EURUSD" className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2 text-sm text-ink" />
+              </label>
+              <label className="text-xs text-ink-2">Pending order type
+                <select value={proposalType} onChange={(event) => setProposalType(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2 text-sm text-ink">
+                  <option value="BUY_STOP">Buy Stop · follow upward trend</option>
+                  <option value="SELL_STOP">Sell Stop · follow downward trend</option>
+                  <option value="BUY_LIMIT">Buy Limit · buy on pullback</option>
+                  <option value="SELL_LIMIT">Sell Limit · sell on pullback</option>
+                </select>
+              </label>
+              <label className="text-xs text-ink-2">Entry price
+                <input type="number" step="any" value={proposalEntry} onChange={(event) => setProposalEntry(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2 text-sm text-ink" />
+              </label>
+              <label className="text-xs text-ink-2">Stop loss
+                <input type="number" step="any" value={proposalStopLoss} onChange={(event) => setProposalStopLoss(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2 text-sm text-ink" />
+              </label>
+              <label className="text-xs text-ink-2">Take profit
+                <input type="number" step="any" value={proposalTakeProfit} onChange={(event) => setProposalTakeProfit(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2 text-sm text-ink" />
+              </label>
+            </div>
+            <button type="button" onClick={requestPendingOrderPreflight} disabled={preflightBusy || bridgeStatus !== 'connected'} className="mt-3 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
+              {preflightBusy ? 'Checking with MT5…' : 'Run broker checks (no trade)'}
+            </button>
+            {preflightMessage && <p role="status" className="mt-2 text-xs text-ink-2">{preflightMessage}</p>}
+            {preflightCommand && (
+              <div className="mt-3 rounded-lg border border-line/10 bg-surface/[0.04] p-3">
+                <p className="text-xs font-semibold text-ink">Broker check: {preflightCommand.status}</p>
+                {preflightCommand.error_code && <p className="mt-1 text-xs text-red-500">Reason: {preflightCommand.error_code}</p>}
+                {preflightCommand.result && (
+                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs text-ink-2">{JSON.stringify(preflightCommand.result, null, 2)}</pre>
+                )}
+                <p className="mt-2 text-xs text-ink-2">A successful check is not approval to trade. No order has been sent.</p>
+              </div>
+            )}
+          </div>
           {syncCommands.length > 0 && (
             <div className="mt-4 space-y-3">
               {syncCommands.map((command) => (
@@ -272,6 +430,32 @@ export function Mt5AutoTrading() {
         </div>
 
         <div className="space-y-4">
+          <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
+            <h3 className="font-semibold text-ink">Existing MT5 trade inventory</h3>
+            <p className="mt-1 text-xs leading-5 text-ink-2">Refresh the broker inventory, then explicitly adopt individual pending orders or positions. Adoption records permission only; it does not change the trade at MT5.</p>
+            <button type="button" onClick={loadInventory} disabled={inventoryBusy || bridgeStatus !== 'connected'} className="mt-3 rounded-xl border border-accent/30 px-3 py-2 text-sm font-semibold text-accent disabled:opacity-40">{inventoryBusy ? 'Working…' : 'Refresh trade inventory'}</button>
+            {inventoryMessage && <p role="status" className="mt-2 text-xs text-ink-2">{inventoryMessage}</p>}
+            <div className="mt-3 space-y-2">
+              {inventory.map((item) => (
+                <div key={item.object_type + ':' + item.ticket} className="rounded-xl border border-line/10 bg-canvas/60 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-ink">{item.symbol} · #{item.ticket}</p>
+                      <p className="mt-1 text-xs text-ink-2">{item.object_type === 'pending_order' ? 'Pending order' : 'Open position'} · {item.volume} lots · Entry {item.price_open}</p>
+                      <p className="mt-1 text-xs text-ink-2">SL {item.stop_loss} · TP {item.take_profit}{item.profit == null ? '' : ' · P/L ' + item.profit}</p>
+                      <p className="mt-1 text-xs text-ink-2">Ownership: {item.ownership_status.replace(/_/g, ' ')}</p>
+                    </div>
+                    {item.ownership_status === 'explicitly_adopted' ? (
+                      <button type="button" disabled={inventoryBusy} onClick={() => void changeAdoption(item, false)} className="rounded-lg border border-line/20 px-2.5 py-1.5 text-xs text-ink">Revoke</button>
+                    ) : (item.ownership_status === 'discovered_unowned' || item.ownership_status === 'strategy_tagged_unverified') ? (
+                      <button type="button" disabled={inventoryBusy || (item.object_type === 'pending_order' ? !adoptPending : !managePositions)} onClick={() => void changeAdoption(item, true)} className="rounded-lg bg-accent px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Adopt</button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              {inventory.length === 0 && <p className="text-xs text-ink-2">No inventory loaded yet. Connect MT5 and refresh after a successful read-only sync.</p>}
+            </div>
+          </div>
           <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
             <div className="flex items-center gap-2"><Bot className="h-5 w-5 text-accent" /><h3 className="font-semibold text-ink">Execution permissions</h3></div>
             <p className="mt-1 text-xs text-ink-2">Save separate permissions for this MT5 account. They are recorded now but cannot activate trades while the worker remains read-only.</p>
