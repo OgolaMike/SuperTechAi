@@ -4,7 +4,6 @@ create table if not exists public.mt5_account_settings (
   user_id uuid primary key references auth.users(id) on delete cascade,
   login text not null,
   server text not null,
-  environment text not null default 'demo' check (environment = 'demo'),
   auto_trade_enabled boolean not null default false,
   adopt_pending_orders boolean not null default false,
   manage_existing_positions boolean not null default false,
@@ -34,4 +33,4 @@ create policy "Members can update their own MT5 settings"
   with check (auth.uid() = user_id);
 
 comment on table public.mt5_account_settings is
-  'MT5 account metadata and permissions only. Passwords and execution secrets must be handled by the private MT5 bridge and never stored in this table.';
+  'MT5 account metadata and permissions only. Supports user-provided demo or live MT5 accounts. Passwords and execution secrets must be handled by the private MT5 bridge and never stored in this table.';
