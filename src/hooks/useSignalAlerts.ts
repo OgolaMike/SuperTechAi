@@ -4,7 +4,7 @@ import { showSignalNotification } from '@/lib/deviceNotify';
 import { formatPrice } from '@/lib/sma';
 import type { Direction, SignalLevels, SignalView } from '@/lib/signals';
 
-export type ToastKind = 'signal' | 'hit';
+export type ToastKind = 'signal' | 'reversal' | 'hit';
 
 export type Toast = {
   id: string;
@@ -12,6 +12,8 @@ export type Toast = {
   kind: ToastKind;
   tone: AlertTone;
   direction: Direction;
+  previousDirection?: Direction;
+  previousSignalEpoch?: number;
   symbol: string;
   assetName: string;
   timeframe: string;
@@ -54,10 +56,20 @@ function hitTone(hit: HitLabel): AlertTone {
   return hit === 'SL' ? 'STOP' : 'TARGET';
 }
 
-function toastFor(view: SignalView, kind: ToastKind, hit: HitLabel | null, at: number): Toast {
+function seriesKey(view: SignalView): string {
+  return `${view.symbol}|${view.granularity}`;
+}
+
+function toastFor(
+  view: SignalView,
+  kind: ToastKind,
+  hit: HitLabel | null,
+  at: number,
+  previous?: SignalView,
+): Toast {
   const { signal } = view;
   const base = {
-    tag: `${view.key}|${kind === 'signal' ? 'signal' : hit}`,
+    tag: `${view.key}|${kind === 'hit' ? hit : kind}`,
     symbol: view.symbol,
     assetName: view.assetName,
     timeframe: view.timeframe,
@@ -66,13 +78,18 @@ function toastFor(view: SignalView, kind: ToastKind, hit: HitLabel | null, at: n
     levels: signal.levels,
     at,
   };
-  if (kind === 'signal') {
+  if (kind === 'signal' || kind === 'reversal') {
+    const reversalMessage = previous
+      ? `${previous.signal.direction} → ${signal.direction} reversal confirmed. If you entered the previous ${previous.signal.direction}, consider closing it.`
+      : 'New signal on candle close';
     return {
       ...base,
-      id: `${view.key}:signal:${at}`,
+      id: `${view.key}:${kind}:${at}`,
       kind,
       tone: signal.direction,
-      message: 'New signal on candle close',
+      message: reversalMessage,
+      previousDirection: previous?.signal.direction,
+      previousSignalEpoch: previous?.signal.signalEpoch,
       price: signal.levels.entry,
     };
   }
@@ -94,6 +111,7 @@ export function useSignalAlerts(
 ) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seenRef = useRef<Map<string, string>>(new Map());
+  const latestSignalRef = useRef<Map<string, SignalView>>(new Map());
   const seededRef = useRef(false);
 
   const dismiss = useCallback((id: string) => {
@@ -104,29 +122,50 @@ export function useSignalAlerts(
     if (!loaded) return;
     const nowEpoch = Math.floor(Date.now() / 1000);
     const seen = seenRef.current;
+    const latest = latestSignalRef.current;
 
+    // Establish the existing history as a baseline. Never announce old signals
+    // as fresh reversals when the app first loads or the page is refreshed.
     if (!seededRef.current) {
       seededRef.current = true;
-      for (const view of views) seen.set(view.key, JSON.stringify(outcomeFields(view)));
+      for (const view of views) {
+        seen.set(view.key, JSON.stringify(outcomeFields(view)));
+        const key = seriesKey(view);
+        const current = latest.get(key);
+        if (!current || view.signal.signalEpoch > current.signal.signalEpoch) {
+          latest.set(key, view);
+        }
+      }
       return;
     }
 
     const created: Toast[] = [];
-    for (const view of views) {
+    // Process chronologically so multiple newly-discovered signals in one
+    // update are compared against the immediately preceding signal.
+    const chronological = [...views].sort((a, b) => a.signal.signalEpoch - b.signal.signalEpoch);
+    for (const view of chronological) {
       const fields = outcomeFields(view);
       const signature = JSON.stringify(fields);
-      const previous = seen.get(view.key);
-      if (previous === signature) continue;
+      const previousSignature = seen.get(view.key);
+      if (previousSignature === signature) continue;
 
-      if (previous === undefined) {
+      if (previousSignature === undefined) {
         seen.set(view.key, signature);
-        if (isFresh(view.signal.signalEpoch, view.granularity, nowEpoch)) {
-          created.push(toastFor(view, 'signal', null, nowEpoch));
+        const key = seriesKey(view);
+        const previousSignal = latest.get(key);
+        const isNewer = !previousSignal || view.signal.signalEpoch > previousSignal.signal.signalEpoch;
+
+        if (isNewer) {
+          const isReversal = Boolean(previousSignal && previousSignal.signal.direction !== view.signal.direction);
+          if (isFresh(view.signal.signalEpoch, view.granularity, nowEpoch)) {
+            created.push(toastFor(view, isReversal ? 'reversal' : 'signal', null, nowEpoch, isReversal ? previousSignal : undefined));
+          }
+          latest.set(key, view);
         }
         continue;
       }
 
-      const before = JSON.parse(previous) as Record<HitLabel, number | null>;
+      const before = JSON.parse(previousSignature) as Record<HitLabel, number | null>;
       seen.set(view.key, signature);
       (Object.keys(fields) as HitLabel[]).forEach((hit) => {
         const epoch = fields[hit];
@@ -139,13 +178,18 @@ export function useSignalAlerts(
 
     if (created.length === 0) return;
     setToasts((previous) => [...created, ...previous].slice(0, MAX_TOASTS));
+
     if (!soundsEnabled) return;
-    const signalToasts = created.filter((toast) => toast.kind === 'signal');
+    const signalToasts = created.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal');
     for (const toast of signalToasts) {
+      playAlertTone(toast.tone);
+      const reversalPrefix = toast.kind === 'reversal'
+        ? `Previous ${toast.previousDirection} signal reversed. `
+        : '';
       void showSignalNotification(
         toast.tag,
-        `${toast.assetName} ${toast.timeframe} ${toast.direction}`,
-        `Entry ${formatPrice(toast.levels.entry, toast.digits)}, stop-loss ${formatPrice(toast.levels.stopLoss, toast.digits)}`,
+        `${toast.kind === 'reversal' ? 'SIGNAL REVERSAL' : 'NEW SIGNAL'}: ${toast.assetName} ${toast.timeframe} ${toast.direction}`,
+        `${reversalPrefix}${toast.message} Entry ${formatPrice(toast.levels.entry, toast.digits)}, stop-loss ${formatPrice(toast.levels.stopLoss, toast.digits)}`,
       ).catch(() => undefined);
     }
     const hitToast = created.find((toast) => toast.kind === 'hit');
