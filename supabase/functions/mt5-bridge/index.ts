@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
       if (!worker?.last_seen_at || Date.now() - Date.parse(worker.last_seen_at) > 30000) {
         return json({ error: "mt5_worker_heartbeat_stale" }, 409);
       }
-      const utcDate = now.slice(0, 10);
+      const utcDate = approvalTime.slice(0, 10);
       const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
         .select("starting_equity,latest_equity,cash_flow_adjustment,history_complete,first_observed_at,updated_at")
         .eq("user_id", memberId).eq("utc_date", utcDate).maybeSingle();
