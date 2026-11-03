@@ -94,6 +94,7 @@ def preflight_new_order(
     stop_loss: float,
     take_profit: float,
     daily_loss_pct: float,
+    current_open_positions: int,
 ) -> dict[str, Any]:
     """Validate permissions, account guardrails, broker conditions and lot size."""
     if settings.get("risk_controls_enabled") is not True:
@@ -125,8 +126,10 @@ def preflight_new_order(
         raise RiskRejected("risk_settings_outside_hard_limits")
     if max_spread <= 0 or max_slippage <= 0:
         raise RiskRejected("spread_and_slippage_limits_must_be_configured")
-    if not math.isfinite(float(daily_loss_pct)) or daily_loss_pct >= daily_limit:
+    if not math.isfinite(float(daily_loss_pct)) or daily_loss_pct < 0 or daily_loss_pct >= daily_limit:
         raise RiskRejected("daily_loss_limit_reached")
+    if int(current_open_positions) < 0 or int(current_open_positions) >= max_positions:
+        raise RiskRejected("maximum_open_positions_reached")
 
     point = _positive_number(getattr(symbol_info, "point", None), "symbol_point")
     bid = _positive_number(getattr(tick, "bid", None), "bid")
