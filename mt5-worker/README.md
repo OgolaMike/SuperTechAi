@@ -44,7 +44,7 @@ $env:STAI_MT5_TERMINAL_PATH = "C:\Program Files\MetaTrader 5\terminal64.exe"
 The MT5 terminal must be installed and logged into the exact account the member
 intends to connect. Do not add the trading password to this worker's settings.
 If the account changes, verify the login and broker server shown in the account
-snapshot before authorizing any future trading capability.
+snapshot before approving any pending order.
 
 ## Commands currently supported
 
