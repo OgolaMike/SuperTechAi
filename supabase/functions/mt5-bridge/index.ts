@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
         return json({ error: "daily_loss_limit_reached" }, 409);
       }
       const { data: inserted, error: queueError } = await db.from("mt5_bridge_commands").insert({
-        user_id: memberId, idempotency_key: idempotencyKey, command_type: "place_pending_order",
+        user_id: memberId, idempotency_key: "execute:" + preflightId, command_type: "place_pending_order",
         payload: { ...preflight.payload, authorized_worker_id: worker.worker_id,
           source_preflight_command_id: preflightId, approved_at: approvalTime },
       }).select("id").single();
@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
       }
       await db.from("mt5_execution_audit").insert({
         user_id: memberId, worker_id: worker.worker_id, event_type: "pending_order_live_execution_approved",
-        idempotency_key: idempotencyKey, details: { commandId: inserted.id, preflightId,
+        idempotency_key: "execute:" + preflightId, details: { commandId: inserted.id, preflightId,
           symbol: preflight.payload?.symbol, orderType: preflight.payload?.order_type },
       });
       return json({ ok: true, commandId: inserted.id, message: "Explicit order approval recorded; worker will repeat all checks before broker submission." });
@@ -631,18 +631,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      const { data, error } = await db.from("mt5_bridge_commands").update({
-        status: succeeded ? "succeeded" : "failed",
-        result,
-        error_code: succeeded ? null : String(body.errorCode ?? "worker_failed").slice(0, 80),
-        completed_at: now,
-        lease_expires_at: null,
-      }).eq("id", commandId).eq("user_id", worker.user_id)
-        .eq("claimed_by", workerId).eq("status", "claimed")
-        .select("id").maybeSingle();
-      if (error) throw error;
-      if (!data) return json({ error: "command_not_owned_or_expired" }, 409);
-
       if (command.command_type === "place_pending_order") {
         const executionState = ["accepted", "rejected", "uncertain"].includes(String(result.execution_state))
           ? String(result.execution_state) : (succeeded ? "uncertain" : "rejected");
@@ -656,6 +644,18 @@ Deno.serve(async (req) => {
         }).eq("command_id", commandId).eq("user_id", worker.user_id);
         if (attemptUpdateError) throw attemptUpdateError;
       }
+
+      const { data, error } = await db.from("mt5_bridge_commands").update({
+        status: succeeded ? "succeeded" : "failed",
+        result,
+        error_code: succeeded ? null : String(body.errorCode ?? "worker_failed").slice(0, 80),
+        completed_at: now,
+        lease_expires_at: null,
+      }).eq("id", commandId).eq("user_id", worker.user_id)
+        .eq("claimed_by", workerId).eq("status", "claimed")
+        .select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "command_not_owned_or_expired" }, 409);
 
       await db.from("mt5_execution_audit").insert({
         user_id: worker.user_id, worker_id: workerId,
