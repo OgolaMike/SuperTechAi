@@ -177,11 +177,11 @@ export function Mt5AutoTrading() {
       return;
     }
     const confirmed = window.confirm(
-      'LIVE MT5 ORDER APPROVAL\\n\\n' +
+      'LIVE MT5 ORDER APPROVAL\n\n' +
       proposalType + ' ' + proposalSymbol.toUpperCase() +
-      '\\nEntry: ' + proposalEntry + '\\nStop loss: ' + proposalStopLoss +
-      '\\nTake profit: ' + proposalTakeProfit +
-      '\\n\\nThis sends a real pending order to the connected MT5 account if final checks pass. Continue?'
+      '\nEntry: ' + proposalEntry + '\nStop loss: ' + proposalStopLoss +
+      '\nTake profit: ' + proposalTakeProfit +
+      '\n\nThis sends a real pending order to the connected MT5 account if final checks pass. Continue?'
     );
     if (!confirmed) return;
     setExecutionBusy(true);
