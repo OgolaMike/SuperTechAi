@@ -176,7 +176,16 @@ def main() -> None:
     backoff = 2
     while True:
         try:
-            api_call(token, {"action": "heartbeat", "version": VERSION})
+            mt5_ready()
+            account_snapshot = safe_account_snapshot()
+            api_call(token, {
+                "action": "heartbeat",
+                "version": VERSION,
+                "account": {
+                    "login": account_snapshot["login"],
+                    "server": account_snapshot["server"],
+                },
+            })
             response = api_call(token, {"action": "poll"})
             for command in response.get("commands", []):
                 command_id = str(command.get("id", ""))
