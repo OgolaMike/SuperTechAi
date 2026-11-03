@@ -133,3 +133,7 @@ On every heartbeat, the worker reports its actual terminal login and server. The
 6. Keep the terminal and worker running. The dashboard should show Connected after a matching heartbeat.
 
 This is a read-only connectivity milestone, not automated trading. The worker does not adopt or alter existing trades. New-order execution, separate permissions persistence, risk limits, trade reconciliation and broker-level end-to-end tests remain future work. The chosen local-terminal design does not require SuperTech AI to collect or centrally store broker passwords.
+
+### Read-only account synchronization
+
+Once the dashboard reports the worker as connected, the member can request a read-only sync. The authenticated Edge Function enqueues three account-scoped commands: `sync_account`, `list_pending_orders` and `list_positions`. The worker executes only these allowlisted read operations and reports results. The member can view the returned account snapshot and order/position lists in the dashboard. Every request uses a unique idempotency prefix, and the status endpoint filters by the authenticated member ID so one member cannot inspect another member's command results.
