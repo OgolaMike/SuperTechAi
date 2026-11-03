@@ -70,9 +70,9 @@ The browser and Supabase scanner now use the same eight timeframes: M1, M5, M15,
 
 - The Supabase scanner now includes M1 and matches the browser's eight-timeframe list.
 - The MT5 account settings migration stores account metadata and three independent permissions; it never stores passwords.
-- The bridge command queue, worker registry and execution audit tables are service-role-only. They provide the persistence foundation for a future worker, not a running worker or broker connection.
+- The bridge command queue, worker registry and execution audit tables are service-role-only. The paired Windows worker supports read operations and a gated pending-order execution path; actual broker readiness still depends on member deployment and end-to-end validation.
 - The dashboard deliberately blocks credential entry while the bridge is offline.
-- No MT5 order can be placed by this repository state yet. Credential enrollment, worker pairing, secret-vault integration, command processing, broker connectivity, and end-to-end execution tests remain required.
+- A gated pending-order execution path is now implemented. It is not an unattended signal executor, and it must not be considered production-verified until the new migration and Edge Function are deployed and a broker end-to-end test succeeds.
 
 ## Worker API foundation (added)
 
@@ -92,7 +92,7 @@ Worker authentication uses a per-worker random bearer token. The database stores
 4. Deploy the `mt5-bridge` Edge Function.
 5. Configure the worker to call the endpoint over HTTPS using the worker ID header and bearer token.
 
-The function is a command transport only. It does not log in to a broker, store MT5 passwords, create trades, or execute order commands. No command should be enqueued for trade execution until the credential vault, broker session, account authorization, risk checks, reconciliation and worker execution implementation are deployed and tested.
+The Edge Function is a command transport and authorization boundary. It never logs in to the broker or stores MT5 passwords. It authorizes a pending-order command only after member approval and repeated server-side permission/risk checks; the private Windows worker sends the broker request.
 
 ## Pending limit-order momentum filter
 
@@ -107,7 +107,7 @@ A limit idea is shown only when all of these checks pass:
 
 If the model is not trained sufficiently, or any M5 condition fails, the limit idea is withheld. This is intentionally conservative: it can reduce the number of limit ideas, and it does not guarantee profitable fills. The UI displays the M5 AI score and momentum score on approved limit ideas.
 
-## Windows read-only worker and member pairing (added)
+## Windows worker and member pairing (added)
 
 The repository now includes `mt5-worker/`, a Windows Python worker that connects to an already logged-in MetaTrader 5 desktop terminal. It supports both demo and live accounts and deliberately has no broker-password input or order-send implementation.
 
@@ -153,9 +153,9 @@ The dashboard also stores per-account risk limits with database constraints and 
 - Maximum strategy-owned open positions: 3 (configurable 1–20).
 - Maximum spread and slippage: default 0 points. These must be explicitly configured to broker-appropriate values before risk controls can be enabled.
 
-Saving these preferences does not activate execution. The worker still rejects every trade command. The risk engine must calculate volume from the actual symbol's tick size/value, contract size, account currency and stop distance; enforce daily loss and concurrent-position limits; check broker spread/deviation, volume steps, margin and stop/freeze levels; and reconcile strategy-owned orders before any execution feature is released. A zero spread or slippage ceiling is a fail-closed setting, not a promise that zero spread/slippage is achievable.
+Saving these preferences does not activate execution. Pending-order execution additionally requires the separate live-execution switch, emergency stop off, a successful dry-run and explicit per-order member confirmation. The worker calculates volume in account currency, checks spread, daily loss, concurrent positions including pending orders, margin and broker order_check. A zero spread or slippage ceiling remains fail-closed.
 
-## MT5 order-risk preflight module (added; not wired to execution)
+## MT5 order-risk preflight module (added)
 
 The Windows worker now includes `mt5-worker/risk.py`, a fail-closed preflight module for a proposed BUY or SELL. It:
 
@@ -167,7 +167,7 @@ The Windows worker now includes `mt5-worker/risk.py`, a fail-closed preflight mo
 
 Unit tests cover sizing, a valid preflight, permission denial, daily-loss denial, zero-spread fail-closed behavior and minimum-lot rejection. GitHub Actions now runs these Python tests alongside the web typecheck/lint/build.
 
-Important remaining integration: the worker does not yet calculate the trusted UTC-day loss figure or current strategy-owned position count, fetch risk settings as part of an execution request, or call this module from a trade command. No trade command is currently accepted. The risk module is a tested preflight foundation, not an enabled trading engine.
+The pending-order execution worker now fetches current risk settings and a fresh server-calculated UTC-day loss figure before final authorization. The daily baseline is accepted only when captured within 30 seconds of UTC midnight and broker deal history is fresh and complete; otherwise execution is blocked for that UTC day. The worker counts all current positions and pending orders conservatively.
 
 ## UTC daily equity monitoring foundation (added; not yet execution-grade)
 
@@ -177,7 +177,7 @@ Important limitations before this can be used to authorize trades:
 - The opening baseline is the first successful worker observation that UTC day. If the worker starts late, earlier losses are not included.
 - Deposits, withdrawals, credits, corrections, and broker balance operations can distort an equity-only daily change. These must be detected and reconciled from MT5 deal history before automated enforcement.
 - The daily snapshot table is service-role only and is not exposed to members.
-- The worker still does not accept trade commands or call the risk preflight. This is monitoring groundwork, not execution authorization.
+- Daily snapshots are used by the gated pending-order execution authorization; stale or incomplete snapshots block new orders.
 
 ## UTC-day deal-history reconciliation (added; monitoring only)
 
@@ -192,7 +192,7 @@ Important limits:
 - The daily opening equity remains the first successful observation for that UTC date. If the worker starts late, earlier intraday equity movement and floating P/L changes before that first observation are not reconstructed.
 - Deal-history reconciliation improves cash-flow treatment; it does not make the daily loss figure a perfect midnight-to-now mark-to-market measure.
 - If MT5 cannot return deal history, the heartbeat fails closed rather than silently reporting a complete history.
-- These figures are monitoring data only. The risk preflight is still not wired to trade execution, and the worker still rejects all trading commands.
+- The figures now gate pending-order execution. If the worker starts after the 30-second UTC-midnight baseline window, or history becomes stale/incomplete, new orders are blocked until the next UTC day.
 
 
 ## Persistent MT5 trade inventory (added; read-only)
@@ -228,7 +228,7 @@ This is an ownership registry, not an order-management release. Before any broke
 
 The bridge now accepts an authenticated `preflight_pending_order` request for BUY_STOP, SELL_STOP, BUY_LIMIT and SELL_LIMIT proposals. It checks the member's separate new-order permission, enabled risk controls, configured spread/slippage ceilings and UTC-day risk snapshot before queueing the proposal. The Windows worker then rechecks the exact logged-in account, symbol availability, live bid/ask, broker minimum stop distance, pending-order placement relative to market, current open-position count, broker-calculated risk volume and margin buffer.
 
-A successful result is a broker-side preflight approval only. The worker does not call `order_send`, place, modify or cancel anything. Duplicate idempotency keys are rejected. This is not yet a live execution release: a member-facing proposal/status experience, execution idempotency and reconciliation, final server-side authorization at send time, and broker end-to-end tests remain required.
+A successful result is a broker-side dry-run approval only. The member-facing proposal/status panel now supports a separate confirmation that queues a pending order. The worker performs final server authorization, broker order_check and order_send; it persists a dispatch attempt before send and reconciles by a unique broker comment. Ambiguous outcomes are marked uncertain and never blindly resent. This path still requires deployment and real broker end-to-end testing; automatic signal-to-order execution is not included.
 
 
 ## Controlled pending-order execution (added; broker testing required)
