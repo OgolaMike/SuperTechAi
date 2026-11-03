@@ -21,7 +21,6 @@ export type SignalRecordRow = {
   tp2_hit_epoch: number | null;
   tp3_hit_epoch: number | null;
   sl_hit_epoch: number | null;
-  reversed_epoch: number | null;
   status: SignalStatus;
   closed: boolean;
 };
@@ -29,7 +28,7 @@ export type SignalRecordRow = {
 const UPSERT_CHUNK = 200;
 const RECORD_LIMIT = 500;
 const RECORD_COLUMNS =
-  'signal_key, symbol, asset_name, timeframe, granularity, digits, direction, signal_epoch, entry, stop_loss, tp1, tp2, tp3, band_mean, band_deviation, tp1_hit_epoch, tp2_hit_epoch, tp3_hit_epoch, sl_hit_epoch, reversed_epoch, status, closed';
+  'signal_key, symbol, asset_name, timeframe, granularity, digits, direction, signal_epoch, entry, stop_loss, tp1, tp2, tp3, band_mean, band_deviation, tp1_hit_epoch, tp2_hit_epoch, tp3_hit_epoch, sl_hit_epoch, status, closed';
 
 export function toRecordRow(view: SignalView): SignalRecordRow {
   const { signal } = view;
@@ -54,7 +53,6 @@ export function toRecordRow(view: SignalView): SignalRecordRow {
     tp2_hit_epoch: outcome.tp2Epoch,
     tp3_hit_epoch: outcome.tp3Epoch,
     sl_hit_epoch: outcome.slEpoch,
-    reversed_epoch: outcome.reversedEpoch,
     status: outcome.status,
     closed: outcome.closed,
   };
