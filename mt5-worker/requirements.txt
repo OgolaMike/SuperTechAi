@@ -1,0 +1,2 @@
+MetaTrader5>=5.0.45
+keyring>=25.6.0
