@@ -15,6 +15,14 @@ export function Mt5AutoTrading() {
   const [adoptPending, setAdoptPending] = useState(false);
   const [managePositions, setManagePositions] = useState(false);
   const [placeNewOrders, setPlaceNewOrders] = useState(false);
+  const [riskEnabled, setRiskEnabled] = useState(false);
+  const [riskPerTrade, setRiskPerTrade] = useState('0.50');
+  const [dailyLossLimit, setDailyLossLimit] = useState('2.00');
+  const [maxOpenPositions, setMaxOpenPositions] = useState('3');
+  const [maxSpreadPoints, setMaxSpreadPoints] = useState('0');
+  const [maxSlippagePoints, setMaxSlippagePoints] = useState('0');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState('');
   const [accountLogin, setAccountLogin] = useState('');
   const [server, setServer] = useState('');
   const [pairing, setPairing] = useState(false);
@@ -31,11 +39,20 @@ export function Mt5AutoTrading() {
     let active = true;
     const refresh = async () => {
       const { data } = await supabase.from('mt5_account_settings')
-        .select('bridge_status,last_seen_at')
+        .select('bridge_status,last_seen_at,adopt_pending_orders,manage_existing_positions,place_new_orders,risk_controls_enabled,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points')
         .maybeSingle();
       if (active && data) {
         setBridgeStatus(data.bridge_status);
         setLastSeenAt(data.last_seen_at);
+        setAdoptPending(Boolean(data.adopt_pending_orders));
+        setManagePositions(Boolean(data.manage_existing_positions));
+        setPlaceNewOrders(Boolean(data.place_new_orders));
+        setRiskEnabled(Boolean(data.risk_controls_enabled));
+        setRiskPerTrade(String(data.max_risk_per_trade_pct ?? 0.5));
+        setDailyLossLimit(String(data.max_daily_loss_pct ?? 2));
+        setMaxOpenPositions(String(data.max_open_positions ?? 3));
+        setMaxSpreadPoints(String(data.max_spread_points ?? 0));
+        setMaxSlippagePoints(String(data.max_slippage_points ?? 0));
       }
     };
     void refresh();
@@ -63,6 +80,50 @@ export function Mt5AutoTrading() {
     void refresh();
     return () => { active = false; window.clearInterval(timer); };
   }, [syncId]);
+
+  const saveExecutionSettings = async () => {
+    setSettingsMessage('');
+    const risk = Number(riskPerTrade);
+    const daily = Number(dailyLossLimit);
+    const positions = Number(maxOpenPositions);
+    const spread = Number(maxSpreadPoints);
+    const slippage = Number(maxSlippagePoints);
+    if (!Number.isFinite(risk) || risk <= 0 || risk > 2 ||
+        !Number.isFinite(daily) || daily <= 0 || daily > 5 ||
+        !Number.isInteger(positions) || positions < 1 || positions > 20 ||
+        !Number.isInteger(spread) || spread < 0 || spread > 100000 ||
+        !Number.isInteger(slippage) || slippage < 0 || slippage > 100000) {
+      setSettingsMessage('Check the limits: risk up to 2%, daily loss up to 5%, 1–20 open positions, and non-negative spread/slippage points.');
+      return;
+    }
+    if (riskEnabled && (spread === 0 || slippage === 0)) {
+      setSettingsMessage('Set both a spread limit and a slippage limit before enabling risk controls.');
+      return;
+    }
+    setSavingSettings(true);
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) throw new Error('Please sign in again before saving MT5 settings.');
+      const { error } = await supabase.from('mt5_account_settings').update({
+        adopt_pending_orders: adoptPending,
+        manage_existing_positions: managePositions,
+        place_new_orders: placeNewOrders,
+        risk_controls_enabled: riskEnabled,
+        max_risk_per_trade_pct: risk,
+        max_daily_loss_pct: daily,
+        max_open_positions: positions,
+        max_spread_points: spread,
+        max_slippage_points: slippage,
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', authData.user.id);
+      if (error) throw error;
+      setSettingsMessage('Your MT5 permissions and risk limits have been saved. Trading is still disabled until execution is separately released.');
+    } catch (error) {
+      setSettingsMessage(error instanceof Error ? error.message : 'Could not save MT5 settings.');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const requestSync = async () => {
     setSyncing(true);
@@ -201,11 +262,35 @@ export function Mt5AutoTrading() {
         <div className="space-y-4">
           <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
             <div className="flex items-center gap-2"><Bot className="h-5 w-5 text-accent" /><h3 className="font-semibold text-ink">Execution permissions</h3></div>
-            <p className="mt-1 text-xs text-ink-2">These are separate permissions. All are off by default and are not active in this read-only worker release.</p>
-            <label className="mt-5 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={adoptPending} onChange={(event) => setAdoptPending(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Import existing pending orders</strong><span className="text-xs text-ink-2">Read and display pending orders. Import does not change them.</span></span></label>
-            <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={managePositions} onChange={(event) => setManagePositions(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Manage existing positions</strong><span className="text-xs text-ink-2">Future permission to manage adopted positions. Not active yet.</span></span></label>
-            <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={placeNewOrders} onChange={(event) => setPlaceNewOrders(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Place new trades automatically</strong><span className="text-xs text-ink-2">Future permission for new orders. The current worker rejects all trade commands.</span></span></label>
-            <p className="mt-4 text-xs leading-5 text-ink-2">These checkboxes are previews only; they do not authorize or enable trading.</p>
+            <p className="mt-1 text-xs text-ink-2">Save separate permissions for this MT5 account. They are recorded now but cannot activate trades while the worker remains read-only.</p>
+            <label className="mt-5 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={adoptPending} onChange={(event) => setAdoptPending(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow importing existing pending orders</strong><span className="text-xs text-ink-2">Permission for a future import workflow. Does not modify broker orders.</span></span></label>
+            <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={managePositions} onChange={(event) => setManagePositions(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow management of existing positions</strong><span className="text-xs text-ink-2">Separate permission; manual trades will not be touched unless explicitly adopted later.</span></span></label>
+            <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={placeNewOrders} onChange={(event) => setPlaceNewOrders(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow new strategy orders</strong><span className="text-xs text-ink-2">Future permission for SuperTech AI-generated orders only. Not active yet.</span></span></label>
+            <div className="mt-5 border-t border-line/10 pt-4">
+              <h4 className="text-sm font-semibold text-ink">Account risk limits</h4>
+              <p className="mt-1 text-xs leading-5 text-ink-2">Conservative starting limits. They will be enforced by the execution worker before any order is released.</p>
+              <label className="mt-3 flex items-center gap-3 text-sm text-ink"><input type="checkbox" checked={riskEnabled} onChange={(event) => setRiskEnabled(event.target.checked)} className="accent-current" /><span>Enable risk limits for future automated trading</span></label>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="text-xs text-ink-2">Risk per trade (%)
+                  <input type="number" min="0.01" max="2" step="0.01" value={riskPerTrade} onChange={(event) => setRiskPerTrade(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-2.5 py-2 text-sm text-ink" />
+                </label>
+                <label className="text-xs text-ink-2">Daily loss limit (%)
+                  <input type="number" min="0.01" max="5" step="0.01" value={dailyLossLimit} onChange={(event) => setDailyLossLimit(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-2.5 py-2 text-sm text-ink" />
+                </label>
+                <label className="text-xs text-ink-2">Maximum open positions
+                  <input type="number" min="1" max="20" step="1" value={maxOpenPositions} onChange={(event) => setMaxOpenPositions(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-2.5 py-2 text-sm text-ink" />
+                </label>
+                <label className="text-xs text-ink-2">Maximum spread (points)
+                  <input type="number" min="0" step="1" value={maxSpreadPoints} onChange={(event) => setMaxSpreadPoints(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-2.5 py-2 text-sm text-ink" />
+                </label>
+                <label className="text-xs text-ink-2">Maximum slippage (points)
+                  <input type="number" min="0" step="1" value={maxSlippagePoints} onChange={(event) => setMaxSlippagePoints(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-2.5 py-2 text-sm text-ink" />
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-ink-2">Defaults: 0.5% risk per trade, 2% daily loss, maximum 3 positions. Spread and slippage default to zero, which blocks future execution until you configure broker-appropriate limits.</p>
+            </div>
+            <button type="button" onClick={saveExecutionSettings} disabled={savingSettings || bridgeStatus === 'not_connected'} className="mt-5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{savingSettings ? 'Saving…' : 'Save permissions and risk limits'}</button>
+            {settingsMessage && <p role="status" className="mt-3 text-xs leading-5 text-ink-2">{settingsMessage}</p>}
           </div>
           <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
             <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-accent" /><h3 className="font-semibold text-ink">Current worker capabilities</h3></div>
