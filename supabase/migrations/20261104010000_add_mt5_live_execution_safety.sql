@@ -35,4 +35,4 @@ create policy "service_all_mt5_execution_attempts"
   to service_role using (true) with check (true);
 
 comment on table public.mt5_execution_attempts is
-  'Service-only execution attempt audit. Worker-local SQLite journal plus broker comment reconciliation prevent blind resubmission after uncertain send outcomes.';
+  'Service-only execution attempt audit. Persisted dispatching attempt plus broker comment reconciliation prevent blind resubmission after uncertain send outcomes.';
