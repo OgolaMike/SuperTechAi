@@ -61,6 +61,12 @@ Deno.serve(async (req) => {
       }, { onConflict: "user_id" });
       if (settingsError) throw settingsError;
 
+      // Re-pairing revokes every previously issued worker token for this member.
+      const { error: revokeError } = await db.from("mt5_bridge_workers").update({
+        status: "offline", worker_token_hash: null, updated_at: new Date().toISOString(),
+      }).eq("user_id", userId);
+      if (revokeError) throw revokeError;
+
       const workerId = crypto.randomUUID();
       const workerToken = randomToken();
       const { error: workerError } = await db.from("mt5_bridge_workers").insert({
@@ -102,6 +108,9 @@ Deno.serve(async (req) => {
         await db.from("mt5_bridge_workers").update({
           status: "error", last_error_code: "account_identity_mismatch", last_seen_at: now, updated_at: now,
         }).eq("worker_id", workerId);
+        await db.from("mt5_account_settings").update({
+          bridge_status: "error", updated_at: now,
+        }).eq("user_id", worker.user_id);
         return json({ error: "account_identity_mismatch" }, 409);
       }
       const { error } = await db.from("mt5_bridge_workers").update({
