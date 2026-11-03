@@ -179,10 +179,9 @@ export function useSignalAlerts(
     if (created.length === 0) return;
     setToasts((previous) => [...created, ...previous].slice(0, MAX_TOASTS));
 
-    if (!soundsEnabled) return;
     const signalToasts = created.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal');
     for (const toast of signalToasts) {
-      playAlertTone(toast.tone);
+      if (soundsEnabled) playAlertTone(toast.tone);
       const reversalPrefix = toast.kind === 'reversal'
         ? `Previous ${toast.previousDirection} signal reversed. `
         : '';
@@ -193,7 +192,7 @@ export function useSignalAlerts(
       ).catch(() => undefined);
     }
     const hitToast = created.find((toast) => toast.kind === 'hit');
-    if (hitToast) playAlertTone(hitToast.tone);
+    if (soundsEnabled && hitToast) playAlertTone(hitToast.tone);
   }, [views, loaded, soundsEnabled]);
 
   return { toasts, dismiss };
