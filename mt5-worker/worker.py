@@ -19,6 +19,7 @@ import keyring
 import MetaTrader5 as mt5
 from risk import preflight_new_order, RiskRejected
 from pending_orders import validate_pending_order_geometry, PendingOrderRejected
+from execution_safety import make_broker_comment, classify_existing_attempt, classify_send_result, broker_order_check_passed
 
 SERVICE_NAME = "SuperTechAI-MT5-Bridge"
 VERSION = "0.2.0"
@@ -234,20 +235,26 @@ def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]
     attempt = authorization.get("attempt") or {}
     broker_comment = str(authorization.get("broker_comment") or attempt.get("broker_comment") or "")
     if not broker_comment:
-        broker_comment = "STAI:" + command_id.replace("-", "")[:26]
+        broker_comment = make_broker_comment(command_id)
 
     if not authorization.get("new_attempt"):
-        if attempt.get("state") == "accepted":
+        existing_state = str(attempt.get("state", "unknown"))
+        if existing_state == "accepted":
             return {"execution_state": "accepted", "reconciled": True,
                     "broker_ticket": attempt.get("broker_ticket"),
                     "broker_deal": attempt.get("broker_deal"),
                     "broker_retcode": attempt.get("broker_retcode"),
                     "broker_message": "Previously accepted execution; not resubmitted."}
+        if existing_state == "rejected":
+            return {"execution_state": "rejected", "reconciled": True,
+                    "broker_message": "This execution attempt was already rejected; it will not be resubmitted."}
         found = find_broker_order_by_comment(broker_comment)
-        if found:
+        state = classify_existing_attempt(existing_state, found)
+        if state == "accepted":
             return {"execution_state": "accepted", "reconciled": True,
-                    "broker_ticket": found.get("ticket"), "broker_deal": found.get("deal"),
-                    "broker_message": "Matched existing broker order/deal by unique SuperTech AI comment. Not resubmitted."}
+                    "broker_ticket": found.get("ticket") if found else attempt.get("broker_ticket"),
+                    "broker_deal": found.get("deal") if found else attempt.get("broker_deal"),
+                    "broker_message": "Matched an existing broker order/deal by unique SuperTech AI comment. Not resubmitted."}
         return {"execution_state": "uncertain", "reconciled": False,
                 "broker_message": "A prior send attempt exists but no matching broker record was found. NOT resent; manual broker review is required."}
 
@@ -317,7 +324,7 @@ def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]
             "type_filling": mt5.ORDER_FILLING_RETURN,
         }
         check = mt5.order_check(request)
-        if check is None or int(getattr(check, "retcode", -1)) != 0:
+        if not broker_order_check_passed(check):
             raise RiskRejected("broker_order_check_rejected")
     except Exception as exc:
         message = str(exc)[:120] if isinstance(exc, RiskRejected) else "Final broker pre-check failed."
@@ -339,8 +346,9 @@ def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]
         int(getattr(mt5, "TRADE_RETCODE_PLACED", 10008)),
         int(getattr(mt5, "TRADE_RETCODE_DONE", 10009)),
     }
-    if retcode not in accepted_codes:
-        return {"execution_state": "rejected", "broker_retcode": retcode,
+    send_state = classify_send_result(True, retcode, accepted_codes)
+    if send_state != "accepted":
+        return {"execution_state": send_state, "broker_retcode": retcode,
                 "broker_message": str(getattr(result, "comment", "Broker rejected request"))[:120]}
     return {
         "execution_state": "accepted",
