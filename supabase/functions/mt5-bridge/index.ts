@@ -176,13 +176,32 @@ Deno.serve(async (req) => {
         .select("starting_balance,starting_equity")
         .eq("user_id", worker.user_id).eq("utc_date", utcDate).single();
       if (baselineReadError || !baseline) throw baselineReadError ?? new Error("daily_risk_baseline_missing");
-      const dailyEquityChangePct = ((equity - Number(baseline.starting_equity)) /
-        Number(baseline.starting_equity)) * 100;
+      const dealSummary = account.deal_summary && typeof account.deal_summary === "object"
+        ? account.deal_summary : {};
+      const cashFlowAdjustment = Number(dealSummary.cash_flow_adjustment ?? 0);
+      const realizedTradingNet = Number(dealSummary.realized_trading_net ?? 0);
+      const dealCount = Number(dealSummary.deal_count ?? 0);
+      const historyComplete = dealSummary.history_complete === true;
+      const latestDealEpoch = Number(dealSummary.latest_deal_epoch ?? 0);
+      if (!Number.isFinite(cashFlowAdjustment) || !Number.isFinite(realizedTradingNet) ||
+          !Number.isInteger(dealCount) || dealCount < 0 || dealCount > 100000 ||
+          !Number.isFinite(latestDealEpoch) || latestDealEpoch < 0) {
+        return json({ error: "invalid_deal_history_summary" }, 400);
+      }
+      // Remove deposits, withdrawals, credits, charges, corrections and bonuses
+      // from the equity delta. Commissions, swaps and fees remain trading costs.
+      const dailyEquityChangePct = ((equity - Number(baseline.starting_equity) -
+        cashFlowAdjustment) / Number(baseline.starting_equity)) * 100;
       const dailyLossPct = Math.max(0, -dailyEquityChangePct);
       const { error: snapshotUpdateError } = await db.from("mt5_daily_risk_snapshots").update({
         latest_balance: balance,
         latest_equity: equity,
         daily_equity_change_pct: Number(dailyEquityChangePct.toFixed(4)),
+        cash_flow_adjustment: cashFlowAdjustment,
+        realized_trading_net: realizedTradingNet,
+        deal_count: dealCount,
+        history_complete: historyComplete,
+        latest_deal_epoch: latestDealEpoch || null,
         updated_at: now,
       }).eq("user_id", worker.user_id).eq("utc_date", utcDate);
       if (snapshotUpdateError) throw snapshotUpdateError;
@@ -198,7 +217,11 @@ Deno.serve(async (req) => {
       await db.from("mt5_account_settings").update({
         bridge_status: "connected", last_seen_at: now, updated_at: now,
       }).eq("user_id", worker.user_id);
-      return json({ ok: true, serverTime: now, dailyLossPct: Number(dailyLossPct.toFixed(4)), utcDate });
+      return json({
+        ok: true, serverTime: now, dailyLossPct: Number(dailyLossPct.toFixed(4)),
+        dailyEquityChangePct: Number(dailyEquityChangePct.toFixed(4)),
+        cashFlowAdjustment, realizedTradingNet, dealCount, historyComplete, utcDate,
+      });
     }
 
     if (body.action === "poll") {
