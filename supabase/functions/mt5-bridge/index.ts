@@ -246,18 +246,6 @@ Deno.serve(async (req) => {
         .eq("claimed_by", workerId).eq("status", "claimed").maybeSingle();
       if (commandReadError) throw commandReadError;
       if (!command) return json({ error: "command_not_owned_or_expired" }, 409);
-      const { data, error } = await db.from("mt5_bridge_commands").update({
-        status: succeeded ? "succeeded" : "failed",
-        result,
-        error_code: succeeded ? null : String(body.errorCode ?? "worker_failed").slice(0, 80),
-        completed_at: now,
-        lease_expires_at: null,
-      }).eq("id", commandId).eq("user_id", worker.user_id)
-        .eq("claimed_by", workerId).eq("status", "claimed")
-        .select("id").maybeSingle();
-      if (error) throw error;
-      if (!data) return json({ error: "command_not_owned_or_expired" }, 409);
-
       // Inventory synchronization is observational only. All discovered broker
       // objects remain unowned unless a future explicit adoption workflow grants scope.
       if (succeeded && (command.command_type === "list_pending_orders" || command.command_type === "list_positions")) {
@@ -324,6 +312,18 @@ Deno.serve(async (req) => {
           }
         }
       }
+
+      const { data, error } = await db.from("mt5_bridge_commands").update({
+        status: succeeded ? "succeeded" : "failed",
+        result,
+        error_code: succeeded ? null : String(body.errorCode ?? "worker_failed").slice(0, 80),
+        completed_at: now,
+        lease_expires_at: null,
+      }).eq("id", commandId).eq("user_id", worker.user_id)
+        .eq("claimed_by", workerId).eq("status", "claimed")
+        .select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "command_not_owned_or_expired" }, 409);
 
       await db.from("mt5_execution_audit").insert({
         user_id: worker.user_id, worker_id: workerId,
