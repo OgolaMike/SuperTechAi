@@ -34,15 +34,6 @@ const PRIMARY_LABEL = 'M15';
 const FRESH_PRIMARY_CANDLES = 8;
 const NEUTRAL_BAND = 0.1;
 
-const WEIGHTS: Record<string, number> = {
-  D1: 1.5,
-  H4: 2,
-  H2: 1.5,
-  H1: 1.5,
-  M30: 1.5,
-  M15: 3,
-  M5: 1,
-};
 
 const CLASSIFICATION_RANK: Record<Classification, number> = {
   'Strong alignment': 0,
@@ -66,10 +57,6 @@ function expectedBias(direction: Direction): Bias {
   return direction === 'BUY' ? 'Bullish' : 'Bearish';
 }
 
-function opposedBias(direction: Direction): Bias {
-  return direction === 'BUY' ? 'Bearish' : 'Bullish';
-}
-
 function describeAge(seconds: number): string {
   if (seconds < 60) return 'just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
@@ -80,7 +67,7 @@ function describeAge(seconds: number): string {
 function classificationNote(classification: Classification): string {
   switch (classification) {
     case 'Strong alignment':
-      return 'Most timeframes point the same way, so this is a strong setup.';
+      return 'All eight timeframes point in the same direction, confirming full confluence.';
     case 'Moderate alignment':
       return 'Many timeframes support this move, though not all of them yet.';
     case 'Early signal':
@@ -108,38 +95,22 @@ function evaluateSymbol(
 
   const { direction, levels } = signal;
   const expected = expectedBias(direction);
-  const opposed = opposedBias(direction);
-  const validReadings = readings.filter((reading) => reading.valid);
-  const weightOf = (label: string) => WEIGHTS[label] ?? 1;
-  const totalWeight = validReadings.reduce((sum, reading) => sum + weightOf(reading.label), 0);
-  const agreeingWeight = validReadings
-    .filter((reading) => reading.bias === expected)
-    .reduce((sum, reading) => sum + weightOf(reading.label), 0);
-  const agreementRatio = totalWeight > 0 ? agreeingWeight / totalWeight : 0;
+  const allTimeframesAgree =
+    readings.length === TIMEFRAMES.length &&
+    readings.every((reading) => reading.valid && reading.bias === expected);
 
-  const biasOfLabel = (label: string) => readings.find((reading) => reading.label === label)?.bias;
-  const h1Bias = biasOfLabel('H1');
-  const h4Bias = biasOfLabel('H4');
-  const m30Bias = biasOfLabel('M30');
+  // Super Signals are only published on complete, fresh 8/8 confluence.
+  if (!allTimeframesAgree) return null;
 
-  let classification: Classification;
-  if (h4Bias === opposed && h1Bias === opposed) {
-    classification = 'Counter-trend';
-  } else if (agreementRatio >= 0.7 && h1Bias === expected && m30Bias === expected) {
-    classification = 'Strong alignment';
-  } else if (agreementRatio >= 0.5) {
-    classification = 'Moderate alignment';
-  } else {
-    classification = 'Early signal';
-  }
+  const classification: Classification = 'Strong alignment';
+  const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
 
-  const higherAgreeing = readings
-    .filter((reading) => reading.label !== PRIMARY_LABEL && reading.valid && reading.bias === expected)
-    .map((reading) => reading.label);
-  const higherOpposed = readings
-    .filter((reading) => reading.label !== PRIMARY_LABEL && reading.valid && reading.bias === opposed)
-    .map((reading) => reading.label);
-  const dailyBias = biasOfLabel('D1') ?? 'No data';
+  const sentences = [
+    `Price crossed ${direction === 'BUY' ? 'above' : 'below'} its recent average on the 15-minute chart ${describeAge(nowEpoch - signal.signalEpoch)}.`,
+    `All ${TIMEFRAMES.length} timeframes confirm this direction.`,
+    classificationNote(classification),
+  ];
+
 
   const sentences = [
     `Price crossed ${direction === 'BUY' ? 'above' : 'below'} its recent average on the 15-minute chart ${describeAge(nowEpoch - signal.signalEpoch)}.`,
@@ -158,8 +129,8 @@ function evaluateSymbol(
     classification,
     levels,
     dailyBias,
-    agreeing: validReadings.filter((reading) => reading.bias === expected).length,
-    validReads: validReadings.length,
+    agreeing: TIMEFRAMES.length,
+    validReads: TIMEFRAMES.length,
     reads: readings.map((reading) => ({
       label: reading.label,
       bias: reading.bias,
