@@ -73,3 +73,23 @@ The browser and Supabase scanner now use the same eight timeframes: M1, M5, M15,
 - The bridge command queue, worker registry and execution audit tables are service-role-only. They provide the persistence foundation for a future worker, not a running worker or broker connection.
 - The dashboard deliberately blocks credential entry while the bridge is offline.
 - No MT5 order can be placed by this repository state yet. Credential enrollment, worker pairing, secret-vault integration, command processing, broker connectivity, and end-to-end execution tests remain required.
+
+## Worker API foundation (added)
+
+The `mt5-bridge` Supabase Edge Function now supports three worker actions:
+
+- `heartbeat`: marks the registered worker online and records its version/last-seen time.
+- `poll`: atomically leases up to ten commands for that worker's member account. Expired leases can be reclaimed after a worker restart.
+- `complete`: records success/failure only when the command is currently leased to that same worker and belongs to the same member account.
+
+Worker authentication uses a per-worker random bearer token. The database stores only its SHA-256 hash in `mt5_bridge_workers.worker_token_hash`; the raw token must be provisioned into the worker's OS-protected secret store and must never be committed to source control. The endpoint checks both worker ID and token hash. The claim function uses row locking with `SKIP LOCKED` to avoid two workers claiming the same command.
+
+### Provisioning still required
+
+1. Apply migrations through `20261103183000_secure_mt5_worker_leasing.sql`.
+2. Generate a cryptographically random token of at least 32 bytes for each worker, hash it with SHA-256, and insert only the hash with the worker ID and owning user ID using the Supabase service role.
+3. Store the raw token only in the worker host's protected OS secret store.
+4. Deploy the `mt5-bridge` Edge Function.
+5. Configure the worker to call the endpoint over HTTPS using the worker ID header and bearer token.
+
+The function is a command transport only. It does not log in to a broker, store MT5 passwords, create trades, or execute order commands. No command should be enqueued for trade execution until the credential vault, broker session, account authorization, risk checks, reconciliation and worker execution implementation are deployed and tested.
