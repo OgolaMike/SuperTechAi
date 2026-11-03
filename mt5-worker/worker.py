@@ -147,6 +147,9 @@ def pending_orders_snapshot() -> dict[str, Any]:
     for order in orders:
         rows.append({
             "ticket": int(order.ticket),
+            "identifier": int(getattr(order, "ticket", 0)),
+            "magic": int(getattr(order, "magic", 0)),
+            "reason": int(getattr(order, "reason", -1)),
             "symbol": str(order.symbol),
             "type": int(order.type),
             "volume_initial": float(order.volume_initial),
@@ -168,6 +171,9 @@ def positions_snapshot() -> dict[str, Any]:
     for position in positions:
         rows.append({
             "ticket": int(position.ticket),
+            "identifier": int(getattr(position, "identifier", position.ticket)),
+            "magic": int(getattr(position, "magic", 0)),
+            "reason": int(getattr(position, "reason", -1)),
             "symbol": str(position.symbol),
             "type": int(position.type),
             "volume": float(position.volume),
