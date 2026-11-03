@@ -9,14 +9,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+// Keep this list aligned with src/lib/sma.ts. Only closed candles are evaluated below.
 const TIMEFRAMES = [
-  { granularity: 86400, label: "D1", candleCount: 366 },
-  { granularity: 14400, label: "H4", candleCount: 200 },
-  { granularity: 7200, label: "H2", candleCount: 200 },
-  { granularity: 3600, label: "H1", candleCount: 200 },
-  { granularity: 1800, label: "M30", candleCount: 200 },
-  { granularity: 900, label: "M15", candleCount: 200 },
+  { granularity: 60, label: "M1", candleCount: 200 },
   { granularity: 300, label: "M5", candleCount: 200 },
+  { granularity: 900, label: "M15", candleCount: 200 },
+  { granularity: 1800, label: "M30", candleCount: 200 },
+  { granularity: 3600, label: "H1", candleCount: 200 },
+  { granularity: 7200, label: "H2", candleCount: 200 },
+  { granularity: 14400, label: "H4", candleCount: 200 },
+  { granularity: 86400, label: "D1", candleCount: 366 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 

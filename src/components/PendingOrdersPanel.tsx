@@ -27,7 +27,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Trend-following order ideas</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Limit & pending orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          These are suggested prices to watch. SuperTech AI checks all eight timeframes before showing an idea. It does not place trades for you.
+          These are suggested prices to watch. SuperTech AI checks all eight timeframes before showing an idea. Limit orders face an extra strict M5 momentum and AI quality gate. It does not place trades for you.
         </p>
       </div>
 
@@ -88,7 +88,12 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                   {idea.aiScore == null ? (
                     <span className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" /> AI is still learning</span>
                   ) : (
-                    <span className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Past-pattern match: {idea.aiScore}/100</span>
+                    <span className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" /> {idea.type.endsWith('LIMIT') ? 'M5 AI match' : 'Past-pattern match'}: {idea.aiScore}/100</span>
+                  )}
+                  {idea.momentumScore != null && (
+                    <span className="rounded-full border border-up/20 bg-up/5 px-2 py-1 font-medium text-up">
+                      M5 momentum: {idea.momentumScore}/100
+                    </span>
                   )}
                 </div>
               </article>
@@ -96,6 +101,13 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
           })}
         </div>
       )}
+
+      <div className="rounded-xl border border-line/10 bg-surface/[0.03] p-4">
+        <p className="text-sm font-semibold text-ink">Strict limit-order quality check</p>
+        <p className="mt-1 text-xs leading-relaxed text-ink-2">
+          Buy Limit and Sell Limit ideas appear only when the latest M5 signal agrees with the trade direction, at least 4 of the last 5 M5 candle bodies support it, movement is directional rather than choppy, candle bodies show real commitment, and the trained AI historical-pattern score is at least 70/100. If the AI model has not learned enough completed outcomes, limit orders are withheld. Buy Stop and Sell Stop rules are not changed by this filter.
+        </p>
+      </div>
 
       <div className="flex items-start gap-2 rounded-xl border border-warn/20 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-warn" />
