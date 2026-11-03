@@ -12,13 +12,13 @@ Deploy one isolated Windows VPS/hosted Windows worker per supported broker envir
 
 ## Credential handling
 
-- Accept the MT5 login, trading password and exact broker server only over TLS to an authenticated backend endpoint.
-- Do not send passwords to browser analytics, logs, error traces, Supabase table rows, or client storage.
-- Store credentials only in a managed secret store or encrypted worker secret vault; use a unique encryption key held outside the database.
-- Never return the password to the browser after submission.
-- Support disconnect/revocation and credential rotation.
-- Do not accept investor/read-only passwords for execution.
-- The database migration stores login/server and permissions only; it has no password column.
+- Current implementation uses the member's own logged-in official MT5 desktop terminal on their Windows computer/VPS. The member enters no broker password into SuperTech AI.
+- The worker uses the terminal's already-authenticated local session and reports only the account number/server for identity matching.
+- Never collect, transmit, log, or store the broker trading password in the app, Supabase, worker configuration, analytics or GitHub.
+- Worker bearer tokens are separate from broker credentials and are stored in Windows Credential Manager; only their SHA-256 hashes are stored in Supabase.
+- Re-pairing revokes previously issued worker tokens.
+- The database stores account login/server metadata and permissions only; it has no password column.
+- A future centrally hosted terminal architecture would require a separately reviewed managed secret vault, but it is not required for this local-terminal worker design.
 
 ## Order adoption
 
@@ -132,4 +132,4 @@ On every heartbeat, the worker reports its actual terminal login and server. The
 5. Provision the token using the hidden prompt so it is stored in Windows Credential Manager.
 6. Keep the terminal and worker running. The dashboard should show Connected after a matching heartbeat.
 
-This is a read-only connectivity milestone, not automated trading. The worker does not adopt or alter existing trades. New-order execution, separate permissions persistence, risk limits, trade reconciliation and broker-level end-to-end tests remain future work.
+This is a read-only connectivity milestone, not automated trading. The worker does not adopt or alter existing trades. New-order execution, separate permissions persistence, risk limits, trade reconciliation and broker-level end-to-end tests remain future work. The chosen local-terminal design does not require SuperTech AI to collect or centrally store broker passwords.
