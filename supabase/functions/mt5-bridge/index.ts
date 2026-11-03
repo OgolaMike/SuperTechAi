@@ -125,6 +125,20 @@ Deno.serve(async (req) => {
       return json({ commands: data ?? [] });
     }
 
+    if (body.action === "pending_order_preflight_status") {
+      const memberId = await memberIdFromToken(bearer);
+      if (!memberId) return json({ error: "member_unauthorized" }, 401);
+      const commandId = String(body.commandId ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(commandId)) return json({ error: "invalid_command_id" }, 400);
+      const { data, error } = await db.from("mt5_bridge_commands")
+        .select("id,command_type,status,result,error_code,created_at,completed_at")
+        .eq("id", commandId).eq("user_id", memberId)
+        .eq("command_type", "preflight_pending_order").maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "preflight_request_not_found" }, 404);
+      return json({ command: data });
+    }
+
     if (body.action === "preflight_pending_order") {
       const memberId = await memberIdFromToken(bearer);
       if (!memberId) return json({ error: "member_unauthorized" }, 401);
