@@ -67,9 +67,9 @@ export function buildPendingOrderIdeas(
     });
 
     // Pending orders are suggested only when all eight live timeframe trends agree.
-    if (readings.length !== TIMEFRAMES.length || readings.some((bias) => bias == null)) continue;
-    const direction = readings[0]!;
-    if (!readings.every((bias) => bias === direction)) continue;
+    if (readings.length !== TIMEFRAMES.length) continue;
+    const direction = readings[0];
+    if (direction == null || !readings.every((bias) => bias === direction)) continue;
 
     const primary = states[PRIMARY_GRANULARITY];
     const triggerSignal = primary?.latestSignal;
