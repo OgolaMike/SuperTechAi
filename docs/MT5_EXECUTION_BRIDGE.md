@@ -4,7 +4,7 @@
 
 The web app is a React/Vite client with Supabase authentication, database and Edge Functions. It does not contain a running MetaTrader 5 terminal or a broker execution process. A browser-only login form cannot execute MT5 orders.
 
-The MT5 dashboard entry is intentionally a setup foundation. It does not claim a broker connection, save a password, or place trades. The password field is cleared on submit and the UI explains that the bridge is not yet deployed.
+The MT5 dashboard entry is intentionally a setup foundation. It does not claim a broker connection, accept credentials while the bridge is offline, or place trades. The UI explicitly tells members not to enter or send MT5 credentials until the secure bridge is deployed.
 
 ## Required runtime
 
@@ -64,3 +64,12 @@ The browser and Supabase scanner now use the same eight timeframes: M1, M5, M15,
 5. Add broker demo connection test and order reconciliation.
 6. Wire only confirmed, fresh M15 signals into the order-intent queue.
 7. Run end-to-end tests on a demo account where available, but do not block a member from connecting a live account. For live accounts, require explicit trading authorization and all configured risk safeguards before any order can be sent.
+
+
+## Current repository delivery status
+
+- The Supabase scanner now includes M1 and matches the browser's eight-timeframe list.
+- The MT5 account settings migration stores account metadata and three independent permissions; it never stores passwords.
+- The bridge command queue, worker registry and execution audit tables are service-role-only. They provide the persistence foundation for a future worker, not a running worker or broker connection.
+- The dashboard deliberately blocks credential entry while the bridge is offline.
+- No MT5 order can be placed by this repository state yet. Credential enrollment, worker pairing, secret-vault integration, command processing, broker connectivity, and end-to-end execution tests remain required.
