@@ -39,25 +39,37 @@ export function Mt5AutoTrading() {
     let active = true;
     const refresh = async () => {
       const { data } = await supabase.from('mt5_account_settings')
-        .select('bridge_status,last_seen_at,adopt_pending_orders,manage_existing_positions,place_new_orders,risk_controls_enabled,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points')
+        .select('bridge_status,last_seen_at')
         .maybeSingle();
       if (active && data) {
         setBridgeStatus(data.bridge_status);
         setLastSeenAt(data.last_seen_at);
-        setAdoptPending(Boolean(data.adopt_pending_orders));
-        setManagePositions(Boolean(data.manage_existing_positions));
-        setPlaceNewOrders(Boolean(data.place_new_orders));
-        setRiskEnabled(Boolean(data.risk_controls_enabled));
-        setRiskPerTrade(String(data.max_risk_per_trade_pct ?? 0.5));
-        setDailyLossLimit(String(data.max_daily_loss_pct ?? 2));
-        setMaxOpenPositions(String(data.max_open_positions ?? 3));
-        setMaxSpreadPoints(String(data.max_spread_points ?? 0));
-        setMaxSlippagePoints(String(data.max_slippage_points ?? 0));
       }
     };
     void refresh();
     const timer = window.setInterval(() => void refresh(), 10000);
     return () => { active = false; window.clearInterval(timer); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadSettings = async () => {
+      const { data } = await supabase.from('mt5_account_settings')
+        .select('adopt_pending_orders,manage_existing_positions,place_new_orders,risk_controls_enabled,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points')
+        .maybeSingle();
+      if (!active || !data) return;
+      setAdoptPending(Boolean(data.adopt_pending_orders));
+      setManagePositions(Boolean(data.manage_existing_positions));
+      setPlaceNewOrders(Boolean(data.place_new_orders));
+      setRiskEnabled(Boolean(data.risk_controls_enabled));
+      setRiskPerTrade(String(data.max_risk_per_trade_pct ?? 0.5));
+      setDailyLossLimit(String(data.max_daily_loss_pct ?? 2));
+      setMaxOpenPositions(String(data.max_open_positions ?? 3));
+      setMaxSpreadPoints(String(data.max_spread_points ?? 0));
+      setMaxSlippagePoints(String(data.max_slippage_points ?? 0));
+    };
+    void loadSettings();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
