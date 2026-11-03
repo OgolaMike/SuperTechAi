@@ -30,3 +30,9 @@ jobs:
         run: npm run lint
       - name: Production build
         run: npm run build
+      - name: Set up Python for MT5 risk tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test MT5 risk controls
+        run: python -m unittest discover -s mt5-worker -p "test_*.py" -v
