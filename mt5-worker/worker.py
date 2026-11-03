@@ -100,6 +100,45 @@ def safe_account_snapshot() -> dict[str, Any]:
     }
 
 
+
+def utc_day_deal_summary() -> dict[str, Any]:
+    """Summarize broker deal history from UTC midnight without storing credentials."""
+    now = datetime.now(timezone.utc)
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    deals = mt5.history_deals_get(start, now)
+    if deals is None:
+        raise RuntimeError("Could not read today's MT5 deal history")
+    cash_types = {
+        getattr(mt5, "DEAL_TYPE_BALANCE", -1001),
+        getattr(mt5, "DEAL_TYPE_CREDIT", -1002),
+        getattr(mt5, "DEAL_TYPE_CHARGE", -1003),
+        getattr(mt5, "DEAL_TYPE_CORRECTION", -1004),
+        getattr(mt5, "DEAL_TYPE_BONUS", -1005),
+    }
+    cash_flow = 0.0
+    realized_net = 0.0
+    latest_deal_time = None
+    for deal in deals:
+        deal_type = int(getattr(deal, "type", -1))
+        profit = float(getattr(deal, "profit", 0.0))
+        commission = float(getattr(deal, "commission", 0.0))
+        swap = float(getattr(deal, "swap", 0.0))
+        fee = float(getattr(deal, "fee", 0.0))
+        if deal_type in cash_types:
+            cash_flow += profit
+        else:
+            realized_net += profit + commission + swap + fee
+        deal_time = int(getattr(deal, "time", 0))
+        latest_deal_time = max(latest_deal_time or 0, deal_time)
+    return {
+        "cash_flow_adjustment": round(cash_flow, 8),
+        "realized_trading_net": round(realized_net, 8),
+        "deal_count": len(deals),
+        "history_complete": True,
+        "history_from": start.isoformat(),
+        "latest_deal_epoch": latest_deal_time,
+    }
+
 def pending_orders_snapshot() -> dict[str, Any]:
     orders = mt5.orders_get()
     if orders is None:
@@ -186,6 +225,7 @@ def main() -> None:
                     "server": account_snapshot["server"],
                     "balance": account_snapshot["balance"],
                     "equity": account_snapshot["equity"],
+                    "deal_summary": utc_day_deal_summary(),
                 },
             })
             response = api_call(token, {"action": "poll"})
