@@ -434,7 +434,7 @@ Deno.serve(async (req) => {
         return json({ error: "execution_account_identity_mismatch" }, 409);
       }
       const brokerComment = "STAI:" + command.id.replace(/-/g, "").slice(0, 26);
-      const { data: attempt, error: attemptError } = await db.from("mt5_execution_attempts").insert({
+      const { error: attemptError } = await db.from("mt5_execution_attempts").insert({
         command_id: command.id, user_id: worker.user_id, worker_id: workerId,
         state: "dispatching", account_login: settings.login, account_server: settings.server,
         broker_comment: brokerComment,
