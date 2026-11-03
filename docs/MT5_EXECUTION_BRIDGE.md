@@ -8,7 +8,7 @@ The MT5 dashboard entry is intentionally a setup foundation. It does not claim a
 
 ## Required runtime
 
-Deploy one isolated Windows VPS/hosted Windows worker per supported broker environment (or a securely pooled worker service). The worker runs the official MT5 terminal and a signed execution agent using the MetaTrader5 Python package. The agent must use a dedicated MT5 trading account and demo mode first.
+Deploy one isolated Windows VPS/hosted Windows worker per supported broker environment (or a securely pooled worker service). The worker runs the official MT5 terminal and a signed execution agent using the MetaTrader5 Python package. The agent must accept the account type supplied by the member's broker credentials/server, including demo or live accounts. Do not reject a valid account because it is live. Require explicit member authorization before enabling order placement or management on any account.
 
 ## Credential handling
 
@@ -43,7 +43,8 @@ Only orders explicitly adopted by the member may be modified by SuperTech AI. Pr
 
 ## Safety and operations
 
-- Demo-only default. Live mode requires a later explicit opt-in and a separate risk acknowledgement.
+- Support both demo and live accounts; do not force demo mode or infer account type from the login number. Use broker/terminal connection metadata where available.
+- Before the first order is placed on any account, show the account identity and require explicit authorization for new entries. Require separate permissions for pending-order adoption and existing-position management. Apply visible risk limits and emergency pause to both demo and live accounts.
 - Per-account maximum open trades, maximum daily loss, max spread, max slippage and max risk per trade.
 - Emergency pause, cancel-owned-pending-orders and close-owned-positions controls; never close unowned manual trades.
 - Heartbeats, reconnect with backoff, broker error mapping, order reconciliation and immutable audit events.
@@ -62,4 +63,4 @@ The browser-side `src/lib/sma.ts` defines eight timeframes (M1, M5, M15, M30, H1
 4. Add signed worker heartbeat and command/result channels.
 5. Add broker demo connection test and order reconciliation.
 6. Wire only confirmed, fresh M15 signals into the order-intent queue.
-7. Run end-to-end demo acceptance tests before enabling any live capability.
+7. Run end-to-end tests on a demo account where available, but do not block a member from connecting a live account. For live accounts, require explicit trading authorization and all configured risk safeguards before any order can be sent.
