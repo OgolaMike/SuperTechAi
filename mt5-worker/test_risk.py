@@ -58,7 +58,7 @@ class RiskSizingTests(unittest.TestCase):
             FakeMT5(), settings=settings, account=account,
             symbol_info=symbol, tick=tick, direction="BUY",
             entry=1.1010, stop_loss=1.0990, take_profit=1.1050,
-            daily_loss_pct=0.25,
+            daily_loss_pct=0.25, current_open_positions=0,
         )
         self.assertTrue(result["approved"])
         self.assertEqual(result["volume"], 0.5)
@@ -71,7 +71,7 @@ class RiskSizingTests(unittest.TestCase):
                 FakeMT5(), settings=settings, account=account,
                 symbol_info=symbol, tick=tick, direction="BUY",
                 entry=1.1010, stop_loss=1.0990, take_profit=1.1050,
-                daily_loss_pct=0.25,
+                daily_loss_pct=0.25, current_open_positions=0,
             )
 
     def test_blocks_when_daily_loss_limit_is_reached(self):
@@ -81,7 +81,7 @@ class RiskSizingTests(unittest.TestCase):
                 FakeMT5(), settings=settings, account=account,
                 symbol_info=symbol, tick=tick, direction="BUY",
                 entry=1.1010, stop_loss=1.0990, take_profit=1.1050,
-                daily_loss_pct=2.0,
+                daily_loss_pct=2.0, current_open_positions=0,
             )
 
     def test_zero_spread_limit_fails_closed(self):
@@ -92,7 +92,7 @@ class RiskSizingTests(unittest.TestCase):
                 FakeMT5(), settings=settings, account=account,
                 symbol_info=symbol, tick=tick, direction="BUY",
                 entry=1.1010, stop_loss=1.0990, take_profit=1.1050,
-                daily_loss_pct=0.25,
+                daily_loss_pct=0.25, current_open_positions=0,
             )
 
     def test_rejects_minimum_lot_that_exceeds_risk_budget(self):
