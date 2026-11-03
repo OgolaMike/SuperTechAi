@@ -10,7 +10,7 @@ orders and list open positions. It cannot place, edit, cancel or close trades.
 - Python 3.11 (64-bit).
 - MetaTrader 5 desktop terminal installed.
 - A member-selected broker account already logged into that terminal.
-- The deployed SuperTech AI Supabase Edge Function and a provisioned worker ID/token.
+- The deployed SuperTech AI Supabase Edge Function and a worker ID/token created from the app's MT5 Auto Trading page.
 
 Both demo and live terminal accounts are accepted. The worker reports the
 terminal's actual account/server identity; it does not force demo mode.
@@ -30,8 +30,11 @@ python .\provision_token.py
 python .\worker.py
 ```
 
-The token prompt is hidden. It is stored using Windows Credential Manager
-through Python keyring, not in a source file or ordinary environment variable.
+First create the pairing from the signed-in SuperTech AI app: enter the MT5
+account number and exact server, then copy the one-time worker token. Paste
+that token only into the hidden prompt below. The token is stored using Windows
+Credential Manager through Python keyring, not in a source file or ordinary
+environment variable. Re-pairing revokes previously issued worker tokens.
 Do not paste tokens into chat, GitHub, screenshots or command-line arguments.
 
 Optional terminal path:
