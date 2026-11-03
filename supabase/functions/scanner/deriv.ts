@@ -5,7 +5,12 @@ const DERIV_WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 const OPEN_TIMEOUT_MS = 15000;
 const REQUEST_TIMEOUT_MS = 15000;
 
-type Pending = { resolve: (message: any) => void; reject: (error: Error) => void; timer: number };
+type JsonRecord = Record<string, unknown>;
+type Pending = { resolve: (message: JsonRecord) => void; reject: (error: Error) => void; timer: number };
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 export class DerivFeed {
   private nextId = 1;
@@ -13,13 +18,25 @@ export class DerivFeed {
 
   private constructor(private ws: WebSocket) {
     ws.onmessage = (event) => {
-      const message = JSON.parse(String(event.data));
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(String(event.data));
+      } catch {
+        return;
+      }
+      if (!isRecord(parsed) || typeof parsed.req_id !== "number") return;
+      const message = parsed;
       const entry = this.pending.get(message.req_id);
       if (!entry) return;
       this.pending.delete(message.req_id);
       clearTimeout(entry.timer);
-      if (message.error) entry.reject(new Error(message.error.message ?? "Deriv API error"));
-      else entry.resolve(message);
+      if (isRecord(message.error)) {
+        entry.reject(new Error(
+          typeof message.error.message === "string" ? message.error.message : "Deriv API error",
+        ));
+      } else {
+        entry.resolve(message);
+      }
     };
     ws.onclose = () => this.rejectAll("Deriv connection closed");
   }
@@ -42,7 +59,7 @@ export class DerivFeed {
     });
   }
 
-  request(payload: Record<string, unknown>): Promise<any> {
+  request(payload: Record<string, unknown>): Promise<JsonRecord> {
     const reqId = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -78,12 +95,14 @@ export async function loadSymbols(feed: DerivFeed): Promise<SymbolInfo[]> {
   if (!Array.isArray(message.active_symbols)) throw new Error("Deriv returned no symbol list");
   const byCode = new Map<string, SymbolInfo>();
   for (const item of message.active_symbols) {
-    if (typeof item.underlying_symbol !== "string") continue;
+    if (!isRecord(item) || typeof item.underlying_symbol !== "string") continue;
     const pipSize = Number(item.pip_size);
     const digits = Number.isFinite(pipSize) && pipSize > 0 ? Math.max(0, Math.round(-Math.log10(pipSize))) : 4;
     byCode.set(item.underlying_symbol, {
       symbol: item.underlying_symbol,
-      name: item.underlying_symbol_name || item.underlying_symbol,
+      name: typeof item.underlying_symbol_name === "string"
+        ? item.underlying_symbol_name
+        : item.underlying_symbol,
       digits,
     });
   }
@@ -126,7 +145,8 @@ async function requestCandles(
   });
   if (!Array.isArray(message.candles)) throw new Error(`No candles returned for ${symbol}`);
   return message.candles
-    .map((candle: any) => ({ epoch: Number(candle.epoch), close: Number(candle.close) }))
-    .filter((candle: Candle) => Number.isFinite(candle.epoch) && Number.isFinite(candle.close))
-    .sort((a: Candle, b: Candle) => a.epoch - b.epoch);
+    .filter(isRecord)
+    .map((candle) => ({ epoch: Number(candle.epoch), close: Number(candle.close) }))
+    .filter((candle) => Number.isFinite(candle.epoch) && Number.isFinite(candle.close))
+    .sort((a, b) => a.epoch - b.epoch);
 }

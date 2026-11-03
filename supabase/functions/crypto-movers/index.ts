@@ -17,6 +17,14 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
   auth: { persistSession: false },
 });
 
+type Ticker24h = { symbol: string; quoteVolume: string };
+
+function isTicker24h(value: unknown): value is Ticker24h {
+  return typeof value === "object" && value !== null
+    && "symbol" in value && typeof value.symbol === "string"
+    && "quoteVolume" in value && typeof value.quoteVolume === "string";
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -24,7 +32,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-async function getJson(path: string): Promise<any> {
+async function getJson(path: string): Promise<unknown> {
   const response = await fetch(`${BINANCE_BASE}${path}`);
   if (!response.ok) throw new Error(`Market data source responded with status ${response.status}`);
   return response.json();
@@ -54,13 +62,20 @@ async function mapInBatches<T, R>(items: T[], size: number, task: (item: T) => P
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
   try {
-    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const dayStart = typeof body?.date === "string" ? Date.parse(`${body.date}T00:00:00Z`) : utcDayStart(1);
+    const body: unknown = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+    const requestedDate = typeof body === "object" && body !== null && "date" in body
+      ? body.date
+      : undefined;
+    const dayStart = typeof requestedDate === "string"
+      ? Date.parse(`${requestedDate}T00:00:00Z`)
+      : utcDayStart(1);
     if (!Number.isFinite(dayStart)) return jsonResponse({ error: "Date must look like YYYY-MM-DD" }, 400);
     if (dayStart >= utcDayStart(0)) return jsonResponse({ error: "Only completed UTC days can be stored" }, 400);
     const tradeDate = new Date(dayStart).toISOString().slice(0, 10);
 
-    const tickers: { symbol: string; quoteVolume: string }[] = await getJson("/ticker/24hr");
+    const tickerData = await getJson("/ticker/24hr");
+    if (!Array.isArray(tickerData)) throw new Error("Market data source returned an invalid ticker list");
+    const tickers = tickerData.filter(isTicker24h);
     const universe = tickers
       .filter((ticker) => usdtBase(ticker.symbol) !== null)
       .sort((a, b) => Number(b.quoteVolume) - Number(a.quoteVolume))
@@ -69,7 +84,7 @@ Deno.serve(async (req) => {
     const candles = await mapInBatches(universe, CONCURRENCY, async (ticker) => {
       const rows = await getJson(`/klines?symbol=${ticker.symbol}&interval=1d&startTime=${dayStart}&limit=1`);
       const candle = Array.isArray(rows) ? rows[0] : null;
-      if (!candle || Number(candle[0]) !== dayStart) return null;
+      if (!Array.isArray(candle) || Number(candle[0]) !== dayStart) return null;
       const open = Number(candle[1]);
       const close = Number(candle[4]);
       if (!(open > 0) || !Number.isFinite(close)) return null;
