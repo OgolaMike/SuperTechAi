@@ -1,6 +1,7 @@
 import { BellRing, VolumeX } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
+import type { SignalLearningModel } from '@/lib/aiLearning';
 import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
 
 type Props = {
@@ -10,17 +11,23 @@ type Props = {
   prices: Record<string, number>;
   loaded: boolean;
   soundsEnabled: boolean;
+  aiModel: SignalLearningModel;
 };
 
-export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled }: Props) {
+export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel }: Props) {
   return (
     <>
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">SuperTech Ai market intelligence</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">Live crossover signals</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">SuperTech AI market intelligence</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">Live trading signals</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            {TIMEFRAMES.length} timeframes per asset, from one minute to daily. Signals fire on candle close, with stop-loss and three targets set at that moment.
+            Watch all {TIMEFRAMES.length} timeframes, from 1 minute to 1 day. A signal appears after a candle closes.
+          </p>
+          <p className="mt-1 text-xs text-ink-3">
+            {aiModel.ready
+              ? `AI has learned from ${aiModel.sampleCount} completed signals (${aiModel.wins} reached the final target, ${aiModel.losses} hit stop-loss).`
+              : `AI is collecting completed signals. It needs at least 30 results, including wins and losses, before showing a pattern score. Current completed results: ${aiModel.sampleCount}.`}
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-ink-2">
@@ -47,6 +54,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                   tf={assetStates[timeframe.granularity] ?? emptyTfState(timeframe)}
                   loaded={loaded}
                   price={prices[symbol]}
+                  aiModel={aiModel}
                 />
               ))}
             </div>

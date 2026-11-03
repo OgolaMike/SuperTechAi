@@ -20,7 +20,9 @@ import { useSignalRecordSync } from '@/hooks/useSignalRecordSync';
 import { useTheme } from '@/hooks/useTheme';
 import { playAlertTone } from '@/lib/alertSound';
 import { ensureNotificationPermission } from '@/lib/deviceNotify';
+import { trainSignalLearningModel, type SignalLearningModel } from '@/lib/aiLearning';
 import { buildSuperSignals } from '@/lib/intelligence';
+import { fetchSignalRecords } from '@/lib/signalRecords';
 import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET, MAX_MONITORED_ASSETS } from '@/lib/sma';
@@ -50,6 +52,7 @@ function App() {
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
   const [view, setView] = useState<View>('dashboard');
   const [now, setNow] = useState<number>(currentEpoch);
+  const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
   const { assets, states, status, lastTick, prices, loaded } = useDerivSignals(selectedSymbols);
 
@@ -58,6 +61,20 @@ function App() {
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
   const { toasts, dismiss } = useSignalAlerts(views, loaded, soundsEnabled);
   const sync = useSignalRecordSync(views, loaded);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSignalRecords()
+      .then((rows) => {
+        if (!cancelled) setAiModel(trainSignalLearningModel(rows));
+      })
+      .catch(() => {
+        if (!cancelled) setAiModel(trainSignalLearningModel([]));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sync.version]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(currentEpoch()), 15000);
@@ -124,6 +141,7 @@ function App() {
             prices={prices}
             loaded={loaded}
             soundsEnabled={soundsEnabled}
+            aiModel={aiModel}
           />
         )}
 
@@ -131,15 +149,14 @@ function App() {
           <section className="mt-8">
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
-              <h2 className="text-xl font-semibold tracking-tight text-ink">Open opportunities across your assets</h2>
-              <p className="max-w-2xl text-sm text-ink-2">Fresh 15-minute crossovers that are still open, checked against the daily and higher timeframes.</p>
+              <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
+              <p className="max-w-2xl text-sm text-ink-2">We wait for all eight timeframes to point in the same direction before showing a Super Signal.</p>
             </div>
-            <SuperSignalPanel signals={superSignals} prices={prices} loaded={loaded} />
+            <SuperSignalPanel signals={superSignals} prices={prices} loaded={loaded} aiModel={aiModel} />
           </section>
         )}
 
         {view === 'crypto' && <CryptoMovers />}
-
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
         {view === 'alerts' && (
@@ -156,9 +173,7 @@ function App() {
             <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
             <div className="text-xs leading-relaxed text-ink-2">
               <p className="font-medium text-ink">Trading involves risk. Past signals do not guarantee future results.</p>
-              <p className="mt-1">
-                Each signal shows its entry, stop-loss and three targets at the moment it appears. Those levels do not change afterwards.
-              </p>
+              <p className="mt-1">AI learns from completed signals. It does not guarantee that a new signal will win.</p>
             </div>
           </div>
         </footer>
