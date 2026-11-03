@@ -207,3 +207,18 @@ Ownership is deliberately conservative:
 - No discovered order or position is modified, cancelled or closed.
 
 The next stage must add an explicit member adoption workflow with a confirmation step, immutable ownership audit and server-side scope checks before any management command can be accepted. Strategy-created orders must carry a unique strategy tag and be reconciled against broker tickets/history before they are considered strategy-owned.
+
+
+## Explicit MT5 trade adoption (added; permission registry only)
+
+The member dashboard can now load the paired account's persisted trade inventory and explicitly adopt or revoke adoption for one exact broker ticket at a time.
+
+- Pending-order adoption requires the separate `adopt_pending_orders` permission.
+- Position adoption requires the separate `manage_existing_positions` permission.
+- The service-side database function locks the inventory row, verifies the paired account and permission, changes only the ownership status, and appends an audit record in the same transaction.
+- Repeated, stale or conflicting adoption requests are rejected.
+- Revoking adoption returns the item to `discovered_unowned`.
+- Adoption does not enqueue a worker command and does not modify, cancel, close or otherwise interact with the broker object.
+- The inventory list is served only through the authenticated member action and is scoped to the exact account paired to that member.
+
+This is an ownership registry, not an order-management release. Before any broker management is enabled, the worker must revalidate the live ticket against MT5, check the exact adopted status and permission server-side, and restrict the requested action to that ticket. No manual trade is automatically adopted.
