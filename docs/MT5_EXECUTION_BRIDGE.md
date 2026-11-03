@@ -168,3 +168,13 @@ The Windows worker now includes `mt5-worker/risk.py`, a fail-closed preflight mo
 Unit tests cover sizing, a valid preflight, permission denial, daily-loss denial, zero-spread fail-closed behavior and minimum-lot rejection. GitHub Actions now runs these Python tests alongside the web typecheck/lint/build.
 
 Important remaining integration: the worker does not yet calculate the trusted UTC-day loss figure or current strategy-owned position count, fetch risk settings as part of an execution request, or call this module from a trade command. No trade command is currently accepted. The risk module is a tested preflight foundation, not an enabled trading engine.
+
+## UTC daily equity monitoring foundation (added; not yet execution-grade)
+
+The worker now includes account balance and equity in its authenticated heartbeat. The Edge Function uses its own UTC date and creates one service-only opening snapshot per member/account per UTC day, then updates the latest balance/equity and calculates the percentage change from that day's first observed equity. The heartbeat response includes the observed daily loss percentage for future risk gating.
+
+Important limitations before this can be used to authorize trades:
+- The opening baseline is the first successful worker observation that UTC day. If the worker starts late, earlier losses are not included.
+- Deposits, withdrawals, credits, corrections, and broker balance operations can distort an equity-only daily change. These must be detected and reconciled from MT5 deal history before automated enforcement.
+- The daily snapshot table is service-role only and is not exposed to members.
+- The worker still does not accept trade commands or call the risk preflight. This is monitoring groundwork, not execution authorization.
