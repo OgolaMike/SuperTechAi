@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_ANON_KEY")!,
         { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${bearer}` } } },
       );
-      const { data: authData, error: authError } = await authClient.auth.getUser();
+      const { data: authData, error: authError } = await authClient.auth.getUser(bearer);
       if (authError || !authData.user) return json({ error: "member_unauthorized" }, 401);
 
       const login = String(body.accountLogin ?? "").trim();
