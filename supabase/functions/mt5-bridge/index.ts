@@ -154,7 +154,8 @@ Deno.serve(async (req) => {
       if (Number(settings.max_spread_points) <= 0 || Number(settings.max_slippage_points) <= 0) {
         return json({ error: "spread_and_slippage_limits_required" }, 403);
       }
-      const utcDate = now.slice(0,10);
+      const requestTime = new Date().toISOString();
+      const utcDate = requestTime.slice(0,10);
       const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
         .select("starting_equity,latest_equity,cash_flow_adjustment")
         .eq("user_id",memberId).eq("utc_date",utcDate).maybeSingle();
