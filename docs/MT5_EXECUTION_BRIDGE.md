@@ -53,7 +53,7 @@ Only orders explicitly adopted by the member may be modified by SuperTech AI. Pr
 
 ## Important existing code finding
 
-The browser-side `src/lib/sma.ts` defines eight timeframes (M1, M5, M15, M30, H1, H2, H4, D1). The current Supabase scanner function's local `TIMEFRAMES` array defines seven (D1, H4, H2, H1, M30, M15, M5) and does not yet scan M1. Keep this discrepancy visible and resolve it before claiming eight-timeframe server-side automation. The MT5 bridge must consume a canonical, versioned signal payload rather than trusting browser-only state for unattended execution.
+The browser and Supabase scanner now use the same eight timeframes: M1, M5, M15, M30, H1, H2, H4 and D1. The scanner still has a 100-second execution budget and rotates its starting symbol to share coverage across the discovered market list; this means a single run is not a guarantee that every symbol/timeframe pair was processed. The MT5 bridge must consume fresh, server-confirmed, versioned signal data rather than trusting browser-only state for unattended execution.
 
 ## Deployment checklist
 
