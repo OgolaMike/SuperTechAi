@@ -34,7 +34,6 @@ const PRIMARY_LABEL = 'M15';
 const FRESH_PRIMARY_CANDLES = 8;
 const NEUTRAL_BAND = 0.1;
 
-
 const CLASSIFICATION_RANK: Record<Classification, number> = {
   'Strong alignment': 0,
   'Moderate alignment': 1,
@@ -64,19 +63,6 @@ function describeAge(seconds: number): string {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-function classificationNote(classification: Classification): string {
-  switch (classification) {
-    case 'Strong alignment':
-      return 'All eight timeframes point in the same direction, confirming full confluence.';
-    case 'Moderate alignment':
-      return 'Many timeframes support this move, though not all of them yet.';
-    case 'Early signal':
-      return 'Only the short-term chart has moved so far. Waiting for more confirmation is sensible.';
-    case 'Counter-trend':
-      return 'The larger trend is moving the other way, so this setup carries extra risk.';
-  }
-}
-
 function evaluateSymbol(
   asset: Asset,
   states: Record<number, TfState>,
@@ -104,22 +90,10 @@ function evaluateSymbol(
 
   const classification: Classification = 'Strong alignment';
   const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
-
-  const sentences = [
+  const explanation = [
     `Price crossed ${direction === 'BUY' ? 'above' : 'below'} its recent average on the 15-minute chart ${describeAge(nowEpoch - signal.signalEpoch)}.`,
     `All ${TIMEFRAMES.length} timeframes confirm this direction.`,
-    classificationNote(classification),
-  ];
-
-
-  const sentences = [
-    `Price crossed ${direction === 'BUY' ? 'above' : 'below'} its recent average on the 15-minute chart ${describeAge(nowEpoch - signal.signalEpoch)}.`,
-    higherAgreeing.length > 0
-      ? `Longer-term charts ${higherAgreeing.length === 1 ? 'agrees' : 'agree'} with this direction.`
-      : 'Longer-term charts do not confirm this direction yet.',
-    higherOpposed.length > 0 ? 'Some longer-term charts lean the other way.' : null,
-    classificationNote(classification),
-  ].filter((sentence): sentence is string => sentence !== null);
+  ].join(' ');
 
   return {
     symbol: asset.symbol,
@@ -137,7 +111,7 @@ function evaluateSymbol(
       valid: reading.valid,
       agrees: reading.bias === expected,
     })),
-    explanation: sentences.join(' '),
+    explanation,
     signalEpoch: signal.signalEpoch,
   };
 }
