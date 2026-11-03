@@ -2,7 +2,7 @@
 // Read-only: retrieves live prices and historical candles. No trading, no auth.
 
 export type Candle = {
-  epoch: number; // open time, seconds
+  epoch: number;
   open: number;
   high: number;
   low: number;
@@ -11,9 +11,10 @@ export type Candle = {
 };
 
 type ReqId = number;
+type JsonRecord = Record<string, unknown>;
 
 type Pending = {
-  resolve: (data: any) => void;
+  resolve: (data: JsonRecord) => void;
   reject: (err: Error) => void;
 };
 
@@ -41,18 +42,15 @@ export type ConnectionStatus =
   | 'reconnecting'
   | 'error';
 
-// Deriv public market-data WebSocket endpoint (Options API public channel).
-// No authentication required; streams live quotes, ticks, and OHLC.
-// Legacy ws.derivws.com / ws.binaryws.com endpoints are deprecated; this is
-// the current public endpoint documented at developers.deriv.com.
-const ENDPOINTS = [
-  'wss://api.derivws.com/trading/v1/options/ws/public',
-];
-
+const ENDPOINTS = ['wss://api.derivws.com/trading/v1/options/ws/public'];
 const MAX_RECONNECT_DELAY = 15000;
 const BASE_RECONNECT_DELAY = 1500;
 const PING_INTERVAL = 12000;
-const SUBSCRIBE_STAGGER = 250; // ms between subscription requests
+const SUBSCRIBE_STAGGER = 250;
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 export class DerivClient {
   private ws: WebSocket | null = null;
@@ -67,8 +65,6 @@ export class DerivClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
-  // Map subscription id -> granularity, so streaming updates map back to a tf
-  // even when echo_req is absent.
   private subToGranularity = new Map<string, number>();
 
   onOhlc(handler: OhlcHandler) {
@@ -133,13 +129,9 @@ export class DerivClient {
       resubscribe();
     };
 
-    ws.onmessage = (evt) => {
-      this.handleMessage(evt.data as string);
-    };
+    ws.onmessage = (evt) => this.handleMessage(evt.data as string);
 
     ws.onerror = () => {
-      // Don't flip to 'error' status on every transient error; the onclose
-      // handler will trigger reconnect. Only set error if still connecting.
       if (this.status === 'connecting') {
         this.setStatus('error', 'WebSocket handshake failed');
       }
@@ -148,8 +140,8 @@ export class DerivClient {
     ws.onclose = () => {
       this.stopPing();
       this.ws = null;
-      for (const p of this.pending.values()) {
-        p.reject(new Error('connection closed'));
+      for (const pending of this.pending.values()) {
+        pending.reject(new Error('connection closed'));
       }
       this.pending.clear();
       this.subToGranularity.clear();
@@ -163,9 +155,7 @@ export class DerivClient {
   }
 
   private fireOpen() {
-    for (const h of this.openHandlers) {
-      h(() => this.fireOpen());
-    }
+    for (const handler of this.openHandlers) handler(() => this.fireOpen());
   }
 
   private scheduleReconnect() {
@@ -196,7 +186,6 @@ export class DerivClient {
     this.stopPing();
     this.pingTimer = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        // Ping is fire-and-forget; no req_id tracking needed.
         this.ws.send(JSON.stringify({ ping: 1 }));
       }
     }, PING_INTERVAL);
@@ -211,10 +200,10 @@ export class DerivClient {
 
   private setStatus(status: ConnectionStatus, detail?: string) {
     this.status = status;
-    for (const h of this.statusHandlers) h(status, detail);
+    for (const handler of this.statusHandlers) handler(status, detail);
   }
 
-  private send(payload: Record<string, any>): Promise<any> {
+  private send(payload: JsonRecord): Promise<JsonRecord> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error('socket not open'));
     }
@@ -227,94 +216,88 @@ export class DerivClient {
   }
 
   private handleMessage(raw: string) {
-    let data: any;
+    let parsed: unknown;
     try {
-      data = JSON.parse(raw);
+      parsed = JSON.parse(raw);
     } catch {
       return;
     }
+    if (!isRecord(parsed)) return;
+    const data = parsed;
 
-    if (data.req_id && this.pending.has(data.req_id)) {
-      const p = this.pending.get(data.req_id)!;
+    if (typeof data.req_id === 'number' && this.pending.has(data.req_id)) {
+      const pending = this.pending.get(data.req_id)!;
       this.pending.delete(data.req_id);
-      if (data.error) {
-        p.reject(new Error(data.error.message || 'Deriv API error'));
+      if (isRecord(data.error)) {
+        pending.reject(new Error(
+          typeof data.error.message === 'string' ? data.error.message : 'Deriv API error',
+        ));
       } else {
-        p.resolve(data);
+        pending.resolve(data);
       }
     }
 
-    // OHLC stream update (subscription response or live update)
-    if (data.msg_type === 'ohlc' && data.ohlc) {
-      const ohlc = data.ohlc;
-      const subId: string | undefined = ohlc.id;
-      // The new public endpoint includes granularity directly on the ohlc
-      // object; fall back to echo_req, then to our subscription map.
-      let granularity: number | undefined;
-      if (typeof ohlc.granularity === 'number') {
-        const g: number = ohlc.granularity;
-        granularity = g;
-        if (subId) this.subToGranularity.set(subId, g);
-      } else if (data.echo_req && typeof data.echo_req.granularity === 'number') {
-        const g: number = data.echo_req.granularity;
-        granularity = g;
-        if (subId) this.subToGranularity.set(subId, g);
-      } else if (subId) {
-        granularity = this.subToGranularity.get(subId);
-      }
-      if (granularity == null) return;
-      const candle: Candle = {
-        epoch: Number(ohlc.open_time),
-        open: Number(ohlc.open),
-        high: Number(ohlc.high),
-        low: Number(ohlc.low),
-        close: Number(ohlc.close),
-        symbol: typeof ohlc.symbol === 'string' ? ohlc.symbol : undefined,
-      };
-      for (const h of this.ohlcHandlers) {
-        h({ granularity, candle, subscriptionId: subId });
-      }
+    if (data.msg_type !== 'ohlc' || !isRecord(data.ohlc)) return;
+    const ohlc = data.ohlc;
+    const subId = typeof ohlc.id === 'string' ? ohlc.id : undefined;
+    let granularity: number | undefined;
+
+    if (typeof ohlc.granularity === 'number') {
+      granularity = ohlc.granularity;
+      if (subId) this.subToGranularity.set(subId, granularity);
+    } else if (isRecord(data.echo_req) && typeof data.echo_req.granularity === 'number') {
+      granularity = data.echo_req.granularity;
+      if (subId) this.subToGranularity.set(subId, granularity);
+    } else if (subId) {
+      granularity = this.subToGranularity.get(subId);
+    }
+    if (granularity == null) return;
+
+    const candle: Candle = {
+      epoch: Number(ohlc.open_time),
+      open: Number(ohlc.open),
+      high: Number(ohlc.high),
+      low: Number(ohlc.low),
+      close: Number(ohlc.close),
+      symbol: typeof ohlc.symbol === 'string' ? ohlc.symbol : undefined,
+    };
+    for (const handler of this.ohlcHandlers) {
+      handler({ granularity, candle, subscriptionId: subId });
     }
   }
 
-  // Forget all active candle subscriptions on the server. Call on reconnect
-  // before re-subscribing to avoid duplicate streams.
   forgetAllCandles(): Promise<void> {
     return this.send({ forget_all: 'candles' })
-      .then(() => {
-        this.subToGranularity.clear();
-      })
-      .catch(() => {
-        /* non-fatal */
-      });
+      .then(() => { this.subToGranularity.clear(); })
+      .catch(() => { /* non-fatal */ });
   }
 
   loadActiveSymbols(): Promise<DerivSymbol[]> {
     return this.send({ active_symbols: 'full' }).then((data) => {
       if (!Array.isArray(data.active_symbols)) return [];
       return data.active_symbols
-        .filter((item: any) => typeof item.underlying_symbol === 'string')
-        .map((item: any) => {
+        .filter((item): item is JsonRecord =>
+          isRecord(item) && typeof item.underlying_symbol === 'string',
+        )
+        .map((item) => {
           const pipSize = Number(item.pip_size);
           const digits = Number.isFinite(pipSize) && pipSize > 0
             ? Math.max(0, Math.round(-Math.log10(pipSize)))
             : 4;
+          const symbol = item.underlying_symbol as string;
           return {
-            symbol: item.underlying_symbol,
-            displayName: item.underlying_symbol_name || item.underlying_symbol,
-            market: item.market || 'Other',
+            symbol,
+            displayName: typeof item.underlying_symbol_name === 'string'
+              ? item.underlying_symbol_name
+              : symbol,
+            market: typeof item.market === 'string' ? item.market : 'Other',
             digits,
           };
         });
     });
   }
 
-  // Request historical candles and subscribe to live OHLC updates.
-  subscribeCandles(
-    symbol: string,
-    granularity: number,
-    count = 200,
-  ): Promise<Candle[]> {
+  subscribeCandles(symbol: string, granularity: number, count = 200): Promise<Candle[]> {
     return this.send({
       ticks_history: symbol,
       granularity,
@@ -323,41 +306,31 @@ export class DerivClient {
       style: 'candles',
       subscribe: 1,
     }).then((data) => {
-      if (data.subscription?.id && data.echo_req?.granularity != null) {
-        this.subToGranularity.set(
-          data.subscription.id,
-          data.echo_req.granularity,
-        );
+      if (isRecord(data.subscription) && typeof data.subscription.id === 'string'
+        && isRecord(data.echo_req) && typeof data.echo_req.granularity === 'number') {
+        this.subToGranularity.set(data.subscription.id, data.echo_req.granularity);
       }
-      if (!data.candles) return [];
-      // New API returns candle objects with open/high/low/close/epoch fields.
-      return (data.candles as Array<{
-        epoch: number;
-        open: number | string;
-        high: number | string;
-        low: number | string;
-        close: number | string;
-      }>).map((c) => ({
-        epoch: Number(c.epoch),
-        open: Number(c.open),
-        high: Number(c.high),
-        low: Number(c.low),
-        close: Number(c.close),
-      }));
+      if (!Array.isArray(data.candles)) return [];
+      return data.candles
+        .filter(isRecord)
+        .map((candle) => ({
+          epoch: Number(candle.epoch),
+          open: Number(candle.open),
+          high: Number(candle.high),
+          low: Number(candle.low),
+          close: Number(candle.close),
+        }));
     });
   }
 
-  // Stagger a list of subscription actions so the server isn't hit with many
-  // concurrent requests at once (which can trigger rate-limit drops).
   staggerSubscriptions(tasks: Array<() => Promise<void>>): Promise<void[]> {
     const results: Promise<void>[] = [];
-    tasks.forEach((task, i) => {
-      const p = new Promise<void>((resolve) => {
-        setTimeout(() => {
-          task().then(resolve).catch(() => resolve());
-        }, i * SUBSCRIBE_STAGGER);
+    tasks.forEach((task, index) => {
+      const result = new Promise<void>((resolve) => {
+        setTimeout(() => { task().then(resolve).catch(() => resolve()); },
+          index * SUBSCRIBE_STAGGER);
       });
-      results.push(p);
+      results.push(result);
     });
     return Promise.all(results);
   }
