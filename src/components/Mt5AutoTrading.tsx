@@ -176,13 +176,18 @@ export function Mt5AutoTrading() {
       setExecutionMessage('A successful broker preflight is required first.');
       return;
     }
-    const confirmed = window.confirm(
-      'LIVE MT5 ORDER APPROVAL\n\n' +
-      proposalType + ' ' + proposalSymbol.toUpperCase() +
-      '\nEntry: ' + proposalEntry + '\nStop loss: ' + proposalStopLoss +
-      '\nTake profit: ' + proposalTakeProfit +
-      '\n\nThis sends a real pending order to the connected MT5 account if final checks pass. Continue?'
-    );
+    const tradeMode = Number(preflightCommand.result?.account_trade_mode);
+    const accountType = tradeMode === 2 ? 'REAL ACCOUNT' : tradeMode === 0 ? 'DEMO ACCOUNT' : 'CONTEST/UNKNOWN ACCOUNT';
+    const confirmed = window.confirm([
+      'MT5 PENDING ORDER APPROVAL',
+      accountType,
+      'Account: ' + String(preflightCommand.result?.account_login ?? 'unknown') + ' · ' + String(preflightCommand.result?.account_server ?? 'unknown'),
+      proposalType + ' ' + proposalSymbol.toUpperCase(),
+      'Entry: ' + proposalEntry,
+      'Stop loss: ' + proposalStopLoss,
+      'Take profit: ' + proposalTakeProfit,
+      'This sends a real broker order to the connected account if final checks pass. Continue?'
+    ].join('\n'));
     if (!confirmed) return;
     setExecutionBusy(true);
     setExecutionMessage('Requesting final server authorization…');
