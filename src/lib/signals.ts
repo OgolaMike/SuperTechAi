@@ -2,7 +2,7 @@ import type { Candle } from './deriv';
 import type { Asset, TfState } from './sma';
 
 export type Direction = 'BUY' | 'SELL';
-export type SignalStatus = 'Open' | 'TP1' | 'TP2' | 'TP3' | 'Stopped';
+export type SignalStatus = 'Open' | 'TP1' | 'TP2' | 'TP3' | 'Stopped' | 'Reversed';
 
 export type SignalLevels = {
   mean: number;
@@ -19,6 +19,7 @@ export type SignalOutcome = {
   tp2Epoch: number | null;
   tp3Epoch: number | null;
   slEpoch: number | null;
+  reversedEpoch: number | null;
   status: SignalStatus;
   closed: boolean;
 };
@@ -71,6 +72,7 @@ export function evaluateOutcome(
   direction: Direction,
   levels: SignalLevels,
   candlesAfter: Candle[],
+  reversalEpoch: number | null = null,
 ): SignalOutcome {
   const sign = direction === 'BUY' ? 1 : -1;
   const reachedTarget = (close: number, target: number) => sign * (close - target) >= 0;
@@ -80,6 +82,7 @@ export function evaluateOutcome(
   let tp2Epoch: number | null = null;
   let tp3Epoch: number | null = null;
   let slEpoch: number | null = null;
+  let reversedEpoch: number | null = null;
 
   for (const candle of candlesAfter) {
     if (slEpoch !== null || tp3Epoch !== null) break;
@@ -87,13 +90,19 @@ export function evaluateOutcome(
     if (tp2Epoch === null && reachedTarget(candle.close, levels.tp2)) tp2Epoch = candle.epoch;
     if (tp3Epoch === null && reachedTarget(candle.close, levels.tp3)) tp3Epoch = candle.epoch;
     if (tp3Epoch === null && reachedStop(candle.close, levels.stopLoss)) slEpoch = candle.epoch;
+    if (slEpoch !== null || tp3Epoch !== null) break;
+    if (reversalEpoch !== null && candle.epoch >= reversalEpoch) {
+      reversedEpoch = reversalEpoch;
+      break;
+    }
   }
 
   const status: SignalStatus =
     tp3Epoch !== null ? 'TP3'
+    : slEpoch !== null ? 'Stopped'
+    : reversedEpoch !== null ? 'Reversed'
     : tp2Epoch !== null ? 'TP2'
     : tp1Epoch !== null ? 'TP1'
-    : slEpoch !== null ? 'Stopped'
     : 'Open';
 
   return {
@@ -101,8 +110,9 @@ export function evaluateOutcome(
     tp2Epoch,
     tp3Epoch,
     slEpoch,
+    reversedEpoch,
     status,
-    closed: tp3Epoch !== null || slEpoch !== null,
+    closed: tp3Epoch !== null || slEpoch !== null || reversedEpoch !== null,
   };
 }
 
