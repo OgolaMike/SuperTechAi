@@ -20,7 +20,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">SuperTech Ai market intelligence</p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">Live crossover signals</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            Seven timeframes per asset, from daily to five minutes. Signals fire on candle close, with stop-loss and three targets set at that moment.
+            {TIMEFRAMES.length} timeframes per asset, from one minute to daily. Signals fire on candle close, with stop-loss and three targets set at that moment.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-ink-2">
