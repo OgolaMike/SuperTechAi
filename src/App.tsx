@@ -8,6 +8,7 @@ import { NotificationSettings } from '@/components/NotificationSettings';
 import { CryptoMovers } from '@/components/CryptoMovers';
 import { ServiceHealth } from '@/components/ServiceHealth';
 import { RecordsPanel } from '@/components/RecordsPanel';
+import { PendingOrdersPanel } from '@/components/PendingOrdersPanel';
 import { SignOutButton } from '@/components/SignOutButton';
 import { HeaderBrand, StatusBar, TrendIcons } from '@/components/StatusBar';
 import { SuperSignalPanel } from '@/components/SuperSignalPanel';
@@ -156,6 +157,7 @@ function App() {
           </section>
         )}
 
+        {view === 'orders' && <PendingOrdersPanel assets={assets.filter((asset) => selectedSymbols.includes(asset.symbol))} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
         {view === 'crypto' && <CryptoMovers />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
