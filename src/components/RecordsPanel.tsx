@@ -141,7 +141,7 @@ function RecordRow({ row }: { row: SignalRecordRow }) {
       <td className="px-3 py-3"><HitCell price={row.tp2} digits={row.digits} hitEpoch={row.tp2_hit_epoch} tone="text-up" /></td>
       <td className="px-3 py-3"><HitCell price={row.tp3} digits={row.digits} hitEpoch={row.tp3_hit_epoch} tone="text-up" /></td>
       <td className="px-4 py-3">
-        <StatusBadge status={row.status} closed={row.closed} />
+        <StatusBadge status={row.status} closed={row.closed} reversedEpoch={row.reversed_epoch} />
       </td>
     </tr>
   );
@@ -161,19 +161,21 @@ function HitCell({ price, digits, hitEpoch, tone }: { price: number; digits: num
   );
 }
 
-function StatusBadge({ status, closed }: { status: SignalRecordRow['status']; closed: boolean }) {
+function StatusBadge({ status, closed, reversedEpoch }: { status: SignalRecordRow['status']; closed: boolean; reversedEpoch: number | null }) {
   const tone =
     status === 'TP3' || status === 'TP2' || status === 'TP1'
       ? 'border-up/30 bg-up/10 text-up'
       : status === 'Stopped'
       ? 'border-down/30 bg-down/10 text-down'
+      : status === 'Reversed'
+      ? 'border-warn/30 bg-warn/10 text-warn'
       : 'border-accent/30 bg-accent/10 text-accent';
   return (
     <div className="flex flex-col gap-1">
       <span className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${tone}`}>
-        {status === 'Open' ? 'Open' : status === 'Stopped' ? 'Stopped' : `${status} reached`}
+        {status === 'Open' ? 'Open' : status === 'Stopped' ? 'Stopped' : status === 'Reversed' ? 'Reversed' : `${status} reached`}
       </span>
-      <span className="text-xs text-ink-3">{closed ? 'Closed' : 'Running'}</span>
+      <span className="text-xs text-ink-3">{status === 'Reversed' && reversedEpoch !== null ? `Reversed ${formatDateTime(reversedEpoch)}` : closed ? 'Closed' : 'Running'}</span>
     </div>
   );
 }
