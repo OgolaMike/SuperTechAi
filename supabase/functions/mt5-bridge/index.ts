@@ -240,6 +240,12 @@ Deno.serve(async (req) => {
       if (/(password|token|secret|credential|authorization)/i.test(JSON.stringify(result))) {
         return json({ error: "secret_fields_not_allowed" }, 400);
       }
+      const { data: command, error: commandReadError } = await db.from("mt5_bridge_commands")
+        .select("id,command_type,idempotency_key")
+        .eq("id", commandId).eq("user_id", worker.user_id)
+        .eq("claimed_by", workerId).eq("status", "claimed").maybeSingle();
+      if (commandReadError) throw commandReadError;
+      if (!command) return json({ error: "command_not_owned_or_expired" }, 409);
       const { data, error } = await db.from("mt5_bridge_commands").update({
         status: succeeded ? "succeeded" : "failed",
         result,
@@ -251,6 +257,74 @@ Deno.serve(async (req) => {
         .select("id").maybeSingle();
       if (error) throw error;
       if (!data) return json({ error: "command_not_owned_or_expired" }, 409);
+
+      // Inventory synchronization is observational only. All discovered broker
+      // objects remain unowned unless a future explicit adoption workflow grants scope.
+      if (succeeded && (command.command_type === "list_pending_orders" || command.command_type === "list_positions")) {
+        const isPosition = command.command_type === "list_positions";
+        const rows = isPosition ? result.positions : result.pending_orders;
+        if (!Array.isArray(rows) || rows.length > 10000) {
+          return json({ error: "invalid_inventory_snapshot" }, 400);
+        }
+        const { data: accountSettings, error: accountError } = await db.from("mt5_account_settings")
+          .select("login,server").eq("user_id", worker.user_id).maybeSingle();
+        if (accountError || !accountSettings) throw accountError ?? new Error("account_settings_missing");
+        const inventoryRows = rows.map((item: Record<string, unknown>) => {
+          const ticket = Number(item.ticket);
+          const symbol = String(item.symbol ?? "").slice(0, 40);
+          const magic = Number(item.magic ?? 0);
+          const comment = String(item.comment ?? "").slice(0, 80);
+          const numeric = (value: unknown, fallback = 0) => {
+            const n = Number(value ?? fallback);
+            if (!Number.isFinite(n)) throw new Error("invalid_inventory_numeric_field");
+            return n;
+          };
+          if (!Number.isSafeInteger(ticket) || ticket <= 0 || !symbol ||
+              !Number.isSafeInteger(magic) || magic < 0) {
+            throw new Error("invalid_inventory_identity");
+          }
+          return {
+            user_id: worker.user_id,
+            account_login: accountSettings.login,
+            account_server: accountSettings.server,
+            object_type: isPosition ? "position" : "pending_order",
+            ticket,
+            identifier: item.identifier == null ? null : numeric(item.identifier),
+            symbol,
+            side_or_type: numeric(item.type),
+            volume: numeric(isPosition ? item.volume : item.volume_current),
+            price_open: numeric(item.price_open),
+            price_current: isPosition ? numeric(item.price_current) : null,
+            stop_loss: numeric(item.sl),
+            take_profit: numeric(item.tp),
+            profit: isPosition ? numeric(item.profit) : null,
+            magic_number: magic,
+            broker_reason: item.reason == null ? null : numeric(item.reason),
+            broker_comment: comment,
+            last_seen_at: now,
+            last_sync_id: command.idempotency_key.split(":")[0].slice(0, 80),
+          };
+        });
+        if (inventoryRows.length) {
+          const { error: inventoryError } = await db.from("mt5_trade_inventory").upsert(inventoryRows, {
+            onConflict: "user_id,account_login,account_server,object_type,ticket",
+          });
+          if (inventoryError) throw inventoryError;
+          const tagged = inventoryRows.filter((item) => item.magic_number === 601025 &&
+            item.broker_comment.startsWith("STAI:"));
+          for (const item of tagged) {
+            await db.from("mt5_trade_inventory").update({
+              ownership_status: "strategy_tagged_unverified",
+            }).eq("user_id", worker.user_id)
+              .eq("account_login", accountSettings.login)
+              .eq("account_server", accountSettings.server)
+              .eq("object_type", item.object_type)
+              .eq("ticket", item.ticket)
+              .eq("ownership_status", "discovered_unowned");
+          }
+        }
+      }
+
       await db.from("mt5_execution_audit").insert({
         user_id: worker.user_id, worker_id: workerId,
         event_type: succeeded ? "command_succeeded" : "command_failed",
