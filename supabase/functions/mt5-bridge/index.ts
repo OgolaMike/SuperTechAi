@@ -125,6 +125,61 @@ Deno.serve(async (req) => {
       return json({ commands: data ?? [] });
     }
 
+    if (body.action === "preflight_pending_order") {
+      const memberId = await memberIdFromToken(bearer);
+      if (!memberId) return json({ error: "member_unauthorized" }, 401);
+      const symbol = String(body.symbol ?? "").trim().slice(0, 40);
+      const direction = String(body.direction ?? "").toUpperCase();
+      const orderType = String(body.orderType ?? "").toUpperCase();
+      const entry = Number(body.entry), stopLoss = Number(body.stopLoss), takeProfit = Number(body.takeProfit);
+      const idempotencyKey = String(body.idempotencyKey ?? "");
+      if (!symbol || !["BUY","SELL"].includes(direction) ||
+          !["BUY_STOP","SELL_STOP","BUY_LIMIT","SELL_LIMIT"].includes(orderType) ||
+          ![entry,stopLoss,takeProfit].every(Number.isFinite) ||
+          !/^[0-9a-f-]{36}$/i.test(idempotencyKey)) {
+        return json({ error: "invalid_pending_order_proposal" }, 400);
+      }
+      if ((orderType.startsWith("BUY") && direction !== "BUY") ||
+          (orderType.startsWith("SELL") && direction !== "SELL")) {
+        return json({ error: "order_type_direction_mismatch" }, 400);
+      }
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("login,server,bridge_status,place_new_orders,risk_controls_enabled,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points")
+        .eq("user_id", memberId).maybeSingle();
+      if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
+      if (settings.bridge_status !== "connected") return json({ error: "mt5_worker_not_connected" }, 409);
+      if (settings.place_new_orders !== true || settings.risk_controls_enabled !== true) {
+        return json({ error: "new_order_permission_or_risk_controls_disabled" }, 403);
+      }
+      if (Number(settings.max_spread_points) <= 0 || Number(settings.max_slippage_points) <= 0) {
+        return json({ error: "spread_and_slippage_limits_required" }, 403);
+      }
+      const utcDate = now.slice(0,10);
+      const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
+        .select("starting_equity,latest_equity,cash_flow_adjustment")
+        .eq("user_id",memberId).eq("utc_date",utcDate).maybeSingle();
+      if (dailyError || !daily || Number(daily.starting_equity) <= 0) {
+        return json({ error: "daily_risk_baseline_unavailable" }, 409);
+      }
+      const dailyLossPct = Math.max(0, -((Number(daily.latest_equity)-Number(daily.starting_equity)-Number(daily.cash_flow_adjustment ?? 0))/Number(daily.starting_equity))*100);
+      const { data: inserted, error: queueError } = await db.from("mt5_bridge_commands").insert({
+        user_id: memberId, idempotency_key: idempotencyKey, command_type: "preflight_pending_order",
+        payload: { login: settings.login, server: settings.server, symbol, direction, order_type: orderType,
+          entry, stop_loss: stopLoss, take_profit: takeProfit, daily_loss_pct: dailyLossPct,
+          settings: { place_new_orders: settings.place_new_orders, risk_controls_enabled: settings.risk_controls_enabled,
+            max_risk_per_trade_pct: settings.max_risk_per_trade_pct, max_daily_loss_pct: settings.max_daily_loss_pct,
+            max_open_positions: settings.max_open_positions, max_spread_points: settings.max_spread_points,
+            max_slippage_points: settings.max_slippage_points } }
+      }).select("id").single();
+      if (queueError) {
+        if (queueError.code === "23505") return json({ error: "duplicate_preflight_request" }, 409);
+        throw queueError;
+      }
+      await db.from("mt5_execution_audit").insert({ user_id: memberId, event_type: "pending_order_preflight_requested",
+        idempotency_key: idempotencyKey, details: { commandId: inserted.id, symbol, direction, orderType } });
+      return json({ ok: true, commandId: inserted.id, message: "Pending order proposal queued for broker-side dry-run validation. No order will be placed." });
+    }
+
     if (body.action === "list_inventory" || body.action === "adopt_inventory" || body.action === "revoke_inventory_adoption") {
       const memberId = await memberIdFromToken(bearer);
       if (!memberId) return json({ error: "member_unauthorized" }, 401);
