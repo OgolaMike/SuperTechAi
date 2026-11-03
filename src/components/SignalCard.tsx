@@ -24,8 +24,13 @@ export function SignalCard({ asset, tf, loaded, price }: Props) {
     >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <span className="text-lg font-semibold text-ink">{tf.label}</span>
-          <span className="ml-2 text-xs uppercase tracking-wider text-ink-3">{tf.role}</span>
+          <div className="mb-1 truncate text-xs font-semibold uppercase tracking-wider text-accent" title={asset.fullName}>
+            {asset.fullName} <span className="font-medium text-ink-3">({asset.symbol})</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="text-lg font-semibold text-ink">{tf.label}</span>
+            <span className="truncate text-xs uppercase tracking-wider text-ink-3">{tf.role}</span>
+          </div>
         </div>
         {signal && (
           <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusTone(signal.outcome.status)}`}>
