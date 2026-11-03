@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const authHeader = req.headers.get("authorization") ?? "";
-    const bearer = authHeader.replace(/^Bearer\\s+/i, "").trim();
+    const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
 
     // Member-initiated pairing: validate the Supabase user session and issue
     // a one-time worker credential. No MT5 password is requested or stored.
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
 
       const login = String(body.accountLogin ?? "").trim();
       const server = String(body.server ?? "").trim();
-      if (!/^\\d{4,20}$/.test(login) || !server || server.length > 120) {
+      if (!/^\d{4,20}$/.test(login) || !server || server.length > 120) {
         return json({ error: "valid_mt5_login_and_server_required" }, 400);
       }
 
