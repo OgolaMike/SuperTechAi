@@ -153,6 +153,40 @@ Deno.serve(async (req) => {
         }).eq("user_id", worker.user_id);
         return json({ error: "account_identity_mismatch" }, 409);
       }
+      const balance = Number(account.balance);
+      const equity = Number(account.equity);
+      if (!Number.isFinite(balance) || !Number.isFinite(equity) || balance <= 0 || equity <= 0) {
+        return json({ error: "invalid_account_risk_snapshot" }, 400);
+      }
+      // The server defines the UTC date and first-observed baseline. The worker
+      // cannot choose the date or overwrite the opening baseline.
+      const utcDate = now.slice(0, 10);
+      const { error: baselineInsertError } = await db.from("mt5_daily_risk_snapshots").upsert({
+        user_id: worker.user_id,
+        utc_date: utcDate,
+        starting_balance: balance,
+        starting_equity: equity,
+        latest_balance: balance,
+        latest_equity: equity,
+        daily_equity_change_pct: 0,
+        updated_at: now,
+      }, { onConflict: "user_id,utc_date", ignoreDuplicates: true });
+      if (baselineInsertError) throw baselineInsertError;
+      const { data: baseline, error: baselineReadError } = await db.from("mt5_daily_risk_snapshots")
+        .select("starting_balance,starting_equity")
+        .eq("user_id", worker.user_id).eq("utc_date", utcDate).single();
+      if (baselineReadError || !baseline) throw baselineReadError ?? new Error("daily_risk_baseline_missing");
+      const dailyEquityChangePct = ((equity - Number(baseline.starting_equity)) /
+        Number(baseline.starting_equity)) * 100;
+      const dailyLossPct = Math.max(0, -dailyEquityChangePct);
+      const { error: snapshotUpdateError } = await db.from("mt5_daily_risk_snapshots").update({
+        latest_balance: balance,
+        latest_equity: equity,
+        daily_equity_change_pct: Number(dailyEquityChangePct.toFixed(4)),
+        updated_at: now,
+      }).eq("user_id", worker.user_id).eq("utc_date", utcDate);
+      if (snapshotUpdateError) throw snapshotUpdateError;
+
       const { error } = await db.from("mt5_bridge_workers").update({
         status: "online",
         version: typeof body.version === "string" ? body.version.slice(0, 40) : null,
@@ -164,7 +198,7 @@ Deno.serve(async (req) => {
       await db.from("mt5_account_settings").update({
         bridge_status: "connected", last_seen_at: now, updated_at: now,
       }).eq("user_id", worker.user_id);
-      return json({ ok: true, serverTime: now });
+      return json({ ok: true, serverTime: now, dailyLossPct: Number(dailyLossPct.toFixed(4)), utcDate });
     }
 
     if (body.action === "poll") {
