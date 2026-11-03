@@ -40,9 +40,9 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   const Icon = toast.tone === 'BUY' ? ArrowUpRight : toast.tone === 'SELL' ? ArrowDownRight : toast.tone === 'TARGET' ? Target : ShieldAlert;
   const { levels, digits } = toast;
   const isSignal = toast.kind === 'signal' || toast.kind === 'reversal';
-  const title = toast.kind === 'reversal'
-    ? `${toast.previousDirection} → ${toast.direction} REVERSAL`
-    : isSignal ? toast.direction : toast.tone === 'STOP' ? 'Stop-loss hit' : 'Target reached';
+  const title = isSignal
+    ? `${toast.direction} SIGNAL`
+    : toast.tone === 'STOP' ? 'Stop-loss hit' : 'Target reached';
 
   return (
     <div
@@ -66,7 +66,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
           <p className="mt-1.5 text-xs font-medium text-ink">{toast.message}</p>
           {toast.kind === 'reversal' && toast.previousSignalEpoch ? (
             <p className="mt-1 text-[10px] text-ink-3">
-              Previous {toast.previousDirection} signal: {new Date(toast.previousSignalEpoch * 1000).toLocaleString()}
+              Previous signal: {toast.previousDirection} at {new Date(toast.previousSignalEpoch * 1000).toLocaleString()}
             </p>
           ) : null}
           {isSignal ? (
