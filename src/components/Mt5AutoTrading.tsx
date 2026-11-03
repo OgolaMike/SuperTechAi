@@ -334,7 +334,7 @@ export function Mt5AutoTrading() {
                       <p className="text-sm font-medium text-ink">{item.symbol} · #{item.ticket}</p>
                       <p className="mt-1 text-xs text-ink-2">{item.object_type === 'pending_order' ? 'Pending order' : 'Open position'} · {item.volume} lots · Entry {item.price_open}</p>
                       <p className="mt-1 text-xs text-ink-2">SL {item.stop_loss} · TP {item.take_profit}{item.profit == null ? '' : ' · P/L ' + item.profit}</p>
-                      <p className="mt-1 text-xs text-ink-2">Ownership: {item.ownership_status.replaceAll('_', ' ')}</p>
+                      <p className="mt-1 text-xs text-ink-2">Ownership: {item.ownership_status.replace(/_/g, ' ')}</p>
                     </div>
                     {item.ownership_status === 'explicitly_adopted' ? (
                       <button type="button" disabled={inventoryBusy} onClick={() => void changeAdoption(item, false)} className="rounded-lg border border-line/20 px-2.5 py-1.5 text-xs text-ink">Revoke</button>
