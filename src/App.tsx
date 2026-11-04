@@ -156,7 +156,7 @@ function App() {
               <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
               <p className="max-w-2xl text-sm text-ink-2">We wait for all seven timeframes to point in the same direction before announcing a Super Signal.</p>
             </div>
-            <SuperSignalPanel signals={superSignals} prices={prices} loaded={loaded} aiModel={aiModel} />
+            <SuperSignalPanel signals={superSignals} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
           </section>
         )}
 

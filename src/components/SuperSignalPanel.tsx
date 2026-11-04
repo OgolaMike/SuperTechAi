@@ -2,12 +2,15 @@ import { ArrowDownRight, ArrowUpRight, Info, Loader2, Sparkles } from 'lucide-re
 import { EntryTime, LevelList, CurrentPrice, directionExplanation } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import type { Classification, SuperSignal } from '@/lib/intelligence';
+import type { TfState } from '@/lib/sma';
+import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
 
 type Props = {
   signals: SuperSignal[];
   prices: Record<string, number>;
   loaded: boolean;
   aiModel: SignalLearningModel;
+  states: Record<string, Record<number, TfState>>;
 };
 
 const STRENGTH_STYLE: Record<Classification, string> = {
@@ -24,7 +27,7 @@ const STRENGTH_LABEL: Record<Classification, string> = {
   'Counter-trend': 'Mixed',
 };
 
-export function SuperSignalPanel({ signals, prices, loaded, aiModel }: Props) {
+export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: Props) {
   if (!loaded) {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] p-6 text-sm text-ink-2">
@@ -56,6 +59,7 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel }: Props) {
           signal={signal}
           price={prices[signal.symbol]}
           aiModel={aiModel}
+          candles={states[signal.symbol]?.[900]?.candles ?? []}
         />
       ))}
       <p className="flex items-start gap-2 text-sm text-ink-3 lg:col-span-2">
@@ -70,8 +74,10 @@ function SuperSignalCard({
   signal,
   price,
   aiModel,
+  candles,
 }: {
   signal: SuperSignal;
+  candles: import('@/lib/deriv').Candle[];
   price: number | undefined;
   aiModel: SignalLearningModel;
 }) {
@@ -131,6 +137,8 @@ function SuperSignalCard({
           { label: 'Take-profit 3', hint: 'Final profit level.', value: levels.tp3, hitEpoch: null, tone: 'text-up' },
         ]}
       />
+
+      <SignalChartSnapshot candles={candles} levels={levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe="M15" digits={signal.digits} />
 
       <div className="flex items-center justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.02] p-4">
         <div className="min-w-0">
