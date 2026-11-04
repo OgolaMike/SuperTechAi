@@ -133,7 +133,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         })}
         {upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
         {upperPath && <path d={upperPath} fill="none" stroke="#f87171" strokeWidth="2" strokeOpacity="0.9" />}
-        {lowerPath && <path d={lowerPath} fill="none" stroke="#f87171" strokeWidth="2" strokeOpacity="0.9" />}
+        {lowerPath && <path d={lowerPath} fill="none" stroke="#60a5fa" strokeWidth="2" strokeOpacity="0.9" />}
         {linePath('mean') && <path d={linePath('mean')} fill="none" stroke="#facc15" strokeWidth="2.5" />}
         {levelsToDraw.map((level) => <g key={level.label}>
           <line x1={PAD.left} x2={svgWidth - PAD.right} y1={y(level.value)} y2={y(level.value)} stroke={level.color} strokeWidth="1.4" strokeDasharray={level.dash} />
@@ -160,7 +160,8 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-3 py-2 text-[10px] text-slate-300">
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-yellow-400" /> SMA 60</span>
-        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-400" /> Upper/lower bands</span>
+        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-400" /> Upper band</span>
+        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-blue-400" /> Lower band</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-emerald-400" /> BUY / target</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-500" /> Stop / SELL</span>
       </div>
