@@ -13,7 +13,7 @@ type Props = {
 };
 
 const WIDTH = 1440;
-const HEIGHT = 250;
+const HEIGHT = 320;
 const PAD = { top: 18, right: 56, bottom: 24, left: 14 };
 const PERIOD = 60;
 const MIN_ZOOM = 1;
@@ -33,9 +33,13 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const gradientId = `signal-band-fill-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const chartViewportRef = useRef<HTMLDivElement>(null);
-  const data = candles;
-  const closes = data.map((item) => item.close);
-  const stats = data.map((_, index) => rolling(closes, index));
+  // Keep the full history as indicator warm-up, but render only the latest 60 candles.
+  const history = candles;
+  const historyCloses = history.map((item) => item.close);
+  const historyStats = history.map((_, index) => rolling(historyCloses, index));
+  const visibleStart = Math.max(0, history.length - PERIOD);
+  const data = history.slice(visibleStart);
+  const stats = historyStats.slice(visibleStart);
   useEffect(() => {
     const viewport = chartViewportRef.current;
     if (viewport && zoom > MIN_ZOOM) viewport.scrollLeft = viewport.scrollWidth;
@@ -87,10 +91,10 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         <div className="flex min-w-0 items-center gap-2">
           <span className={`h-2 w-2 rounded-full ${direction === 'BUY' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
           <span className="text-xs font-semibold tracking-wide text-white">{timeframe} MARKET SNAPSHOT</span>
-          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-slate-300">2.5σ bands</span>
+          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-slate-300">SMA 60 · BB ±2.5σ</span>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
-          <span className="text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
+          <span className="text-[10px] tabular-nums text-slate-400">{data.length} / 60 candles</span>
           <button
             type="button"
             onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))}
@@ -132,7 +136,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         {lowerPath && <path d={lowerPath} fill="none" stroke="#f87171" strokeWidth="2" strokeOpacity="0.9" />}
         {linePath('mean') && <path d={linePath('mean')} fill="none" stroke="#facc15" strokeWidth="2.5" />}
         {levelsToDraw.map((level) => <g key={level.label}>
-          <line x1={PAD.left} x2={WIDTH - PAD.right} y1={y(level.value)} y2={y(level.value)} stroke={level.color} strokeWidth="1.4" strokeDasharray={level.dash} />
+          <line x1={PAD.left} x2={svgWidth - PAD.right} y1={y(level.value)} y2={y(level.value)} stroke={level.color} strokeWidth="1.4" strokeDasharray={level.dash} />
           <text x={PAD.left + 4} y={Math.max(PAD.top + 10, y(level.value) - 4)} fill={level.color} fontSize="9" fontWeight="700">{level.label} {level.value.toFixed(digits)}</text>
         </g>)}
         {data.map((candle, index) => {
@@ -155,7 +159,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
       </svg>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-3 py-2 text-[10px] text-slate-300">
-        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-yellow-400" /> Average</span>
+        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-yellow-400" /> SMA 60</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-400" /> Upper/lower bands</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-emerald-400" /> BUY / target</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-500" /> Stop / SELL</span>
