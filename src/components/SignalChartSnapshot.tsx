@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { Candle } from '@/lib/deriv';
 import type { SignalLevels } from '@/lib/signals';
 
@@ -25,6 +26,7 @@ function rolling(values: number[], index: number) {
 }
 
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits }: Props) {
+  const gradientId = `signal-band-fill-${useId().replace(/:/g, '')}`;
   const data = candles.slice(-90);
   if (data.length < 2) {
     return (
@@ -34,7 +36,8 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     );
   }
 
-  const stats = data.map((candle, index) => rolling(data.map((item) => item.close), index));
+  const closes = data.map((item) => item.close);
+  const stats = data.map((_, index) => rolling(closes, index));
   const values = data.flatMap((candle, index) => [
     candle.high, candle.low,
     stats[index]?.upper ?? candle.high,
@@ -52,7 +55,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const linePath = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
     .filter(Boolean).join(' ');
-  const bandPoints = stats.map((item, index) => item ? [x(index), y(item.upper), y(item.lower)] : null);
+  const bandPoints: Array<[number, number, number] | null> = stats.map((item, index) => item ? [x(index), y(item.upper), y(item.lower)] : null);
   const upperPath = bandPoints.map((item, index) => item ? `${index === 0 || !bandPoints[index - 1] ? 'M' : 'L'} ${item[0]} ${item[1]}` : '').filter(Boolean).join(' ');
   const lowerPath = bandPoints.slice().reverse().map((item, reverseIndex) => {
     if (!item) return '';
@@ -78,7 +81,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
       </div>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={`Candlestick chart with moving average, volatility bands, entry, stop-loss and target levels`} className="block h-auto w-full">
         <defs>
-          <linearGradient id="signal-band-fill" x1="0" x2="0" y1="0" y2="1">
+          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.13" />
             <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.02" />
           </linearGradient>
@@ -88,7 +91,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           const price = max - (range * step) / 3;
           return <g key={step}><line x1={PAD.left} x2={WIDTH - PAD.right} y1={gy} y2={gy} stroke="#94a3b8" strokeOpacity="0.13" strokeDasharray="3 5" /><text x={WIDTH - PAD.right - 2} y={gy - 4} fill="#94a3b8" fontSize="10" textAnchor="end">{price.toFixed(digits)}</text></g>;
         })}
-        {upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill="url(#signal-band-fill)" />}
+        {upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
         {upperPath && <path d={upperPath} fill="none" stroke="#f87171" strokeWidth="2" strokeOpacity="0.9" />}
         {lowerPath && <path d={lowerPath} fill="none" stroke="#f87171" strokeWidth="2" strokeOpacity="0.9" />}
         {linePath('mean') && <path d={linePath('mean')} fill="none" stroke="#facc15" strokeWidth="2.5" />}
