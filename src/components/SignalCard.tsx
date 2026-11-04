@@ -21,10 +21,10 @@ export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
   const aiScore = signal ? getAiPatternScore(aiModel, tf.granularity, signal.direction, signal.levels) : null;
 
   return (
-    <div className={`hud-panel flex flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-5 transition-all duration-300 hover:bg-surface/[0.05] ${
+    <div className={`hud-panel flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-all duration-300 hover:bg-surface/[0.05] sm:p-5 ${
       isBuy ? 'border-up/30' : isSell ? 'border-down/30' : 'border-line/10'
     }`}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="mb-1 truncate text-xs font-semibold uppercase tracking-wider text-accent" title={asset.fullName}>
             {asset.fullName} <span className="font-medium text-ink-3">({asset.symbol})</span>
@@ -35,7 +35,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
           </div>
         </div>
         {signal && (
-          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusTone(signal.outcome.status)}`}>
+          <span className={`max-w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-snug sm:px-3 sm:text-xs ${statusTone(signal.outcome.status)}`}>
             {STATUS_TEXT[signal.outcome.status]}
           </span>
         )}
@@ -50,7 +50,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
               {isBuy ? <ArrowUpRight className="h-7 w-7 text-up" /> : <ArrowDownRight className="h-7 w-7 text-down" />}
             </div>
             <div className="min-w-0">
-              <div className={`text-2xl font-bold tracking-tight ${isBuy ? 'text-up' : 'text-down'}`}>
+              <div className={`text-xl font-bold tracking-tight sm:text-2xl ${isBuy ? 'text-up' : 'text-down'}`}>
                 {signal.direction === 'BUY' ? 'BUY — UP' : 'SELL — DOWN'}
               </div>
               <div className="text-sm text-ink-2">{directionExplanation(signal.direction)}</div>
@@ -63,7 +63,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
               <p className="mt-1 text-sm text-ink-2">AI is still learning from completed signals. No score yet.</p>
             ) : (
               <>
-                <div className="mt-1 flex items-baseline gap-2">
+                <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-2xl font-bold text-accent">{aiScore}/100</span>
                   <span className="text-xs text-ink-3">match with past results</span>
                 </div>
