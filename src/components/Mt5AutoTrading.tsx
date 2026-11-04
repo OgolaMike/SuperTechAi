@@ -383,9 +383,9 @@ export function Mt5AutoTrading() {
   return (
     <section className="mt-8 space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Optional broker integration</p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">MT5 Auto Trading</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Connect the official MT5 desktop terminal through a private Windows PC or VPS. SuperTech AI can read the account and place pending orders only after broker checks, saved permissions and a separate confirmation for each order. Unattended signal execution and automatic position management are not included yet.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Secure account connection</p>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Connect your trading account</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Enter your MT5 account number and broker server to connect. Your account password is never requested here.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -411,7 +411,7 @@ export function Mt5AutoTrading() {
             </label>
           </div>
           <button type="button" onClick={pairWorker} disabled={pairing || !/^\d{4,20}$/.test(accountLogin.trim()) || !server.trim()} className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
-            {pairing ? 'Pairing…' : 'Create secure Windows worker pairing'}
+            {pairing ? 'Pairing…' : 'Connect account'}
           </button>
           {pairError && <p role="alert" className="mt-3 text-sm text-red-500">{pairError}</p>}
 
