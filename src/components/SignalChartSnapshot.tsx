@@ -16,7 +16,7 @@ const WIDTH = 1440;
 const HEIGHT = 250;
 const PAD = { top: 18, right: 56, bottom: 24, left: 14 };
 const PERIOD = 60;
-const FOCUS_CANDLES = 99;
+const FOCUS_CANDLES = 90;
 const MAX_HISTORY_CANDLES = 1440;
 
 function rolling(values: number[], index: number) {
@@ -58,7 +58,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * plotW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
   const candleSpacing = plotW / Math.max(data.length - 1, 1);
-  const bodyW = Math.max(1, Math.min(14, candleSpacing * 0.72));
+  const bodyW = Math.max(3, Math.min(48, candleSpacing * 0.78));
   const linePath = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
     .filter(Boolean).join(' ');
@@ -90,11 +90,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             type="button"
             onClick={() => setFocused((current) => !current)}
             className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
-            aria-label={focused ? 'Show full chart history' : 'Zoom in to the latest 99 candles'}
+            aria-label={focused ? 'Show full chart history' : 'Zoom in to the latest 90 candles'}
             title={focused ? 'Show full chart history' : 'Zoom in to the latest 90 candles'}
           >
             {focused ? <ZoomOut className="h-3 w-3" /> : <ZoomIn className="h-3 w-3" />}
-            {focused ? 'Full history' : 'Focus latest 99'}
+            {focused ? 'Full history' : 'Focus latest 90'}
           </button>
         </div>
       </div>
