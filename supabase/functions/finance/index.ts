@@ -49,6 +49,8 @@ async function ensureProfile(userId: string) {
   if (createError) throw createError;
   return created;
 }
+type TronTransfer = { transaction_id?: string; token_info?: { decimals?: number; address?: string }; value?: string; block_timestamp?: number | string; confirmed?: boolean; is_confirmed?: boolean; to?: string; from?: string; block?: number | string };
+
 async function verifyTrc20Transfer(address: string, txHash: string, createdAt: string, expiresAt: string) {
   const params = new URLSearchParams({
     only_confirmed: "true",
@@ -69,7 +71,8 @@ async function verifyTrc20Transfer(address: string, txHash: string, createdAt: s
     throw new Error(`TRON verification service returned ${response.status}: ${detail.slice(0, 180)}`);
   }
   const payload = await response.json();
-  const tx = (payload.data ?? []).find((item: any) => String(item.transaction_id ?? "").toLowerCase() === txHash.toLowerCase());
+  const transfers = (payload as { data?: TronTransfer[] }).data ?? [];
+  const tx = transfers.find((item) => String(item.transaction_id ?? "").toLowerCase() === txHash.toLowerCase());
   if (!tx) return null;
   const decimals = Number(tx.token_info?.decimals ?? 6);
   const rawValue = String(tx.value ?? "");
@@ -106,15 +109,13 @@ Deno.serve(async (req) => {
 
     if ((method === "GET" || method === "POST") && action === "dashboard") {
       const profile = await ensureProfile(user.id);
-      const [{ data: orders, error: ordersError }, { data: entries, error: entriesError }, { data: withdrawals, error: withdrawalsError }, { data: owner }, { data: access, error: accessError }] = await Promise.all([
+      const [{ data: orders, error: ordersError }, { data: withdrawals, error: withdrawalsError }, { data: owner }, { data: access, error: accessError }] = await Promise.all([
         db.from("finance_payment_orders").select("id,amount,network,status,tx_hash,created_at,expires_at,confirmed_at,treasury_address").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
-        db.from("finance_ledger_entries").select("id,account_code,entry_type,amount,created_at,payment_order_id,withdrawal_id").or(`user_id.eq.${user.id},account_code.eq.member:${user.id}`).order("created_at", { ascending: false }).limit(100),
         db.from("finance_withdrawal_requests").select("*").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(30),
         db.from("finance_owner_accounts").select("owner_slot,display_name,payout_address").eq("user_id", user.id).eq("active", true).maybeSingle(),
         db.from("member_access").select("user_id").eq("user_id", user.id).maybeSingle(),
       ]);
       if (ordersError) throw ordersError;
-      if (entriesError) throw entriesError;
       if (withdrawalsError) throw withdrawalsError;
       if (accessError) throw accessError;
       const accountCode = owner ? `owner:${owner.owner_slot}` : `member:${user.id}`;
