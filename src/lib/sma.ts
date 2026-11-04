@@ -8,14 +8,16 @@ export type Timeframe = {
   candleCount: number;
 };
 
+const CHART_HISTORY_CANDLES = 1440;
+
 export const TIMEFRAMES: Timeframe[] = [
-  { granularity: 300, label: 'M5', role: 'Momentum', candleCount: 200 },
-  { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: 200 },
-  { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: 200 },
-  { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: 200 },
-  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: 200 },
-  { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: 200 },
-  { granularity: 86400, label: 'D1', role: 'Daily bias', candleCount: 366 },
+  { granularity: 300, label: 'M5', role: 'Momentum', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 86400, label: 'D1', role: 'Daily bias', candleCount: CHART_HISTORY_CANDLES },
 ];
 
 export type Asset = {
@@ -141,7 +143,9 @@ export function mergeCandle(candles: Candle[], incoming: Candle): Candle[] {
   const index = candles.findIndex((candle) => candle.epoch === incoming.epoch);
   if (index === -1) {
     const next = [...candles, incoming].sort((a, b) => a.epoch - b.epoch);
-    if (next.length > 500) next.splice(0, next.length - 500);
+    if (next.length > CHART_HISTORY_CANDLES + 60) {
+      next.splice(0, next.length - (CHART_HISTORY_CANDLES + 60));
+    }
     return next;
   }
   const next = [...candles];
@@ -165,4 +169,3 @@ export function formatDateTime(epoch: number | null): string {
     hour12: false,
   });
 }
-
