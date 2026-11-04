@@ -125,7 +125,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         {[0, 1, 2, 3].map((step) => {
           const gy = PAD.top + (plotH * step) / 3;
           const price = max - (range * step) / 3;
-          return <g key={step}><line x1={PAD.left} x2={WIDTH - PAD.right} y1={gy} y2={gy} stroke="#94a3b8" strokeOpacity="0.13" strokeDasharray="3 5" /><text x={WIDTH - PAD.right - 2} y={gy - 4} fill="#94a3b8" fontSize="10" textAnchor="end">{price.toFixed(digits)}</text></g>;
+          return <g key={step}><line x1={PAD.left} x2={svgWidth - PAD.right} y1={gy} y2={gy} stroke="#94a3b8" strokeOpacity="0.13" strokeDasharray="3 5" /><text x={svgWidth - PAD.right - 2} y={gy - 4} fill="#94a3b8" fontSize="10" textAnchor="end">{price.toFixed(digits)}</text></g>;
         })}
         {upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
         {upperPath && <path d={upperPath} fill="none" stroke="#f87171" strokeWidth="2" strokeOpacity="0.9" />}
@@ -149,7 +149,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         {signalIndex >= 0 && <g>
           <line x1={x(signalIndex)} x2={x(signalIndex)} y1={PAD.top} y2={HEIGHT - PAD.bottom} stroke={direction === 'BUY' ? '#34d399' : '#fb7185'} strokeWidth="1.5" strokeDasharray="3 3" />
           <circle cx={x(signalIndex)} cy={y(data[signalIndex].close)} r="5" fill={direction === 'BUY' ? '#34d399' : '#fb7185'} stroke="#0b1220" strokeWidth="2" />
-          <text x={Math.min(WIDTH - 65, x(signalIndex) + 7)} y={Math.max(PAD.top + 12, y(data[signalIndex].close) - 9)} fill={direction === 'BUY' ? '#6ee7b7' : '#fda4af'} fontSize="10" fontWeight="700">{direction}</text>
+          <text x={Math.min(svgWidth - 65, x(signalIndex) + 7)} y={Math.max(PAD.top + 12, y(data[signalIndex].close) - 9)} fill={direction === 'BUY' ? '#6ee7b7' : '#fda4af'} fontSize="10" fontWeight="700">{direction}</text>
         </g>}
         <text x={PAD.left + 2} y={HEIGHT - 6} fill="#64748b" fontSize="10">SUPERTECH AI · PRICE ACTION</text>
       </svg>
