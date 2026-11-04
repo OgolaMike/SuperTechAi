@@ -47,7 +47,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [referralCode, setReferralCode] = useState(() => new URLSearchParams(window.location.search).get('ref') ?? '');
+  const [referralCode, setReferralCode] = useState(() => new URLSearchParams(window.location.search).get('ref') ?? window.localStorage.getItem('supertech-referral-code') ?? '');
   const [txHash, setTxHash] = useState('');
   const [pollingHash, setPollingHash] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -83,7 +83,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
     }
   }, [isAdmin]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { setTab(initialTab); }, [initialTab]);\n  useEffect(() => { void load(); }, [load]);
 
   const createPayment = async () => {
     setBusy(true); setError(null); setNotice(null);
@@ -203,6 +203,52 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
 
       {error && <div role="alert" className="rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-up/30 bg-up/10 px-4 py-3 text-sm text-up">{notice}</div>}
+
+      {!dashboard?.membershipActive && (
+        <div className="rounded-2xl border border-accent/25 bg-surface/[0.04] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Membership activation</p>
+              <h3 className="mt-1 text-xl font-semibold text-ink">Unlock SuperTech AI</h3>
+              <p className="mt-1 text-sm text-ink-2">One-time membership: <strong className="text-ink">300 USDT</strong> on TRC20.</p>
+            </div>
+            <span className="rounded-full border border-line/10 px-3 py-1 text-xs text-ink-2">TRC20 · USDT</span>
+          </div>
+          {!pendingOrder ? (
+            <button onClick={() => void createPayment()} disabled={busy} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />} Create payment instructions
+            </button>
+          ) : (
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl bg-surface/[0.05] p-4">
+                <p className="text-xs text-ink-3">Send exactly</p>
+                <p className="mt-1 text-2xl font-semibold text-ink">300.00 USDT</p>
+                <p className="mt-1 text-xs text-ink-3">Network: TRON (TRC20). Do not send USDT on ERC20, BEP20 or another network.</p>
+                <p className="mt-3 break-all rounded-lg bg-canvas p-3 text-sm text-ink">{pendingOrder.treasury_address}</p>
+                <button onClick={() => void copy(pendingOrder.treasury_address ?? '', 'Treasury address')} className="mt-2 inline-flex items-center gap-2 rounded-lg border border-line/10 px-3 py-2 text-xs font-semibold text-ink"><Copy className="h-3.5 w-3.5" /> Copy wallet address</button>
+                <a href={`https://tronscan.org/#/address/${pendingOrder.treasury_address}`} target="_blank" rel="noreferrer" className="ml-3 inline-flex items-center gap-1 text-xs text-accent hover:underline">View on TronScan <ExternalLink className="h-3 w-3" /></a>
+              </div>
+              <div className="rounded-xl bg-surface/[0.05] p-4">
+                <p className="text-sm font-semibold text-ink">Verify your transfer</p>
+                <p className="mt-1 text-xs leading-relaxed text-ink-3">After sending, paste the transaction hash from your wallet. SuperTech AI checks the official USDT contract, destination, amount and confirmed TRON transaction before activating your account.</p>
+                <label className="mt-3 block text-xs font-medium text-ink-2">TRON transaction hash</label>
+                <input value={txHash} onChange={(event) => setTxHash(event.target.value)} className="mt-1 w-full rounded-xl border border-line/10 bg-canvas px-3 py-3 text-xs text-ink outline-none focus:border-accent/60" placeholder="64-character transaction ID" />
+                <button onClick={() => void verifyPayment(txHash)} disabled={busy || txHash.trim().length !== 64} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />} Verify payment
+                </button>
+                {pollingHash && <p className="mt-2 text-xs text-accent">Checking for TRON confirmation every 12 seconds…</p>}
+                <p className="mt-2 text-xs text-ink-3">Order expires: {dateTime(pendingOrder.expires_at)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {dashboard?.membershipActive && (
+        <div className="flex items-center gap-3 rounded-2xl border border-up/25 bg-up/5 p-4 text-sm text-up">
+          <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+          <div><p className="font-semibold">Membership active</p><p className="mt-0.5 text-xs opacity-80">Your $300 USDT payment has been confirmed and your SuperTech AI access is enabled.</p></div>
+        </div>
+      )}
 
       {tab === 'wallet' && (
         <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
