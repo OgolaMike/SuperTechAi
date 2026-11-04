@@ -111,3 +111,15 @@ body {
     transition-duration: 1ms !important;
   }
 }
+
+/* Smooth, lightweight section and touch feedback. */
+@keyframes supertech-view-enter { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+.view-transition { animation: supertech-view-enter 240ms ease-out both; }
+.view-transition > * { animation: supertech-view-enter 300ms ease-out both; }
+button { transition: transform 150ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease; -webkit-tap-highlight-color: transparent; }
+button:active { transform: scale(.98); }
+button:focus-visible { outline: 2px solid rgb(var(--accent) / .85); outline-offset: 3px; }
+.dark .hud-panel:hover { box-shadow: 0 12px 32px -22px rgb(var(--accent) / .5); }
+.light .hud-panel:hover { box-shadow: 0 12px 28px -22px rgb(var(--accent) / .35); }
+@media (prefers-reduced-motion: reduce) { .view-transition, .view-transition > * { animation: none !important; } button { transition: none !important; } }
+@media (max-width: 640px) { .view-transition { animation-duration: 190ms; } }
