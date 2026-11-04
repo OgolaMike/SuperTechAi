@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { AdminPanel } from '@/components/AdminPanel';
+import { FinancePanel } from '@/components/FinancePanel';
 import { AssetSelector } from '@/components/AssetSelector';
 import { AmbientBackground } from '@/components/AmbientBackground';
 import { DashboardView } from '@/components/DashboardView';
@@ -172,6 +173,9 @@ function App() {
           </section>
         )}
 
+        {view === 'referrals' && <FinancePanel initialTab="referrals" />}
+        {view === 'earnings' && <FinancePanel initialTab="wallet" />}
+        {view === 'finance' && isAdmin && <FinancePanel initialTab="admin" />}
         {view === 'admin' && isAdmin && <AdminPanel />}
 
         <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
