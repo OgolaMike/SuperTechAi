@@ -48,5 +48,26 @@ export function useAuthSession(): AuthState {
     };
   }, []);
 
+  useEffect(() => {
+    const userId = state.session?.user.id;
+    if (!userId || state.isApproved) return;
+    let active = true;
+    const timer = window.setInterval(() => {
+      checkAccess(userId)
+        .then((access) => {
+          if (active) {
+            setState((current) => current.session?.user.id === userId ? { ...current, ...access } : current);
+          }
+        })
+        .catch(() => {
+          /* Keep the payment gate open and retry on the next interval. */
+        });
+    }, 10000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [state.session?.user.id, state.isApproved]);
+
   return state;
 }
