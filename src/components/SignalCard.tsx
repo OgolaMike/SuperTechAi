@@ -3,6 +3,7 @@ import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, 
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
 import type { Signal } from '@/lib/signals';
+import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
 
 type Props = {
   asset: Asset;
@@ -74,6 +75,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
           <EntryTime epoch={signal.signalEpoch} direction={signal.direction} />
           <CurrentPrice price={price} entry={signal.levels.entry} direction={signal.direction} digits={asset.digits} />
           <LevelList rows={buildRows(signal)} digits={asset.digits} />
+          <SignalChartSnapshot candles={tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} digits={asset.digits} />
 
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
