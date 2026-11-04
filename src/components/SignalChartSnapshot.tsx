@@ -16,7 +16,7 @@ const WIDTH = 1440;
 const HEIGHT = 250;
 const PAD = { top: 18, right: 56, bottom: 24, left: 14 };
 const PERIOD = 60;
-const FOCUS_CANDLES = 90;
+const FOCUS_OPTIONS = [5, 15, 30, 90] as const;
 const MAX_HISTORY_CANDLES = 1440;
 
 function rolling(values: number[], index: number) {
@@ -30,10 +30,13 @@ function rolling(values: number[], index: number) {
 
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits }: Props) {
   const gradientId = `signal-band-fill-${useId().replace(/:/g, '')}`;
-  const [focused, setFocused] = useState(true);
-  const data = focused
-    ? candles.slice(-FOCUS_CANDLES)
-    : candles.slice(-MAX_HISTORY_CANDLES);
+  const [focusCount, setFocusCount] = useState<number>(90);
+  const visibleCount = focusCount === MAX_HISTORY_CANDLES ? MAX_HISTORY_CANDLES : focusCount;
+  const startIndex = Math.max(0, candles.length - visibleCount);
+  const data = candles.slice(startIndex);
+  const fullCloses = candles.map((item) => item.close);
+  const fullStats = candles.map((_, index) => rolling(fullCloses, index));
+  const stats = fullStats.slice(startIndex);
   if (data.length < 2) {
     return (
       <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-6 text-center text-xs text-ink-3">
@@ -43,7 +46,6 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   }
 
   const closes = data.map((item) => item.close);
-  const stats = data.map((_, index) => rolling(closes, index));
   const values = data.flatMap((candle, index) => [
     candle.high, candle.low,
     stats[index]?.upper ?? candle.high,
@@ -88,13 +90,52 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           <span className="text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
           <button
             type="button"
-            onClick={() => setFocused((current) => !current)}
+            onClick={() => {
+              const currentIndex = FOCUS_OPTIONS.indexOf(focusCount as (typeof FOCUS_OPTIONS)[number]);
+              setFocusCount(currentIndex > 0 ? FOCUS_OPTIONS[currentIndex - 1] : MAX_HISTORY_CANDLES);
+            }}
             className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
-            aria-label={focused ? 'Show full chart history' : 'Zoom in to the latest 90 candles'}
-            title={focused ? 'Show full chart history' : 'Zoom in to the latest 90 candles'}
+            aria-label="Zoom out one level"
+            title="Zoom out one level"
+            disabled={focusCount === MAX_HISTORY_CANDLES}
           >
-            {focused ? <ZoomOut className="h-3 w-3" /> : <ZoomIn className="h-3 w-3" />}
-            {focused ? 'Full history' : 'Focus latest 90'}
+            <ZoomOut className="h-3 w-3" />
+          </button>
+          <div className="flex items-center gap-1">
+            {[...FOCUS_OPTIONS].map((count) => (
+              <button
+                key={count}
+                type="button"
+                onClick={() => setFocusCount(count)}
+                aria-pressed={focusCount === count}
+                className={`rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${focusCount === count ? 'border-sky-400 bg-sky-400/20 text-sky-200' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}
+                title={`Show latest ${count} candles`}
+              >
+                {count}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const currentIndex = FOCUS_OPTIONS.indexOf(focusCount as (typeof FOCUS_OPTIONS)[number]);
+              setFocusCount(currentIndex >= 0 && currentIndex < FOCUS_OPTIONS.length - 1 ? FOCUS_OPTIONS[currentIndex + 1] : MAX_HISTORY_CANDLES);
+            }}
+            className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
+            aria-label="Zoom in one level"
+            title="Zoom in one level"
+            disabled={focusCount === MAX_HISTORY_CANDLES}
+          >
+            <ZoomIn className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setFocusCount(MAX_HISTORY_CANDLES)}
+            className={`rounded-md border px-2 py-1 text-[10px] font-semibold ${focusCount === MAX_HISTORY_CANDLES ? 'border-sky-400 bg-sky-400/20 text-sky-200' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}
+            aria-pressed={focusCount === MAX_HISTORY_CANDLES}
+            title="Show full chart history"
+          >
+            All
           </button>
         </div>
       </div>
