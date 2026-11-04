@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Bot, Cable, CircleHelp, Copy, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { Mt5SignalIntents, type Mt5SignalIntent } from './Mt5SignalIntents';
 
 type PairResult = { ok: boolean; workerId: string; workerToken: string; message: string };
 type SyncResult = {
@@ -433,6 +434,19 @@ export function Mt5AutoTrading() {
           </button>
           {syncMessage && <p className="mt-2 text-xs text-ink-2">{syncMessage}</p>}
           <div className="mt-6 rounded-xl border border-line/10 bg-canvas/60 p-4">
+            <Mt5SignalIntents onSelect={(intent: Mt5SignalIntent) => {
+              setProposalSymbol(intent.symbol);
+              setProposalType(intent.order_type);
+              setProposalEntry(String(intent.entry));
+              setProposalStopLoss(String(intent.stop_loss));
+              setProposalTakeProfit(String(intent.take_profit));
+              setPreflightCommand(null);
+              setPreflightCommandId(null);
+              setPreflightMessage('Backend proposal loaded. Review the symbol and prices, then run a fresh broker check.');
+              setExecutionCommand(null);
+              setExecutionCommandId(null);
+              setExecutionMessage('');
+            }} />
             <h3 className="text-sm font-semibold text-ink">Pending-order broker check</h3>
             <p className="mt-1 text-xs leading-5 text-ink-2">Submit a proposed pending order for live quote, broker-distance, spread, margin and risk checks. This first step is a dry run and places nothing. If it passes, you can review and separately confirm the exact order.</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">

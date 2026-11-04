@@ -321,6 +321,21 @@ Deno.serve(async (req) => {
         message: adopting ? "This specific item is marked as adopted. No broker order was changed." : "Adoption was revoked. No broker order was changed." });
     }
 
+    if (body.action === "list_signal_intents") {
+      const memberId = await memberIdFromToken(bearer);
+      if (!memberId) return json({ error: "member_unauthorized" }, 401);
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("login,server").eq("user_id", memberId).maybeSingle();
+      if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
+      const { data, error } = await db.from("mt5_signal_intents")
+        .select("id,symbol,timeframe,direction,order_type,entry,stop_loss,take_profit,signal_epoch,strategy_version,status,expires_at,created_at,payload")
+        .eq("user_id", memberId).eq("account_login", settings.login).eq("account_server", settings.server)
+        .eq("status", "pending_review").gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false }).limit(50);
+      if (error) throw error;
+      return json({ intents: data ?? [] });
+    }
+
     const workerId = req.headers.get("x-mt5-worker-id")?.trim() ?? "";
     if (!workerId || bearer.length < 32) return json({ error: "worker_unauthorized" }, 401);
     const { data: worker, error: authError } = await db
