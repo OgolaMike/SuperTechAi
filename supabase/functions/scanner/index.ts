@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } from "./deriv.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
+import { buildBackendStopIntent } from "./pendingIntents.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
 
 const corsHeaders = {
@@ -240,8 +241,19 @@ async function runScan(): Promise<Record<string, unknown>> {
     let scannedSymbols = 0;
     let lastError: string | null = null;
 
+    let mt5AccountsPromise: Promise<Array<{ user_id: string; login: string; server: string }>> | null = null;
+    const loadMt5Accounts = () => {
+      mt5AccountsPromise ??= db.from("mt5_account_settings").select("user_id,login,server")
+        .then(({ data, error }) => {
+          if (error) throw new Error(`Could not load paired MT5 accounts: ${error.message}`);
+          return (data ?? []) as Array<{ user_id: string; login: string; server: string }>;
+        });
+      return mt5AccountsPromise;
+    };
+
     const scanSymbol = async (symbol: SymbolInfo) => {
       scannedSymbols += 1;
+      const candleCache = new Map<number, Candle[]>();
       const newMarks: { symbol: string; granularity: number; epoch: number }[] = [];
 
       for (const timeframe of TIMEFRAMES) {
@@ -253,9 +265,55 @@ async function runScan(): Promise<Record<string, unknown>> {
 
         try {
           const candles = await fetchCandles(feed, symbol.symbol, timeframe.granularity, timeframe.candleCount);
+          candleCache.set(timeframe.granularity, candles);
           fetchedCount += 1;
           const result = await processTimeframe(symbol, timeframe, candles, nowEpoch, previousMark);
           rowsWritten += result.rowsWritten;
+
+          // Create review-only backend STOP proposals when a fresh M15 signal appears.
+          if (timeframe.granularity === 900 && result.lastEpoch !== null &&
+              (previousMark === undefined || result.lastEpoch > previousMark)) {
+            const m15Signals = computeSignals(candles, 900, nowEpoch).signals;
+            const latestSignal = m15Signals[m15Signals.length - 1];
+            const isFreshSignal = latestSignal && !latestSignal.outcome.closed &&
+              nowEpoch - (latestSignal.signalEpoch + 900) <= 2 * 900 &&
+              (previousMark === undefined || latestSignal.signalEpoch > previousMark);
+            if (isFreshSignal) {
+              try {
+                for (const frame of TIMEFRAMES) {
+                  if (!candleCache.has(frame.granularity)) {
+                    const frameCandles = await fetchCandles(feed, symbol.symbol, frame.granularity, frame.candleCount);
+                    candleCache.set(frame.granularity, frameCandles);
+                    fetchedCount += 1;
+                  }
+                }
+                const intent = buildBackendStopIntent(symbol.symbol, candleCache, nowEpoch);
+                if (intent && intent.signalEpoch === latestSignal.signalEpoch) {
+                  const accounts = await loadMt5Accounts();
+                  if (accounts.length > 0) {
+                    const expiresAt = new Date((intent.signalEpoch + 8 * 900) * 1000).toISOString();
+                    const { error: intentError } = await db.from("mt5_signal_intents").upsert(
+                      accounts.map((account) => ({
+                        user_id: account.user_id, account_login: account.login, account_server: account.server,
+                        source_signal_key: `${symbol.symbol}|900|${intent.signalEpoch}|${intent.direction}`,
+                        strategy_version: intent.strategyVersion, symbol: intent.symbol, timeframe: "M15",
+                        signal_epoch: intent.signalEpoch, direction: intent.direction, order_type: intent.orderType,
+                        entry: intent.entry, stop_loss: intent.stopLoss, take_profit: intent.takeProfit,
+                        idempotency_key: intent.idempotencyKey, status: "pending_review",
+                        payload: { current_price: intent.currentPrice, timeframe_agreement: intent.timeframeAgreement,
+                          source: "server_scanner", note: "Review-only proposal. No broker order has been authorized or placed." },
+                        expires_at: expiresAt, updated_at: nowIso(),
+                      })),
+                      { onConflict: "user_id,account_login,account_server,idempotency_key", ignoreDuplicates: true },
+                    );
+                    if (intentError) throw new Error(`Could not persist MT5 signal intents: ${intentError.message}`);
+                  }
+                }
+              } catch (error) {
+                lastError = `MT5 intent ${symbol.symbol}: ${messageOf(error)}`;
+              }
+            }
+          }
           if (result.lastEpoch !== null) {
             newMarks.push({ symbol: symbol.symbol, granularity: timeframe.granularity, epoch: result.lastEpoch });
             marks.set(markKey, result.lastEpoch);
