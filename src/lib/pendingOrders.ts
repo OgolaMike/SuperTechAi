@@ -22,7 +22,7 @@ export type PendingOrderIdea = {
   signalEpoch: number;
 };
 
-const PRIMARY_GRANULARITY = 900;
+const PRIMARY_GRANULARITY = 300;
 const SIGNAL_MAX_AGE_BARS = 8;
 const SWING_LOOKBACK = 5;
 const M5_GRANULARITY = 300;
@@ -157,7 +157,7 @@ export function buildPendingOrderIdeas(
       return timeframeBias(state);
     });
 
-    // Pending orders are suggested only when all eight live timeframe trends agree.
+    // Pending orders are suggested only when all seven active timeframe trends agree.
     if (readings.length !== TIMEFRAMES.length) continue;
     const direction = readings[0];
     if (direction == null || !readings.every((bias) => bias === direction)) continue;
@@ -182,7 +182,7 @@ export function buildPendingOrderIdeas(
         candidates.push({
           type: 'BUY STOP',
           entry: breakoutEntry,
-          reason: 'The market is moving up on all eight timeframes. This order waits for price to break above the recent high.',
+          reason: 'The market is moving up across all seven timeframes. This order waits for price to break above the recent high.',
         });
       }
       if (primary.currentSma < currentPrice) {
@@ -198,7 +198,7 @@ export function buildPendingOrderIdeas(
         candidates.push({
           type: 'SELL STOP',
           entry: breakoutEntry,
-          reason: 'The market is moving down on all eight timeframes. This order waits for price to break below the recent low.',
+          reason: 'The market is moving down across all seven timeframes. This order waits for price to break below the recent low.',
         });
       }
       if (primary.currentSma > currentPrice) {
@@ -211,7 +211,7 @@ export function buildPendingOrderIdeas(
     }
 
     for (const candidate of candidates) {
-      // The strict M5/AI gate applies to limit orders only. Stop-order logic is intentionally unchanged.
+      // The strict M5/AI gate applies to limit orders only; fresh M5 candle-close signals trigger both stop and limit order reassessment.
       if (candidate.type.endsWith('LIMIT') && !m5LimitGate.approved) continue;
       const levels = makeLevels(direction, candidate.entry, primary.stdDev);
       const scoreLevels: SignalLevels = {
