@@ -87,13 +87,13 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
 
   return (
     <section className="overflow-hidden rounded-xl border border-line/15 bg-[#0b1220] text-white" aria-label={`Chart snapshot for ${timeframe} signal`}>
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <span className={`h-2 w-2 rounded-full ${direction === 'BUY' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
           <span className="text-xs font-semibold tracking-wide text-white">{timeframe} MARKET SNAPSHOT</span>
-          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-slate-300">SMA 60 · BB ±2.5σ</span>
+          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] leading-relaxed text-slate-300">SMA 60 · BB ±2.5σ</span>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:flex-shrink-0 sm:justify-end">
           <span className="text-[10px] tabular-nums text-slate-400">{data.length} / 60 candles</span>
           <button
             type="button"
@@ -158,8 +158,8 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         <text x={PAD.left + 2} y={HEIGHT - 6} fill="#64748b" fontSize="10">SUPERTECH AI · PRICE ACTION</text>
       </svg>
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-3 py-2 text-[10px] text-slate-300">
-        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-yellow-400" /> SMA 60</span>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-white/10 px-3 py-3 text-[10px] leading-snug text-slate-300 sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
+        <span className="flex min-w-0 items-center gap-1.5"><i className="h-0.5 w-3 bg-yellow-400" /> SMA 60</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-400" /> Upper band</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-blue-400" /> Lower band</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-emerald-400" /> BUY / target</span>
