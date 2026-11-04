@@ -27,7 +27,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Trend-following order ideas</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Limit & pending orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          These are suggested prices to watch. Fresh M5 signals trigger a new check across all seven active timeframes. Limit orders also pass a strict M5 momentum and AI quality check. Limit orders face an extra strict M5 momentum and AI quality gate. It does not place trades for you.
+          These are suggested prices to watch. Fresh M5 signals trigger a new check across all eight active timeframes. Limit orders also pass a M5 momentum and AI quality check. It does not place trades for you.
         </p>
       </div>
 
@@ -57,7 +57,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
           <ShieldAlert className="mx-auto h-7 w-7 text-ink-3" />
           <h3 className="mt-3 text-lg font-semibold text-ink">No safe order idea right now</h3>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-ink-2">
-            The seven timeframes are not aligned, or there is no fresh M5 signal in the same direction. We wait rather than force an order. We wait instead of forcing an order.
+            The eight timeframes are not aligned, or there is no fresh M5 signal in the same direction. We wait rather than force an order. We wait instead of forcing an order.
           </p>
         </div>
       ) : (
@@ -71,7 +71,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                     <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">{idea.assetName} ({idea.symbol})</p>
                     <h3 className={`mt-1 text-xl font-bold ${buy ? 'text-up' : 'text-down'}`}>{idea.type}</h3>
                   </div>
-                  <span className="rounded-full border border-up/20 bg-up/5 px-3 py-1 text-xs font-semibold text-up">7/7 agree</span>
+                  <span className="rounded-full border border-up/20 bg-up/5 px-3 py-1 text-xs font-semibold text-up">8/8 agree</span>
                 </div>
 
                 <p className="mt-3 text-sm leading-relaxed text-ink-2">{idea.reason}</p>
@@ -105,7 +105,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
       <div className="rounded-xl border border-line/10 bg-surface/[0.03] p-4">
         <p className="text-sm font-semibold text-ink">Strict limit-order quality check</p>
         <p className="mt-1 text-xs leading-relaxed text-ink-2">
-          Buy Limit and Sell Limit ideas appear only when the latest M5 signal agrees with the trade direction, at least 4 of the last 5 M5 candle bodies support it, movement is directional rather than choppy, candle bodies show real commitment, and the trained AI historical-pattern score is at least 70/100. If the AI model has not learned enough completed outcomes, limit orders are withheld. Buy Stop and Sell Stop rules are not changed by this filter.
+          Buy Limit and Sell Limit ideas appear only when the latest M5 signal agrees with the trade direction, at least 4 of the last 5 M5 candle bodies support it, movement is directional rather than choppy, candle bodies show real commitment, and the trained AI historical-pattern score is at least 35/100. If the AI model has not learned enough completed outcomes, limit orders are withheld. Buy Stop and Sell Stop rules are not changed by this filter.
         </p>
       </div>
 
