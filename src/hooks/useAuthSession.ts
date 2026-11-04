@@ -16,7 +16,10 @@ async function checkAccess(userId: string): Promise<{ isAdmin: boolean; isApprov
   ]);
   if (admin.error) throw admin.error;
   if (member.error) throw member.error;
-  return { isAdmin: admin.data !== null, isApproved: member.data !== null };
+  const isAdmin = admin.data !== null;
+  // Administrators must always reach the full application, even if they do not
+  // have a separate member_access row. This prevents the finance-only gate.
+  return { isAdmin, isApproved: isAdmin || member.data !== null };
 }
 
 export function useAuthSession(): AuthState {
