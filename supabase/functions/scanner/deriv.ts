@@ -1,5 +1,5 @@
 export type SymbolInfo = { symbol: string; name: string; digits: number };
-export type Candle = { epoch: number; close: number };
+export type Candle = { epoch: number; open?: number; high?: number; low?: number; close: number };
 
 const DERIV_WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 const OPEN_TIMEOUT_MS = 15000;
@@ -146,7 +146,7 @@ async function requestCandles(
   if (!Array.isArray(message.candles)) throw new Error(`No candles returned for ${symbol}`);
   return message.candles
     .filter(isRecord)
-    .map((candle) => ({ epoch: Number(candle.epoch), close: Number(candle.close) }))
-    .filter((candle) => Number.isFinite(candle.epoch) && Number.isFinite(candle.close))
+    .map((candle) => ({ epoch: Number(candle.epoch), open: Number(candle.open), high: Number(candle.high), low: Number(candle.low), close: Number(candle.close) }))
+    .filter((candle) => Number.isFinite(candle.epoch) && Number.isFinite(candle.close) && Number.isFinite(candle.open) && Number.isFinite(candle.high) && Number.isFinite(candle.low))
     .sort((a, b) => a.epoch - b.epoch);
 }
