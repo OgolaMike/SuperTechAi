@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import type { Candle } from '@/lib/deriv';
 import type { SignalLevels } from '@/lib/signals';
@@ -16,8 +16,9 @@ const WIDTH = 1440;
 const HEIGHT = 250;
 const PAD = { top: 18, right: 56, bottom: 24, left: 14 };
 const PERIOD = 60;
-const FOCUS_OPTIONS = [5, 15, 30, 90] as const;
-const MAX_HISTORY_CANDLES = 1440;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 0.5;
 
 function rolling(values: number[], index: number) {
   if (index < PERIOD - 1) return null;
@@ -30,13 +31,15 @@ function rolling(values: number[], index: number) {
 
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits }: Props) {
   const gradientId = `signal-band-fill-${useId().replace(/:/g, '')}`;
-  const [focusCount, setFocusCount] = useState<number>(90);
-  const visibleCount = focusCount === MAX_HISTORY_CANDLES ? MAX_HISTORY_CANDLES : focusCount;
-  const startIndex = Math.max(0, candles.length - visibleCount);
-  const data = candles.slice(startIndex);
-  const fullCloses = candles.map((item) => item.close);
-  const fullStats = candles.map((_, index) => rolling(fullCloses, index));
-  const stats = fullStats.slice(startIndex);
+  const [zoom, setZoom] = useState(MIN_ZOOM);
+  const chartViewportRef = useRef<HTMLDivElement>(null);
+  const data = candles;
+  const closes = data.map((item) => item.close);
+  const stats = data.map((_, index) => rolling(closes, index));
+  useEffect(() => {
+    const viewport = chartViewportRef.current;
+    if (viewport && zoom > MIN_ZOOM) viewport.scrollLeft = viewport.scrollWidth;
+  }, [zoom]);
   if (data.length < 2) {
     return (
       <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-6 text-center text-xs text-ink-3">
@@ -45,7 +48,6 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     );
   }
 
-  const closes = data.map((item) => item.close);
   const values = data.flatMap((candle, index) => [
     candle.high, candle.low,
     stats[index]?.upper ?? candle.high,
@@ -55,12 +57,13 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
-  const plotW = WIDTH - PAD.left - PAD.right;
+  const plotW = (WIDTH - PAD.left - PAD.right) * zoom;
+  const svgWidth = PAD.left + plotW + PAD.right;
   const plotH = HEIGHT - PAD.top - PAD.bottom;
   const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * plotW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
   const candleSpacing = plotW / Math.max(data.length - 1, 1);
-  const bodyW = Math.max(3, Math.min(48, candleSpacing * 0.78));
+  const bodyW = Math.max(3, Math.min(64, candleSpacing * 0.78));
   const linePath = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
     .filter(Boolean).join(' ');
@@ -90,56 +93,29 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           <span className="text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
           <button
             type="button"
-            onClick={() => {
-              const currentIndex = FOCUS_OPTIONS.indexOf(focusCount as (typeof FOCUS_OPTIONS)[number]);
-              setFocusCount(currentIndex >= 0 && currentIndex < FOCUS_OPTIONS.length - 1 ? FOCUS_OPTIONS[currentIndex + 1] : MAX_HISTORY_CANDLES);
-            }}
-            className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
-            aria-label="Zoom out one level"
-            title="Zoom out one level"
-            disabled={focusCount === MAX_HISTORY_CANDLES}
+            onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-white/5 text-slate-200 transition-colors hover:bg-white/10 disabled:opacity-35"
+            aria-label="Zoom out chart"
+            title="Zoom out chart"
+            disabled={zoom === MIN_ZOOM}
           >
-            <ZoomOut className="h-3 w-3" />
+            <ZoomOut className="h-3.5 w-3.5" />
           </button>
-          <div className="flex items-center gap-1">
-            {[...FOCUS_OPTIONS].map((count) => (
-              <button
-                key={count}
-                type="button"
-                onClick={() => setFocusCount(count)}
-                aria-pressed={focusCount === count}
-                className={`rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${focusCount === count ? 'border-sky-400 bg-sky-400/20 text-sky-200' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}
-                title={`Show latest ${count} candles`}
-              >
-                {count}
-              </button>
-            ))}
-          </div>
+          <span className="min-w-10 text-center text-[10px] tabular-nums text-slate-300">{zoom.toFixed(1)}×</span>
           <button
             type="button"
-            onClick={() => {
-              const currentIndex = FOCUS_OPTIONS.indexOf(focusCount as (typeof FOCUS_OPTIONS)[number]);
-              setFocusCount(currentIndex > 0 ? FOCUS_OPTIONS[currentIndex - 1] : focusCount);
-            }}
-            className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
-            aria-label="Zoom in one level"
-            title="Zoom in one level"
-            disabled={focusCount === MAX_HISTORY_CANDLES}
+            onClick={() => setZoom((current) => Math.min(MAX_ZOOM, current + ZOOM_STEP))}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-white/5 text-slate-200 transition-colors hover:bg-white/10 disabled:opacity-35"
+            aria-label="Zoom in chart"
+            title="Zoom in chart"
+            disabled={zoom === MAX_ZOOM}
           >
-            <ZoomIn className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setFocusCount(MAX_HISTORY_CANDLES)}
-            className={`rounded-md border px-2 py-1 text-[10px] font-semibold ${focusCount === MAX_HISTORY_CANDLES ? 'border-sky-400 bg-sky-400/20 text-sky-200' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}
-            aria-pressed={focusCount === MAX_HISTORY_CANDLES}
-            title="Show full chart history"
-          >
-            All
+            <ZoomIn className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Candlestick chart with moving average, volatility bands, entry, stop-loss and target levels" className="block h-auto w-full">
+      <div ref={chartViewportRef} className="w-full overflow-x-auto overscroll-x-contain touch-pan-x">
+      <svg viewBox={`0 0 ${svgWidth} ${HEIGHT}`} role="img" aria-label="Scrollable candlestick chart with zoom controls, moving average, volatility bands, entry, stop-loss and target levels" style={{ width: `${svgWidth}px`, maxWidth: "none", height: "auto" }} className="block">
         <defs>
           <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.13" />
@@ -177,6 +153,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         </g>}
         <text x={PAD.left + 2} y={HEIGHT - 6} fill="#64748b" fontSize="10">SUPERTECH AI · PRICE ACTION</text>
       </svg>
+      </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-3 py-2 text-[10px] text-slate-300">
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-yellow-400" /> Average</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-400" /> Upper/lower bands</span>
