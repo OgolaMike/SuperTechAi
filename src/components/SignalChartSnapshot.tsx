@@ -92,7 +92,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             type="button"
             onClick={() => {
               const currentIndex = FOCUS_OPTIONS.indexOf(focusCount as (typeof FOCUS_OPTIONS)[number]);
-              setFocusCount(currentIndex > 0 ? FOCUS_OPTIONS[currentIndex - 1] : MAX_HISTORY_CANDLES);
+              setFocusCount(currentIndex > 0 ? FOCUS_OPTIONS[currentIndex - 1] : focusCount);
             }}
             className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
             aria-label="Zoom out one level"
