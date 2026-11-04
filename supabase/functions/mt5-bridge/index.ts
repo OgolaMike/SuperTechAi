@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
         .select("login,server").eq("user_id", memberId).maybeSingle();
       if (settingsError || !settings) return json({ error: "mt5_account_not_paired" }, 404);
       const { data, error } = await db.from("mt5_signal_intents")
-        .select("id,symbol,timeframe,direction,order_type,entry,stop_loss,take_profit,current_price,signal_epoch,strategy_version,status,expires_at,created_at,payload")
+        .select("id,symbol,timeframe,direction,order_type,entry,stop_loss,take_profit,signal_epoch,strategy_version,status,expires_at,created_at,payload")
         .eq("user_id", memberId).eq("account_login", settings.login).eq("account_server", settings.server)
         .eq("status", "pending_review").gt("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false }).limit(50);
