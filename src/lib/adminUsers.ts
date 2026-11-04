@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase';
+
 export type AdminUser = {
   id: string;
   email: string;
@@ -7,25 +9,30 @@ export type AdminUser = {
   isApproved: boolean;
 };
 
-const ADMIN_URL = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/admin-users`;
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-async function adminRequest(accessToken: string, init: { method: 'GET' | 'POST'; body?: unknown }): Promise<unknown> {
-  const response = await fetch(ADMIN_URL, {
+async function adminRequest(
+  accessToken: string,
+  init: { method: 'GET' | 'POST'; body?: unknown },
+): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('admin-users', {
     method: init.method,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      apikey: ANON_KEY,
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: init.body ? JSON.stringify(init.body) : undefined,
+    ...(init.body !== undefined ? { body: init.body } : {}),
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message = typeof payload?.error === 'string' ? payload.error : `Request failed (status ${response.status})`;
+
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const payload = context && typeof context.json === 'function'
+      ? await context.clone().json().catch(() => null)
+      : null;
+    const message = typeof payload?.error === 'string'
+      ? payload.error
+      : error.message || 'The member administration service is unavailable.';
     throw new Error(message);
   }
-  return payload;
+  if (data && typeof data === 'object' && 'error' in data && typeof data.error === 'string') {
+    throw new Error(data.error);
+  }
+  return data;
 }
 
 export async function fetchAdminUsers(accessToken: string): Promise<AdminUser[]> {
