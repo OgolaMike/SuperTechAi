@@ -29,7 +29,7 @@ export function EntryTime({ epoch, direction }: EntryTimeProps) {
   return (
     <div className="rounded-xl border border-line/10 bg-surface/[0.04] px-4 py-3">
       <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">Signal time</div>
-      <div className={`mt-1 font-mono text-2xl font-semibold tabular-nums ${tone}`}>{formatDateTime(epoch)}</div>
+      <div className={`mt-1 break-words font-mono text-lg font-semibold tabular-nums sm:text-2xl ${tone}`}>{formatDateTime(epoch)}</div>
     </div>
   );
 }
@@ -39,7 +39,7 @@ type CurrentPriceProps = { price: number | undefined; entry: number; direction: 
 export function CurrentPrice({ price, entry, direction, digits }: CurrentPriceProps) {
   if (price === undefined) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.02] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-line/10 bg-surface/[0.02] px-3 py-3 sm:px-4">
         <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Live price</span>
         <span className="text-sm text-ink-3">Waiting for price</span>
       </div>
@@ -69,17 +69,17 @@ export function LevelList({ rows, digits }: LevelListProps) {
   return (
     <ul className="divide-y divide-line/10 overflow-hidden rounded-xl border border-line/10">
       {rows.map((row) => (
-        <li key={row.label} className="flex items-center justify-between gap-3 px-4 py-3">
+        <li key={row.label} className="flex flex-col items-start gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold leading-snug text-ink">
               {row.hitEpoch !== null && <Check className="h-4 w-4 flex-shrink-0 text-up" />}
               <span>{row.label}</span>
             </div>
-            <div className="mt-0.5 text-xs leading-relaxed text-ink-3">
+            <div className="mt-0.5 break-words text-xs leading-relaxed text-ink-3">
               {row.hitEpoch !== null ? `Reached at ${formatDateTime(row.hitEpoch)}` : row.hint}
             </div>
           </div>
-          <span className={`flex-shrink-0 font-mono text-lg font-semibold tabular-nums ${row.tone}`}>
+          <span className={`max-w-full break-all font-mono text-base font-semibold tabular-nums sm:flex-shrink-0 sm:text-lg ${row.tone}`}>
             {formatPrice(row.value, digits)}
           </span>
         </li>
