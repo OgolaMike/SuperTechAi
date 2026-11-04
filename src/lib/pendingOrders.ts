@@ -32,7 +32,7 @@ const M5_MIN_EFFICIENCY = 0.62;
 const M5_MIN_BODY_RATIO = 0.5;
 const M5_MIN_NORMALIZED_MOVE = 0.3;
 const M5_SIGNAL_MAX_AGE_BARS = 6;
-const LIMIT_MIN_AI_SCORE = 70;
+const LIMIT_MIN_AI_SCORE = 35;
 
 type M5LimitGate = {
   approved: boolean;
