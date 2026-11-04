@@ -29,11 +29,25 @@ const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'curren
 const dateTime = (value: string) => new Date(value).toLocaleString();
 
 async function financeCall<T>(payload: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('finance', { body: payload });
+  // Fetch the current authenticated session immediately before invoking the
+  // protected function. This avoids sending an expired/missing bearer token.
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(`Authentication session error: ${sessionError.message}`);
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error('Your sign-in session has expired. Please sign out and sign in again.');
+
+  const { data, error } = await supabase.functions.invoke('finance', {
+    body: payload,
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
   if (error) {
-    const context = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
-    const details = await context?.json?.().catch(() => null);
-    throw new Error(details?.error || error.message || 'Finance service unavailable.');
+    const context = (error as { context?: Response }).context;
+    let details: { error?: string } | null = null;
+    if (context && typeof context.json === 'function') {
+      details = await context.clone().json().catch(() => null);
+    }
+    const message = details?.error || error.message || 'Finance service unavailable.';
+    throw new Error(`Referral service: ${message}`);
   }
   if (data?.error) throw new Error(data.error);
   return data as T;
