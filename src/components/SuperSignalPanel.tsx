@@ -52,7 +52,8 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
   }
 
   return (
-    <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x">
+    <div className="space-y-3">
+      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x">
       {signals.map((signal) => (
         <SuperSignalCard
           key={`${signal.symbol}-${signal.signalEpoch}`}
@@ -62,7 +63,8 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
           candles={states[signal.symbol]?.[900]?.candles ?? []}
         />
       ))}
-      <p className="flex min-w-[85%] snap-start items-start gap-2 text-sm text-ink-3 sm:min-w-[48%]">
+      </div>
+      <p className="flex items-start gap-2 text-sm text-ink-3">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
         These are market alerts, not automatic trades. Always check the price and risk before acting.
       </p>
