@@ -18,6 +18,7 @@ import { Toasts } from '@/components/Toasts';
 import { ViewNav, type View } from '@/components/ViewNav';
 import { useDerivSignals } from '@/hooks/useDerivSignals';
 import { useSignalAlerts } from '@/hooks/useSignalAlerts';
+import { useSuperSignalAlerts } from '@/hooks/useSuperSignalAlerts';
 import { useSignalRecordSync } from '@/hooks/useSignalRecordSync';
 import { useTheme } from '@/hooks/useTheme';
 import { playAlertTone } from '@/lib/alertSound';
@@ -62,6 +63,7 @@ function App() {
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
   const { toasts, dismiss } = useSignalAlerts(views, loaded, soundsEnabled);
+  const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded, soundsEnabled);
   const sync = useSignalRecordSync(views, loaded);
 
   useEffect(() => {
@@ -152,7 +154,7 @@ function App() {
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
               <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
-              <p className="max-w-2xl text-sm text-ink-2">We wait for all eight timeframes to point in the same direction before showing a Super Signal.</p>
+              <p className="max-w-2xl text-sm text-ink-2">We wait for all seven timeframes to point in the same direction before announcing a Super Signal.</p>
             </div>
             <SuperSignalPanel signals={superSignals} prices={prices} loaded={loaded} aiModel={aiModel} />
           </section>
@@ -183,7 +185,7 @@ function App() {
         </footer>
       </div>
 
-      <Toasts toasts={toasts} onDismiss={dismiss} />
+      <Toasts toasts={[...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); }} />
     </div>
   );
 }
