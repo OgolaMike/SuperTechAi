@@ -41,7 +41,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   const { levels, digits } = toast;
   const isSignal = toast.kind === 'signal' || toast.kind === 'reversal';
   const title = isSignal
-    ? `${toast.direction} SIGNAL`
+    ? toast.timeframe === 'SUPER SIGNAL' ? 'SUPER SIGNAL CONFIRMED' : `${toast.direction} SIGNAL`
     : toast.tone === 'STOP' ? 'Stop-loss hit' : 'Target reached';
 
   return (
