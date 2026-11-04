@@ -84,7 +84,8 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
     }
   }, [isAdmin]);
 
-  useEffect(() => { setTab(initialTab); }, [initialTab]);\n  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { setTab(initialTab); }, [initialTab]);
+  useEffect(() => { void load(); }, [load]);
 
   const createPayment = async () => {
     setBusy(true); setError(null); setNotice(null);
