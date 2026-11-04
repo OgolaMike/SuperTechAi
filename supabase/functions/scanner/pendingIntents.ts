@@ -88,7 +88,9 @@ export function buildBackendStopIntent(
     : Math.min(swingLow, currentPrice) - buffer;
   if (!(entry > 0) || (direction === "BUY" ? entry <= currentPrice : entry >= currentPrice)) return null;
 
-  const stopLoss = entry - sign * primary.deviation;
+  // Match makeLevels() in src/lib/pendingOrders.ts: SL is anchored to the
+  // M15 SMA, while the single 2.5σ target is measured from the entry.
+  const stopLoss = primary.mean - sign * primary.deviation;
   const takeProfit = entry + sign * primary.deviation * 2.5;
   if (![stopLoss, takeProfit].every((v) => Number.isFinite(v) && v > 0)) return null;
 
