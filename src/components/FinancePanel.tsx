@@ -57,7 +57,6 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
   const [ownerDrafts, setOwnerDrafts] = useState<Record<number, { display_name: string; user_id: string; payout_address: string }>>({});
 
   const pendingOrder = useMemo(() => dashboard?.orders.find((order) => order.status === 'pending') ?? null, [dashboard]);
-  const confirmedOrder = useMemo(() => dashboard?.orders.find((order) => order.status === 'confirmed') ?? null, [dashboard]);
   const referralLink = dashboard ? `${window.location.origin}/?ref=${dashboard.profile.referral_code}` : '';
 
   const load = useCallback(async (quiet = false) => {
@@ -90,7 +89,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
   const createPayment = async () => {
     setBusy(true); setError(null); setNotice(null);
     try {
-      const result = await financeCall<{ order: { id: string }; treasury_address: string }>({
+      await financeCall<{ order: { id: string }; treasury_address: string }>({
         action: 'create-payment',
         referral_code: referralCode.trim().toUpperCase() || null,
       });
