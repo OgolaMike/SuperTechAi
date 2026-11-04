@@ -138,6 +138,7 @@ function App() {
           />
         </div>
 
+        <div key={view} className="view-transition">
         {view === 'dashboard' && (
           <DashboardView
             selectedSymbols={selectedSymbols}
@@ -177,6 +178,7 @@ function App() {
         {view === 'earnings' && <FinancePanel initialTab="wallet" />}
         {view === 'finance' && isAdmin && <FinancePanel initialTab="admin" />}
         {view === 'admin' && isAdmin && <AdminPanel />}
+        </div>
 
         <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
           <div className="flex items-start gap-3">
