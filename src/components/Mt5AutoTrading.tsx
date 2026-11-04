@@ -133,7 +133,7 @@ export function Mt5AutoTrading() {
       if (command.status === 'succeeded' || command.status === 'failed') {
         setPreflightBusy(false);
         setPreflightMessage(command.status === 'succeeded'
-          ? 'Broker validation finished. No trade was placed.'
+          ? 'Broker validation finished. No order was placed yet.'
           : 'Broker validation could not be completed.');
         window.clearInterval(timer);
       }
@@ -384,7 +384,7 @@ export function Mt5AutoTrading() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Optional broker integration</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">MT5 Auto Trading</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Pair your MetaTrader 5 terminal with SuperTech AI. The first worker release verifies the account and reads existing orders and positions. It does not trade or change existing orders.</p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Connect the official MT5 desktop terminal through a private Windows PC or VPS. SuperTech AI can read the account and place pending orders only after broker checks, saved permissions and a separate confirmation for each order. Unattended signal execution and automatic position management are not included yet.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -434,7 +434,7 @@ export function Mt5AutoTrading() {
           {syncMessage && <p className="mt-2 text-xs text-ink-2">{syncMessage}</p>}
           <div className="mt-6 rounded-xl border border-line/10 bg-canvas/60 p-4">
             <h3 className="text-sm font-semibold text-ink">Pending-order broker check</h3>
-            <p className="mt-1 text-xs leading-5 text-ink-2">Submit a proposed pending order for live quote, broker-distance, spread, margin and risk checks. This is a simulation only; the worker cannot place it.</p>
+            <p className="mt-1 text-xs leading-5 text-ink-2">Submit a proposed pending order for live quote, broker-distance, spread, margin and risk checks. This first step is a dry run and places nothing. If it passes, you can review and separately confirm the exact order.</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="text-xs text-ink-2">MT5 symbol
                 <input value={proposalSymbol} onChange={(event) => setProposalSymbol(event.target.value)} placeholder="e.g. EURUSD" className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2 text-sm text-ink" />
@@ -542,12 +542,12 @@ export function Mt5AutoTrading() {
                   </div>
                 </div>
               ))}
-              {inventory.length === 0 && <p className="text-xs text-ink-2">No inventory loaded yet. Connect MT5 and refresh after a successful read-only sync.</p>}
+              {inventory.length === 0 && <p className="text-xs text-ink-2">No inventory loaded yet. Connect MT5 and refresh after a successful account sync.</p>}
             </div>
           </div>
           <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
             <div className="flex items-center gap-2"><Bot className="h-5 w-5 text-accent" /><h3 className="font-semibold text-ink">Execution permissions</h3></div>
-            <p className="mt-1 text-xs text-ink-2">Save separate permissions for this MT5 account. They are recorded now but cannot activate trades while the worker remains read-only.</p>
+            <p className="mt-1 text-xs text-ink-2">Save separate permissions for this MT5 account. New pending orders still require a successful broker check and your separate confirmation.</p>
             <label className="mt-5 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={adoptPending} onChange={(event) => setAdoptPending(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow importing existing pending orders</strong><span className="text-xs text-ink-2">Permission for a future import workflow. Does not modify broker orders.</span></span></label>
             <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={managePositions} onChange={(event) => setManagePositions(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow management of existing positions</strong><span className="text-xs text-ink-2">Separate permission; manual trades will not be touched unless explicitly adopted later.</span></span></label>
             <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={placeNewOrders} onChange={(event) => setPlaceNewOrders(event.target.checked)} className="mt-1 accent-current" /><span><strong className="block font-medium">Allow new strategy orders</strong><span className="text-xs text-ink-2">Permission required before any new SuperTech AI pending order can be sent.</span></span></label>
@@ -586,15 +586,16 @@ export function Mt5AutoTrading() {
               <li>• Read account balance, equity and free margin.</li>
               <li>• Read pending orders and open positions.</li>
               <li>• Report worker heartbeat and connection errors.</li>
-              <li>• No order placement, editing, cancellation or closing.</li>
+              <li>• Place BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT orders after your separate approval and final broker checks.</li>
+              <li>• No unattended signal execution, position modification, trailing stops, cancellation or closing yet.</li>
             </ul>
           </div>
           <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
-            <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" /><div><p className="text-sm font-semibold text-ink">Trading remains disabled</p><p className="mt-1 text-xs leading-5 text-ink-2">Broker execution, risk limits, order reconciliation and end-to-end tests must be completed before automated trading is enabled.</p></div></div>
+            <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" /><div><p className="text-sm font-semibold text-ink">Automation release status</p><p className="mt-1 text-xs leading-5 text-ink-2">Member-confirmed pending-order placement is implemented, subject to a deployed bridge, a running Windows worker and successful broker checks. Automatic signal execution and automatic position management are still pending.</p></div></div>
           </div>
         </div>
       </div>
-      <p className="flex items-center gap-2 text-xs text-ink-2"><CircleHelp className="h-4 w-4" />Keep the Windows computer or VPS running with MT5 open for continuous monitoring.</p>
+      <p className="flex items-center gap-2 text-xs text-ink-2"><CircleHelp className="h-4 w-4" />An Android phone can control the dashboard, but it cannot run the MT5 worker. Keep a private Windows PC or Windows VPS running with MT5 open for broker connectivity.</p>
     </section>
   );
 }
