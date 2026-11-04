@@ -141,21 +141,13 @@ Deno.serve(async (req) => {
       // every new member must arrive through an existing member's personal link.
       if (!sponsorId && !sponsorAccountCode && referralCode) {
         if (referralCode === String(settings.company_referral_code ?? "SUPERTECHAI").toUpperCase()) {
-          const { data: companyOrders, error: companyOrdersError } = await db
-            .from("finance_payment_orders")
-            .select("user_id,status,expires_at")
-            .eq("sponsor_account_code", "company:account");
-          if (companyOrdersError) throw companyOrdersError;
-          const activeCompanyReferrals = new Set((companyOrders ?? [])
-            .filter((row) => row.status === "confirmed" || (row.status === "pending" && new Date(row.expires_at).getTime() > Date.now()))
-            .map((row) => row.user_id)).size;
-          if (activeCompanyReferrals >= 10) {
+          const { data: claimed, error: claimError } = await db.rpc("finance_claim_company_referral", {
+            p_user_id: user.id,
+          });
+          if (claimError) throw claimError;
+          if (!claimed) {
             return reply({ error: "The company's initial ten membership places have been filled. Please use a referral link from an existing SuperTech AI member." }, 403);
           }
-          const { error: linkError } = await db.from("finance_member_profiles")
-            .update({ sponsor_account_code: "company:account", updated_at: new Date().toISOString() })
-            .eq("user_id", user.id).is("sponsor_user_id", null).is("sponsor_account_code", null);
-          if (linkError) throw linkError;
           sponsorAccountCode = "company:account";
         } else {
           const { data: sponsor, error: sponsorError } = await db.from("finance_member_profiles").select("user_id").eq("referral_code", referralCode).maybeSingle();
