@@ -15,6 +15,10 @@ const WIDTH = 720;
 const HEIGHT = 250;
 const PAD = { top: 18, right: 14, bottom: 24, left: 14 };
 const PERIOD = 60;
+// Reserve the rightmost quarter of the plot as forward-looking whitespace.
+// This places the latest candle at roughly 75% of the plot width (the
+// centre of the right half), matching the familiar TradingView layout.
+const CANDLE_AREA_RATIO = 0.75;
 
 function rolling(values: number[], index: number) {
   if (index < PERIOD - 1) return null;
@@ -48,10 +52,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
   const plotW = WIDTH - PAD.left - PAD.right;
+  const candleAreaW = plotW * CANDLE_AREA_RATIO;
   const plotH = HEIGHT - PAD.top - PAD.bottom;
-  const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * plotW;
+  const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * candleAreaW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
-  const bodyW = Math.max(3, Math.min(9, (plotW / data.length) * 0.62));
+  const bodyW = Math.max(3, Math.min(9, (candleAreaW / data.length) * 0.62));
   const linePath = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
     .filter(Boolean).join(' ');
