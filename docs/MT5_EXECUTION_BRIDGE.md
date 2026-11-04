@@ -88,6 +88,13 @@ The broker request uses magic number 601025 and a unique `STAI:` comment. After 
 
 Default risk settings in the app are 0.50% maximum planned risk per trade, 2.00% daily loss limit and three concurrent positions. Spread and slippage limits default to zero and must be configured to broker-appropriate positive values before risk controls can pass. A configured limit is not a guarantee of a fill or profit.
 
+
+## Durable signal-intent ledger (foundation added)
+
+Migration `20261104020000_create_durable_mt5_signal_intents.sql` adds a service-only `mt5_signal_intents` ledger with account-scoped idempotency, strategy version, source signal/candle identity, order geometry, expiry and an explicit lifecycle state. It also adds `unattended_execution_enabled`, defaulting to false.
+
+This is storage groundwork only. No scanner currently writes these intents, no worker command is dispatched from this table, and the new setting does not activate trading. The next implementation step is to produce intents server-side from the existing closed-candle scanner, preserving the exact M1/M5/M15/M30/H1/H2/H4/D1 configuration and the limit-only M5 momentum/AI gate. The dispatcher must then require this separate opt-in plus all existing account permissions, risk checks, broker preflight and worker authorization. Until those steps and tests exist, manual member-confirmed order placement remains the only supported execution path.
+
 ## Required next release for full automation
 
 The following work remains before SuperTech AI can autonomously trade signals and manage its own trades:
