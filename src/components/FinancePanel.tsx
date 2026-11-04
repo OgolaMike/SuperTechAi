@@ -258,7 +258,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
             <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">{money(dashboard?.balance ?? 0)}</p>
             <p className="mt-1 text-xs text-ink-3">Account: {dashboard?.accountCode}</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Direct referrals</p><p className="mt-1 text-xl font-semibold text-ink">{dashboard?.directReferrals ?? 0}</p></div>
+              <div className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Invited accounts</p><p className="mt-1 text-xl font-semibold text-ink">{dashboard?.directReferrals ?? 0}</p></div>
               <div className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Withdrawal contribution</p><p className="mt-1 text-xl font-semibold text-ink">15%</p></div>
             </div>
             <p className="mt-4 text-xs leading-relaxed text-ink-3">A 15% contribution is deducted from every approved withdrawal to support hosting, AI services, security, maintenance and other recurring company expenses.</p>
@@ -334,6 +334,20 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
               <button disabled={busy} className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">Save treasury</button>
             </form>
             <p className="mt-2 text-xs text-ink-3">Only the public receiving address belongs here. Never enter a seed phrase or private key.</p>
+          </div>
+
+          <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
+            <h3 className="font-semibold text-ink">Company and bonus reserves</h3>
+            <p className="mt-1 text-sm text-ink-2">These balances are separated from member and owner earnings so company liabilities remain visible.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                ['Infinity pool', 'pool:infinity'],
+                ['Unilevel pool', 'pool:unilevel'],
+                ['Lucky pool', 'pool:lucky'],
+                ['Unallocated referrals', 'pool:unallocated_referral'],
+                ['Operating fund', 'company:operations'],
+              ].map(([label, account]) => <div key={account} className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-lg font-semibold text-ink">{money(adminData.accountBalances[account] ?? 0)}</p></div>)}
+            </div>
           </div>
 
           <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
