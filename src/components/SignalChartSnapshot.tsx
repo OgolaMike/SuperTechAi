@@ -1,4 +1,5 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 import type { Candle } from '@/lib/deriv';
 import type { SignalLevels } from '@/lib/signals';
 
@@ -15,10 +16,8 @@ const WIDTH = 1440;
 const HEIGHT = 250;
 const PAD = { top: 18, right: 56, bottom: 24, left: 14 };
 const PERIOD = 60;
-// Reserve the rightmost quarter of the plot as forward-looking whitespace.
-// This places the latest candle at roughly 75% of the plot width (the
-// centre of the right half), matching the familiar TradingView layout.
-const CANDLE_AREA_RATIO = 0.75;
+const FOCUS_CANDLES = 90;
+const MAX_HISTORY_CANDLES = 1440;
 
 function rolling(values: number[], index: number) {
   if (index < PERIOD - 1) return null;
@@ -31,7 +30,10 @@ function rolling(values: number[], index: number) {
 
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits }: Props) {
   const gradientId = `signal-band-fill-${useId().replace(/:/g, '')}`;
-  const data = candles.slice(-1440);
+  const [focused, setFocused] = useState(true);
+  const data = focused
+    ? candles.slice(-FOCUS_CANDLES)
+    : candles.slice(-MAX_HISTORY_CANDLES);
   if (data.length < 2) {
     return (
       <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-6 text-center text-xs text-ink-3">
@@ -52,11 +54,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
   const plotW = WIDTH - PAD.left - PAD.right;
-  const candleAreaW = plotW * CANDLE_AREA_RATIO;
   const plotH = HEIGHT - PAD.top - PAD.bottom;
-  const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * candleAreaW;
+  const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * plotW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
-  const bodyW = Math.max(0.8, Math.min(5, (candleAreaW / data.length) * 0.72));
+  const candleSpacing = plotW / Math.max(data.length - 1, 1);
+  const bodyW = Math.max(1, Math.min(14, candleSpacing * 0.72));
   const linePath = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
     .filter(Boolean).join(' ');
@@ -76,15 +78,27 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
 
   return (
     <section className="overflow-hidden rounded-xl border border-line/15 bg-[#0b1220] text-white" aria-label={`Chart snapshot for ${timeframe} signal`}>
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className={`h-2 w-2 rounded-full ${direction === 'BUY' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
           <span className="text-xs font-semibold tracking-wide text-white">{timeframe} MARKET SNAPSHOT</span>
           <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-slate-300">2.5σ bands</span>
         </div>
-        <span className="text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <span className="text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
+          <button
+            type="button"
+            onClick={() => setFocused((current) => !current)}
+            className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
+            aria-label={focused ? 'Show full chart history' : 'Zoom in to the latest 90 candles'}
+            title={focused ? 'Show full chart history' : 'Zoom in to the latest 90 candles'}
+          >
+            {focused ? <ZoomOut className="h-3 w-3" /> : <ZoomIn className="h-3 w-3" />}
+            {focused ? 'Full history' : 'Focus latest 90'}
+          </button>
+        </div>
       </div>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={`Candlestick chart with moving average, volatility bands, entry, stop-loss and target levels`} className="block h-auto w-full">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Candlestick chart with moving average, volatility bands, entry, stop-loss and target levels" className="block h-auto w-full">
         <defs>
           <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.13" />
