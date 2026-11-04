@@ -90,17 +90,17 @@ function SuperSignalCard({
 
   return (
     <article
-      className={`hud-panel flex min-w-[88%] max-w-[88%] snap-start flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-5 transition-colors duration-300 sm:min-w-[48%] sm:max-w-[48%] ${
+      className={`hud-panel flex min-w-[92%] max-w-[92%] snap-start flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-colors duration-300 sm:min-w-[48%] sm:max-w-[48%] sm:p-5 ${
         isBuy ? 'border-up/25 hover:border-up/50' : 'border-down/25 hover:border-down/50'
       }`}
     >
-      <header className="flex items-start justify-between gap-3">
+      <header className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="break-words text-xl font-semibold text-ink">{signal.name}</h3>
           <p className="mt-0.5 text-sm text-ink-3">{signal.symbol}</p>
         </div>
         <span
-          className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-base font-bold tracking-wider ${
+          className={`inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold tracking-wide sm:flex-shrink-0 sm:text-base sm:tracking-wider ${
             isBuy ? 'border-up/40 bg-up/10 text-up' : 'border-down/40 bg-down/10 text-down'
           }`}
         >
@@ -142,7 +142,7 @@ function SuperSignalCard({
 
       <SignalChartSnapshot candles={candles} levels={levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe="M15" digits={signal.digits} />
 
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.02] p-4">
+      <div className="flex flex-col items-start gap-3 rounded-xl border border-line/10 bg-surface/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">Why this signal?</div>
           <p className="mt-1 text-sm leading-relaxed text-ink-2">
@@ -150,7 +150,7 @@ function SuperSignalCard({
           </p>
           <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-up">7 of 7 timeframes agree</p>
         </div>
-        <span className={`flex-shrink-0 rounded-full border px-3 py-1 text-sm font-semibold ${STRENGTH_STYLE[signal.classification]}`}>
+        <span className={`max-w-full rounded-full border px-3 py-1 text-xs font-semibold sm:flex-shrink-0 sm:text-sm ${STRENGTH_STYLE[signal.classification]}`}>
           {STRENGTH_LABEL[signal.classification]}
         </span>
       </div>
