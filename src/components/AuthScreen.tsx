@@ -34,8 +34,11 @@ export function AuthScreen() {
     setBusy(true);
     try {
       if (isSignUp) {
+        const invitedBy = new URLSearchParams(window.location.search).get('ref');
+        if (invitedBy) window.localStorage.setItem('supertech-referral-code', invitedBy.trim().toUpperCase());
         const signedIn = await signUp(trimmedEmail, password);
-        if (!signedIn) setNotice('Account created. An admin needs to approve it before you can use the dashboard.');
+        if (!signedIn) setNotice('Account created. Confirm your email, sign in, and complete the 300 USDT TRC20 membership payment to activate access.');
+        else setNotice('Account created. Complete the 300 USDT TRC20 membership payment to activate access.');
       } else {
         await signIn(trimmedEmail, password);
       }
