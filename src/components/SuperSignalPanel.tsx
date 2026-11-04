@@ -52,7 +52,7 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x">
       {signals.map((signal) => (
         <SuperSignalCard
           key={`${signal.symbol}-${signal.signalEpoch}`}
@@ -62,7 +62,7 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
           candles={states[signal.symbol]?.[900]?.candles ?? []}
         />
       ))}
-      <p className="flex items-start gap-2 text-sm text-ink-3 lg:col-span-2">
+      <p className="flex min-w-[85%] snap-start items-start gap-2 text-sm text-ink-3 sm:min-w-[48%]">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
         These are market alerts, not automatic trades. Always check the price and risk before acting.
       </p>
@@ -88,7 +88,7 @@ function SuperSignalCard({
 
   return (
     <article
-      className={`hud-panel flex flex-col gap-4 rounded-2xl border bg-surface/[0.03] p-5 transition-colors duration-300 ${
+      className={`hud-panel flex min-w-[88%] max-w-[88%] snap-start flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-5 transition-colors duration-300 sm:min-w-[48%] sm:max-w-[48%] ${
         isBuy ? 'border-up/25 hover:border-up/50' : 'border-down/25 hover:border-down/50'
       }`}
     >
