@@ -14,6 +14,7 @@ type FinanceResult = {
   directReferrals: number;
   membershipPrice: number;
   withdrawalFeePct: number;
+  membershipActive?: boolean;
 };
 type AdminResult = {
   settings: { treasury_address: string | null; network: string; membership_price: number; withdrawal_fee_pct: number; usdt_contract: string };
@@ -39,7 +40,7 @@ async function financeCall<T>(payload: Record<string, unknown>): Promise<T> {
 }
 
 export function FinancePanel({ initialTab = 'wallet' }: Props) {
-  const { session, isAdmin } = useSession();
+  const { isAdmin } = useSession();
   const [tab, setTab] = useState(initialTab);
   const [dashboard, setDashboard] = useState<FinanceResult | null>(null);
   const [adminData, setAdminData] = useState<AdminResult | null>(null);
