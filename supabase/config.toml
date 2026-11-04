@@ -12,3 +12,6 @@ verify_jwt = true
 
 [functions.mt5-bridge]
 verify_jwt = false
+
+[functions.finance]
+verify_jwt = true
