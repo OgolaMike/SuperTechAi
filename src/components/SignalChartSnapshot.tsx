@@ -16,7 +16,7 @@ const WIDTH = 1440;
 const HEIGHT = 250;
 const PAD = { top: 18, right: 56, bottom: 24, left: 14 };
 const PERIOD = 60;
-const FOCUS_CANDLES = 90;
+const FOCUS_CANDLES = 99;
 const MAX_HISTORY_CANDLES = 1440;
 
 function rolling(values: number[], index: number) {
@@ -90,11 +90,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             type="button"
             onClick={() => setFocused((current) => !current)}
             className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
-            aria-label={focused ? 'Show full chart history' : 'Zoom in to the latest 90 candles'}
+            aria-label={focused ? 'Show full chart history' : 'Zoom in to the latest 99 candles'}
             title={focused ? 'Show full chart history' : 'Zoom in to the latest 90 candles'}
           >
             {focused ? <ZoomOut className="h-3 w-3" /> : <ZoomIn className="h-3 w-3" />}
-            {focused ? 'Full history' : 'Focus latest 90'}
+            {focused ? 'Full history' : 'Focus latest 99'}
           </button>
         </div>
       </div>
