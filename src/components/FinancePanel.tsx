@@ -281,7 +281,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-sm">
                 <thead className="text-xs text-ink-3"><tr><th className="py-2">Date</th><th>Activity</th><th className="text-right">Amount</th></tr></thead>
-                <tbody>{dashboard?.ledger.map((row, index) => <tr key={`${row.created_at}-${index}`} className="border-t border-line/10"><td className="py-3 text-ink-3">{dateTime(row.created_at)}</td><td className="text-ink-2">{row.entry_type.replaceAll('_', ' ')}</td><td className={`text-right font-medium ${row.amount < 0 ? 'text-down' : 'text-up'}`}>{money(row.amount)}</td></tr>)}</tbody>
+                <tbody>{dashboard?.ledger.map((row, index) => <tr key={`${row.created_at}-${index}`} className="border-t border-line/10"><td className="py-3 text-ink-3">{dateTime(row.created_at)}</td><td className="text-ink-2">{row.entry_type.replace(/_/g, ' ')}</td><td className={`text-right font-medium ${row.amount < 0 ? 'text-down' : 'text-up'}`}>{money(row.amount)}</td></tr>)}</tbody>
               </table>
               {!dashboard?.ledger.length && <p className="py-5 text-sm text-ink-3">Your earnings activity will appear here.</p>}
             </div>
@@ -349,7 +349,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
                 ['Treasury received', 'company:treasury_inflow'],
                 ['Operating fee pending', 'company:operations_pending'],
                 ['Operating fund', 'company:operations'],
-              ].map(([label, account]) => <div key={account} className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-lg font-semibold text-ink">{money(adminData.accountBalances[account] ?? 0)}</p></div>)}
+              ].map(([label, account]) => <div key={account} className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-lg font-semibold text-ink">{money(adminData?.accountBalances[account] ?? 0)}</p></div>)}
             </div>
           </div>
 
@@ -360,7 +360,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
               {adminData?.owners.map((owner) => {
                 const draft = ownerDrafts[owner.owner_slot] ?? { display_name: owner.display_name, user_id: owner.user_id ?? '', payout_address: owner.payout_address ?? '' };
                 return <div key={owner.owner_slot} className="rounded-xl border border-line/10 bg-surface/[0.03] p-4">
-                  <div className="flex items-center justify-between"><p className="font-semibold text-ink">Owner {owner.owner_slot}</p><p className="text-sm font-semibold text-up">{money(adminData.accountBalances[`owner:${owner.owner_slot}`] ?? 0)}</p></div>
+                  <div className="flex items-center justify-between"><p className="font-semibold text-ink">Owner {owner.owner_slot}</p><p className="text-sm font-semibold text-up">{money(adminData?.accountBalances[`owner:${owner.owner_slot}`] ?? 0)}</p></div>
                   <label className="mt-3 block text-xs text-ink-3">Display name</label><input value={draft.display_name} onChange={(e) => setOwnerDrafts((current) => ({ ...current, [owner.owner_slot]: { ...draft, display_name: e.target.value } }))} className="mt-1 w-full rounded-lg border border-line/10 bg-canvas px-3 py-2 text-sm text-ink" />
                   <label className="mt-2 block text-xs text-ink-3">Linked member user ID</label><input value={draft.user_id} onChange={(e) => setOwnerDrafts((current) => ({ ...current, [owner.owner_slot]: { ...draft, user_id: e.target.value } }))} className="mt-1 w-full rounded-lg border border-line/10 bg-canvas px-3 py-2 text-sm text-ink" placeholder="UUID after owner registers" />
                   <label className="mt-2 block text-xs text-ink-3">Owner TRON payout address</label><input value={draft.payout_address} onChange={(e) => setOwnerDrafts((current) => ({ ...current, [owner.owner_slot]: { ...draft, payout_address: e.target.value } }))} className="mt-1 w-full rounded-lg border border-line/10 bg-canvas px-3 py-2 text-sm text-ink" placeholder="T..." />
