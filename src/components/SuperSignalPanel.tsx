@@ -18,7 +18,7 @@ const STRENGTH_STYLE: Record<Classification, string> = {
 };
 
 const STRENGTH_LABEL: Record<Classification, string> = {
-  'Strong alignment': 'All 8 agree',
+  'Strong alignment': 'All 7 agree',
   'Moderate alignment': 'Good',
   'Early signal': 'Early',
   'Counter-trend': 'Mixed',
@@ -42,7 +42,7 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel }: Props) {
         </div>
         <h3 className="text-lg font-semibold text-ink">No Super Signal right now</h3>
         <p className="max-w-md text-sm leading-relaxed text-ink-2">
-          We only show a Super Signal when all 8 timeframes (M1, M5, M15, M30, H1, H2, H4 and D1) point up together or down together. If they disagree, we wait.
+          We only show a Super Signal when all 7 timeframes (M5, M15, M30, H1, H2, H4 and D1) point up together or down together. If they disagree, we wait.
         </p>
       </div>
     );
@@ -136,9 +136,9 @@ function SuperSignalCard({
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">Why this signal?</div>
           <p className="mt-1 text-sm leading-relaxed text-ink-2">
-            All 8 timeframes agree. This means the short and long charts are pointing in the same direction.
+            All 7 timeframes agree. This means the short and long charts are pointing in the same direction.
           </p>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-up">8 of 8 timeframes agree</p>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-up">7 of 7 timeframes agree</p>
         </div>
         <span className={`flex-shrink-0 rounded-full border px-3 py-1 text-sm font-semibold ${STRENGTH_STYLE[signal.classification]}`}>
           {STRENGTH_LABEL[signal.classification]}
