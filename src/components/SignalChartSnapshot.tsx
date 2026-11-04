@@ -11,9 +11,9 @@ type Props = {
   digits: number;
 };
 
-const WIDTH = 720;
+const WIDTH = 1440;
 const HEIGHT = 250;
-const PAD = { top: 18, right: 14, bottom: 24, left: 14 };
+const PAD = { top: 18, right: 56, bottom: 24, left: 14 };
 const PERIOD = 60;
 // Reserve the rightmost quarter of the plot as forward-looking whitespace.
 // This places the latest candle at roughly 75% of the plot width (the
@@ -31,7 +31,7 @@ function rolling(values: number[], index: number) {
 
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits }: Props) {
   const gradientId = `signal-band-fill-${useId().replace(/:/g, '')}`;
-  const data = candles.slice(-90);
+  const data = candles.slice(-1440);
   if (data.length < 2) {
     return (
       <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-6 text-center text-xs text-ink-3">
@@ -56,7 +56,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const plotH = HEIGHT - PAD.top - PAD.bottom;
   const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * candleAreaW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
-  const bodyW = Math.max(3, Math.min(9, (candleAreaW / data.length) * 0.62));
+  const bodyW = Math.max(0.8, Math.min(5, (candleAreaW / data.length) * 0.72));
   const linePath = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
     .filter(Boolean).join(' ');
