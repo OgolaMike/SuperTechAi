@@ -179,6 +179,11 @@ Deno.serve(async (req) => {
       const destination = String(body.destination_address ?? "").trim();
       if (!Number.isFinite(amount) || amount <= 0 || !isTronAddress(destination)) return reply({ error: "Enter a valid USDT amount and TRON wallet address." }, 400);
       const { data: owner } = await db.from("finance_owner_accounts").select("owner_slot").eq("user_id", user.id).eq("active", true).maybeSingle();
+      if (!owner) {
+        const { data: access, error: accessError } = await db.from("member_access").select("user_id").eq("user_id", user.id).maybeSingle();
+        if (accessError) throw accessError;
+        if (!access) return reply({ error: "Complete your 300 USDT membership payment before requesting referral withdrawals." }, 403);
+      }
       const { data, error } = await db.rpc("finance_create_withdrawal", {
         p_user_id: user.id, p_owner_slot: owner?.owner_slot ?? null,
         p_gross_amount: amount, p_destination_address: destination,
