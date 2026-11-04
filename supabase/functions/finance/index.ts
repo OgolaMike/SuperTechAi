@@ -134,22 +134,51 @@ Deno.serve(async (req) => {
       if (!isTronAddress(settings.treasury_address)) return reply({ error: "SuperTech AI's TRC20 treasury wallet has not been configured yet. Please contact support." }, 409);
       const profile = await ensureProfile(user.id);
       let sponsorId = profile.sponsor_user_id;
+      let sponsorAccountCode = profile.sponsor_account_code ?? null;
       const referralCode = typeof body.referral_code === "string" ? body.referral_code.trim().toUpperCase() : "";
-      if (!sponsorId && referralCode) {
-        const { data: sponsor, error: sponsorError } = await db.from("finance_member_profiles").select("user_id").eq("referral_code", referralCode).maybeSingle();
-        if (sponsorError) throw sponsorError;
-        if (!sponsor) return reply({ error: "That referral code was not found." }, 400);
-        if (sponsor.user_id === user.id) return reply({ error: "You cannot use your own referral code." }, 400);
-        const { error: linkError } = await db.from("finance_member_profiles").update({ sponsor_user_id: sponsor.user_id, updated_at: new Date().toISOString() }).eq("user_id", user.id).is("sponsor_user_id", null);
-        if (linkError) throw linkError;
-        sponsorId = sponsor.user_id;
+
+      // The company account sponsors the initial ten paid memberships. After that,
+      // every new member must arrive through an existing member's personal link.
+      if (!sponsorId && !sponsorAccountCode && referralCode) {
+        if (referralCode === String(settings.company_referral_code ?? "SUPERTECHAI").toUpperCase()) {
+          const { data: companyOrders, error: companyOrdersError } = await db
+            .from("finance_payment_orders")
+            .select("user_id,status,expires_at")
+            .eq("sponsor_account_code", "company:account");
+          if (companyOrdersError) throw companyOrdersError;
+          const activeCompanyReferrals = new Set((companyOrders ?? [])
+            .filter((row) => row.status === "confirmed" || (row.status === "pending" && new Date(row.expires_at).getTime() > Date.now()))
+            .map((row) => row.user_id)).size;
+          if (activeCompanyReferrals >= 10) {
+            return reply({ error: "The company's initial ten membership places have been filled. Please use a referral link from an existing SuperTech AI member." }, 403);
+          }
+          const { error: linkError } = await db.from("finance_member_profiles")
+            .update({ sponsor_account_code: "company:account", updated_at: new Date().toISOString() })
+            .eq("user_id", user.id).is("sponsor_user_id", null).is("sponsor_account_code", null);
+          if (linkError) throw linkError;
+          sponsorAccountCode = "company:account";
+        } else {
+          const { data: sponsor, error: sponsorError } = await db.from("finance_member_profiles").select("user_id").eq("referral_code", referralCode).maybeSingle();
+          if (sponsorError) throw sponsorError;
+          if (!sponsor) return reply({ error: "That referral code was not found. Ask an existing member for their personal referral link." }, 400);
+          if (sponsor.user_id === user.id) return reply({ error: "You cannot use your own referral code." }, 400);
+          const { error: linkError } = await db.from("finance_member_profiles")
+            .update({ sponsor_user_id: sponsor.user_id, updated_at: new Date().toISOString() })
+            .eq("user_id", user.id).is("sponsor_user_id", null).is("sponsor_account_code", null);
+          if (linkError) throw linkError;
+          sponsorId = sponsor.user_id;
+        }
+      }
+      if (!sponsorId && !sponsorAccountCode) {
+        return reply({ error: "A referral link is required. The company code is available only for the initial ten memberships; everyone joining afterward must use an existing member's referral link." }, 403);
       }
       const { data: existing, error: existingError } = await db.from("finance_payment_orders").select("*").eq("user_id", user.id).eq("status", "pending").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (existingError) throw existingError;
       if (existing) return reply({ order: existing, treasury_address: existing.treasury_address, amount: 300, network: "TRC20", token_contract: USDT_CONTRACT });
       const expiresAt = new Date(Date.now() + Number(settings.payment_expiry_minutes ?? 120) * 60_000).toISOString();
       const { data: order, error: insertError } = await db.from("finance_payment_orders").insert({
-        user_id: user.id, sponsor_user_id: sponsorId, referral_code: referralCode || null,
+        user_id: user.id, sponsor_user_id: sponsorId, sponsor_account_code: sponsorAccountCode,
+        referral_code: referralCode || null,
         amount: 300, network: "TRC20", token_contract: USDT_CONTRACT,
         treasury_address: settings.treasury_address, expires_at: expiresAt,
       }).select("*").single();
