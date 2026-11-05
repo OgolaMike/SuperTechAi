@@ -1,0 +1,25 @@
+name: Build SuperTechAi Trader cBot
+on:
+  push:
+    paths:
+      - "ctrader/**"
+      - ".github/workflows/build-ctrader.yml"
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "6.0.x"
+      - name: Restore
+        run: dotnet restore ctrader/SuperTechAiTrader/SuperTechAiTrader.csproj
+      - name: Build cBot
+        run: dotnet build ctrader/SuperTechAiTrader/SuperTechAiTrader.csproj --configuration Release --no-restore
+      - name: Upload compiled cBot
+        uses: actions/upload-artifact@v4
+        with:
+          name: SuperTechAiTrader-algo
+          path: ctrader/SuperTechAiTrader/bin/Release/**/SuperTechAiTrader.algo
+          if-no-files-found: warn
