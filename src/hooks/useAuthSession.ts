@@ -10,16 +10,25 @@ type AuthState = {
 };
 
 async function checkAccess(userId: string): Promise<{ isAdmin: boolean; isApproved: boolean }> {
-  const [admin, member] = await Promise.all([
-    supabase.from('admin_users').select('user_id').eq('user_id', userId).maybeSingle(),
-    supabase.from('member_access').select('user_id').eq('user_id', userId).maybeSingle(),
-  ]);
+  // Check the administrator allow-list first. A member_access query must never
+  // accidentally lock an administrator out of the full application.
+  const admin = await supabase
+    .from('admin_users')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
   if (admin.error) throw admin.error;
+  if (admin.data) return { isAdmin: true, isApproved: true };
+
+  const member = await supabase
+    .from('member_access')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
   if (member.error) throw member.error;
-  const isAdmin = admin.data !== null;
-  // Administrators must always reach the full application, even if they do not
-  // have a separate member_access row. This prevents the finance-only gate.
-  return { isAdmin, isApproved: isAdmin || member.data !== null };
+  return { isAdmin: false, isApproved: member.data !== null };
 }
 
 export function useAuthSession(): AuthState {
