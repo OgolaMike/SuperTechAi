@@ -123,3 +123,49 @@ button:focus-visible { outline: 2px solid rgb(var(--accent) / .85); outline-offs
 .light .hud-panel:hover { box-shadow: 0 12px 28px -22px rgb(var(--accent) / .35); }
 @media (prefers-reduced-motion: reduce) { .view-transition, .view-transition > * { animation: none !important; } button { transition: none !important; } }
 @media (max-width: 640px) { .view-transition { animation-duration: 190ms; } }
+
+
+/* Premium, clearly visible motion for cards and navigation. */
+@keyframes supertech-card-reveal {
+  0% { opacity: 0; transform: translate3d(0, 22px, 0) scale(.975); filter: blur(5px); }
+  70% { filter: blur(0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+@keyframes supertech-accent-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--accent) / 0); }
+  50% { box-shadow: 0 0 0 5px rgb(var(--accent) / .09); }
+}
+.view-transition .hud-panel {
+  animation: supertech-card-reveal 620ms cubic-bezier(.2,.75,.25,1) both;
+}
+.view-transition .hud-panel:nth-child(2) { animation-delay: 70ms; }
+.view-transition .hud-panel:nth-child(3) { animation-delay: 140ms; }
+.view-transition .hud-panel:nth-child(4) { animation-delay: 210ms; }
+.view-transition .hud-panel:nth-child(5) { animation-delay: 280ms; }
+.view-transition .hud-panel:nth-child(6) { animation-delay: 350ms; }
+.view-transition .hud-panel:nth-child(7) { animation-delay: 420ms; }
+.view-transition .hud-panel:nth-child(8) { animation-delay: 490ms; }
+.view-transition .hud-panel:hover {
+  transform: translate3d(0, -4px, 0);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+nav[aria-label="Sections"] button[aria-current="page"] {
+  animation: supertech-accent-pulse 2.4s ease-in-out infinite;
+}
+.view-transition h2,
+.view-transition h3 {
+  animation: supertech-card-reveal 520ms cubic-bezier(.2,.75,.25,1) both;
+}
+@media (max-width: 640px) {
+  .view-transition .hud-panel { animation-duration: 480ms; }
+  .view-transition .hud-panel:nth-child(n+5) { animation-delay: 0ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .view-transition .hud-panel,
+  .view-transition h2,
+  .view-transition h3,
+  nav[aria-label="Sections"] button[aria-current="page"] {
+    animation: none !important;
+    filter: none !important;
+  }
+}
