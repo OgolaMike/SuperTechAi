@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { ArrowDownRight, ArrowUpRight, ShieldAlert, Target, X } from 'lucide-react';
 import type { Toast } from '@/hooks/useSignalAlerts';
-import { formatPrice } from '@/lib/sma';
+import { formatPrice, formatDateTime } from '@/lib/sma';
 
 export const TOAST_DURATION_MS = 15000;
 
@@ -66,7 +66,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
           <p className="mt-1.5 text-xs font-medium text-ink">{toast.message}</p>
           {toast.kind === 'reversal' && toast.previousSignalEpoch ? (
             <p className="mt-1 text-[10px] text-ink-3">
-              Previous signal: {toast.previousDirection} at {new Date(toast.previousSignalEpoch * 1000).toLocaleString()}
+              Previous signal: {toast.previousDirection} at {formatDateTime(toast.previousSignalEpoch)}
             </p>
           ) : null}
           {isSignal ? (
