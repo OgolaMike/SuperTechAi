@@ -432,8 +432,8 @@ async function runScan(): Promise<Record<string, unknown>> {
                     fetchedCount += 1;
                   }
                 }
-                const limitIntent = buildBackendLimitIntent(symbol.symbol, candleCache, nowEpoch);
-                if (limitIntent && limitIntent.signalEpoch === latestSignal.signalEpoch) {
+                const limitIntents = buildBackendLimitIntent(symbol.symbol, candleCache, nowEpoch).filter((intent) => intent.signalEpoch === latestSignal.signalEpoch);
+                for (const limitIntent of limitIntents) {
                   const limitSignalKey = symbol.symbol + "|M15|" + limitIntent.signalEpoch + "|LIMIT";
                   const { error: limitEventError } = await db.from("push_events").upsert([{
                     event_key: limitIntent.idempotencyKey + "|limit_order",
@@ -452,13 +452,14 @@ async function runScan(): Promise<Record<string, unknown>> {
                   if (limitEventError) throw new Error("Could not queue LIMIT push event: " + limitEventError.message);
                 }
                 const accounts = await loadMt5Accounts();
-                if (limitIntent && limitIntent.signalEpoch === latestSignal.signalEpoch) {
+                for (const limitIntent of limitIntents) {
                   await persistAccountSignalIntent(accounts, symbol.name, limitIntent,
                     "server_scanner_limit", limitIntent.strengthScore);
                 }
-                const intent = buildBackendStopIntent(symbol.symbol, candleCache, nowEpoch);
-                if (intent && intent.signalEpoch === latestSignal.signalEpoch) {
-                  await persistAccountSignalIntent(accounts, symbol.name, intent, "server_scanner_stop");
+                const stopIntents = buildBackendStopIntent(symbol.symbol, candleCache, nowEpoch)
+                  .filter((intent) => intent.signalEpoch === latestSignal.signalEpoch);
+                for (const stopIntent of stopIntents) {
+                  await persistAccountSignalIntent(accounts, symbol.name, stopIntent, "server_scanner_stop");
                 }
               } catch (error) {
                 lastError = `MT5 intent ${symbol.symbol}: ${messageOf(error)}`;
