@@ -185,7 +185,13 @@ revoke all on public.ctrader_execution_intents from anon, authenticated;
 revoke all on public.ctrader_positions from anon, authenticated;
 revoke all on public.ctrader_daily_risk_snapshots from anon, authenticated;
 
-grant select on public.ctrader_connections to authenticated;
+-- Column-level grants deliberately omit secret-manager references from the client API.
+grant select (
+  id, user_id, ctrader_account_id, environment, broker_name, account_label,
+  account_currency, leverage, connection_status, token_expires_at,
+  granted_scopes, last_connected_at, last_seen_at, last_error_code,
+  created_at, updated_at
+) on public.ctrader_connections to authenticated;
 grant select, insert, update on public.ctrader_execution_settings to authenticated;
 grant select on public.ctrader_execution_intents to authenticated;
 grant select on public.ctrader_positions to authenticated;
