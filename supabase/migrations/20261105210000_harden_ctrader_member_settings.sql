@@ -19,7 +19,7 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  if auth.role() = 'authenticated' then
+  if current_user = 'authenticated' then
     if tg_op = 'INSERT' then
       raise exception 'ctrader_settings_server_managed';
     end if;
