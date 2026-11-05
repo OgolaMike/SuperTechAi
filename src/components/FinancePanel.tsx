@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { ArrowDownToLine, CheckCircle2, Copy, ExternalLink, Loader2, RefreshCw, ShieldCheck, Wallet, Users, Coins } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/sessionContext';
+import { formatLocalDateTime } from '@/lib/localTime';
 
 type FinanceResult = {
   profile: { referral_code: string; sponsor_user_id: string | null };
@@ -26,7 +27,7 @@ type AdminResult = {
 type Props = { initialTab?: 'referrals' | 'wallet' | 'admin' };
 
 const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(value);
-const dateTime = (value: string) => new Date(value).toLocaleString();
+const dateTime = (value: string) => formatLocalDateTime(value);
 
 async function financeCall<T>(payload: Record<string, unknown>): Promise<T> {
   // Fetch the current authenticated session immediately before invoking the
