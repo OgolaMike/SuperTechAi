@@ -60,7 +60,7 @@ namespace cAlgo.Robots
                 return;
             }
 
-            _m1 = MarketData.GetBars(TimeFrame.Minute1, SymbolName);
+            _m1 = MarketData.GetBars(TimeFrame.Minute, SymbolName);
             _m5 = MarketData.GetBars(TimeFrame.Minute5, SymbolName);
             _m15 = Bars;
             _m30 = MarketData.GetBars(TimeFrame.Minute30, SymbolName);
