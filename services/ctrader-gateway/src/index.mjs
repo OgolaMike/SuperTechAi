@@ -56,7 +56,7 @@ async function loadGrant(userId) {
   return {id:g.id,access};
 }
 class CTraderSocket {
-  constructor(environment) { this.environment=environment; this.ws=null; this.pending=new Map(); this.authenticated=false; this.accounts=new Set(); this.heartbeat=null; }
+  constructor(environment) { this.environment=environment; this.ws=null; this.pending=new Map(); this.authenticated=false; this.accounts=new Set(); this.accountMetadata=new Map(); this.heartbeat=null; }
   async connect() {
     if(this.ws?.readyState===WebSocket.OPEN && this.authenticated) return;
     await this.close();
@@ -111,12 +111,36 @@ class CTraderSocket {
     await this.request(2102,{ctidTraderAccountId:Number(accountId),accessToken},2103,accountId);
     this.accounts.add(accountId);
     log("ctrader_account_session_authorized",{environment:this.environment,accountId});
+    await this.loadAccountMetadata(accountId).catch(error => {
+      log("ctrader_account_metadata_unavailable",{environment:this.environment,accountId,code:String(error.message).slice(0,100)});
+    });
+  }
+  async loadAccountMetadata(accountId) {
+    const key=String(accountId);
+    if(this.accountMetadata.has(key)) return this.accountMetadata.get(key);
+    const traderResponse=await this.request(2121,{ctidTraderAccountId:Number(accountId)},2122,accountId);
+    const symbolsResponse=await this.request(2114,{ctidTraderAccountId:Number(accountId),includeArchivedSymbols:false},2115,accountId);
+    const lightSymbols=Array.isArray(symbolsResponse.symbol)?symbolsResponse.symbol:[];
+    const fullSymbols=[];
+    for(let offset=0;offset<lightSymbols.length;offset+=100) {
+      const ids=lightSymbols.slice(offset,offset+100).map(item=>Number(item.symbolId)).filter(Number.isFinite);
+      if(!ids.length) continue;
+      const details=await this.request(2116,{ctidTraderAccountId:Number(accountId),symbolId:ids},2117,accountId);
+      if(Array.isArray(details.symbol)) fullSymbols.push(...details.symbol);
+    }
+    const metadata={trader:traderResponse.trader||{},symbols:fullSymbols,loadedAt:Date.now()};
+    this.accountMetadata.set(key,metadata);
+    log("ctrader_account_metadata_loaded",{
+      environment:this.environment,accountId,symbolCount:fullSymbols.length,
+      hasEquity:metadata.trader.equity!==undefined,hasBalance:metadata.trader.balance!==undefined
+    });
+    return metadata;
   }
   async close() {
     clearInterval(this.heartbeat);this.heartbeat=null;
     for(const [id,p] of this.pending){clearTimeout(p.timer);p.reject(new Error("socket_closed"));this.pending.delete(id);}
     if(this.ws){try{this.ws.close();}catch{}}
-    this.ws=null;this.authenticated=false;this.accounts.clear();
+    this.ws=null;this.authenticated=false;this.accounts.clear();this.accountMetadata.clear();
   }
 }
 const sockets={demo:new CTraderSocket("demo"),live:new CTraderSocket("live")};
