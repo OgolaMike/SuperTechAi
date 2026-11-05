@@ -36,9 +36,9 @@ function latestStats(candles: Candle[], granularity: number, nowEpoch: number) {
 }
 
 /**
- * Backend counterpart of the existing stop-order idea rules.
- * It intentionally creates STOP orders only. LIMIT orders remain unavailable
- * until the M5 momentum + trained-AI gate is implemented and verified server-side.
+ * Backend STOP proposal rules: M15/M5/M1 confluence plus the same M5
+ * four-of-five candle and 40/100 momentum confirmation used by LIMIT proposals.
+ * These proposals do not place broker orders.
  */
 export function buildBackendStopIntent(
   symbol: string,
@@ -62,6 +62,14 @@ export function buildBackendStopIntent(
   });
   const direction = biases[0];
   if (!direction || !biases.every((bias) => bias === direction)) return null;
+
+  const m5Momentum = momentumStrength(
+    candlesByGranularity.get(300)!,
+    stats.get(300)!.deviation,
+    direction,
+    nowEpoch,
+  );
+  if (m5Momentum < 40) return null;
 
   const primaryCandles = candlesByGranularity.get(900)!;
   const primary = stats.get(900)!;
