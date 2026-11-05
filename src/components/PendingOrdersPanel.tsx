@@ -25,7 +25,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
     <section className="mt-8 space-y-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Trend-following order ideas</p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Limit & pending orders</h2>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Limit Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
           Live BUY LIMIT and SELL LIMIT ideas are generated from confirmed candle data. The eight-timeframe trend, M5 momentum, entry level and strength explanation are shown for every qualifying setup. These are signal proposals, not broker executions.
         </p>
@@ -108,9 +108,9 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
       )}
 
       <div className="rounded-xl border border-line/10 bg-surface/[0.03] p-4">
-        <p className="text-sm font-semibold text-ink">Strict limit-order quality check</p>
+        <p className="text-sm font-semibold text-ink">How limit-order strength is measured</p>
         <p className="mt-1 text-xs leading-relaxed text-ink-2">
-          Buy Limit and Sell Limit ideas appear only when the latest M5 signal agrees with the trade direction, at least 4 of the last 5 M5 candle bodies support it, movement is directional rather than choppy, candle bodies show real commitment, and the trained AI historical-pattern score is at least 70/100. If the AI model has not learned enough completed outcomes, limit orders are withheld. Buy Stop and Sell Stop rules are not changed by this filter.
+          BUY LIMIT and SELL LIMIT ideas require eight-timeframe directional agreement, a fresh M5 signal, at least 4 of the last 5 M5 candle bodies aligned with the setup, directional (not choppy) movement, and an M5 momentum score of at least 40/100. When enough completed history exists, the AI pattern score must also be at least 40/100. While the AI model is still learning, the card labels that limitation and reports live momentum strength instead of hiding every qualifying setup.
         </p>
       </div>
 
