@@ -327,15 +327,72 @@ async function runScan(): Promise<Record<string, unknown>> {
     let scannedSymbols = 0;
     let lastError: string | null = null;
 
-    let mt5AccountsPromise: Promise<Array<{ user_id: string; login: string; server: string }>> | null = null;
+    let mt5AccountsPromise: Promise<Array<{
+      user_id: string; login: string; server: string;
+      auto_trade_enabled: boolean; unattended_execution_enabled: boolean;
+      place_new_orders: boolean; risk_controls_enabled: boolean;
+      live_execution_enabled: boolean; emergency_stop: boolean; bridge_status: string;
+    }>> | null = null;
     const loadMt5Accounts = () => {
-      mt5AccountsPromise ??= db.from("mt5_account_settings").select("user_id,login,server")
+      mt5AccountsPromise ??= db.from("mt5_account_settings")
+        .select("user_id,login,server,auto_trade_enabled,unattended_execution_enabled,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop,bridge_status")
         .then(({ data, error }) => {
           if (error) throw new Error(`Could not load paired MT5 accounts: ${error.message}`);
-          return (data ?? []) as Array<{ user_id: string; login: string; server: string }>;
+          return (data ?? []) as Array<{
+            user_id: string; login: string; server: string;
+            auto_trade_enabled: boolean; unattended_execution_enabled: boolean;
+            place_new_orders: boolean; risk_controls_enabled: boolean;
+            live_execution_enabled: boolean; emergency_stop: boolean; bridge_status: string;
+          }>;
         });
       return mt5AccountsPromise;
     };
+
+    async function persistAccountSignalIntent(
+      accounts: Awaited<ReturnType<typeof loadMt5Accounts>>,
+      symbolName: string,
+      intent: {
+        symbol: string; signalEpoch: number; direction: "BUY" | "SELL";
+        orderType: "BUY_STOP" | "SELL_STOP" | "BUY_LIMIT" | "SELL_LIMIT";
+        entry: number; stopLoss: number; takeProfit: number; currentPrice: number;
+        timeframeAgreement: 8; strategyVersion: string; idempotencyKey: string;
+      },
+      source: "server_scanner_limit" | "server_scanner_stop",
+      strengthScore?: number,
+    ) {
+      if (!accounts.length) return;
+      const expiresAt = new Date((intent.signalEpoch + 8 * 900) * 1000).toISOString();
+      const rows = accounts.map((account) => {
+        const unattendedEligible = account.auto_trade_enabled === true &&
+          account.unattended_execution_enabled === true &&
+          account.place_new_orders === true && account.risk_controls_enabled === true &&
+          account.live_execution_enabled === true && account.emergency_stop === false &&
+          account.bridge_status === "connected";
+        return {
+          user_id: account.user_id, account_login: account.login, account_server: account.server,
+          source_signal_key: `${symbolName}|900|${intent.signalEpoch}|${intent.direction}|${intent.orderType}`,
+          strategy_version: intent.strategyVersion, symbol: intent.symbol, timeframe: "M15",
+          signal_epoch: intent.signalEpoch, direction: intent.direction, order_type: intent.orderType,
+          entry: intent.entry, stop_loss: intent.stopLoss, take_profit: intent.takeProfit,
+          idempotency_key: account.user_id + "|" + intent.idempotencyKey,
+          status: "pending_review",
+          payload: {
+            current_price: intent.currentPrice, timeframe_agreement: intent.timeframeAgreement,
+            strength_score: strengthScore ?? null, source,
+            execution_mode: unattendedEligible ? "unattended_eligible_pending_safety_gate" : "manual_review",
+            unattended_eligible: unattendedEligible,
+            note: unattendedEligible
+              ? "Account has opted into unattended trading, but this intent remains review-only until broker-side preflight and execution authorization are completed."
+              : "Review-only proposal. No broker order has been authorized or placed.",
+          },
+          expires_at: expiresAt, updated_at: nowIso(),
+        };
+      });
+      const { error } = await db.from("mt5_signal_intents").upsert(rows, {
+        onConflict: "user_id,account_login,account_server,idempotency_key", ignoreDuplicates: true,
+      });
+      if (error) throw new Error(`Could not persist MT5 signal intents: ${error.message}`);
+    }
 
     const scanSymbol = async (symbol: SymbolInfo) => {
       scannedSymbols += 1;
@@ -390,27 +447,14 @@ async function runScan(): Promise<Record<string, unknown>> {
                   }], { onConflict: "event_key", ignoreDuplicates: true });
                   if (limitEventError) throw new Error("Could not queue LIMIT push event: " + limitEventError.message);
                 }
+                const accounts = await loadMt5Accounts();
+                if (limitIntent && limitIntent.signalEpoch === latestSignal.signalEpoch) {
+                  await persistAccountSignalIntent(accounts, symbol.name, limitIntent,
+                    "server_scanner_limit", limitIntent.strengthScore);
+                }
                 const intent = buildBackendStopIntent(symbol.symbol, candleCache, nowEpoch);
                 if (intent && intent.signalEpoch === latestSignal.signalEpoch) {
-                  const accounts = await loadMt5Accounts();
-                  if (accounts.length > 0) {
-                    const expiresAt = new Date((intent.signalEpoch + 8 * 900) * 1000).toISOString();
-                    const { error: intentError } = await db.from("mt5_signal_intents").upsert(
-                      accounts.map((account) => ({
-                        user_id: account.user_id, account_login: account.login, account_server: account.server,
-                        source_signal_key: `${symbol.symbol}|900|${intent.signalEpoch}|${intent.direction}`,
-                        strategy_version: intent.strategyVersion, symbol: intent.symbol, timeframe: "M15",
-                        signal_epoch: intent.signalEpoch, direction: intent.direction, order_type: intent.orderType,
-                        entry: intent.entry, stop_loss: intent.stopLoss, take_profit: intent.takeProfit,
-                        idempotency_key: intent.idempotencyKey, status: "pending_review",
-                        payload: { current_price: intent.currentPrice, timeframe_agreement: intent.timeframeAgreement,
-                          source: "server_scanner", note: "Review-only proposal. No broker order has been authorized or placed." },
-                        expires_at: expiresAt, updated_at: nowIso(),
-                      })),
-                      { onConflict: "user_id,account_login,account_server,idempotency_key", ignoreDuplicates: true },
-                    );
-                    if (intentError) throw new Error(`Could not persist MT5 signal intents: ${intentError.message}`);
-                  }
+                  await persistAccountSignalIntent(accounts, symbol.name, intent, "server_scanner_stop");
                 }
               } catch (error) {
                 lastError = `MT5 intent ${symbol.symbol}: ${messageOf(error)}`;
