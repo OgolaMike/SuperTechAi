@@ -78,9 +78,10 @@ class CTraderSocket {
     let m; try {m=JSON.parse(typeof event.data==="string"?event.data:Buffer.from(event.data).toString("utf8"));} catch{return;}
     const messageId=String(m.clientMsgId||"");
     const accountId=String(m.payload?.ctidTraderAccountId||"");
+    const isError = m.payloadType===50 || m.payloadType===2142 || m.payloadType===2132;
     const matches=[...this.pending.entries()].filter(([,p])=>
       (!p.accountId||!accountId||p.accountId===accountId) &&
-      (m.payloadType===50 || m.payloadType===p.expected)
+      (isError || m.payloadType===p.expected)
     );
     // cTrader echoes clientMsgId. Never resolve an arbitrary request when responses overlap.
     let match=messageId ? this.pending.get(messageId) : null;
@@ -90,8 +91,10 @@ class CTraderSocket {
     const key=messageId || [...this.pending.entries()].find(([,p])=>p===match)?.[0];
     if(!key) return;
     clearTimeout(match.timer); this.pending.delete(key);
-    if(m.payloadType===50) match.reject(new Error(String(m.payload?.errorCode||"ctrader_api_error")));
-    else if(m.payloadType===match.expected) match.resolve(m.payload||{});
+    if(isError) {
+      const code=String(m.payload?.errorCode||"ctrader_api_error").replace(/[^A-Za-z0-9_:-]/g,"").slice(0,100);
+      match.reject(new Error(code||"ctrader_api_error"));
+    } else if(m.payloadType===match.expected) match.resolve(m.payload||{});
   }
   request(type,payload,expected,accountId=null) {
     if(!this.ws||this.ws.readyState!==WebSocket.OPEN) return Promise.reject(new Error("ctrader_socket_not_open"));
