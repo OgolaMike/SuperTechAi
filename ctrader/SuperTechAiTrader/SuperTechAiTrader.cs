@@ -36,7 +36,7 @@ namespace cAlgo.Robots
         [Parameter("Enable trading", DefaultValue = false, Group = "Safety")]
         public bool EnableTrading { get; set; }
 
-        [Parameter("Allow live account", DefaultValue = false, Group = "Safety")]
+        [Parameter("Allow live account", DefaultValue = true, Group = "Safety")]
         public bool AllowLiveAccount { get; set; }
 
         [Parameter("Risk per trade (%)", DefaultValue = 0.5, MinValue = 0.1, MaxValue = 1.0, Step = 0.1, Group = "Risk")]
@@ -85,7 +85,7 @@ namespace cAlgo.Robots
             Print("SuperTechAi Trader started on {0} ({1}). Account: {2}. Trading enabled: {3}.",
                 SymbolName, TimeFrame, Account.IsLive ? "LIVE" : "DEMO", EnableTrading);
             Print("Eight timeframe engine loaded: M1, M5, M15, M30, H1, H4, D1, W1. SMA60 / Bollinger 2.5σ.");
-            Print("Cloud instance runs independently of your phone. Keep Enable trading OFF until demo checks are complete.");
+            Print("Cloud instance runs independently of your phone. Live-account execution testing is supported; arm trading deliberately and use the smallest practical size.");
 
             Timer.Start(1);
         }
