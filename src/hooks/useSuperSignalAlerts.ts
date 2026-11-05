@@ -27,7 +27,7 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
       const key = `${signal.symbol}|${signal.direction}|${signal.signalEpoch}`;
       if (seenRef.current.has(key)) continue;
       seenRef.current.add(key);
-      const message = `All seven timeframes agree. A new ${signal.direction} opportunity has been confirmed.`;
+      const message = `All eight timeframes agree. A new ${signal.direction} opportunity has been confirmed.`;
       const toast: Toast = {
         id: `super:${key}`,
         tag: `super:${key}`,

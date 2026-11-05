@@ -17,11 +17,91 @@ const TIMEFRAMES = [
   { granularity: 900, label: "M15", candleCount: 200 },
   { granularity: 1800, label: "M30", candleCount: 200 },
   { granularity: 3600, label: "H1", candleCount: 200 },
-  { granularity: 7200, label: "H2", candleCount: 200 },
   { granularity: 14400, label: "H4", candleCount: 200 },
   { granularity: 86400, label: "D1", candleCount: 366 },
+  { granularity: 604800, label: "W1", candleCount: 65 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
+
+const DAY_SECONDS = 86400;
+const WEEK_SECONDS = 7 * DAY_SECONDS;
+
+function weekStartUtc(epoch: number): number {
+  const dayStart = Math.floor(epoch / DAY_SECONDS) * DAY_SECONDS;
+  const weekday = new Date(dayStart * 1000).getUTCDay();
+  return dayStart - ((weekday + 6) % 7) * DAY_SECONDS;
+}
+
+function latestClosedEpoch(granularity: number, nowEpoch: number): number {
+  if (granularity === WEEK_SECONDS) return weekStartUtc(nowEpoch) - WEEK_SECONDS;
+  return Math.floor(nowEpoch / granularity) * granularity - granularity;
+}
+
+function aggregateWeeklyCandles(dailyCandles: Candle[], nowEpoch: number): Candle[] {
+  const buckets = new Map<number, {
+    epoch: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    days: Set<number>;
+  }>();
+
+  for (const candle of [...dailyCandles].sort((a, b) => a.epoch - b.epoch)) {
+    const dayStart = Math.floor(candle.epoch / DAY_SECONDS) * DAY_SECONDS;
+    if (candle.epoch + DAY_SECONDS > nowEpoch) continue;
+    const weekStart = weekStartUtc(dayStart);
+    if (weekStart + WEEK_SECONDS > nowEpoch) continue;
+
+    const existing = buckets.get(weekStart);
+    const high = candle.high ?? candle.close;
+    const low = candle.low ?? candle.close;
+    const open = candle.open ?? candle.close;
+    if (!existing) {
+      buckets.set(weekStart, {
+        epoch: weekStart, open, high, low, close: candle.close, days: new Set([dayStart]),
+      });
+      continue;
+    }
+
+    existing.high = Math.max(existing.high, high);
+    existing.low = Math.min(existing.low, low);
+    existing.close = candle.close;
+    existing.days.add(dayStart);
+  }
+
+  return [...buckets.values()]
+    .filter((bucket) => bucket.days.size >= 5)
+    .sort((a, b) => a.epoch - b.epoch)
+    .map(({ days: _days, ...candle }) => candle);
+}
+
+async function loadTimeframeCandles(
+  feed: DerivFeed,
+  symbol: string,
+  timeframe: Timeframe,
+  nowEpoch: number,
+  cache: Map<number, Candle[]>,
+): Promise<Candle[]> {
+  const cached = cache.get(timeframe.granularity);
+  if (cached) return cached;
+
+  if (timeframe.granularity === WEEK_SECONDS) {
+    const dailyCount = Math.max(450, timeframe.candleCount * 7 + 15);
+    let dailyCandles = cache.get(DAY_SECONDS);
+    if (!dailyCandles || dailyCandles.length < dailyCount) {
+      dailyCandles = await fetchCandles(feed, symbol, DAY_SECONDS, dailyCount);
+      cache.set(DAY_SECONDS, dailyCandles);
+    }
+    const weeklyCandles = aggregateWeeklyCandles(dailyCandles, nowEpoch);
+    cache.set(WEEK_SECONDS, weeklyCandles);
+    return weeklyCandles;
+  }
+
+  const candles = await fetchCandles(feed, symbol, timeframe.granularity, timeframe.candleCount);
+  cache.set(timeframe.granularity, candles);
+  return candles;
+}
 
 // Stop starting new Deriv requests after this, so the run finishes inside the function time limit.
 const TIME_BUDGET_MS = 100_000;
@@ -260,12 +340,11 @@ async function runScan(): Promise<Record<string, unknown>> {
         if (Date.now() - started > TIME_BUDGET_MS) break;
         const markKey = `${symbol.symbol}|${timeframe.granularity}`;
         const previousMark = marks.get(markKey);
-        const latestClosed = Math.floor(nowEpoch / timeframe.granularity) * timeframe.granularity - timeframe.granularity;
+        const latestClosed = latestClosedEpoch(timeframe.granularity, nowEpoch);
         if (previousMark !== undefined && previousMark >= latestClosed) continue;
 
         try {
-          const candles = await fetchCandles(feed, symbol.symbol, timeframe.granularity, timeframe.candleCount);
-          candleCache.set(timeframe.granularity, candles);
+          const candles = await loadTimeframeCandles(feed, symbol.symbol, timeframe, nowEpoch, candleCache);
           fetchedCount += 1;
           const result = await processTimeframe(symbol, timeframe, candles, nowEpoch, previousMark);
           rowsWritten += result.rowsWritten;
@@ -282,8 +361,7 @@ async function runScan(): Promise<Record<string, unknown>> {
               try {
                 for (const frame of TIMEFRAMES) {
                   if (!candleCache.has(frame.granularity)) {
-                    const frameCandles = await fetchCandles(feed, symbol.symbol, frame.granularity, frame.candleCount);
-                    candleCache.set(frame.granularity, frameCandles);
+                    const frameCandles = await loadTimeframeCandles(feed, symbol.symbol, frame, nowEpoch, candleCache);
                     fetchedCount += 1;
                   }
                 }

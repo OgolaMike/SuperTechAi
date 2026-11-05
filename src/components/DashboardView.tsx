@@ -22,7 +22,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">SuperTech AI market intelligence</p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">Live trading signals</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            Watch all {TIMEFRAMES.length} timeframes, from 1 minute to 1 day. A signal appears after a candle closes.
+            Watch all {TIMEFRAMES.length} timeframes, from 1 minute to 1 week. A signal appears after a candle closes.
           </p>
           <p className="mt-1 text-xs text-ink-3">
             {aiModel.ready

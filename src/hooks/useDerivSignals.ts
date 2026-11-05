@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DerivClient, type Candle, type ConnectionStatus, type DerivSymbol } from '@/lib/deriv';
 import {
   TIMEFRAMES,
+  aggregateWeeklyCandles,
   computeTfState,
   emptyTfState,
   mergeCandle,
@@ -9,6 +10,10 @@ import {
   type TfState,
   type Timeframe,
 } from '@/lib/sma';
+
+const DAILY_GRANULARITY = 86400;
+const WEEKLY_TIMEFRAME = TIMEFRAMES.find((timeframe) => timeframe.label === 'W1')!;
+const LIVE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => timeframe.label !== 'W1');
 
 export type TimeframeStates = Record<number, TfState>;
 
@@ -63,9 +68,16 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     const nowEpoch = Math.floor(Date.now() / 1000);
     const candles = candlesRef.current[symbol]?.[granularity] ?? [];
     const state = computeTfState(timeframe, candles, nowEpoch);
+    const weeklyState = granularity === DAILY_GRANULARITY
+      ? computeTfState(WEEKLY_TIMEFRAME, aggregateWeeklyCandles(candles, nowEpoch), nowEpoch)
+      : null;
     setStates((previous) => ({
       ...previous,
-      [symbol]: { ...(previous[symbol] ?? emptyTimeframes()), [granularity]: state },
+      [symbol]: {
+        ...(previous[symbol] ?? emptyTimeframes()),
+        [granularity]: state,
+        ...(weeklyState ? { [WEEKLY_TIMEFRAME.granularity]: weeklyState } : {}),
+      },
     }));
   }, []);
 
@@ -91,7 +103,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               symbols.some((item) => item.symbol === symbol),
             );
             const tasks = currentAssets.flatMap((symbol) =>
-              TIMEFRAMES.map((timeframe) => () =>
+              LIVE_TIMEFRAMES.map((timeframe) => () =>
                 client
                   .subscribeCandles(symbol, timeframe.granularity, timeframe.candleCount)
                   .then((candles) => {

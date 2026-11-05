@@ -21,9 +21,9 @@ const FRAMES = [
   { label: "M15", seconds: 900 },
   { label: "M30", seconds: 1800 },
   { label: "H1", seconds: 3600 },
-  { label: "H2", seconds: 7200 },
   { label: "H4", seconds: 14400 },
   { label: "D1", seconds: 86400 },
+  { label: "W1", seconds: 604800 },
 ] as const;
 
 function latestStats(candles: Candle[], granularity: number, nowEpoch: number) {
