@@ -27,7 +27,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Trend-following order ideas</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Limit & pending orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          These are suggested prices to watch. Fresh M5 signals trigger a new check across all eight active timeframes. Limit orders also pass a strict M5 momentum and AI quality check. No orders are placed automatically.
+          Live BUY LIMIT and SELL LIMIT ideas are generated from confirmed candle data. The eight-timeframe trend, M5 momentum, entry level and strength explanation are shown for every qualifying setup. These are signal proposals, not broker executions.
         </p>
       </div>
 
@@ -52,17 +52,17 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
 
       {!loaded ? (
         <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-6 text-sm text-ink-2">Loading live market data…</div>
-      ) : ideas.length === 0 ? (
+      ) : ideas.filter((idea) => idea.type.endsWith('LIMIT')).length === 0 ? (
         <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-8 text-center">
           <ShieldAlert className="mx-auto h-7 w-7 text-ink-3" />
           <h3 className="mt-3 text-lg font-semibold text-ink">No safe order idea right now</h3>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-ink-2">
-            The eight timeframes are not aligned, or there is no fresh M5 signal in the same direction. We wait rather than force an order.
+            No BUY LIMIT or SELL LIMIT setup currently meets the live trend and momentum checks. The scanner will keep reassessing fresh candle closes; weaker setups are not presented as trade opportunities.
           </p>
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {ideas.map((idea) => {
+          {ideas.filter((idea) => idea.type.endsWith('LIMIT')).map((idea) => {
             const buy = idea.direction === 'BUY';
             return (
               <article key={idea.id} className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
@@ -71,10 +71,15 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                     <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">{idea.assetName} ({idea.symbol})</p>
                     <h3 className={`mt-1 text-xl font-bold ${buy ? 'text-up' : 'text-down'}`}>{idea.type}</h3>
                   </div>
-                  <span className="rounded-full border border-up/20 bg-up/5 px-3 py-1 text-xs font-semibold text-up">8/8 agree</span>
+                  <span className="rounded-full border border-up/20 bg-up/5 px-3 py-1 text-xs font-semibold text-up">{idea.timeframeAgreement}/8 agree</span>
                 </div>
 
                 <p className="mt-3 text-sm leading-relaxed text-ink-2">{idea.reason}</p>
+                <div className="mt-3 rounded-xl border border-accent/20 bg-accent/5 p-3">
+                  <div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-wider text-accent">Signal strength</span><span className="font-mono text-sm font-bold text-ink">{idea.strengthScore}/100</span></div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-line/20"><div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.max(0, Math.min(100, idea.strengthScore))}%` }} /></div>
+                  <p className="mt-2 text-xs text-ink-2">{idea.aiScore == null ? `M5 momentum ${idea.momentumScore ?? 0}/100 · AI history is still learning` : `M5 momentum ${idea.momentumScore ?? 0}/100 · AI pattern match ${idea.aiScore}/100`}</p>
+                </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <Price label="Current price" value={idea.currentPrice} digits={idea.digits} />
