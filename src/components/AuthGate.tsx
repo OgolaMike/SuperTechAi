@@ -18,7 +18,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!session) return <AuthScreen />;
 
-  if (!isApproved) {
+  // Admin access is independent of paid-member approval. This is an explicit
+  // second guard so missing member_access rows cannot trap admins in finance-only mode.
+  if (!isApproved && !isAdmin) {
     return (
       <SessionContext.Provider value={{ session, isAdmin }}>
         <div className="min-h-screen bg-canvas px-4 py-8 text-ink">
