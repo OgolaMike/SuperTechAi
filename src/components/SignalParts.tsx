@@ -69,17 +69,17 @@ export function LevelList({ rows, digits }: LevelListProps) {
   return (
     <ul className="divide-y divide-line/10 overflow-hidden rounded-xl border border-line/10">
       {rows.map((row) => (
-        <li key={row.label} className={`flex flex-col items-start gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 ${row.label === 'TAKE PROFIT 3' ? 'border-l-4 border-up bg-up/[0.08] px-4 py-4' : ''}`}>
+        <li key={row.label} className={`level-dial flex flex-col items-start gap-2 rounded-xl border-y border-r border-line/10 border-l-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 ${row.tone === 'text-down' ? 'level-dial-down' : row.tone === 'text-up' ? 'level-dial-up' : 'level-dial-neutral'}`}>
           <div className="min-w-0">
-            <div className={`flex flex-wrap items-center gap-2 font-semibold leading-snug ${row.label === 'TAKE PROFIT 3' ? 'text-lg text-up sm:text-xl' : 'text-sm text-ink'}`}>
-              {row.hitEpoch !== null && <Check className="h-4 w-4 flex-shrink-0 text-up" />}
+            <div className={`flex flex-wrap items-center gap-2 text-lg font-bold leading-snug sm:text-xl ${row.tone}`}>
+              {row.hitEpoch !== null && <Check className="h-5 w-5 flex-shrink-0 text-up" />}
               <span>{row.label}</span>
             </div>
-            <div className="mt-0.5 break-words text-xs leading-relaxed text-ink-3">
+            <div className="mt-1 break-words text-xs leading-relaxed text-ink-2">
               {row.hitEpoch !== null ? `Reached at ${formatDateTime(row.hitEpoch)}` : row.hint}
             </div>
           </div>
-          <span className={`max-w-full break-all font-mono font-bold tabular-nums sm:flex-shrink-0 ${row.label === 'TAKE PROFIT 3' ? 'text-xl sm:text-2xl' : 'text-base sm:text-lg'} ${row.tone}`}>
+          <span className={`max-w-full break-all font-mono text-xl font-extrabold tabular-nums sm:flex-shrink-0 sm:text-2xl ${row.tone}`}>
             {formatPrice(row.value, digits)}
           </span>
         </li>
