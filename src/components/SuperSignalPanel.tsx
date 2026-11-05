@@ -1,4 +1,5 @@
-import { ArrowDownRight, ArrowUpRight, Info, Loader2, Sparkles } from 'lucide-react';
+import { ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Info, Loader2, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { EntryTime, LevelList, CurrentPrice, directionExplanation } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import type { Classification, SuperSignal } from '@/lib/intelligence';
@@ -28,6 +29,26 @@ const STRENGTH_LABEL: Record<Classification, string> = {
 };
 
 export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: Props) {
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const updateSliderControls = useCallback(() => {
+    const slider = sliderRef.current;
+    if (!slider) return;
+    setCanScrollLeft(slider.scrollLeft > 4);
+    setCanScrollRight(slider.scrollLeft + slider.clientWidth < slider.scrollWidth - 4);
+  }, []);
+  useEffect(() => {
+    updateSliderControls();
+    window.addEventListener('resize', updateSliderControls);
+    return () => window.removeEventListener('resize', updateSliderControls);
+  }, [signals.length, updateSliderControls]);
+  const scrollSlider = (direction: -1 | 1) => {
+    const slider = sliderRef.current;
+    if (!slider) return;
+    const card = slider.querySelector<HTMLElement>('[data-super-signal-card]');
+    slider.scrollBy({ left: direction * (card ? card.offsetWidth + 16 : slider.clientWidth * 0.85), behavior: 'smooth' });
+  };
   if (!loaded) {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] p-6 text-sm text-ink-2">
@@ -53,7 +74,16 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
 
   return (
     <div className="space-y-3">
-      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x">
+      <div className="mb-2 flex items-center justify-end gap-2">
+        <span className="mr-auto text-xs font-medium uppercase tracking-[0.16em] text-ink-3">Signal carousel</span>
+        <button type="button" onClick={() => scrollSlider(-1)} disabled={!canScrollLeft} aria-label="Previous Super Signal" className="slider-arrow">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <button type="button" onClick={() => scrollSlider(1)} disabled={!canScrollRight} aria-label="Next Super Signal" className="slider-arrow">
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div ref={sliderRef} onScroll={updateSliderControls} className="super-signal-slider flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x">
       {signals.map((signal) => (
         <SuperSignalCard
           key={`${signal.symbol}-${signal.signalEpoch}`}
@@ -90,6 +120,7 @@ function SuperSignalCard({
 
   return (
     <article
+      data-super-signal-card
       className={`hud-panel flex min-w-[92%] max-w-[92%] snap-start flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-colors duration-300 sm:min-w-[48%] sm:max-w-[48%] sm:p-5 ${
         isBuy ? 'border-up/25 hover:border-up/50' : 'border-down/25 hover:border-down/50'
       }`}
