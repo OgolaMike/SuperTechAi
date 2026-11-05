@@ -81,7 +81,7 @@ export function CryptoMovers() {
       ) : !activeDate ? (
         <div className="rounded-2xl border border-line/10 bg-surface/[0.03] px-6 py-12 text-center text-sm text-ink-2">
           <Coins className="mx-auto mb-3 h-6 w-6 text-ink-3" />
-          No crypto snapshot has been stored yet. The first one is taken at 00:10 UTC.
+          No completed-day snapshot is available yet. Refresh to request a fresh capture from the market-data service.
         </div>
       ) : (
         <>
