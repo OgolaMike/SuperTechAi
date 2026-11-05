@@ -19,7 +19,7 @@ This is the cTrader-native execution build for SuperTech AI. It is designed to r
 - `Enable trading` defaults to **false**.
 - `Allow live account` defaults to **false**.
 - Risk defaults to 0.5% per trade; maximum parameter value is 1%.
-- Daily loss lock defaults to 2% from the cBot instance's start-of-day baseline.
+- Daily loss lock defaults to 2% from the cBot instance's startup equity baseline and resets at the next UTC day. Because cTrader Cloud LocalStorage is memory-only, this initial baseline resets if the cloud instance restarts; this is not restart-proof risk accounting.
 - Spread filter is optional; zero means no spread ceiling is applied.
 - Broker-side SL and TP are attached to the initial market order.
 
