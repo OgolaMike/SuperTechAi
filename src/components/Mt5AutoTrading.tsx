@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Bot, Cable, CircleHelp, Copy, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { formatLocalDateTime } from '@/lib/localTime';
 import { Mt5SignalIntents, type Mt5SignalIntent } from './Mt5SignalIntents';
 
 type PairResult = { ok: boolean; workerId: string; workerToken: string; message: string };
@@ -428,7 +429,7 @@ export function Mt5AutoTrading() {
             </div>
           )}
           <p className="mt-4 text-xs leading-5 text-ink-2">Demo and live accounts are both supported. The worker checks that its logged-in MT5 account number and server exactly match the details entered here. A mismatch prevents the worker from coming online.</p>
-          {lastSeenAt && <p className="mt-2 text-xs text-ink-2">Last worker heartbeat: {new Date(lastSeenAt).toLocaleString()}</p>}
+          {lastSeenAt && <p className="mt-2 text-xs text-ink-2">Last worker heartbeat: {formatLocalDateTime(lastSeenAt)}</p>}
           <button type="button" onClick={requestSync} disabled={syncing || bridgeStatus !== 'connected'} className="mt-4 rounded-xl border border-accent/30 px-4 py-2.5 text-sm font-semibold text-accent disabled:cursor-not-allowed disabled:opacity-40">
             {syncing ? 'Reading MT5 account…' : 'Read account, orders and positions'}
           </button>
