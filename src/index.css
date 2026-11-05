@@ -177,7 +177,8 @@ nav[aria-label="Sections"] button[aria-current="page"] {
   50% { box-shadow: 0 0 0 1px rgb(var(--accent) / .32), 0 12px 36px -18px rgb(var(--accent) / .42); }
 }
 .hud-panel { isolation: isolate; }
-.view-transition .hud-panel { animation: supertech-card-reveal 620ms cubic-bezier(.2,.75,.25,1) both, supertech-holo-breathe 5s ease-in-out 700ms infinite; }
+.view-transition .hud-panel { animation: supertech-card-reveal 620ms cubic-bezier(.2,.75,.25,1) both; }
+.view-transition .super-signal-slider .hud-panel { animation: supertech-card-reveal 620ms cubic-bezier(.2,.75,.25,1) both, supertech-holo-breathe 5s ease-in-out 700ms infinite; }
 .super-signal-slider { scrollbar-width: none; scroll-behavior: smooth; }
 .super-signal-slider::-webkit-scrollbar { display: none; }
 .slider-arrow {
