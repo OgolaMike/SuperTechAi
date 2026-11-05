@@ -42,7 +42,7 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
     updateSliderControls();
     window.addEventListener('resize', updateSliderControls);
     return () => window.removeEventListener('resize', updateSliderControls);
-  }, [signals.length, updateSliderControls]);
+  }, [loaded, signals.length, updateSliderControls]);
   const scrollSlider = (direction: -1 | 1) => {
     const slider = sliderRef.current;
     if (!slider) return;
