@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } from "./deriv.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
-import { buildBackendStopIntent } from "./pendingIntents.ts";
+import { buildBackendStopIntent, buildBackendLimitIntent } from "./pendingIntents.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
 
 const corsHeaders = {
@@ -370,6 +370,25 @@ async function runScan(): Promise<Record<string, unknown>> {
                     await loadTimeframeCandles(feed, symbol.symbol, frame, nowEpoch, candleCache);
                     fetchedCount += 1;
                   }
+                }
+                const limitIntent = buildBackendLimitIntent(symbol.symbol, candleCache, nowEpoch);
+                if (limitIntent && limitIntent.signalEpoch === latestSignal.signalEpoch) {
+                  const limitSignalKey = symbol.symbol + "|M15|" + limitIntent.signalEpoch + "|LIMIT";
+                  const { error: limitEventError } = await db.from("push_events").upsert([{
+                    event_key: limitIntent.idempotencyKey + "|limit_order",
+                    signal_key: limitSignalKey,
+                    kind: "limit_order",
+                    payload: {
+                      label: "LIMIT", symbol: symbol.symbol, assetName: symbol.name, timeframe: "M15",
+                      direction: limitIntent.direction, digits: symbol.digits, signalEpoch: limitIntent.signalEpoch,
+                      entry: limitIntent.entry, stopLoss: limitIntent.stopLoss,
+                      tp1: limitIntent.takeProfit, tp2: limitIntent.takeProfit, tp3: limitIntent.takeProfit,
+                      price: limitIntent.currentPrice, eventEpoch: nowEpoch,
+                      strengthScore: limitIntent.strengthScore, momentumScore: limitIntent.momentumScore,
+                      timeframeAgreement: limitIntent.timeframeAgreement,
+                    },
+                  }], { onConflict: "event_key", ignoreDuplicates: true });
+                  if (limitEventError) throw new Error("Could not queue LIMIT push event: " + limitEventError.message);
                 }
                 const intent = buildBackendStopIntent(symbol.symbol, candleCache, nowEpoch);
                 if (intent && intent.signalEpoch === latestSignal.signalEpoch) {
