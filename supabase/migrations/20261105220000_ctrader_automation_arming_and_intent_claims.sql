@@ -118,14 +118,7 @@ begin
     and s.automation_enabled = true
     and s.unattended_execution_enabled = true
     and (c.environment <> 'live' or s.allow_live_execution = true)
-    and i.expires_at is null or (
-      i.connection_id = p_connection_id
-      and c.connection_status = 'connected'
-      and s.automation_enabled = true
-      and s.unattended_execution_enabled = true
-      and (c.environment <> 'live' or s.allow_live_execution = true)
-      and i.expires_at > now()
-    )
+    and (i.expires_at is null or i.expires_at > now())
     and (
       i.status = 'queued'
       or (i.status = 'leased' and i.execution_lease_expires_at < now())
