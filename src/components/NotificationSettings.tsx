@@ -7,6 +7,7 @@ const CATEGORIES: { key: BoolPrefKey; label: string; description: string }[] = [
   { key: 'signals', label: 'New signals', description: 'A confirmed BUY or SELL crossover, with entry and levels.' },
   { key: 'targets', label: 'Target hits', description: 'TP1, TP2 or TP3 reached on a confirmed candle close.' },
   { key: 'stops', label: 'Stop-loss hits', description: 'A stop-loss reached on a confirmed candle close.' },
+  { key: 'limitOrders', label: 'New limit-order signals', description: 'New BUY LIMIT and SELL LIMIT setups, including entry price and signal strength.' },
 ];
 
 const STATUS_TEXT: Record<PushStatus, string> = {
