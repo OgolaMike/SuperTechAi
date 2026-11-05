@@ -11,7 +11,7 @@ export type AdminUser = {
 
 async function adminRequest(
   accessToken: string,
-  init: { method: 'GET' | 'POST'; body?: unknown },
+  init: { method: 'GET' | 'POST'; body?: Record<string, unknown> },
 ): Promise<unknown> {
   const { data, error } = await supabase.functions.invoke('admin-users', {
     method: init.method,
