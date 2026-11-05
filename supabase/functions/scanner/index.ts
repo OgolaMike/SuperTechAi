@@ -336,6 +336,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     const loadMt5Accounts = () => {
       mt5AccountsPromise ??= db.from("mt5_account_settings")
         .select("user_id,login,server,auto_trade_enabled,unattended_execution_enabled,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop,bridge_status")
+        .eq("bridge_status", "connected")
         .then(({ data, error }) => {
           if (error) throw new Error(`Could not load paired MT5 accounts: ${error.message}`);
           return (data ?? []) as Array<{
