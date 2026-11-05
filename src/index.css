@@ -198,3 +198,31 @@ nav[aria-label="Sections"] button[aria-current="page"] {
   .super-signal-slider { scroll-behavior: auto; }
   .super-signal-slider > article, .slider-arrow { transition: none !important; }
 }
+
+
+/* Unified premium treatment for every trade-level dial, matching the TP3 emphasis. */
+.level-dial {
+  position: relative;
+  isolation: isolate;
+  min-height: 82px;
+  margin: 5px 0;
+  overflow: hidden;
+  transition: transform 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+}
+.level-dial::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .55;
+  background: linear-gradient(110deg, transparent 0%, rgb(var(--ink) / .035) 45%, transparent 75%);
+  transform: translateX(-110%);
+  animation: level-dial-sheen 5s ease-in-out infinite;
+  z-index: -1;
+}
+.level-dial:hover { transform: translateY(-1px); }
+.level-dial-up { border-left-color: rgb(var(--up)); background: rgb(var(--up) / .09); box-shadow: inset 0 0 18px rgb(var(--up) / .045), 0 0 14px -10px rgb(var(--up) / .55); }
+.level-dial-down { border-left-color: rgb(var(--down)); background: rgb(var(--down) / .09); box-shadow: inset 0 0 18px rgb(var(--down) / .045), 0 0 14px -10px rgb(var(--down) / .55); }
+.level-dial-neutral { border-left-color: rgb(var(--accent)); background: rgb(var(--accent) / .075); box-shadow: inset 0 0 18px rgb(var(--accent) / .04), 0 0 14px -10px rgb(var(--accent) / .5); }
+@keyframes level-dial-sheen { 0%, 65%, 100% { transform: translateX(-110%); } 82% { transform: translateX(110%); } }
+@media (prefers-reduced-motion: reduce) { .level-dial::after { animation: none; } .level-dial:hover { transform: none; } }
