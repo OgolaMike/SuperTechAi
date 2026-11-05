@@ -10,13 +10,15 @@ const decrypt = async (value: string, keyText: string) => {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64decode(ivText) }, key, b64decode(cipherText));
   return new TextDecoder().decode(plain);
 };
-const waitForPayload = (ws: WebSocket, expected: number, timeoutMs = 8000) => new Promise<Record<string, any>>((resolve, reject) => {
+type JsonObject = Record<string, unknown>;
+const asObject = (value: unknown): JsonObject => value && typeof value === "object" && !Array.isArray(value) ? value as JsonObject : {};
+const waitForPayload = (ws: WebSocket, expected: number, timeoutMs = 8000) => new Promise<JsonObject>((resolve, reject) => {
   const timer = setTimeout(() => { cleanup(); reject(new Error("ctrader_response_timeout")); }, timeoutMs);
   const onMessage = (event: MessageEvent) => {
-    let message: Record<string, any>;
+    let message: JsonObject;
     try {
       if (typeof event.data !== "string") throw new Error("unexpected_non_text_message");
-      message = JSON.parse(event.data);
+      message = asObject(JSON.parse(event.data));
     } catch {
       cleanup();
       reject(new Error("invalid_ctrader_json_response"));
@@ -24,12 +26,12 @@ const waitForPayload = (ws: WebSocket, expected: number, timeoutMs = 8000) => ne
     }
     if (message.payloadType === 50) {
       cleanup();
-      reject(new Error(String(message.payload?.errorCode || "ctrader_api_error")));
+      reject(new Error(String(asObject(message.payload).errorCode || "ctrader_api_error")));
       return;
     }
     if (message.payloadType === expected) {
       cleanup();
-      resolve(message.payload || {});
+      resolve(asObject(message.payload));
     }
   };
   const onClose = () => { cleanup(); reject(new Error("ctrader_connection_closed")); };
@@ -88,8 +90,8 @@ Deno.serve(async (req) => {
       const accounts = await withCtrader(environment, async (ws) => {
         await sendRequest(ws, 2100, { clientId, clientSecret }, 2101);
         const list = await sendRequest(ws, 2149, { accessToken }, 2150);
-        const rawAccounts = Array.isArray(list.ctidTraderAccount) ? list.ctidTraderAccount : [];
-        const matching = rawAccounts.filter((a: Record<string, unknown>) => Boolean(a.isLive) === (environment === "live"));
+        const rawAccounts: unknown[] = Array.isArray(list.ctidTraderAccount) ? list.ctidTraderAccount : [];
+        const matching = rawAccounts.filter((value): value is JsonObject => value !== null && typeof value === "object" && !Array.isArray(value)).filter((a) => Boolean(a.isLive) === (environment === "live"));
         const authorised: Array<Record<string, unknown>> = [];
         for (const account of matching) {
           const accountId = String(account.ctidTraderAccountId || "");
