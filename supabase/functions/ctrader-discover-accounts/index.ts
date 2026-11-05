@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
     if (!connection?.id) continue;
     await fetch(`${base}/rest/v1/ctrader_execution_settings`, {
       method: "POST", headers: { ...headers, Prefer: "resolution=ignore-duplicates" },
-      body: JSON.stringify({ connection_id: connection.id, user_id: user.id, automation_enabled: false, unattended_execution_enabled: false, allow_live_execution: false })
+      body: JSON.stringify({ connection_id: connection.id, user_id: user.id, automation_enabled: false, unattended_execution_enabled: false, allow_live_execution: account.environment === "live" })
     });
     await fetch(`${base}/rest/v1/ctrader_execution_events`, {
       method: "POST", headers: { ...headers, Prefer: "return=minimal" },
@@ -152,5 +152,5 @@ Deno.serve(async (req) => {
     method: "PATCH", headers: { ...headers, Prefer: "return=minimal" },
     body: JSON.stringify({ status: "active", updated_at: new Date().toISOString() })
   });
-  return json({ connected: true, discovered: discovered.length, saved, alreadyLinkedCount: alreadyLinked.length, failures, automationEnabled: false, liveTradingEnabled: false });
+  return json({ connected: true, discovered: discovered.length, saved, alreadyLinkedCount: alreadyLinked.length, failures, automationEnabled: false, liveAccountSupported: true, liveExecutionArmed: false });
 });
