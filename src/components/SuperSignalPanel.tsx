@@ -75,15 +75,15 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
   return (
     <div className="space-y-3">
       <div className="mb-2 flex items-center justify-end gap-2">
-        <span className="mr-auto text-xs font-medium uppercase tracking-[0.16em] text-ink-3">Signal carousel</span>
-        <button type="button" onClick={() => scrollSlider(-1)} disabled={!canScrollLeft} aria-label="Previous Super Signal" className="slider-arrow">
-          <ArrowLeft className="h-4 w-4" />
+        <span className="mr-auto flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink-3"><span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-70" /><span className="relative inline-flex h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgb(var(--accent)/.9)]" /></span>Live signal gallery</span>
+        <button type="button" onClick={() => scrollSlider(-1)} disabled={!canScrollLeft} aria-label="Previous Super Signal" className="slider-arrow slider-arrow-prev group">
+          <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
         </button>
-        <button type="button" onClick={() => scrollSlider(1)} disabled={!canScrollRight} aria-label="Next Super Signal" className="slider-arrow">
-          <ArrowRight className="h-4 w-4" />
+        <button type="button" onClick={() => scrollSlider(1)} disabled={!canScrollRight} aria-label="Next Super Signal" className="slider-arrow slider-arrow-next group">
+          <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
         </button>
       </div>
-      <div ref={sliderRef} onScroll={updateSliderControls} className="super-signal-slider flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x">
+      <div ref={sliderRef} onScroll={updateSliderControls} className="super-signal-slider flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-4 touch-pan-x">
       {signals.map((signal) => (
         <SuperSignalCard
           key={`${signal.symbol}-${signal.signalEpoch}`}
