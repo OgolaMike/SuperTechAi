@@ -24,3 +24,6 @@ verify_jwt = false
 
 [functions.ctrader-disconnect]
 verify_jwt = true
+
+[functions.ctrader-discover-accounts]
+verify_jwt = true
