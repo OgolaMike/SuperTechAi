@@ -121,7 +121,13 @@ export function aggregateWeeklyCandles(dailyCandles: Candle[], nowEpoch: number)
   return [...buckets.values()]
     .filter((bucket) => bucket.days.size >= 5)
     .sort((a, b) => a.epoch - b.epoch)
-    .map(({ days: _days, ...candle }) => candle);
+    .map((bucket) => ({
+      epoch: bucket.epoch,
+      open: bucket.open,
+      high: bucket.high,
+      low: bucket.low,
+      close: bucket.close,
+    }));
 }
 
 type Stats = { mean: number | null; deviation: number | null };
