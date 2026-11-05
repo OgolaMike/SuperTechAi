@@ -32,21 +32,13 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-up/20 bg-up/5 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-up"><ArrowUpFromLine className="h-4 w-4" /> Buy Stop</div>
-          <p className="mt-2 text-sm text-ink-2">A BUY order above the market. It waits for price to break higher.</p>
+        <div className="hud-panel rounded-xl border border-up/30 bg-up/5 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-up"><ArrowDownToLine className="h-4 w-4" /> Buy Limit</div>
+          <p className="mt-2 text-sm text-ink-2">A BUY order below the current market price. It waits for a pullback into the planned entry zone.</p>
         </div>
-        <div className="rounded-xl border border-down/20 bg-down/5 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-down"><ArrowDownToLine className="h-4 w-4" /> Sell Stop</div>
-          <p className="mt-2 text-sm text-ink-2">A SELL order below the market. It waits for price to break lower.</p>
-        </div>
-        <div className="rounded-xl border border-line/10 bg-surface/[0.03] p-4">
-          <div className="text-sm font-semibold text-ink">Buy Limit</div>
-          <p className="mt-2 text-sm text-ink-2">A BUY order below the market. It waits for a price pullback.</p>
-        </div>
-        <div className="rounded-xl border border-line/10 bg-surface/[0.03] p-4">
-          <div className="text-sm font-semibold text-ink">Sell Limit</div>
-          <p className="mt-2 text-sm text-ink-2">A SELL order above the market. It waits for a price pullback.</p>
+        <div className="hud-panel rounded-xl border border-down/30 bg-down/5 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-down"><ArrowUpFromLine className="h-4 w-4" /> Sell Limit</div>
+          <p className="mt-2 text-sm text-ink-2">A SELL order above the current market price. It waits for a retracement into the planned entry zone.</p>
         </div>
       </div>
 
