@@ -10,8 +10,8 @@ export type BackendStopIntent = {
   stopLoss: number;
   takeProfit: number;
   currentPrice: number;
-  timeframeAgreement: 8;
-  strategyVersion: "eight-tf-stop-v1";
+  timeframeAgreement: 3;
+  strategyVersion: "m15-m5-m1-stop-v2";
   idempotencyKey: string;
 };
 
@@ -19,11 +19,6 @@ const FRAMES = [
   { label: "M1", seconds: 60 },
   { label: "M5", seconds: 300 },
   { label: "M15", seconds: 900 },
-  { label: "M30", seconds: 1800 },
-  { label: "H1", seconds: 3600 },
-  { label: "H4", seconds: 14400 },
-  { label: "D1", seconds: 86400 },
-  { label: "W1", seconds: 604800 },
 ] as const;
 
 function latestStats(candles: Candle[], granularity: number, nowEpoch: number) {
@@ -104,8 +99,8 @@ export function buildBackendStopIntent(
     stopLoss,
     takeProfit,
     currentPrice,
-    timeframeAgreement: 8,
-    strategyVersion: "eight-tf-stop-v1",
+    timeframeAgreement: 3,
+    strategyVersion: "m15-m5-m1-stop-v2",
     idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}`,
   };
 }
@@ -114,8 +109,8 @@ export function buildBackendStopIntent(
 export type BackendLimitIntent = {
   symbol: string; signalEpoch: number; direction: "BUY" | "SELL";
   orderType: "BUY_LIMIT" | "SELL_LIMIT"; entry: number; stopLoss: number;
-  takeProfit: number; currentPrice: number; timeframeAgreement: 8;
-  momentumScore: number; strengthScore: number; strategyVersion: "eight-tf-limit-v1";
+  takeProfit: number; currentPrice: number; timeframeAgreement: 3;
+  momentumScore: number; strengthScore: number; strategyVersion: "m15-m5-m1-limit-v2";
   idempotencyKey: string;
 };
 
@@ -175,7 +170,7 @@ export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Ma
   const orderType = direction === "BUY" ? "BUY_LIMIT" : "SELL_LIMIT";
   return {
     symbol, signalEpoch: trigger.signalEpoch, direction, orderType, entry, stopLoss, takeProfit, currentPrice,
-    timeframeAgreement: 8, momentumScore, strengthScore: momentumScore, strategyVersion: "eight-tf-limit-v1",
+    timeframeAgreement: 3, momentumScore, strengthScore: momentumScore, strategyVersion: "m15-m5-m1-limit-v2",
     idempotencyKey: symbol + "|" + orderType + "|" + trigger.signalEpoch,
   };
 }
