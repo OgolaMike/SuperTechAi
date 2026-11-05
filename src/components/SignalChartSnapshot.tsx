@@ -57,7 +57,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     stats[index]?.upper ?? candle.high,
     stats[index]?.lower ?? candle.low,
   ]);
-  values.push(levels.entry, levels.stopLoss, levels.tp3);
+  values.push(levels.entry, levels.stopLoss, levels.tp1, levels.tp2, levels.tp3);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
@@ -82,7 +82,9 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const levelsToDraw = [
     { label: 'ENTRY', value: levels.entry, color: '#64748b', dash: '4 4' },
     { label: 'STOP', value: levels.stopLoss, color: '#ef4444', dash: '5 4' },
-    { label: 'TARGET', value: levels.tp3, color: '#16a34a', dash: '5 4' },
+    { label: 'TAKE PROFIT 1', value: levels.tp1, color: '#4ade80', dash: '5 4' },
+    { label: 'TAKE PROFIT 2', value: levels.tp2, color: '#22c55e', dash: '5 4' },
+    { label: 'TAKE PROFIT 3', value: levels.tp3, color: '#16a34a', dash: '5 4' },
   ];
 
   return (
@@ -162,7 +164,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         <span className="flex min-w-0 items-center gap-1.5"><i className="h-0.5 w-3 bg-yellow-400" /> SMA 60</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-400" /> Upper band</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-blue-400" /> Lower band</span>
-        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-emerald-400" /> BUY / target</span>
+        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-emerald-400" /> BUY / TP1 · TP2 · TP3</span>
         <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-500" /> Stop / SELL</span>
       </div>
     </section>
