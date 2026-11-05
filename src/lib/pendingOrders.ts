@@ -20,6 +20,7 @@ export type PendingOrderIdea = {
   reason: string;
   timeframeAgreement: number;
   signalEpoch: number;
+  strengthScore: number;
 };
 
 const PRIMARY_GRANULARITY = 300;
@@ -32,7 +33,7 @@ const M5_MIN_EFFICIENCY = 0.62;
 const M5_MIN_BODY_RATIO = 0.5;
 const M5_MIN_NORMALIZED_MOVE = 0.3;
 const M5_SIGNAL_MAX_AGE_BARS = 6;
-const LIMIT_MIN_AI_SCORE = 70;
+const LIMIT_MIN_AI_SCORE = 40;
 
 type M5LimitGate = {
   approved: boolean;
@@ -106,14 +107,9 @@ function evaluateM5LimitGate(
   }
 
   const aiScore = getAiPatternScore(aiModel, M5_GRANULARITY, direction, signal.levels);
-  if (aiScore == null) {
-    return { approved: false, aiScore: null, momentumScore, reason: 'AI model is not trained enough yet; limit orders are held back.' };
-  }
-  if (aiScore < LIMIT_MIN_AI_SCORE) {
-    return { approved: false, aiScore, momentumScore, reason: 'AI historical-pattern score is below the limit-order threshold.' };
-  }
-
-  return { approved: true, aiScore, momentumScore, reason: 'M5 momentum and AI confirmation passed.' };
+  if (momentumScore < LIMIT_MIN_AI_SCORE) return { approved: false, aiScore, momentumScore, reason: 'M5 momentum strength is below the 40/100 minimum.' };
+  if (aiScore != null && aiScore < LIMIT_MIN_AI_SCORE) return { approved: false, aiScore, momentumScore, reason: 'AI historical-pattern score is below 40/100.' };
+  return { approved: true, aiScore, momentumScore, reason: aiScore == null ? 'M5 momentum passed 40/100. Historical AI scoring is still learning, so strength is explained using live candle evidence.' : 'M5 momentum and AI confirmation passed 40/100.' };
 }
 
 function timeframeBias(state: TfState): Direction | null {
@@ -243,6 +239,7 @@ export function buildPendingOrderIdeas(
           : candidate.reason,
         timeframeAgreement: TIMEFRAMES.length,
         signalEpoch: triggerSignal.signalEpoch,
+        strengthScore: Math.round((m5LimitGate.momentumScore ?? 0) * 0.7 + (m5LimitGate.aiScore ?? m5LimitGate.momentumScore ?? 0) * 0.3),
       });
     }
   }
