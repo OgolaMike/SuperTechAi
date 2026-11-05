@@ -10,7 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-// Keep this list aligned with src/lib/sma.ts. Only closed candles are evaluated below.
+// All eight frames continue to power signal history and market context.
 const TIMEFRAMES = [
   { granularity: 60, label: "M1", candleCount: 200 },
   { granularity: 300, label: "M5", candleCount: 200 },
@@ -23,6 +23,7 @@ const TIMEFRAMES = [
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
+const AUTOMATION_TIMEFRAMES = TIMEFRAMES.filter((frame) => [60, 300, 900].includes(frame.granularity));
 const DAY_SECONDS = 86400;
 const WEEK_SECONDS = 7 * DAY_SECONDS;
 
@@ -356,7 +357,7 @@ async function runScan(): Promise<Record<string, unknown>> {
         symbol: string; signalEpoch: number; direction: "BUY" | "SELL";
         orderType: "BUY_STOP" | "SELL_STOP" | "BUY_LIMIT" | "SELL_LIMIT";
         entry: number; stopLoss: number; takeProfit: number; currentPrice: number;
-        timeframeAgreement: 8; strategyVersion: string; idempotencyKey: string;
+        timeframeAgreement: 3; strategyVersion: string; idempotencyKey: string;
       },
       source: "server_scanner_limit" | "server_scanner_stop",
       strengthScore?: number,
@@ -423,7 +424,9 @@ async function runScan(): Promise<Record<string, unknown>> {
               (previousMark === undefined || latestSignal.signalEpoch > previousMark);
             if (isFreshSignal) {
               try {
-                for (const frame of TIMEFRAMES) {
+                // Automated-entry confluence is intentionally limited to M15, M5 and M1.
+                // Higher frames remain available for context but never veto execution setups.
+                for (const frame of AUTOMATION_TIMEFRAMES) {
                   if (!candleCache.has(frame.granularity)) {
                     await loadTimeframeCandles(feed, symbol.symbol, frame, nowEpoch, candleCache);
                     fetchedCount += 1;
