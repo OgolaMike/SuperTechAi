@@ -13,18 +13,23 @@ const decrypt = async (value: string, keyText: string) => {
 const waitForPayload = (ws: WebSocket, expected: number, timeoutMs = 8000) => new Promise<Record<string, any>>((resolve, reject) => {
   const timer = setTimeout(() => { cleanup(); reject(new Error("ctrader_response_timeout")); }, timeoutMs);
   const onMessage = (event: MessageEvent) => {
+    let message: Record<string, any>;
     try {
-      const message = JSON.parse(typeof event.data === "string" ? event.data : new TextDecoder().decode(event.data));
-      if (message.payloadType === 50) {
-        cleanup();
-        reject(new Error(message.payload?.errorCode || "ctrader_api_error"));
-      }
-      if (message.payloadType === expected) {
-        cleanup();
-        resolve(message.payload || {});
-      }
-    } catch (error) {
-      if (error instanceof Error && error.message === "ctrader_api_error") { cleanup(); reject(error); }
+      if (typeof event.data !== "string") throw new Error("unexpected_non_text_message");
+      message = JSON.parse(event.data);
+    } catch {
+      cleanup();
+      reject(new Error("invalid_ctrader_json_response"));
+      return;
+    }
+    if (message.payloadType === 50) {
+      cleanup();
+      reject(new Error(String(message.payload?.errorCode || "ctrader_api_error")));
+      return;
+    }
+    if (message.payloadType === expected) {
+      cleanup();
+      resolve(message.payload || {});
     }
   };
   const onClose = () => { cleanup(); reject(new Error("ctrader_connection_closed")); };
