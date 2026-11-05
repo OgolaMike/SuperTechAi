@@ -9,6 +9,7 @@ export type PushSubscriptionRow = {
   notify_signals: boolean;
   notify_targets: boolean;
   notify_stops: boolean;
+  notify_limit_orders: boolean;
   symbols: string[] | null;
   failure_count: number;
 };
@@ -16,7 +17,7 @@ export type PushSubscriptionRow = {
 export type PushEventRow = {
   event_key: string;
   signal_key: string;
-  kind: "signal" | "target" | "stop";
+  kind: "signal" | "target" | "stop" | "limit_order";
   payload: EventPayload;
 };
 
@@ -35,6 +36,9 @@ export type EventPayload = {
   tp3: number;
   price: number;
   eventEpoch: number;
+  strengthScore?: number;
+  momentumScore?: number;
+  timeframeAgreement?: number;
 };
 
 const encoder = new TextEncoder();
@@ -141,7 +145,8 @@ function wantsEvent(sub: PushSubscriptionRow, event: PushEventRow): boolean {
   if (sub.symbols && !sub.symbols.includes(event.payload.symbol)) return false;
   if (event.kind === "signal") return sub.notify_signals;
   if (event.kind === "target") return sub.notify_targets;
-  return sub.notify_stops;
+  if (event.kind === "stop") return sub.notify_stops;
+  return sub.notify_limit_orders;
 }
 
 function formatTime(epoch: number): string {
@@ -159,9 +164,12 @@ function buildMessage(event: PushEventRow): string {
   } else if (event.kind === "target") {
     title = `${p.assetName} ${p.timeframe}: ${p.label} reached`;
     body = `Price ${price(p.price)} · Entry ${price(p.entry)} · Confirmed ${formatTime(p.eventEpoch)}`;
-  } else {
+  } else if (event.kind === "stop") {
     title = `${p.assetName} ${p.timeframe}: Stop-loss hit`;
     body = `Price ${price(p.price)} · Entry ${price(p.entry)} · Confirmed ${formatTime(p.eventEpoch)}`;
+  } else {
+    title = `${p.direction} LIMIT SIGNAL · ${p.assetName}`;
+    body = `Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP ${price(p.tp3)} · Strength ${p.strengthScore ?? p.momentumScore ?? 0}/100 · ${p.timeframeAgreement ?? 8}/8 timeframes · ${formatTime(p.eventEpoch)}`;
   }
   return JSON.stringify({
     title,
@@ -208,7 +216,7 @@ export async function dispatchPending(
 
   const { data: subs, error: subsError } = await db
     .from("push_subscriptions")
-    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, symbols, failure_count");
+    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, symbols, failure_count");
   if (subsError) throw new Error(`Could not read subscriptions: ${subsError.message}`);
   const subscriptions = (subs ?? []) as PushSubscriptionRow[];
 
