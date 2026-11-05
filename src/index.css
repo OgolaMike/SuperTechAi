@@ -198,3 +198,47 @@ nav[aria-label="Sections"] button[aria-current="page"] {
   .super-signal-slider { scroll-behavior: auto; }
   .super-signal-slider > article, .slider-arrow { transition: none !important; }
 }
+
+
+/* Animated neon frame system: stronger, always-visible information boundaries. */
+@keyframes supertech-border-spectrum {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.hud-panel {
+  border: 1px solid rgb(var(--accent) / .34);
+  box-shadow: 0 0 0 1px rgb(var(--accent) / .08), 0 10px 28px -24px rgb(var(--accent) / .38);
+}
+.hud-panel::before {
+  inset: -2px;
+  padding: 2px;
+  background: linear-gradient(
+    115deg,
+    rgb(var(--accent) / .95),
+    rgb(var(--up) / .82),
+    rgb(129 140 248 / .9),
+    rgb(var(--accent) / .95)
+  );
+  background-size: 300% 300%;
+  opacity: .88;
+  animation: supertech-border-spectrum 8s ease-in-out infinite;
+}
+.hud-panel:hover::before {
+  opacity: 1;
+  animation-duration: 3.5s;
+}
+.dark .hud-panel {
+  box-shadow: 0 0 0 1px rgb(var(--accent) / .12), 0 0 22px -16px rgb(var(--accent) / .55);
+}
+.light .hud-panel {
+  border-color: rgb(var(--accent) / .42);
+  box-shadow: 0 0 0 1px rgb(var(--accent) / .1), 0 8px 24px -20px rgb(var(--accent) / .38);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-panel::before {
+    animation: none !important;
+    background-position: 50% 50%;
+    opacity: .78;
+  }
+}
