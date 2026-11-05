@@ -52,9 +52,9 @@ export function CryptoMovers() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Crypto watch list</p>
-          <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">Previous day's top movers</h2>
+          <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">7-day crypto market history</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            The 100 most-traded USDT pairs on Binance, ranked by volume. Each day runs from 00:00 to 23:59 UTC.
+            Explore daily top gainers, top losers and the full watchlist across the last 7 completed UTC days. Each day runs from 00:00 to 23:59 UTC; snapshots are backfilled automatically when missing.
           </p>
         </div>
         <button
@@ -85,6 +85,10 @@ export function CryptoMovers() {
         </div>
       ) : (
         <>
+          <div className="flex items-center justify-between gap-3 text-xs text-ink-3">
+            <span>{dates.length} of 7 daily snapshots available</span>
+            <span>Select a date to view that day's rankings</span>
+          </div>
           <div role="tablist" className="flex flex-wrap gap-2">
             {dates.map((date) => (
               <button
