@@ -1,6 +1,7 @@
 import { Activity, Radio, TrendingDown, TrendingUp } from 'lucide-react';
 import type { ConnectionStatus } from '@/lib/deriv';
 import { formatDateTime } from '@/lib/sma';
+import { getLocalTimeZone } from '@/lib/localTime';
 
 const STATUS_META: Record<ConnectionStatus, { label: string; dot: string; text: string }> = {
   connecting: { label: 'Connecting', dot: 'bg-warn', text: 'text-warn' },
@@ -31,7 +32,7 @@ export function StatusBar({ status, detail, lastTick, monitoredCount, saveError 
       <div className="flex flex-wrap items-center gap-4 text-xs text-ink-2">
         {saveError && <span className="max-w-[320px] break-words text-down">Signals not saved: {saveError}</span>}
         <div className="flex items-center gap-1.5"><Radio className="h-3.5 w-3.5 text-accent" /><span>{monitoredCount} monitored</span></div>
-        <div className="flex items-center gap-1.5"><Activity className="h-3.5 w-3.5 text-ink-3" /><span className="tabular-nums">{lastTick ? formatDateTime(lastTick) : '—'}</span></div>
+        <div className="flex items-center gap-1.5"><Activity className="h-3.5 w-3.5 text-ink-3" /><span className="tabular-nums">{lastTick ? formatDateTime(lastTick) : '—'}</span><span className="text-[10px] text-ink-3">Local · {getLocalTimeZone()}</span></div>
       </div>
     </div>
   );
