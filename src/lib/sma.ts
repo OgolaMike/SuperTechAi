@@ -1,5 +1,6 @@
 import type { Candle } from './deriv';
 import { buildLevels, evaluateOutcome, type Direction, type Signal } from './signals';
+import { formatLocalDateTime } from './localTime';
 
 export type Timeframe = {
   granularity: number;
@@ -160,12 +161,5 @@ export function formatPrice(price: number | null, digits = 4): string {
 
 export function formatDateTime(epoch: number | null): string {
   if (!epoch) return '—';
-  return new Date(epoch * 1000).toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
+  return formatLocalDateTime(epoch * 1000);
 }
