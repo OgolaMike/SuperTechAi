@@ -63,7 +63,7 @@ export function Mt5SignalIntents({ onSelect }: Props) {
           <article key={intent.id} className="rounded-lg border border-line/10 bg-surface/[0.04] p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold text-ink">{intent.symbol} · {intent.order_type.replace('_', ' ')}</p>
-              <span className="rounded-full border border-accent/20 px-2 py-1 text-[10px] font-semibold text-accent">{intent.payload?.timeframe_agreement ?? 8}/8 timeframes</span>
+              <span className="rounded-full border border-accent/20 px-2 py-1 text-[10px] font-semibold text-accent">{intent.payload?.timeframe_agreement ?? 3}/3 execution frames</span>
             </div>
             <p className="mt-2 text-xs text-ink-2">Entry {Number(intent.entry)} · Stop loss {Number(intent.stop_loss)} · Take profit {Number(intent.take_profit)}</p>
             <p className="mt-1 text-xs text-ink-2">Signal: {new Date(intent.signal_epoch * 1000).toLocaleString()} · Expires: {intent.expires_at ? new Date(intent.expires_at).toLocaleString() : 'Not specified'}</p>
