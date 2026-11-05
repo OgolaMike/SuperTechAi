@@ -80,7 +80,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
               <Target className="h-4 w-4 flex-shrink-0" />
-              <span>Final target reached at {formatDateTime(signal.outcome.tp3Epoch)}. This signal is complete.</span>
+              <span>TAKE PROFIT 3 reached at {formatDateTime(signal.outcome.tp3Epoch)}. This signal is complete.</span>
             </div>
           )}
         </>
@@ -109,6 +109,6 @@ function buildRows(signal: Signal) {
     { label: 'Stop-loss', hint: 'Exit here to limit the loss.', value: levels.stopLoss, hitEpoch: outcome.slEpoch, tone: 'text-down' },
     { label: 'Take-profit 1', hint: 'First profit level.', value: levels.tp1, hitEpoch: outcome.tp1Epoch, tone: 'text-up' },
     { label: 'Take-profit 2', hint: 'Second profit level.', value: levels.tp2, hitEpoch: outcome.tp2Epoch, tone: 'text-up' },
-    { label: 'Take-profit 3', hint: 'Final profit level.', value: levels.tp3, hitEpoch: outcome.tp3Epoch, tone: 'text-up' },
+    { label: 'TAKE PROFIT 3', hint: 'Third profit target.', value: levels.tp3, hitEpoch: outcome.tp3Epoch, tone: 'text-up' },
   ];
 }
