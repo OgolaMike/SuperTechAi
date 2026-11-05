@@ -54,7 +54,7 @@ export function CryptoMovers() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Crypto watch list</p>
           <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">7-day crypto market history</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            Explore daily top gainers, top losers and the full watchlist across the last 7 completed UTC days. Each day runs from 00:00 to 23:59 UTC; snapshots are backfilled automatically when missing.
+            Explore daily top gainers, top losers and the full watchlist across the last 7 completed market days. Binance daily candles retain their UTC market-day boundaries; all SuperTech AI clock times use your device's local timezone.
           </p>
         </div>
         <button
