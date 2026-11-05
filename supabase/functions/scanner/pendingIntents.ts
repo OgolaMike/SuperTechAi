@@ -1,18 +1,33 @@
 import { computeSignals } from "./strategy.ts";
 import type { Candle } from "./deriv.ts";
 
-export type BackendStopIntent = {
+type Direction = "BUY" | "SELL";
+type OrderDirection = "BUY_STOP" | "SELL_STOP" | "BUY_LIMIT" | "SELL_LIMIT";
+
+type BaseIntent = {
   symbol: string;
   signalEpoch: number;
-  direction: "BUY" | "SELL";
-  orderType: "BUY_STOP" | "SELL_STOP";
+  direction: Direction;
+  orderType: OrderDirection;
   entry: number;
   stopLoss: number;
   takeProfit: number;
   currentPrice: number;
   timeframeAgreement: 3;
-  strategyVersion: "m15-m5-m1-stop-v2";
+  strategyVersion: string;
   idempotencyKey: string;
+};
+
+export type BackendStopIntent = BaseIntent & {
+  orderType: "BUY_STOP" | "SELL_STOP";
+  strategyVersion: "m15-m5-m1-stop-v3";
+};
+
+export type BackendLimitIntent = BaseIntent & {
+  orderType: "BUY_LIMIT" | "SELL_LIMIT";
+  momentumScore: number;
+  strengthScore: number;
+  strategyVersion: "m15-m5-m1-limit-v3";
 };
 
 const FRAMES = [
@@ -22,9 +37,7 @@ const FRAMES = [
 ] as const;
 
 function latestStats(candles: Candle[], granularity: number, nowEpoch: number) {
-  const closed = candles
-    .filter((c) => c.epoch + granularity <= nowEpoch)
-    .sort((a, b) => a.epoch - b.epoch);
+  const closed = candles.filter((c) => c.epoch + granularity <= nowEpoch).sort((a, b) => a.epoch - b.epoch);
   if (closed.length < 60) return null;
   const window = closed.slice(-60);
   const mean = window.reduce((sum, candle) => sum + candle.close, 0) / 60;
@@ -35,17 +48,8 @@ function latestStats(candles: Candle[], granularity: number, nowEpoch: number) {
   return { closed, mean, deviation, last };
 }
 
-/**
- * Backend STOP proposal rules: M15/M5/M1 confluence plus the same M5
- * four-of-five candle and 40/100 momentum confirmation used by LIMIT proposals.
- * These proposals do not place broker orders.
- */
-export function buildBackendStopIntent(
-  symbol: string,
-  candlesByGranularity: Map<number, Candle[]>,
-  nowEpoch: number,
-): BackendStopIntent | null {
-  const stats = new Map<number, ReturnType<typeof latestStats>>();
+function executionContext(symbol: string, candlesByGranularity: Map<number, Candle[]>, nowEpoch: number) {
+  const stats = new Map<number, NonNullable<ReturnType<typeof latestStats>>>();
   for (const frame of FRAMES) {
     const candles = candlesByGranularity.get(frame.seconds);
     if (!candles) return null;
@@ -53,77 +57,27 @@ export function buildBackendStopIntent(
     if (!value || nowEpoch - (value.last.epoch + frame.seconds) > 2 * frame.seconds) return null;
     stats.set(frame.seconds, value);
   }
-
   const biases = FRAMES.map((frame) => {
     const value = stats.get(frame.seconds)!;
     const difference = value.last.close - value.mean;
-    const neutral = value.deviation * 0.1;
-    return difference > neutral ? "BUY" : difference < -neutral ? "SELL" : null;
+    return difference > value.deviation * 0.1 ? "BUY" : difference < -value.deviation * 0.1 ? "SELL" : null;
   });
-  const direction = biases[0];
+  const direction = biases[0] as Direction | null;
   if (!direction || !biases.every((bias) => bias === direction)) return null;
-
-  const m5Momentum = momentumStrength(
-    candlesByGranularity.get(300)!,
-    stats.get(300)!.deviation,
-    direction,
-    nowEpoch,
-  );
-  if (m5Momentum < 40) return null;
 
   const primaryCandles = candlesByGranularity.get(900)!;
   const primary = stats.get(900)!;
-  const signals = computeSignals(primaryCandles, 900, nowEpoch).signals;
-  const trigger = signals[signals.length - 1];
-  if (!trigger || trigger.direction !== direction || trigger.outcome.closed) return null;
-  if (nowEpoch - trigger.signalEpoch > 8 * 900) return null;
+  const trigger = computeSignals(primaryCandles, 900, nowEpoch).signals.slice(-1)[0];
+  if (!trigger || trigger.direction !== direction || trigger.outcome.closed ||
+      nowEpoch - trigger.signalEpoch > 8 * 900) return null;
 
-  const recent = primary.closed.slice(-5);
-  if (recent.length < 5) return null;
-  if (recent.some((c) => !Number.isFinite(c.high) || !Number.isFinite(c.low))) return null;
-  const swingHigh = Math.max(...recent.map((c) => c.high!));
-  const swingLow = Math.min(...recent.map((c) => c.low!));
-  const currentPrice = primary.last.close;
-  const buffer = primary.deviation * 0.1;
-  const sign = direction === "BUY" ? 1 : -1;
-  const entry = direction === "BUY"
-    ? Math.max(swingHigh, currentPrice) + buffer
-    : Math.min(swingLow, currentPrice) - buffer;
-  if (!(entry > 0) || (direction === "BUY" ? entry <= currentPrice : entry >= currentPrice)) return null;
-
-  // Match makeLevels() in src/lib/pendingOrders.ts: SL is anchored to the
-  // M15 SMA, while the single 2.5σ target is measured from the entry.
-  const stopLoss = primary.mean - sign * primary.deviation;
-  const takeProfit = entry + sign * primary.deviation * 2.5;
-  if (![stopLoss, takeProfit].every((v) => Number.isFinite(v) && v > 0)) return null;
-
-  const orderType = direction === "BUY" ? "BUY_STOP" : "SELL_STOP";
-  return {
-    symbol,
-    signalEpoch: trigger.signalEpoch,
-    direction,
-    orderType,
-    entry,
-    stopLoss,
-    takeProfit,
-    currentPrice,
-    timeframeAgreement: 3,
-    strategyVersion: "m15-m5-m1-stop-v2",
-    idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}`,
-  };
+  const m5Momentum = momentumStrength(candlesByGranularity.get(300)!, stats.get(300)!.deviation, direction, nowEpoch);
+  if (m5Momentum < 40) return null;
+  return { direction, primary, trigger, m5Momentum };
 }
 
-
-export type BackendLimitIntent = {
-  symbol: string; signalEpoch: number; direction: "BUY" | "SELL";
-  orderType: "BUY_LIMIT" | "SELL_LIMIT"; entry: number; stopLoss: number;
-  takeProfit: number; currentPrice: number; timeframeAgreement: 3;
-  momentumScore: number; strengthScore: number; strategyVersion: "m15-m5-m1-limit-v2";
-  idempotencyKey: string;
-};
-
-function momentumStrength(candles: Candle[], deviation: number, direction: "BUY" | "SELL", nowEpoch: number): number {
-  const recent = candles.filter((c) => c.epoch + 300 <= nowEpoch).slice(-5);
+function momentumStrength(candles: Candle[], deviation: number, direction: Direction, nowEpoch: number): number {
+  const recent = candles.filter((c) => c.epoch + 300 <= nowEpoch).sort((a, b) => a.epoch - b.epoch).slice(-5);
   if (recent.length < 5 || !(deviation > 0)) return 0;
   const sign = direction === "BUY" ? 1 : -1;
   let aligned = 0, body = 0, range = 0, path = 0;
@@ -138,47 +92,62 @@ function momentumStrength(candles: Candle[], deviation: number, direction: "BUY"
     if (i > 0) path += Math.abs(candle.close - recent[i - 1].close);
   }
   if (aligned < 4) return 0;
-  const net = sign * (recent[4].close - recent[0].open);
+  const net = sign * (recent[4].close - (recent[0].open ?? recent[0].close));
   const efficiency = path > 0 ? Math.abs(recent[4].close - recent[0].close) / path : 0;
   const bodyRatio = range > 0 ? body / range : 0;
   return Math.round(Math.min(1, efficiency / 0.8) * 35 + Math.min(1, bodyRatio / 0.7) * 30 + Math.min(1, Math.max(0, net / deviation) / 0.6) * 35);
 }
 
-/** Server-side signal-only LIMIT proposal. It never places a broker order. */
-export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Map<number, Candle[]>, nowEpoch: number): BackendLimitIntent | null {
-  const stats = new Map<number, ReturnType<typeof latestStats>>();
-  for (const frame of FRAMES) {
-    const candles = candlesByGranularity.get(frame.seconds);
-    if (!candles) return null;
-    const value = latestStats(candles, frame.seconds, nowEpoch);
-    if (!value || nowEpoch - (value.last.epoch + frame.seconds) > 2 * frame.seconds) return null;
-    stats.set(frame.seconds, value);
-  }
-  const biases = FRAMES.map((frame) => {
-    const value = stats.get(frame.seconds)!;
-    const difference = value.last.close - value.mean;
-    return difference > value.deviation * 0.1 ? "BUY" : difference < -value.deviation * 0.1 ? "SELL" : null;
-  });
-  const direction = biases[0];
-  if (!direction || !biases.every((bias) => bias === direction)) return null;
-  const primary = stats.get(900)!;
-  const trigger = computeSignals(candlesByGranularity.get(900)!, 900, nowEpoch).signals.slice(-1)[0];
-  if (!trigger || trigger.direction !== direction || trigger.outcome.closed || nowEpoch - trigger.signalEpoch > 8 * 900) return null;
-  const m5 = computeSignals(candlesByGranularity.get(300)!, 300, nowEpoch).signals.slice(-1)[0];
-  if (!m5 || m5.direction !== direction || m5.outcome.closed || nowEpoch - m5.signalEpoch > 6 * 300) return null;
+/** Returns two distinct pullback LIMIT proposals for one confirmed M15/M5/M1 setup. */
+export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Map<number, Candle[]>, nowEpoch: number): BackendLimitIntent[] {
+  const context = executionContext(symbol, candlesByGranularity, nowEpoch);
+  if (!context) return [];
+  const { direction, primary, trigger, m5Momentum } = context;
   const currentPrice = primary.last.close;
-  const entry = primary.mean;
-  if (!(entry > 0) || (direction === "BUY" ? entry >= currentPrice : entry <= currentPrice)) return null;
-  const momentumScore = momentumStrength(candlesByGranularity.get(300)!, stats.get(300)!.deviation, direction, nowEpoch);
-  if (momentumScore < 40) return null;
   const sign = direction === "BUY" ? 1 : -1;
-  const stopLoss = entry - sign * primary.deviation;
-  const takeProfit = entry + sign * primary.deviation * 2.5;
-  if (![stopLoss, takeProfit].every((v) => Number.isFinite(v) && v > 0)) return null;
+  const midpoint = (primary.mean + currentPrice) / 2;
+  const entries = [primary.mean, midpoint];
   const orderType = direction === "BUY" ? "BUY_LIMIT" : "SELL_LIMIT";
-  return {
-    symbol, signalEpoch: trigger.signalEpoch, direction, orderType, entry, stopLoss, takeProfit, currentPrice,
-    timeframeAgreement: 3, momentumScore, strengthScore: momentumScore, strategyVersion: "m15-m5-m1-limit-v2",
-    idempotencyKey: symbol + "|" + orderType + "|" + trigger.signalEpoch,
-  };
+  return entries
+    .filter((entry, index) => entry > 0 && (direction === "BUY" ? entry < currentPrice : entry > currentPrice) &&
+      (index === 0 || Math.abs(entry - entries[index - 1]) > primary.deviation * 0.01))
+    .map((entry, index) => ({
+      symbol, signalEpoch: trigger.signalEpoch, direction, orderType, entry,
+      stopLoss: entry - sign * primary.deviation,
+      takeProfit: entry + sign * primary.deviation * 2.5,
+      currentPrice, timeframeAgreement: 3, momentumScore: m5Momentum, strengthScore: m5Momentum,
+      strategyVersion: "m15-m5-m1-limit-v3",
+      idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}|L${index + 1}`,
+    }))
+    .filter((intent) => [intent.stopLoss, intent.takeProfit].every((v) => Number.isFinite(v) && v > 0));
+}
+
+/** Returns two distinct breakout STOP proposals for one confirmed M15/M5/M1 setup. */
+export function buildBackendStopIntent(symbol: string, candlesByGranularity: Map<number, Candle[]>, nowEpoch: number): BackendStopIntent[] {
+  const context = executionContext(symbol, candlesByGranularity, nowEpoch);
+  if (!context) return [];
+  const { direction, primary, trigger } = context;
+  const recent = primary.closed.slice(-5);
+  if (recent.length < 5 || recent.some((c) => !Number.isFinite(c.high) || !Number.isFinite(c.low))) return [];
+  const swingHigh = Math.max(...recent.map((c) => c.high!));
+  const swingLow = Math.min(...recent.map((c) => c.low!));
+  const currentPrice = primary.last.close;
+  const buffer = primary.deviation * 0.1;
+  const sign = direction === "BUY" ? 1 : -1;
+  const firstEntry = direction === "BUY"
+    ? Math.max(swingHigh, currentPrice) + buffer
+    : Math.min(swingLow, currentPrice) - buffer;
+  const entries = [firstEntry, firstEntry + sign * primary.deviation * 0.5];
+  const orderType = direction === "BUY" ? "BUY_STOP" : "SELL_STOP";
+  return entries
+    .filter((entry, index) => entry > 0 && (direction === "BUY" ? entry > currentPrice : entry < currentPrice) &&
+      (index === 0 || Math.abs(entry - entries[index - 1]) > primary.deviation * 0.01))
+    .map((entry, index) => ({
+      symbol, signalEpoch: trigger.signalEpoch, direction, orderType, entry,
+      stopLoss: primary.mean - sign * primary.deviation,
+      takeProfit: entry + sign * primary.deviation * 2.5,
+      currentPrice, timeframeAgreement: 3, strategyVersion: "m15-m5-m1-stop-v3",
+      idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}|S${index + 1}`,
+    }))
+    .filter((intent) => [intent.stopLoss, intent.takeProfit].every((v) => Number.isFinite(v) && v > 0));
 }
