@@ -22,7 +22,7 @@ type MoverRow = {
   volume_rank: number | string;
 };
 
-const LOOKBACK_DAYS = 14;
+const LOOKBACK_DAYS = 7;
 const COLUMNS = 'trade_date, symbol, base_asset, open_price, close_price, change_pct, quote_volume, volume_rank';
 
 const isMoverRow = (row: MoverRow) =>
