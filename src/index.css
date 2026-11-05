@@ -226,3 +226,36 @@ nav[aria-label="Sections"] button[aria-current="page"] {
 .level-dial-neutral { border-left-color: rgb(var(--accent)); background: rgb(var(--accent) / .075); box-shadow: inset 0 0 18px rgb(var(--accent) / .04), 0 0 14px -10px rgb(var(--accent) / .5); }
 @keyframes level-dial-sheen { 0%, 65%, 100% { transform: translateX(-110%); } 82% { transform: translateX(110%); } }
 @media (prefers-reduced-motion: reduce) { .level-dial::after { animation: none; } .level-dial:hover { transform: none; } }
+
+
+/* Always-visible animated neon frame for dashboard and signal information panels. */
+@keyframes supertech-panel-border-flow {
+  0% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+  50% { background-position: 100% 50%; filter: hue-rotate(28deg); }
+  100% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+}
+.hud-panel {
+  border-color: rgb(var(--accent) / .28);
+}
+.hud-panel::before {
+  inset: -2px;
+  padding: 2px;
+  opacity: .72;
+  background: linear-gradient(115deg,
+    rgb(var(--accent) / .9),
+    rgb(var(--up) / .78),
+    rgb(var(--accent) / .18),
+    rgb(var(--down) / .52),
+    rgb(var(--accent) / .9));
+  background-size: 260% 260%;
+  animation: supertech-panel-border-flow 8s ease-in-out infinite;
+}
+.hud-panel:hover::before {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-panel::before {
+    animation: none !important;
+    opacity: .65;
+  }
+}
