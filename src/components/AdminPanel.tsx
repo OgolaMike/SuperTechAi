@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw, ShieldCheck, ShieldOff, UserCheck, UserX } from 'lucide-react';
 import { useSession } from '@/lib/sessionContext';
+import { formatLocalDateTime } from '@/lib/localTime';
 import { fetchAdminUsers, updateUserAccess, type AccessChange, type AdminUser } from '@/lib/adminUsers';
 
 
@@ -17,11 +18,9 @@ const FOUNDING_TEN = [
   { email: 'mikedavid45@gmail.com', role: 'Admin' },
 ] as const;
 
-const dateFormat: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' };
-
 function formatWhen(iso: string | null): string {
   if (!iso) return 'Never';
-  return new Date(iso).toLocaleString(undefined, dateFormat);
+  return formatLocalDateTime(iso);
 }
 
 export function AdminPanel() {
