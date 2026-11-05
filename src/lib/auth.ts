@@ -1,26 +1,7 @@
 import { supabase } from '@/lib/supabase';
-
-export async function signIn(email: string, password: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-}
-
-// Resolves to true when the new account is signed in immediately.
-export async function signUp(email: string, password: string): Promise<boolean> {
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) throw error;
-  return data.session !== null;
-}
-
-export async function signOut(): Promise<void> {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-}
-
-export function friendlyAuthError(error: unknown): string {
-  const message = error instanceof Error ? error.message : '';
-  if (/invalid login credentials/i.test(message)) return 'The email or password is incorrect.';
-  if (/already registered/i.test(message)) return 'An account with this email already exists. Try signing in instead.';
-  if (/failed to fetch|network/i.test(message)) return 'Could not reach the server. Check your connection and try again.';
-  return message || 'Something went wrong. Please try again.';
-}
+export async function signIn(email:string,password:string):Promise<void>{const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;}
+export async function signUp(email:string,password:string):Promise<boolean>{const {data,error}=await supabase.auth.signUp({email,password});if(error)throw error;return data.session!==null;}
+export async function requestPasswordReset(email:string):Promise<void>{const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:`${window.location.origin}${window.location.pathname}?auth=recovery`});if(error)throw error;}
+export async function updatePassword(password:string):Promise<void>{const {error}=await supabase.auth.updateUser({password});if(error)throw error;}
+export async function signOut():Promise<void>{const {error}=await supabase.auth.signOut();if(error)throw error;}
+export function friendlyAuthError(error:unknown):string{const m=error instanceof Error?error.message:'';if(/invalid login credentials/i.test(m))return'The email or password is incorrect.';if(/already registered/i.test(m))return'An account with this email already exists. Try signing in instead.';if(/failed to fetch|network|fetch failed|load failed|timeout/i.test(m))return'No connection to the authentication server. Check your internet connection and try again.';if(/otp_expired|expired/i.test(m))return'This recovery link has expired. Request a new password reset link.';return m||'Something went wrong. Please try again.';}
