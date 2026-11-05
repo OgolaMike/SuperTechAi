@@ -43,29 +43,34 @@ async function readSnapshot(): Promise<MoverRow[]> {
 
 export async function fetchCryptoMovers(): Promise<CryptoMover[]> {
   let rows = await readSnapshot();
+  const savedDates = new Set(rows.map((row) => row.trade_date));
 
-  // The database cron can be unavailable during DNS/network incidents. If no
-  // saved snapshot exists, ask the authenticated Edge Function to capture the
-  // last completed UTC day, then read the persisted snapshot again.
-  if (rows.length === 0) {
+  // Keep a rolling seven-day history. Capture each missing completed UTC day
+  // separately so the history is backfilled even when the daily cron was missed.
+  for (let daysAgo = 1; daysAgo <= 7; daysAgo += 1) {
+    const date = new Date(Date.UTC(
+      new Date().getUTCFullYear(),
+      new Date().getUTCMonth(),
+      new Date().getUTCDate() - daysAgo,
+    )).toISOString().slice(0, 10);
+
+    if (savedDates.has(date)) continue;
+
     const { data, error } = await supabase.functions.invoke('crypto-movers', {
       method: 'POST',
-      body: {},
+      body: { date },
     });
-    if (error) {
-      const context = (error as { context?: Response }).context;
-      const payload = context && typeof context.json === 'function'
-        ? await context.clone().json().catch(() => null)
-        : null;
-      const message = typeof payload?.error === 'string'
-        ? payload.error
-        : error.message || 'The crypto snapshot service is unavailable.';
-      throw new Error(message);
+
+    if (error || (data && typeof data === 'object' && 'error' in data)) {
+      // Preserve and show any days that did load; a later refresh retries
+      // missing dates rather than hiding usable history.
+      continue;
     }
-    if (data && typeof data === 'object' && 'error' in data && typeof data.error === 'string') {
-      throw new Error(data.error);
-    }
-    rows = await readSnapshot();
+  }
+
+  rows = await readSnapshot();
+  if (rows.length === 0) {
+    throw new Error('No completed-day crypto history is available. Please refresh shortly.');
   }
 
   return rows.filter(isMoverRow).map((row) => ({
