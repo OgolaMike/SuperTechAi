@@ -14,6 +14,7 @@ import { PendingOrdersPanel } from '@/components/PendingOrdersPanel';
 import { SignOutButton } from '@/components/SignOutButton';
 import { HeaderBrand, StatusBar, TrendIcons } from '@/components/StatusBar';
 import { SuperSignalPanel } from '@/components/SuperSignalPanel';
+import { ReversalContextPanel } from '@/components/ReversalContextPanel';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toasts } from '@/components/Toasts';
 import { ViewNav, type View } from '@/components/ViewNav';
@@ -158,6 +159,7 @@ function App() {
               <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
               <p className="max-w-2xl text-sm text-ink-2">We wait for all seven timeframes to point in the same direction before announcing a Super Signal.</p>
             </div>
+            <ReversalContextPanel assets={assets.filter((asset) => selectedSymbols.includes(asset.symbol))} states={states} nowEpoch={now} />
             <SuperSignalPanel signals={superSignals} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
           </section>
         )}
