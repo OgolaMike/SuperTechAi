@@ -1,120 +1,19 @@
-import { useState, type FormEvent } from 'react';
-import { Loader2, LogIn, UserPlus } from 'lucide-react';
-import { HeaderBrand } from '@/components/StatusBar';
-import { friendlyAuthError, signIn, signUp } from '@/lib/auth';
-
-type Mode = 'sign-in' | 'sign-up';
-
-const MIN_PASSWORD_LENGTH = 6;
-
-export function AuthScreen() {
-  const [mode, setMode] = useState<Mode>('sign-in');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const isSignUp = mode === 'sign-up';
-
-  const switchMode = () => {
-    setMode(isSignUp ? 'sign-in' : 'sign-up');
-    setError(null);
-    setNotice(null);
-  };
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setNotice(null);
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Enter your email and a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
-      return;
-    }
-    setBusy(true);
-    try {
-      if (isSignUp) {
-        const invitedBy = new URLSearchParams(window.location.search).get('ref');
-        if (invitedBy) window.localStorage.setItem('supertech-referral-code', invitedBy.trim().toUpperCase());
-        const signedIn = await signUp(trimmedEmail, password);
-        if (!signedIn) setNotice('Account created. Confirm your email, sign in, and complete the 300 USDT TRC20 membership payment to activate access.');
-        else setNotice('Account created. Complete the 300 USDT TRC20 membership payment to activate access.');
-      } else {
-        await signIn(trimmedEmail, password);
-      }
-    } catch (err) {
-      setError(friendlyAuthError(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-10 text-ink">
-      <div className="w-full max-w-md rounded-2xl border border-line/10 bg-surface/[0.03] p-6 shadow-2xl sm:p-8">
-        <HeaderBrand />
-
-        <div className="mt-8 flex flex-col gap-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-            {isSignUp ? 'Create account' : 'Members only'}
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {isSignUp ? 'Create your account' : 'Sign in to continue'}
-          </h1>
-          <p className="text-sm text-ink-2">
-            {isSignUp ? 'Use an email address and a password you will remember.' : 'Enter the email and password for your account.'}
-          </p>
-        </div>
-
-        <form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
-              required
-              disabled={busy}
-              className="rounded-xl border border-line/10 bg-surface/[0.03] px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-accent/50 focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
-              placeholder="you@example.com"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              required
-              disabled={busy}
-              className="rounded-xl border border-line/10 bg-surface/[0.03] px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-accent/50 focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
-              placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-            />
-          </label>
-
-          {error && <div className="rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">{error}</div>}
-          {notice && <div className="rounded-xl border border-up/30 bg-up/10 px-4 py-3 text-sm text-up">{notice}</div>}
-
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-canvas transition-transform duration-200 hover:scale-[1.01] disabled:opacity-60"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-            {isSignUp ? 'Create account' : 'Sign in'}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-ink-2">
-          {isSignUp ? 'Already have an account?' : "Don't have an account yet?"}{' '}
-          <button type="button" onClick={switchMode} disabled={busy} className="font-semibold text-accent hover:underline disabled:opacity-60">
-            {isSignUp ? 'Sign in' : 'Create one'}
-          </button>
-        </p>
-      </div>
-    </div>
-  );
-}
+import {useEffect,useState,type FormEvent} from 'react';
+import {Loader2,LogIn,UserPlus,KeyRound,ArrowLeft} from 'lucide-react';
+import {HeaderBrand} from '@/components/StatusBar';
+import {friendlyAuthError,signIn,signUp,requestPasswordReset,updatePassword,signOut} from '@/lib/auth';
+type Mode='sign-in'|'sign-up'|'forgot'|'reset';
+export function AuthScreen({recoveryMode=false}:{recoveryMode?:boolean}){
+const [mode,setMode]=useState<Mode>(recoveryMode?'reset':'sign-in'),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null),[notice,setNotice]=useState<string|null>(null),[online,setOnline]=useState(navigator.onLine);
+useEffect(()=>{const on=()=>setOnline(true),off=()=>setOnline(false);window.addEventListener('online',on);window.addEventListener('offline',off);return()=>{window.removeEventListener('online',on);window.removeEventListener('offline',off)}},[]);
+const change=(m:Mode)=>{setMode(m);setPassword('');setConfirm('');setError(null);setNotice(null)};
+const submit=async(e:FormEvent)=>{e.preventDefault();setError(null);setNotice(null);if(!navigator.onLine){setOnline(false);setError('No internet connection. Turn on mobile data or Wi-Fi, then try again.');return}const mail=email.trim();if(mode!=='reset'&&!mail){setError('Enter your email address.');return}if(mode==='reset'&&(password.length<8||password!==confirm)){setError(password.length<8?'Your new password must contain at least 8 characters.':'The passwords do not match.');return}if(mode!=='forgot'&&mode!=='reset'&&password.length<6){setError('Enter a password of at least 6 characters.');return}setBusy(true);try{if(mode==='forgot'){await requestPasswordReset(mail);setNotice('If an account exists for this email, a recovery link has been sent. Check your inbox and spam folder.')}else if(mode==='reset'){await updatePassword(password);await signOut();change('sign-in');setNotice('Password updated. Sign in using your new password.')}else if(mode==='sign-up'){const ref=new URLSearchParams(location.search).get('ref');if(ref)localStorage.setItem('supertech-referral-code',ref.trim().toUpperCase());const ok=await signUp(mail,password);setNotice(ok?'Account created. Complete the 300 USDT TRC20 membership payment to activate access.':'Account created. Confirm your email, then sign in and complete the 300 USDT TRC20 membership payment.')}else await signIn(mail,password)}catch(err){setError(friendlyAuthError(err))}finally{setBusy(false)}};
+const title=mode==='sign-up'?'Create your account':mode==='forgot'?'Recover your password':mode==='reset'?'Choose a new password':'Sign in to continue';
+return <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-10 text-ink"><div className="w-full max-w-md rounded-2xl border border-line/10 bg-surface/[0.03] p-6 shadow-2xl sm:p-8"><HeaderBrand/><div className="mt-8"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">{mode==='sign-up'?'Create account':mode==='sign-in'?'Members only':'Account recovery'}</p><h1 className="mt-1 text-2xl font-semibold">{title}</h1><p className="mt-1 text-sm text-ink-2">{mode==='forgot'?'Enter your registered email and we will send a secure recovery link.':mode==='reset'?'Choose and confirm a new password.':mode==='sign-up'?'Use an email address and a password you will remember.':'Enter the email and password for your account.'}</p></div>
+{!online&&<div role="status" className="mt-5 rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">No internet connection. Turn on mobile data or Wi-Fi. You can retry without restarting the app.</div>}
+<form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>{mode!=='reset'&&<label className="flex flex-col gap-1.5"><span className="text-sm font-medium">Email</span><input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" disabled={busy} className="rounded-xl border border-line/10 bg-surface/[0.03] px-3 py-2.5 text-sm outline-none focus:border-accent/50" placeholder="you@example.com"/></label>}
+{mode!=='forgot'&&<label className="flex flex-col gap-1.5"><span className="text-sm font-medium">{mode==='reset'?'New password':'Password'}</span><input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==='sign-in'?'current-password':'new-password'} disabled={busy} className="rounded-xl border border-line/10 bg-surface/[0.03] px-3 py-2.5 text-sm outline-none focus:border-accent/50" placeholder={mode==='reset'?'At least 8 characters':'Your password'}/></label>}
+{mode==='reset'&&<label className="flex flex-col gap-1.5"><span className="text-sm font-medium">Confirm new password</span><input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} autoComplete="new-password" disabled={busy} className="rounded-xl border border-line/10 bg-surface/[0.03] px-3 py-2.5 text-sm outline-none focus:border-accent/50" placeholder="Re-enter new password"/></label>}
+{error&&<div role="alert" className="rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">{error}</div>}{notice&&<div role="status" className="rounded-xl border border-up/30 bg-up/10 px-4 py-3 text-sm text-up">{notice}</div>}
+<button type="submit" disabled={busy||!online} className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-canvas disabled:opacity-60">{busy?<Loader2 className="h-4 w-4 animate-spin"/>:mode==='forgot'||mode==='reset'?<KeyRound className="h-4 w-4"/>:mode==='sign-up'?<UserPlus className="h-4 w-4"/>:<LogIn className="h-4 w-4"/>}{mode==='forgot'?'Send recovery link':mode==='reset'?'Update password':mode==='sign-up'?'Create account':'Sign in'}</button></form>
+<div className="mt-6 flex flex-col items-center gap-3 text-center text-sm text-ink-2">{mode==='sign-in'&&<button onClick={()=>change('forgot')} className="font-semibold text-accent hover:underline">Forgot password?</button>}{mode==='sign-up'?<p>Already have an account? <button onClick={()=>change('sign-in')} className="font-semibold text-accent">Sign in</button></p>:mode==='sign-in'?<p>Don't have an account? <button onClick={()=>change('sign-up')} className="font-semibold text-accent">Create one</button></p>:<button onClick={()=>change('sign-in')} className="inline-flex items-center gap-2 font-semibold text-accent"><ArrowLeft className="h-4 w-4"/>Back to sign in</button>}</div></div></div>}
