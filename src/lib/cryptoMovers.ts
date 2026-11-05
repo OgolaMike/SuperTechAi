@@ -28,7 +28,7 @@ const COLUMNS = 'trade_date, symbol, base_asset, open_price, close_price, change
 const isMoverRow = (row: MoverRow) =>
   typeof row.trade_date === 'string' && typeof row.symbol === 'string' && Number.isFinite(Number(row.change_pct));
 
-export async function fetchCryptoMovers(): Promise<CryptoMover[]> {
+async function readSnapshot(): Promise<MoverRow[]> {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from('crypto_daily_movers')
@@ -38,7 +38,36 @@ export async function fetchCryptoMovers(): Promise<CryptoMover[]> {
     .order('volume_rank', { ascending: true })
     .limit(2000);
   if (error) throw new Error(error.message);
-  const rows = (Array.isArray(data) ? data : []) as MoverRow[];
+  return (Array.isArray(data) ? data : []) as MoverRow[];
+}
+
+export async function fetchCryptoMovers(): Promise<CryptoMover[]> {
+  let rows = await readSnapshot();
+
+  // The database cron can be unavailable during DNS/network incidents. If no
+  // saved snapshot exists, ask the authenticated Edge Function to capture the
+  // last completed UTC day, then read the persisted snapshot again.
+  if (rows.length === 0) {
+    const { data, error } = await supabase.functions.invoke('crypto-movers', {
+      method: 'POST',
+      body: {},
+    });
+    if (error) {
+      const context = (error as { context?: Response }).context;
+      const payload = context && typeof context.json === 'function'
+        ? await context.clone().json().catch(() => null)
+        : null;
+      const message = typeof payload?.error === 'string'
+        ? payload.error
+        : error.message || 'The crypto snapshot service is unavailable.';
+      throw new Error(message);
+    }
+    if (data && typeof data === 'object' && 'error' in data && typeof data.error === 'string') {
+      throw new Error(data.error);
+    }
+    rows = await readSnapshot();
+  }
+
   return rows.filter(isMoverRow).map((row) => ({
     tradeDate: row.trade_date,
     symbol: row.symbol,
