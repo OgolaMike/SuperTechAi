@@ -3,6 +3,20 @@ import { Loader2, RefreshCw, ShieldCheck, ShieldOff, UserCheck, UserX } from 'lu
 import { useSession } from '@/lib/sessionContext';
 import { fetchAdminUsers, updateUserAccess, type AccessChange, type AdminUser } from '@/lib/adminUsers';
 
+
+const FOUNDING_TEN = [
+  { email: 'sir2mthomas1983@gmail.com', role: 'Member' },
+  { email: 'bellwayua14@gmail.com', role: 'Member' },
+  { email: 'kalukuamos87@gmail.com', role: 'Member' },
+  { email: 'mammdyx@gmail.com', role: 'Member' },
+  { email: 'patriciawambui021418@gmail.com', role: 'Admin' },
+  { email: 'nelngumba@gmail.com', role: 'Admin' },
+  { email: 'josephinewanjiru17@gmail.com', role: 'Admin' },
+  { email: 'elishanyindha@gmail.com', role: 'Member' },
+  { email: 'annzambezi@gmail.com', role: 'Admin' },
+  { email: 'mikedavid45@gmail.com', role: 'Admin' },
+] as const;
+
 const dateFormat: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' };
 
 function formatWhen(iso: string | null): string {
@@ -71,6 +85,44 @@ export function AdminPanel() {
       </div>
 
       {error && <div className="rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">{error}</div>}
+
+      <div className="rounded-2xl border border-accent/20 bg-surface/[0.035] p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Original founding cohort</p>
+            <h3 className="mt-1 text-lg font-semibold text-ink">Founding 10 members</h3>
+            <p className="mt-1 text-sm text-ink-2">The original ten accounts are listed here separately from live account records. Missing accounts are not automatically recreated.</p>
+          </div>
+          <span className="rounded-full border border-line/10 px-3 py-1.5 text-xs font-semibold text-ink-2">10 founding places</span>
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[620px] text-left text-sm">
+            <thead className="border-b border-line/10 text-xs uppercase tracking-wider text-ink-3">
+              <tr><th className="px-3 py-3">#</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Original role</th><th className="px-3 py-3">Current account record</th></tr>
+            </thead>
+            <tbody>
+              {FOUNDING_TEN.map((founder, index) => {
+                const liveUser = users.find((user) => user.email.toLowerCase() === founder.email.toLowerCase());
+                return (
+                  <tr key={founder.email} className="border-b border-line/5 last:border-0">
+                    <td className="px-3 py-3 text-ink-3">{index + 1}</td>
+                    <td className="px-3 py-3 font-medium text-ink">{founder.email}{founder.email === session.user.email && <span className="ml-2 text-xs text-ink-3">(you)</span>}</td>
+                    <td className="px-3 py-3 text-ink-2">{founder.role}</td>
+                    <td className="px-3 py-3">
+                      {liveUser ? (
+                        <span className="inline-flex rounded-full border border-up/30 bg-up/10 px-2.5 py-1 text-xs font-semibold text-up">Account found · {liveUser.isApproved ? 'Approved' : 'Awaiting approval'}</span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-down/25 bg-down/5 px-2.5 py-1 text-xs font-medium text-ink-2">Not in current Auth records</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-ink-3">This is a founding-member roster, not proof of account activation. The live member table below remains sourced from Supabase.</p>
+      </div>
 
       <div className="overflow-x-auto rounded-2xl border border-line/10 bg-surface/[0.03]">
         {loading && users.length === 0 ? (
