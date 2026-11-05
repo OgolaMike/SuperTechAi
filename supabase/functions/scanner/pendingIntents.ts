@@ -126,9 +126,12 @@ function momentumStrength(candles: Candle[], deviation: number, direction: "BUY"
   let aligned = 0, body = 0, range = 0, path = 0;
   for (let i = 0; i < recent.length; i += 1) {
     const candle = recent[i];
-    if (sign * (candle.close - candle.open) > 0) aligned += 1;
-    body += Math.abs(candle.close - candle.open);
-    range += Math.max(0, candle.high - candle.low);
+    const open = candle.open ?? candle.close;
+    const high = candle.high ?? candle.close;
+    const low = candle.low ?? candle.close;
+    if (sign * (candle.close - open) > 0) aligned += 1;
+    body += Math.abs(candle.close - open);
+    range += Math.max(0, high - low);
     if (i > 0) path += Math.abs(candle.close - recent[i - 1].close);
   }
   if (aligned < 4) return 0;
