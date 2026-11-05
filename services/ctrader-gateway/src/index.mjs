@@ -76,16 +76,22 @@ class CTraderSocket {
   }
   onMessage(event) {
     let m; try {m=JSON.parse(typeof event.data==="string"?event.data:Buffer.from(event.data).toString("utf8"));} catch{return;}
+    const messageId=String(m.clientMsgId||"");
     const accountId=String(m.payload?.ctidTraderAccountId||"");
-    if(m.payloadType===50) {
-      for(const [id,p] of this.pending) { if(!accountId||p.accountId===accountId){clearTimeout(p.timer);this.pending.delete(id);p.reject(new Error(String(m.payload?.errorCode||"ctrader_api_error")));break;} }
-      return;
-    }
-    for(const [id,p] of this.pending) {
-      if(m.payloadType===p.expected && (!p.accountId||!accountId||p.accountId===accountId)) {
-        clearTimeout(p.timer);this.pending.delete(id);p.resolve(m.payload||{});break;
-      }
-    }
+    const matches=[...this.pending.entries()].filter(([,p])=>
+      (!p.accountId||!accountId||p.accountId===accountId) &&
+      (m.payloadType===50 || m.payloadType===p.expected)
+    );
+    // cTrader echoes clientMsgId. Never resolve an arbitrary request when responses overlap.
+    let match=messageId ? this.pending.get(messageId) : null;
+    if(match && match.accountId && accountId && match.accountId!==accountId) match=null;
+    if(!match && !messageId && matches.length===1) match=matches[0][1];
+    if(!match) return;
+    const key=messageId || [...this.pending.entries()].find(([,p])=>p===match)?.[0];
+    if(!key) return;
+    clearTimeout(match.timer); this.pending.delete(key);
+    if(m.payloadType===50) match.reject(new Error(String(m.payload?.errorCode||"ctrader_api_error")));
+    else if(m.payloadType===match.expected) match.resolve(m.payload||{});
   }
   request(type,payload,expected,accountId=null) {
     if(!this.ws||this.ws.readyState!==WebSocket.OPEN) return Promise.reject(new Error("ctrader_socket_not_open"));
@@ -111,7 +117,19 @@ class CTraderSocket {
   }
 }
 const sockets={demo:new CTraderSocket("demo"),live:new CTraderSocket("live")};
-let running=true, busy=false;
+let running=true, busy=false, leaseBusy=false;
+const heldLeases=new Set();
+async function renewHeldLeases() {
+  if(leaseBusy||!running)return; leaseBusy=true;
+  try {
+    for(const id of [...heldLeases]) {
+      try {
+        const ok=await rest("rpc/claim_ctrader_runtime_lease",{method:"POST",body:JSON.stringify({p_connection_id:id,p_lease_owner:cfg.owner,p_ttl_seconds:45})});
+        if(ok!==true) { heldLeases.delete(id); log("runtime_lease_lost",{connectionId:id}); }
+      } catch(error) { log("runtime_lease_heartbeat_failed",{connectionId:id,code:String(error.message).slice(0,100)}); }
+    }
+  } finally { leaseBusy=false; }
+}
 async function cycle() {
   if(busy||!running)return; busy=true;
   try {
@@ -119,7 +137,8 @@ async function cycle() {
     const seen=new Set();
     for(const c of connections||[]) {
       const lease=await rest("rpc/claim_ctrader_runtime_lease",{method:"POST",body:JSON.stringify({p_connection_id:c.id,p_lease_owner:cfg.owner,p_ttl_seconds:45})});
-      if(lease!==true) continue;
+      if(lease!==true) { heldLeases.delete(c.id); continue; }
+      heldLeases.add(c.id);
       seen.add(c.id);
       try {
         const grant=await loadGrant(c.user_id);
@@ -131,10 +150,16 @@ async function cycle() {
         await rest(`ctrader_connections?id=eq.${c.id}`,{method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify({last_error_code:String(error.message).slice(0,120)})}).catch(()=>{});
       }
     }
+    for(const id of [...heldLeases]) {
+      if(!seen.has(id)) {
+        await rest("rpc/release_ctrader_runtime_lease",{method:"POST",body:JSON.stringify({p_connection_id:id,p_lease_owner:cfg.owner})}).catch(()=>{});
+        heldLeases.delete(id);
+      }
+    }
     for(const envName of ["demo","live"]) {
       if(sockets[envName].ws && sockets[envName].ws.readyState!==WebSocket.OPEN) await sockets[envName].close();
     }
-    log("gateway_cycle_complete",{accounts:(connections||[]).length,instance:cfg.owner});
+    log("gateway_cycle_complete",{accounts:(connections||[]).length,leasedAccounts:heldLeases.size,instance:cfg.owner});
   } catch(error) { log("gateway_cycle_failed",{code:String(error.message).slice(0,180)}); }
   finally { busy=false; }
 }
@@ -145,5 +170,12 @@ const server=http.createServer((req,res)=>{
 server.listen(cfg.port,()=>log("gateway_started",{port:cfg.port,instance:cfg.owner}));
 await cycle();
 const poll=setInterval(cycle,cfg.pollMs);
-async function shutdown(){running=false;clearInterval(poll);await Promise.all(Object.values(sockets).map(s=>s.close()));server.close(()=>process.exit(0));}
+const leaseHeartbeat=setInterval(renewHeldLeases,15000);
+async function shutdown(){
+  running=false;clearInterval(poll);clearInterval(leaseHeartbeat);
+  await Promise.all([...heldLeases].map(id=>rest("rpc/release_ctrader_runtime_lease",{method:"POST",body:JSON.stringify({p_connection_id:id,p_lease_owner:cfg.owner})}).catch(()=>{})));
+  heldLeases.clear();
+  await Promise.all(Object.values(sockets).map(s=>s.close()));
+  server.close(()=>process.exit(0));
+}
 process.on("SIGTERM",shutdown);process.on("SIGINT",shutdown);
