@@ -32,7 +32,7 @@ const M5_MIN_EFFICIENCY = 0.62;
 const M5_MIN_BODY_RATIO = 0.5;
 const M5_MIN_NORMALIZED_MOVE = 0.3;
 const M5_SIGNAL_MAX_AGE_BARS = 6;
-const LIMIT_MIN_AI_SCORE = 70;
+const LIMIT_MIN_AI_SCORE = 35;
 
 type M5LimitGate = {
   approved: boolean;
@@ -110,7 +110,7 @@ function evaluateM5LimitGate(
     return { approved: false, aiScore: null, momentumScore, reason: 'AI model is not trained enough yet; limit orders are held back.' };
   }
   if (aiScore < LIMIT_MIN_AI_SCORE) {
-    return { approved: false, aiScore, momentumScore, reason: 'AI historical-pattern score is below the limit-order threshold.' };
+    return { approved: false, aiScore, momentumScore, reason: 'AI historical-pattern score is below the 35/100 limit-order threshold.' };
   }
 
   return { approved: true, aiScore, momentumScore, reason: 'M5 momentum and AI confirmation passed.' };
@@ -157,7 +157,7 @@ export function buildPendingOrderIdeas(
       return timeframeBias(state);
     });
 
-    // Pending orders are suggested only when all seven active timeframe trends agree.
+    // Pending orders are suggested only when all active timeframe trends agree.
     if (readings.length !== TIMEFRAMES.length) continue;
     const direction = readings[0];
     if (direction == null || !readings.every((bias) => bias === direction)) continue;
@@ -182,7 +182,7 @@ export function buildPendingOrderIdeas(
         candidates.push({
           type: 'BUY STOP',
           entry: breakoutEntry,
-          reason: 'The market is moving up across all seven timeframes. This order waits for price to break above the recent high.',
+          reason: 'The market is moving up across all active timeframes. This order waits for price to break above the recent high.',
         });
       }
       if (primary.currentSma < currentPrice) {
