@@ -19,6 +19,7 @@ Run `npm run check` and `npm start` with Node.js 22+. `GET /health` checks the p
 
 - Demo and live account sessions are both supported.
 - OAuth grants are decrypted only in the gateway process and refreshed before expiry.
+- After account authorisation, the gateway retrieves trader account details and the broker's symbol list, then loads full symbol metadata in batches (including volume limits/steps, digits, pip position, and lot size where supplied). Metadata is cached for the lifetime of the account session for the upcoming risk-sizing and order-validation layer.
 - Open API responses are correlated by `clientMsgId`; ambiguous responses are not assigned to arbitrary requests.
 - A worker can renew its own account lease. A different worker can claim that account only after the lease expires.
 - Tokens, refresh tokens, and broker credentials must never appear in logs.
