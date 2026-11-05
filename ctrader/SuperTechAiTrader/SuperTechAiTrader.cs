@@ -53,9 +53,9 @@ namespace cAlgo.Robots
 
         protected override void OnStart()
         {
-            if (TimeFrame != TimeFrame.Minute5)
+            if (TimeFrame != TimeFrame.Minute15)
             {
-                Print("Attach SuperTechAi Trader to an M15 chart. Trading is disabled.");
+                Print("Attach SuperTechAi Trader to an M15 chart. Trading is disabled until the correct timeframe is selected.");
                 Stop();
                 return;
             }
