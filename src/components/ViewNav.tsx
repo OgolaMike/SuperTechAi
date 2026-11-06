@@ -1,12 +1,13 @@
-import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark } from 'lucide-react';
+import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark, Bitcoin } from 'lucide-react';
 
-export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance';
+export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance';
 
 const VIEWS: { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'records', label: 'Signals', icon: Database },
   { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
-  { id: 'mt5', label: 'Connect Account', icon: Cable },
+  { id: 'mt5', label: 'Connect MT5', icon: Cable },
+  { id: 'binance', label: 'Binance Spot', icon: Bitcoin },
   { id: 'crypto', label: 'Crypto', icon: Coins },
   { id: 'super', label: 'Super Signal', icon: Sparkles },
   { id: 'alerts', label: 'Alerts', icon: Bell },
