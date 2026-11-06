@@ -69,8 +69,8 @@ export function LevelList({ rows, digits }: LevelListProps) {
   return (
     <ul className="divide-y divide-line/10 overflow-hidden rounded-xl border border-line/10">
       {rows.map((row) => (
-        <li key={row.label} className={`level-dial flex flex-col items-start gap-2 rounded-xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 ${row.tone === 'text-entry' ? 'level-dial-entry' : row.tone === 'text-down' ? 'level-dial-down' : row.tone === 'text-up' ? 'level-dial-up' : 'level-dial-neutral'} ${row.hitEpoch !== null ? 'level-dial-hit' : 'level-dial-pending'}`}>
-          <div className="min-w-0">
+        <li key={row.label} className={`level-dial flex min-w-0 flex-col items-start gap-2 rounded-xl border px-3 py-3 sm:px-4 sm:py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 ${row.tone === 'text-entry' ? 'level-dial-entry' : row.tone === 'text-down' ? 'level-dial-down' : row.tone === 'text-up' ? 'level-dial-up' : 'level-dial-neutral'} ${row.hitEpoch !== null ? 'level-dial-hit' : 'level-dial-pending'}`}>
+          <div className="min-w-0 max-w-full">
             <div className={`flex flex-wrap items-center gap-2 text-lg font-bold leading-snug sm:text-xl ${row.tone}`}>
               {row.hitEpoch !== null && <Check className="h-5 w-5 flex-shrink-0 text-up" />}
               <span>{row.label}</span>
@@ -79,7 +79,7 @@ export function LevelList({ rows, digits }: LevelListProps) {
               {row.hitEpoch !== null ? `Reached at ${formatDateTime(row.hitEpoch)}` : row.hint}
             </div>
           </div>
-          <span className={`max-w-full break-all font-mono text-xl font-extrabold tabular-nums sm:flex-shrink-0 sm:text-2xl ${row.tone}`}>
+          <span className={`max-w-full break-all font-mono text-lg font-extrabold tabular-nums sm:flex-shrink-0 sm:text-2xl ${row.tone}`}>
             {formatPrice(row.value, digits)}
           </span>
         </li>

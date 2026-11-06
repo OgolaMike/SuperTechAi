@@ -58,7 +58,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
   );
 
   return (
-    <section className="mt-8 space-y-6">
+    <section className="mt-8 min-w-0 w-full space-y-6 overflow-x-hidden">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 order intelligence</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
@@ -89,21 +89,21 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
           {filter === 'results' ? 'No completed order results yet. Results will appear here as orders resolve.' : 'No tracked pending orders in this view yet. Scanning continues across all discovered assets.'}
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
           {visibleOrders.map((idea) => (
-            <article key={idea.id} className="rounded-2xl border border-line/35 bg-surface/[0.03] p-5">
-              <div className="flex items-start justify-between gap-3">
+            <article key={idea.id} className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-line/35 bg-surface/[0.03] p-3 sm:p-5">
+              <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">{idea.assetName} ({idea.symbol}) · M15</p>
                   <h4 className={`mt-1 text-xl font-bold ${idea.direction === 'BUY' ? 'text-up' : 'text-down'}`}>{idea.type}</h4>
                 </div>
                 <StatusPill status={idea.status} />
               </div>
-              <div className="mt-3 rounded-xl border border-line/25 bg-surface/[0.025] px-3 py-3">
+              <div className="mt-3 min-w-0 rounded-xl border border-line/25 bg-surface/[0.025] px-3 py-3">
                 {idea.status === 'WAITING' ? (
                   <>
                     <p className="text-sm font-semibold text-ink">You can place this trade.</p>
-                    <p className="mt-1 text-xs leading-relaxed text-ink-2">Place the {idea.type} order using the entry, stop-loss and take-profit levels below. The platform will keep tracking the setup.</p>
+                    <p className="mt-1 break-words text-xs leading-relaxed text-ink-2">Place the {idea.type} order using the entry, stop-loss and take-profit levels below. The platform will keep tracking the setup.</p>
                   </>
                 ) : idea.status === 'ENTRY HIT' ? (
                   <>
@@ -122,7 +122,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                   </>
                 )}
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="mt-3 grid min-w-0 grid-cols-2 gap-2 sm:gap-3">
                 <Price label="Live price" value={idea.currentPrice} digits={idea.digits} />
                 {idea.aiScore !== null
                   ? <Price label="M15 AI score" value={idea.aiScore} digits={0} />
@@ -156,16 +156,16 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         </div>
       )}
 
-      <div className="flex items-start gap-2 rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">
+      <div className="flex min-w-0 items-start gap-2 rounded-xl border border-warn/25 bg-warn/5 p-3 text-xs leading-relaxed text-ink-2 sm:p-4">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-warn" />
-        <p>These are trade suggestions for the member to place manually; they are not submitted to a broker by this screen. “TRADE EXECUTED” means the market price reached the planned entry level in the tracked M15 candles, not that a broker confirmed a fill. Signals use confirmed M15 candle structure; the chart displays the latest 60 M15 candles and the order levels. Tracked outcomes are saved on this device.</p>
+        <p className="min-w-0 break-words">These are trade suggestions for the member to place manually; they are not submitted to a broker by this screen. “TRADE EXECUTED” means the market price reached the planned entry level in the tracked M15 candles, not that a broker confirmed a fill. Signals use confirmed M15 candle structure; the chart displays the latest 60 M15 candles and the order levels. Tracked outcomes are saved on this device.</p>
       </div>
     </section>
   );
 }
 
 function Summary({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p></div>;
+  return <div className="min-w-0 rounded-xl border border-line/25 bg-surface/[0.03] p-3 sm:p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p></div>;
 }
 
 function StatusPill({ status }: { status: M15StopIdea['status'] }) {
@@ -175,9 +175,9 @@ function StatusPill({ status }: { status: M15StopIdea['status'] }) {
     : status === 'EXPIRED' ? 'border-line/40 bg-surface/[0.08] text-ink-3'
     : status === 'ENTRY HIT' ? 'border-up/40 bg-up/10 text-up'
     : 'border-line/40 bg-surface/[0.04] text-ink-2';
-  return <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${tone}`}>{label}</span>;
+  return <span className={`max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-left text-xs font-semibold ${tone}`}>{label}</span>;
 }
 
 function Price({ label, value, digits }: { label: string; value: number; digits: number }) {
-  return <div className="rounded-xl border border-line/25 bg-surface/[0.02] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 break-all font-mono text-base font-semibold tabular-nums text-ink">{formatPrice(value, digits)}</p></div>;
+  return <div className="min-w-0 rounded-xl border border-line/25 bg-surface/[0.02] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 break-all font-mono text-base font-semibold tabular-nums text-ink">{formatPrice(value, digits)}</p></div>;
 }
