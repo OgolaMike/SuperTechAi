@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Loader2, TrendingDown, TrendingUp } from 'lucide-react';
 import { fetchBinanceCandles } from '@/lib/binance';
 import type { Candle } from '@/lib/deriv';
 import { computeTfState, TIMEFRAMES, type TfState, type Timeframe } from '@/lib/sma';
@@ -16,7 +16,7 @@ const CHART_HEIGHT = 280;
 const CHART_WIDTH = 1040;
 const PADDING = { top: 18, right: 84, bottom: 24, left: 14 };
 
-function describeMarket(state: TfState, now: number) {
+function describeMarket(state: TfState) {
   const price = state.lastClose;
   const sma = state.currentSma;
   const deviation = state.stdDev;
@@ -83,7 +83,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close }: Props) {
   }, [symbol, timeframe]);
 
   const state = useMemo(() => computeTfState(timeframe, candles, Math.floor(Date.now() / 1000)), [timeframe, candles]);
-  const analysis = useMemo(() => describeMarket(state, Math.floor(Date.now() / 1000)), [state]);
+  const analysis = useMemo(() => describeMarket(state), [state]);
   const data = useMemo(() => state.candles.slice(-Math.min(visibleCount, state.candles.length)), [state.candles, visibleCount]);
   const stats = useMemo(() => {
     const closes = state.candles.map((item) => item.close);
