@@ -10,7 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-// All eight frames continue to power signal history and market context.
+// All eight frames use native Deriv candle intervals; D1 remains the highest timeframe.
 const TIMEFRAMES = [
   { granularity: 60, label: "M1", candleCount: 200 },
   { granularity: 300, label: "M5", candleCount: 200 },
@@ -18,92 +18,26 @@ const TIMEFRAMES = [
   { granularity: 1800, label: "M30", candleCount: 200 },
   { granularity: 3600, label: "H1", candleCount: 200 },
   { granularity: 14400, label: "H4", candleCount: 200 },
+  { granularity: 28800, label: "H8", candleCount: 200 },
   { granularity: 86400, label: "D1", candleCount: 366 },
-  { granularity: 604800, label: "W1", candleCount: 65 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
 const AUTOMATION_TIMEFRAMES = TIMEFRAMES.filter((frame) => [60, 300, 900].includes(frame.granularity));
-const DAY_SECONDS = 86400;
-const WEEK_SECONDS = 7 * DAY_SECONDS;
-
-function weekStartUtc(epoch: number): number {
-  const dayStart = Math.floor(epoch / DAY_SECONDS) * DAY_SECONDS;
-  const weekday = new Date(dayStart * 1000).getUTCDay();
-  return dayStart - ((weekday + 6) % 7) * DAY_SECONDS;
-}
 
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
-  if (granularity === WEEK_SECONDS) return weekStartUtc(nowEpoch) - WEEK_SECONDS;
   return Math.floor(nowEpoch / granularity) * granularity - granularity;
-}
-
-function aggregateWeeklyCandles(dailyCandles: Candle[], nowEpoch: number): Candle[] {
-  const buckets = new Map<number, {
-    epoch: number;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    days: Set<number>;
-  }>();
-
-  for (const candle of [...dailyCandles].sort((a, b) => a.epoch - b.epoch)) {
-    const dayStart = Math.floor(candle.epoch / DAY_SECONDS) * DAY_SECONDS;
-    if (candle.epoch + DAY_SECONDS > nowEpoch) continue;
-    const weekStart = weekStartUtc(dayStart);
-    if (weekStart + WEEK_SECONDS > nowEpoch) continue;
-
-    const existing = buckets.get(weekStart);
-    const high = candle.high ?? candle.close;
-    const low = candle.low ?? candle.close;
-    const open = candle.open ?? candle.close;
-    if (!existing) {
-      buckets.set(weekStart, {
-        epoch: weekStart, open, high, low, close: candle.close, days: new Set([dayStart]),
-      });
-      continue;
-    }
-
-    existing.high = Math.max(existing.high, high);
-    existing.low = Math.min(existing.low, low);
-    existing.close = candle.close;
-    existing.days.add(dayStart);
-  }
-
-  return [...buckets.values()]
-    .filter((bucket) => bucket.days.size >= 5)
-    .sort((a, b) => a.epoch - b.epoch)
-    .map((bucket) => ({
-      epoch: bucket.epoch,
-      open: bucket.open,
-      high: bucket.high,
-      low: bucket.low,
-      close: bucket.close,
-    }));
 }
 
 async function loadTimeframeCandles(
   feed: DerivFeed,
   symbol: string,
   timeframe: Timeframe,
-  nowEpoch: number,
+  _nowEpoch: number,
   cache: Map<number, Candle[]>,
 ): Promise<Candle[]> {
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
-
-  if (timeframe.granularity === WEEK_SECONDS) {
-    const dailyCount = Math.max(450, timeframe.candleCount * 7 + 15);
-    let dailyCandles = cache.get(DAY_SECONDS);
-    if (!dailyCandles || dailyCandles.length < dailyCount) {
-      dailyCandles = await fetchCandles(feed, symbol, DAY_SECONDS, dailyCount);
-      cache.set(DAY_SECONDS, dailyCandles);
-    }
-    const weeklyCandles = aggregateWeeklyCandles(dailyCandles, nowEpoch);
-    cache.set(WEEK_SECONDS, weeklyCandles);
-    return weeklyCandles;
-  }
 
   const candles = await fetchCandles(feed, symbol, timeframe.granularity, timeframe.candleCount);
   cache.set(timeframe.granularity, candles);
