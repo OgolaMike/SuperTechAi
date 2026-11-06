@@ -153,6 +153,9 @@ export function BinanceSpotAutomation() {
               <button disabled={busy || !apiKey.trim() || !apiSecret.trim()} onClick={() => void connect()} className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
                 {busy ? 'Connecting…' : 'Connect Binance Spot'}
               </button>
+              <div className="rounded-xl border border-accent/20 bg-accent/5 p-3 text-xs leading-5 text-ink-2">
+                Before connecting the first account, the administrator must add <strong>BINANCE_CREDENTIALS_ENCRYPTION_KEY</strong> to Supabase Edge Function Secrets. Use a unique random value of at least 32 characters; never commit it to the repository.
+              </div>
               <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-ink-2">
                 Create an API key with Spot trading permission only. Keep withdrawals disabled. Never paste your Binance credentials into chat.
               </div>
