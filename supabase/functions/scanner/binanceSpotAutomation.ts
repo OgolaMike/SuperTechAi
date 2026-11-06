@@ -43,12 +43,12 @@ async function signedBinance(
   apiKey: string,
   apiSecret: string,
   path: string,
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "DELETE",
   values: Record<string, string>,
 ) {
   const params = new URLSearchParams({ ...values, recvWindow: "5000", timestamp: String(Date.now()) });
   const signature = await hmac(apiSecret, params.toString());
-  const url = BASE + path + (method === "GET" ? "?" + params.toString() + "&signature=" + signature : "");
+  const url = BASE + path + (method !== "POST" ? "?" + params.toString() + "&signature=" + signature : "");
   let response: Response;
   try {
     response = await fetch(url, {
@@ -116,7 +116,7 @@ async function shortHash(value: string) {
 }
 async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: string, apiSecret: string) {
   const { data: rows, error } = await db.from("binance_spot_orders")
-    .select("id,symbol,broker_order_list_id,status")
+    .select("id,symbol,broker_order_list_id,status,client_order_id,expires_at")
     .eq("user_id", userId)
     .in("status", ["submitted", "partially_filled", "filled"]);
   if (error) throw error;
@@ -130,6 +130,23 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
         await db.from("binance_spot_orders").update({
           status: "closed", completed_at: new Date().toISOString(),
           result_payload: list, updated_at: new Date().toISOString(),
+        }).eq("id", row.id).eq("user_id", userId);
+        continue;
+      }
+      const reports = Array.isArray(list.orderReports) ? list.orderReports as Array<Record<string, unknown>> : [];
+      const workingOrder = reports.find((item) => item.clientOrderId === row.client_order_id);
+      if (workingOrder?.status === "FILLED") {
+        await db.from("binance_spot_orders").update({
+          status: "filled", result_payload: list, updated_at: new Date().toISOString(),
+        }).eq("id", row.id).eq("user_id", userId);
+      } else if (row.expires_at && Date.now() >= new Date(row.expires_at).getTime() &&
+          (workingOrder?.status === "NEW" || workingOrder?.status === "PARTIALLY_FILLED")) {
+        const cancelled = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "DELETE", {
+          orderListId: String(row.broker_order_list_id),
+        });
+        await db.from("binance_spot_orders").update({
+          status: "expired", completed_at: new Date().toISOString(),
+          result_payload: cancelled, updated_at: new Date().toISOString(),
         }).eq("id", row.id).eq("user_id", userId);
       }
     } catch {
@@ -210,6 +227,7 @@ export async function submitBinanceSpotLimitIntents(
         const { data: inserted, error: insertError } = await db.from("binance_spot_orders").insert({
           user_id: account.user_id, symbol, side: "BUY", order_kind: "OTOCO",
           entry_price: entryPrice, quantity, stop_loss: stopLoss, take_profit: takeProfit,
+          expires_at: new Date((intent.signalEpoch + 8 * 900) * 1000).toISOString(),
           signal_key: symbol + "|M15|" + intent.signalEpoch + "|BUY",
           idempotency_key: idempotencyKey, client_order_id: workingClientOrderId,
           status: "queued",
