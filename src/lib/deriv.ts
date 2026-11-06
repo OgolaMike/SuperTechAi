@@ -33,6 +33,7 @@ export type DerivSymbol = {
   displayName: string;
   market: string;
   digits: number;
+  exchange?: 'DERIV' | 'BINANCE';
 };
 
 export type ConnectionStatus =
