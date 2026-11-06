@@ -259,3 +259,31 @@ nav[aria-label="Sections"] button[aria-current="page"] {
     opacity: .65;
   }
 }
+
+/* A reached trade level gets the same unmistakable illumination as the entry dial. */
+.level-dial-pending {
+  opacity: .78;
+}
+.level-dial-hit {
+  opacity: 1;
+  animation: level-dial-hit-pulse 1.8s ease-in-out infinite;
+}
+.level-dial-hit.level-dial-up {
+  border-color: rgb(var(--up) / .85);
+  border-left-color: rgb(var(--up));
+  background: rgb(var(--up) / .19);
+  box-shadow: inset 0 0 24px rgb(var(--up) / .13), 0 0 22px -5px rgb(var(--up) / .8);
+}
+.level-dial-hit.level-dial-down {
+  border-color: rgb(var(--down) / .85);
+  border-left-color: rgb(var(--down));
+  background: rgb(var(--down) / .19);
+  box-shadow: inset 0 0 24px rgb(var(--down) / .13), 0 0 22px -5px rgb(var(--down) / .8);
+}
+@keyframes level-dial-hit-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.22); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .level-dial-hit { animation: none !important; }
+}
