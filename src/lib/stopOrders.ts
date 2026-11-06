@@ -1,6 +1,6 @@
 import { getAiPatternScore, type SignalLearningModel } from './aiLearning';
 import type { Asset, TfState } from './sma';
-import type { Direction, Signal } from './signals';
+import type { Direction } from './signals';
 
 export type StopOrderStatus =
   | 'WAITING'
