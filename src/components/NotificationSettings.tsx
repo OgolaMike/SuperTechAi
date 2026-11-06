@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Bell, BellOff, Check, Loader2 } from 'lucide-react';
 import { usePushSettings, type PushStatus } from '@/hooks/usePushSettings';
 import type { BoolPrefKey } from '@/lib/pushClient';
@@ -7,7 +8,7 @@ const CATEGORIES: { key: BoolPrefKey; label: string; description: string }[] = [
   { key: 'signals', label: 'New signals', description: 'A confirmed BUY or SELL crossover, with entry and levels.' },
   { key: 'targets', label: 'Target hits', description: 'TP1, TP2 or TP3 reached on a confirmed candle close.' },
   { key: 'stops', label: 'Stop-loss hits', description: 'A stop-loss reached on a confirmed candle close.' },
-  { key: 'limitOrders', label: 'New limit-order signals', description: 'New BUY LIMIT and SELL LIMIT setups, including entry price and signal strength.' },
+  { key: 'limitOrders', label: 'Pending-order alerts', description: 'New confirmed M15 BB(60, 2.5) reversal setups for your selected assets.' },
 ];
 
 const STATUS_TEXT: Record<PushStatus, string> = {
@@ -27,14 +28,16 @@ export function NotificationSettings({ assets }: Props) {
   const { status, prefs, error, enable, disable, updatePref, updateSymbols } = usePushSettings();
   const isOn = status === 'on';
   const busy = status === 'working' || status === 'checking';
-  const alertSymbols = prefs.symbols ?? assets.map((asset) => asset.symbol);
+  const selectedSymbols = assets.map((asset) => asset.symbol);
+  const alertSymbols = selectedSymbols;
 
-  const toggleAsset = (symbol: string) => {
-    const next = alertSymbols.includes(symbol)
-      ? alertSymbols.filter((item) => item !== symbol)
-      : [...alertSymbols, symbol];
-    updateSymbols(next);
-  };
+  // The top-level 10-asset selector is the source of truth for push delivery.
+  useEffect(() => {
+    if (selectedSymbols.length === 0) return;
+    const current = [...(prefs.symbols ?? [])].sort();
+    const next = [...selectedSymbols].sort();
+    if (JSON.stringify(current) !== JSON.stringify(next)) updateSymbols(selectedSymbols);
+  }, [assets, prefs.symbols]);
 
   return (
     <section className="rounded-2xl border border-line/10 bg-surface/[0.03] p-6">
@@ -78,33 +81,19 @@ export function NotificationSettings({ assets }: Props) {
             <div className="flex flex-col gap-3 rounded-xl border border-line/10 bg-surface/[0.02] px-4 py-3">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-ink">Assets that send alerts</span>
-                <span className="text-xs text-ink-2">Pick which of your monitored assets should notify this device.</span>
+                <span className="text-xs text-ink-2">This device receives pending-order alerts only for the assets selected in the top selector.</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {assets.map((asset) => {
-                  const active = alertSymbols.includes(asset.symbol);
-                  return (
-                    <button
-                      key={asset.symbol}
-                      type="button"
-                      aria-pressed={active}
-                      disabled={busy}
-                      onClick={() => toggleAsset(asset.symbol)}
-                      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60 ${
-                        active
-                          ? 'border-accent/40 bg-accent/10 text-accent'
-                          : 'border-line/10 bg-surface/[0.02] text-ink-3 hover:text-ink-2'
-                      }`}
-                    >
-                      {asset.name}
-                    </button>
-                  );
-                })}
+                {assets.map((asset) => (
+                  <span key={asset.symbol} className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent">
+                    {asset.name}
+                  </span>
+                ))}
               </div>
               <span className="text-xs text-ink-3">
                 {alertSymbols.length === 0
                   ? 'No assets selected, so this device will not receive alerts.'
-                  : `Alerts for ${alertSymbols.length} of ${assets.length} monitored assets.`}
+                  : `Pending-order alerts enabled for ${alertSymbols.length} selected assets.`}
               </span>
             </div>
           )}
