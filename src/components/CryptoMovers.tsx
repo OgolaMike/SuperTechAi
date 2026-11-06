@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { CryptoMoverAnalysis } from '@/components/CryptoMoverAnalysis';
 import { Coins, Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import {
   fetchCryptoMovers,
@@ -16,6 +17,7 @@ export function CryptoMovers() {
   const [load, setLoad] = useState<LoadState>({ movers: [], error: null, loading: true });
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +48,13 @@ export function CryptoMovers() {
     () => [...dayMovers].sort((a, b) => a.changePct - b.changePct).slice(0, LEADERBOARD_SIZE),
     [dayMovers],
   );
+
+  const selectedMover = dayMovers.find((mover) => mover.symbol === selectedSymbol) ?? gainers[0] ?? losers[0] ?? null;
+
+  useEffect(() => {
+    if (!selectedMover) { setSelectedSymbol(null); return; }
+    if (!dayMovers.some((mover) => mover.symbol === selectedSymbol)) setSelectedSymbol(selectedMover.symbol);
+  }, [selectedMover, selectedSymbol, dayMovers]);
 
   return (
     <section className="mt-8 flex flex-col gap-6">
@@ -109,9 +118,11 @@ export function CryptoMovers() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Leaderboard title="Top gainers" tone="up" movers={gainers} />
-            <Leaderboard title="Top losers" tone="down" movers={losers} />
+            <Leaderboard title="Top gainers" tone="up" movers={gainers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} />
+            <Leaderboard title="Top losers" tone="down" movers={losers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} />
           </div>
+
+          {selectedMover && <CryptoMoverAnalysis key={selectedMover.symbol} symbol={selectedMover.symbol} name={selectedMover.base} changePct={selectedMover.changePct} close={selectedMover.close} />}
 
           <WatchListTable movers={dayMovers} />
         </>
@@ -120,7 +131,7 @@ export function CryptoMovers() {
   );
 }
 
-function Leaderboard({ title, tone, movers }: { title: string; tone: 'up' | 'down'; movers: CryptoMover[] }) {
+function Leaderboard({ title, tone, movers, selectedSymbol, onSelect }: { title: string; tone: 'up' | 'down'; movers: CryptoMover[]; selectedSymbol: string | null; onSelect: (symbol: string) => void }) {
   const Icon = tone === 'up' ? TrendingUp : TrendingDown;
   const toneClass = tone === 'up' ? 'text-up bg-up/10' : 'text-down bg-down/10';
   return (
@@ -131,18 +142,19 @@ function Leaderboard({ title, tone, movers }: { title: string; tone: 'up' | 'dow
       </div>
       <ul className="divide-y divide-line/10">
         {movers.map((mover, index) => (
-          <li key={mover.symbol} className="flex items-center justify-between gap-3 py-2.5">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="w-5 text-xs tabular-nums text-ink-3">{index + 1}</span>
-              <span className="break-words text-sm font-semibold text-ink">{mover.base}</span>
-              <span className="hidden text-xs text-ink-3 sm:inline">/ USDT</span>
-            </div>
-            <div className="flex items-center gap-4 text-right">
-              <span className="hidden font-mono text-xs tabular-nums text-ink-2 sm:inline">{formatUsd(mover.close)}</span>
-              <span className={`min-w-[64px] rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${toneClass}`}>
-                {formatChange(mover.changePct)}
+          <li key={mover.symbol}>
+            <button type="button" onClick={() => onSelect(mover.symbol)} aria-pressed={selectedSymbol === mover.symbol}
+              className={selectedSymbol === mover.symbol ? "flex w-full items-center justify-between gap-3 rounded-lg bg-accent/10 px-2 py-2.5 text-left ring-1 ring-accent/30" : "flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-surface/[0.05]"}>
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="w-5 text-xs tabular-nums text-ink-3">{index + 1}</span>
+                <span className="break-words text-sm font-semibold text-ink">{mover.base}</span>
+                <span className="hidden text-xs text-ink-3 sm:inline">/ USDT</span>
               </span>
-            </div>
+              <span className="flex items-center gap-4 text-right">
+                <span className="hidden font-mono text-xs tabular-nums text-ink-2 sm:inline">{formatUsd(mover.close)}</span>
+                <span className={`min-w-[64px] rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${toneClass}`}>{formatChange(mover.changePct)}</span>
+              </span>
+            </button>
           </li>
         ))}
       </ul>
