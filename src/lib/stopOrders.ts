@@ -52,11 +52,18 @@ function findLevelHits(
   for (const candle of afterSignal) {
     const close = candle.close;
     const entered = direction === 'BUY' ? close >= entry : close <= entry;
-    if (entryHitEpoch === null && entered) entryHitEpoch = candle.epoch;
-    if (entryHitEpoch === null) continue;
-
     const stopped = direction === 'BUY' ? close <= stopLoss : close >= stopLoss;
     const targeted = direction === 'BUY' ? close >= takeProfit : close <= takeProfit;
+
+    if (entryHitEpoch === null) {
+      if (stopped) {
+        stopLossHitEpoch = candle.epoch;
+        break;
+      }
+      if (!entered) continue;
+      entryHitEpoch = candle.epoch;
+    }
+
     if (stopped) {
       stopLossHitEpoch = candle.epoch;
       break;
