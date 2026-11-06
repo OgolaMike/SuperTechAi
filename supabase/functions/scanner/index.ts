@@ -31,7 +31,7 @@ function latestClosedEpoch(granularity: number, nowEpoch: number): number {
 }
 
 async function loadTimeframeCandles(
-  feed: DerivFeed,
+  feed: DerivFeed | null,
   symbol: SymbolInfo,
   timeframe: Timeframe,
   _nowEpoch: number,
@@ -40,9 +40,12 @@ async function loadTimeframeCandles(
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
 
+  if (symbol.exchange !== "BINANCE" && !feed) {
+    throw new Error("Deriv feed is unavailable for this market");
+  }
   const candles = symbol.exchange === "BINANCE"
     ? await fetchBinanceCandles(symbol.symbol, timeframe.granularity, timeframe.candleCount)
-    : await fetchCandles(feed, symbol.symbol, timeframe.granularity, timeframe.candleCount);
+    : await fetchCandles(feed!, symbol.symbol, timeframe.granularity, timeframe.candleCount);
   cache.set(timeframe.granularity, candles);
   return candles;
 }
@@ -245,16 +248,24 @@ async function runScan(): Promise<Record<string, unknown>> {
   const started = Date.now();
   const nowEpoch = Math.floor(started / 1000);
 
-  let feed: DerivFeed;
+  let feed: DerivFeed | null = null;
+  let derivLoadError: string | null = null;
   try {
     feed = await DerivFeed.open();
   } catch (error) {
-    await updateHealth({ connection_status: "error", last_run_at: iso(started), last_error: messageOf(error), last_error_at: nowIso() });
-    throw error;
+    // Binance public market scanning must continue even if Deriv is temporarily unavailable.
+    derivLoadError = \`Deriv connection: \${messageOf(error)}\`;
   }
 
   try {
-    const derivSymbols = await loadSymbols(feed);
+    let derivSymbols: SymbolInfo[] = [];
+    if (feed) {
+      try {
+        derivSymbols = await loadSymbols(feed);
+      } catch (error) {
+        derivLoadError = \`Deriv asset discovery: \${messageOf(error)}\`;
+      }
+    }
     let binanceSymbols: SymbolInfo[] = [];
     let binanceLoadError: string | null = null;
     try {
@@ -271,7 +282,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     let fetchedCount = 0;
     let rowsWritten = 0;
     let scannedSymbols = 0;
-    let lastError: string | null = binanceLoadError;
+    let lastError: string | null = [derivLoadError, binanceLoadError].filter(Boolean).join('; ') || null;
 
     let mt5AccountsPromise: Promise<Array<{
       user_id: string; login: string; server: string;
@@ -474,7 +485,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     }
 
     await updateHealth({
-      connection_status: "connected",
+      connection_status: symbols.length > 0 ? "connected" : "error",
       last_run_at: iso(started),
       ...(fetchedCount > 0 ? { last_success_at: nowIso() } : {}),
       last_scan_symbols: scannedSymbols,
@@ -492,7 +503,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       lastError,
     };
   } finally {
-    feed.close();
+    feed?.close();
   }
 }
 
