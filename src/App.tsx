@@ -21,6 +21,7 @@ import { ViewNav, type View } from '@/components/ViewNav';
 import { useDerivSignals } from '@/hooks/useDerivSignals';
 import { useSignalAlerts } from '@/hooks/useSignalAlerts';
 import { useSuperSignalAlerts } from '@/hooks/useSuperSignalAlerts';
+import { usePendingOrderAlerts } from '@/hooks/usePendingOrderAlerts';
 import { useSignalRecordSync } from '@/hooks/useSignalRecordSync';
 import { useTheme } from '@/hooks/useTheme';
 import { playAlertTone } from '@/lib/alertSound';
@@ -28,6 +29,7 @@ import { ensureNotificationPermission } from '@/lib/deviceNotify';
 import { trainSignalLearningModel, type SignalLearningModel } from '@/lib/aiLearning';
 import { buildSuperSignals } from '@/lib/intelligence';
 import { fetchSignalRecords } from '@/lib/signalRecords';
+import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
 import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET, MAX_MONITORED_ASSETS } from '@/lib/sma';
@@ -60,6 +62,13 @@ function App() {
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
   const { assets, states, status, lastTick, prices, loaded } = useDerivSignals(selectedSymbols);
+
+  const selectedAssets = useMemo(() => assets.filter((asset) => selectedSymbols.includes(asset.symbol)), [assets, selectedSymbols]);
+  const pendingOrderIdeas = useMemo(
+    () => buildM15StopOrderIdeas(selectedAssets, states, prices, aiModel, now),
+    [selectedAssets, states, prices, aiModel, now],
+  );
+  usePendingOrderAlerts(pendingOrderIdeas, loaded, soundsEnabled);
 
   const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.symbol, asset])), [assets]);
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
@@ -165,7 +174,7 @@ function App() {
         )}
 
         {view === 'mt5' && <Mt5AutoTrading />}
-        {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
+        {view === 'orders' && <PendingOrdersPanel assets={selectedAssets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
         {view === 'crypto' && <CryptoMovers />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
