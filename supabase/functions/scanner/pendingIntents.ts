@@ -43,7 +43,7 @@ function latestStats(candles: Candle[], granularity: number, nowEpoch: number) {
   return { closed, mean, deviation, last };
 }
 
-function executionContext(symbol: string, candlesByGranularity: Map<number, Candle[]>, nowEpoch: number) {
+function executionContext(candlesByGranularity: Map<number, Candle[]>, nowEpoch: number) {
   const stats = new Map<number, NonNullable<ReturnType<typeof latestStats>>>();
   for (const frame of FRAMES) {
     const candles = candlesByGranularity.get(frame.seconds);
@@ -95,7 +95,7 @@ function momentumStrength(candles: Candle[], deviation: number, direction: Direc
 
 /** Returns two distinct pullback LIMIT proposals for one confirmed M15/M5/M1 setup. */
 export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Map<number, Candle[]>, nowEpoch: number): BackendLimitIntent[] {
-  const context = executionContext(symbol, candlesByGranularity, nowEpoch);
+  const context = executionContext(candlesByGranularity, nowEpoch);
   if (!context) return [];
   const { direction, primary, trigger, m5Momentum } = context;
   const currentPrice = primary.last.close;
