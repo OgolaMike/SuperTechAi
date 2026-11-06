@@ -105,12 +105,37 @@ function floorToStep(value: number, step: number) {
   return Math.floor((value + step * 1e-9) / step) * step;
 }
 function formatStep(value: number, step: number) {
-  const decimals = Math.max(0, (String(step).split(".")[1] ?? "").replace(/0+$/, "").length);
+  const stepText = String(step);
+  const exponent = stepText.match(/e-(\\d+)$/i);
+  const decimals = exponent ? Number(exponent[1]) : Math.max(0, (stepText.split(".")[1] ?? "").replace(/0+$/, "").length);
   return value.toFixed(decimals);
 }
 async function shortHash(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(value));
   return [...new Uint8Array(digest)].map((v) => v.toString(16).padStart(2, "0")).join("").slice(0, 20);
+}
+async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: string, apiSecret: string) {
+  const { data: rows, error } = await db.from("binance_spot_orders")
+    .select("id,symbol,broker_order_list_id,status")
+    .eq("user_id", userId)
+    .in("status", ["submitted", "partially_filled", "filled"]);
+  if (error) throw error;
+  for (const row of rows ?? []) {
+    if (!row.broker_order_list_id) continue;
+    try {
+      const list = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "GET", {
+        orderListId: String(row.broker_order_list_id),
+      });
+      if (list.listOrderStatus === "ALL_DONE" || list.listStatusType === "ALL_DONE") {
+        await db.from("binance_spot_orders").update({
+          status: "closed", completed_at: new Date().toISOString(),
+          result_payload: list, updated_at: new Date().toISOString(),
+        }).eq("id", row.id).eq("user_id", userId);
+      }
+    } catch {
+      // Keep the last known state if an exchange status check is temporarily unavailable.
+    }
+  }
 }
 
 export async function submitBinanceSpotLimitIntents(
@@ -153,6 +178,7 @@ export async function submitBinanceSpotLimitIntents(
     let apiKey: string, apiSecret: string;
     try {
       [apiKey, apiSecret] = await Promise.all([decrypt(stored.encrypted_api_key), decrypt(stored.encrypted_api_secret)]);
+      await reconcileOrderLists(db, account.user_id, apiKey, apiSecret);
       const accountInfo = await signedBinance(apiKey, apiSecret, "/api/v3/account", "GET", {});
       const usdt = Array.isArray(accountInfo.balances)
         ? (accountInfo.balances as Array<Record<string, unknown>>).find((b) => b.asset === "USDT")
