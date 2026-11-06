@@ -118,9 +118,6 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
   }, [state.candles]);
   const visibleStats = useMemo(() => stats.slice(-data.length), [stats, data.length]);
 
-  const latestSignal = state.latestSignal;
-  const signalFresh = latestSignal != null && Math.floor(Date.now() / 1000) - (latestSignal.signalEpoch + timeframe.granularity) <= 2 * timeframe.granularity;
-
   const chart = useMemo(() => {
     if (data.length < 2) return null;
     const values = data.flatMap((candle, index) => [
