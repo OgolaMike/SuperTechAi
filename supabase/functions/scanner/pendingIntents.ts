@@ -2,7 +2,7 @@ import { computeSignals } from "./strategy.ts";
 import type { Candle } from "./deriv.ts";
 
 type Direction = "BUY" | "SELL";
-type OrderDirection = "BUY_STOP" | "SELL_STOP" | "BUY_LIMIT" | "SELL_LIMIT";
+type OrderDirection = "BUY_LIMIT" | "SELL_LIMIT";
 
 type BaseIntent = {
   symbol: string;
@@ -16,11 +16,6 @@ type BaseIntent = {
   timeframeAgreement: 3;
   strategyVersion: string;
   idempotencyKey: string;
-};
-
-export type BackendStopIntent = BaseIntent & {
-  orderType: "BUY_STOP" | "SELL_STOP";
-  strategyVersion: "m15-m5-m1-stop-v3";
 };
 
 export type BackendLimitIntent = BaseIntent & {
@@ -122,36 +117,6 @@ export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Ma
     .filter((intent) => [intent.stopLoss, intent.takeProfit].every((v) => Number.isFinite(v) && v > 0));
 }
 
-/** Returns two distinct breakout STOP proposals for one confirmed M15/M5/M1 setup. */
-export function buildBackendStopIntent(symbol: string, candlesByGranularity: Map<number, Candle[]>, nowEpoch: number): BackendStopIntent[] {
-  const context = executionContext(symbol, candlesByGranularity, nowEpoch);
-  if (!context) return [];
-  const { direction, primary, trigger } = context;
-  const recent = primary.closed.slice(-5);
-  if (recent.length < 5 || recent.some((c) => !Number.isFinite(c.high) || !Number.isFinite(c.low))) return [];
-  const swingHigh = Math.max(...recent.map((c) => c.high!));
-  const swingLow = Math.min(...recent.map((c) => c.low!));
-  const currentPrice = primary.last.close;
-  const buffer = primary.deviation * 0.1;
-  const sign = direction === "BUY" ? 1 : -1;
-  const firstEntry = direction === "BUY"
-    ? Math.max(swingHigh, currentPrice) + buffer
-    : Math.min(swingLow, currentPrice) - buffer;
-  const entries = [firstEntry, firstEntry + sign * primary.deviation * 0.5];
-  const orderType = direction === "BUY" ? "BUY_STOP" : "SELL_STOP";
-  return entries
-    .filter((entry, index) => entry > 0 && (direction === "BUY" ? entry > currentPrice : entry < currentPrice) &&
-      (index === 0 || Math.abs(entry - entries[index - 1]) > primary.deviation * 0.01))
-    .map((entry, index) => ({
-      symbol, signalEpoch: trigger.signalEpoch, direction, orderType, entry,
-      stopLoss: primary.mean - sign * primary.deviation,
-      takeProfit: entry + sign * primary.deviation * 2.5,
-      currentPrice, timeframeAgreement: 3, strategyVersion: "m15-m5-m1-stop-v3",
-      idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}|S${index + 1}`,
-    }))
-    .filter((intent) => [intent.stopLoss, intent.takeProfit].every((v) => Number.isFinite(v) && v > 0));
-}
-
 export type BackendReversalPendingOrder = {
   symbol: string;
   signalEpoch: number;
@@ -212,7 +177,7 @@ export function buildBackendReversalPendingOrder(
   if (!(entry > 0 && takeProfit > 0 && reward > 0)) return null;
   const stopLoss = direction === "BUY" ? entry - reward / 2 : entry + reward / 2;
   if (!(stopLoss > 0)) return null;
-  const orderType: OrderDirection = direction === "BUY" ? "BUY_STOP" : "SELL_STOP";
+  const orderType: OrderDirection = direction === "BUY" ? "BUY_LIMIT" : "SELL_LIMIT";
   const signalEpoch = confirm.epoch;
   return {
     symbol, signalEpoch, direction, orderType, entry, stopLoss, takeProfit,
