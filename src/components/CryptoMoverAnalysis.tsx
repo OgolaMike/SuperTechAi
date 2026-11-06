@@ -154,14 +154,20 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
             </select>
           </label>
           {isMonitored ? (
-            <span className="rounded-lg border border-up/30 bg-up/10 px-3 py-2 text-xs font-semibold text-up">Alerts monitored</span>
+            <span className="rounded-lg border border-up/30 bg-up/10 px-3 py-2 text-xs font-semibold text-up">In monitored assets</span>
           ) : (
             <button type="button" onClick={onMonitor} disabled={!canMonitor}
               className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent disabled:cursor-not-allowed disabled:opacity-50">
-              {canMonitor ? 'Monitor & enable alerts' : '10/10 assets monitored'}
+              {canMonitor ? 'Add to monitored assets' : '10/10 assets monitored'}
             </button>
           )}
         </div>
+        {!isMonitored && !canMonitor && (
+          <p className="px-4 pb-3 text-xs text-ink-3">Your 10 monitoring slots are full. Remove an asset from the top selector before adding this pair for configured alerts.</p>
+        )}
+        {isMonitored && (
+          <p className="px-4 pb-3 text-xs text-ink-3">This pair is in your monitored assets and is eligible for your configured signal and pending-order alerts.</p>
+        )}
       </div>
 
       {loading ? (
