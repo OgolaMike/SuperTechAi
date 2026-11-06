@@ -10,6 +10,9 @@ type Props = {
   name: string;
   changePct: number;
   close: number;
+  isMonitored: boolean;
+  canMonitor: boolean;
+  onMonitor: () => void;
 };
 
 const CHART_HEIGHT = 280;
@@ -53,7 +56,7 @@ function describeMarket(state: TfState) {
   };
 }
 
-export function CryptoMoverAnalysis({ symbol, name, changePct, close }: Props) {
+export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitored, canMonitor, onMonitor }: Props) {
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M15') ?? TIMEFRAMES[2]);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,15 +143,25 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close }: Props) {
           </div>
           <p className="mt-1 text-xs text-ink-3">24-hour move {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}% · Latest daily snapshot close {formatPrice(close, 6)}</p>
         </div>
-        <label className="flex items-center gap-2 text-xs text-ink-2">
-          <span>Timeframe</span>
-          <select value={timeframe.granularity} onChange={(event) => {
-            const next = TIMEFRAMES.find((item) => item.granularity === Number(event.target.value));
-            if (next) setTimeframe(next);
-          }} className="rounded-lg border border-line/15 bg-canvas px-3 py-2 text-ink">
-            {TIMEFRAMES.map((item) => <option key={item.granularity} value={item.granularity}>{item.label}</option>)}
-          </select>
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-xs text-ink-2">
+            <span>Timeframe</span>
+            <select value={timeframe.granularity} onChange={(event) => {
+              const next = TIMEFRAMES.find((item) => item.granularity === Number(event.target.value));
+              if (next) setTimeframe(next);
+            }} className="rounded-lg border border-line/15 bg-canvas px-3 py-2 text-ink">
+              {TIMEFRAMES.map((item) => <option key={item.granularity} value={item.granularity}>{item.label}</option>)}
+            </select>
+          </label>
+          {isMonitored ? (
+            <span className="rounded-lg border border-up/30 bg-up/10 px-3 py-2 text-xs font-semibold text-up">Alerts monitored</span>
+          ) : (
+            <button type="button" onClick={onMonitor} disabled={!canMonitor}
+              className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent disabled:cursor-not-allowed disabled:opacity-50">
+              {canMonitor ? 'Monitor & enable alerts' : '10/10 assets monitored'}
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
