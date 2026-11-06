@@ -10,6 +10,7 @@ export type PushSubscriptionRow = {
   notify_targets: boolean;
   notify_stops: boolean;
   notify_limit_orders: boolean;
+  notify_pending_orders: boolean;
   symbols: string[] | null;
   failure_count: number;
 };
@@ -146,7 +147,8 @@ function wantsEvent(sub: PushSubscriptionRow, event: PushEventRow): boolean {
   if (event.kind === "signal") return sub.notify_signals;
   if (event.kind === "target") return sub.notify_targets;
   if (event.kind === "stop") return sub.notify_stops;
-  return sub.notify_limit_orders;
+  if (event.kind === "limit_order") return sub.notify_limit_orders;
+  return sub.notify_pending_orders;
 }
 
 function formatTime(epoch: number): string {
@@ -219,7 +221,7 @@ export async function dispatchPending(
 
   const { data: subs, error: subsError } = await db
     .from("push_subscriptions")
-    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, symbols, failure_count");
+    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, notify_pending_orders, symbols, failure_count");
   if (subsError) throw new Error(`Could not read subscriptions: ${subsError.message}`);
   const subscriptions = (subs ?? []) as PushSubscriptionRow[];
 
