@@ -84,7 +84,7 @@ export function AssetSelector({ assets, selected, onChange, soundsEnabled, onTog
         <div className="absolute right-0 z-30 mt-2 max-h-[min(70vh,32rem)] w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-line/10 bg-canvas/95 p-2 shadow-2xl backdrop-blur-xl">
           <div className="mb-2 flex items-center justify-between px-1 text-xs uppercase tracking-wider text-ink-3">
             <span>{selected.length}/{MAX_SELECTED} selected</span>
-            <span>All Deriv markets</span>
+            <span>Deriv + Binance Spot markets</span>
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-lg border border-line/10 bg-surface/[0.03] px-2.5 py-2">
             <Search className="h-4 w-4 text-ink-3" />
