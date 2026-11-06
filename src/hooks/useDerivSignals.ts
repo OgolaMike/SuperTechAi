@@ -14,6 +14,8 @@ import {
 const DAILY_GRANULARITY = 86400;
 const WEEKLY_TIMEFRAME = TIMEFRAMES.find((timeframe) => timeframe.label === 'W1')!;
 const LIVE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => timeframe.label !== 'W1');
+const M15_GRANULARITY = 900;
+const ALL_ASSET_M15_HISTORY = 200;
 
 export type TimeframeStates = Record<number, TfState>;
 
@@ -60,6 +62,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
   const candlesRef = useRef<Record<string, Record<number, Candle[]>>>({});
   const activeSymbolsKey = selectedSymbols.join('|');
   const selectedRef = useRef(selectedSymbols);
+  const watchedRef = useRef<Set<string>>(new Set(selectedSymbols));
   selectedRef.current = selectedSymbols;
 
   const recompute = useCallback((symbol: string, granularity: number) => {
@@ -102,8 +105,19 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
             const currentAssets = selectedRef.current.filter((symbol) =>
               symbols.some((item) => item.symbol === symbol),
             );
-            const tasks = currentAssets.flatMap((symbol) =>
-              LIVE_TIMEFRAMES.map((timeframe) => () =>
+            const allSymbols = symbols.map((item) => item.symbol);
+            watchedRef.current = new Set(allSymbols);
+            const tasks = allSymbols.map((symbol) => () =>
+              client
+                .subscribeCandles(symbol, M15_GRANULARITY, ALL_ASSET_M15_HISTORY)
+                .then((candles) => {
+                  candlesRef.current[symbol] ??= {};
+                  candlesRef.current[symbol][M15_GRANULARITY] = candles;
+                  recompute(symbol, M15_GRANULARITY);
+                }),
+            );
+            const selectedHigherTimeframeTasks = currentAssets.flatMap((symbol) =>
+              LIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== M15_GRANULARITY).map((timeframe) => () =>
                 client
                   .subscribeCandles(symbol, timeframe.granularity, timeframe.candleCount)
                   .then((candles) => {
@@ -113,7 +127,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                   }),
               ),
             );
-            return client.staggerSubscriptions(tasks);
+            return client.staggerSubscriptions([...tasks, ...selectedHigherTimeframeTasks]);
           })
           .then(() => setLoaded(true))
           .catch((error: Error) => {
@@ -124,7 +138,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
 
     const unsubOhlc = client.onOhlc(({ granularity, candle }) => {
       const symbol = candle.symbol ?? '';
-      if (!symbol || !selectedRef.current.includes(symbol)) return;
+      if (!symbol || !watchedRef.current.has(symbol)) return;
       setLastTick(candle.epoch);
       setPrices((previous) => ({ ...previous, [symbol]: candle.close }));
       candlesRef.current[symbol] ??= {};
