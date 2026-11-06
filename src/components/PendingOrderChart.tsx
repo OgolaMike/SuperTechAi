@@ -81,18 +81,18 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
   ];
 
   return (
-    <section className="overflow-hidden rounded-xl border border-line/15 bg-[#0b1220] text-white" aria-label={`Interactive M15 pending order chart for ${symbol}`}>
+    <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-line/15 bg-[#0b1220] text-white" aria-label={`Interactive M15 pending order chart for ${symbol}`}>
       <div className="flex flex-col gap-3 border-b border-white/10 px-3 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${direction === 'BUY' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
             <span className="text-xs font-semibold tracking-wide text-white">M15 ORDER SNAPSHOT</span>
-            <span className={`rounded px-2 py-1 text-[10px] font-bold ${direction === 'BUY' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-rose-400/15 text-rose-300'}`}>{direction} · {symbol}</span>
+            <span className={`max-w-full break-words rounded px-2 py-1 text-[10px] font-bold ${direction === 'BUY' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-rose-400/15 text-rose-300'}`}>{direction} · {symbol}</span>
           </div>
-          <span className="text-[10px] tabular-nums text-slate-400">{data.length} candles shown · {history.length} loaded</span>
+          <span className="max-w-full break-words text-[10px] tabular-nums text-slate-400">{data.length} candles shown · {history.length} loaded</span>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3 text-[10px] text-slate-300">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3 text-[10px] text-slate-300">
             <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={showSma} onChange={(event) => setShowSma(event.target.checked)} className="accent-amber-400" /> SMA 60</label>
             <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={showBands} onChange={(event) => setShowBands(event.target.checked)} className="accent-sky-400" /> Bollinger ±2.5σ</label>
           </div>
@@ -108,7 +108,7 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
           <span className="w-8 text-right tabular-nums">{spacing}px</span>
         </label>
       </div>
-      <div className="w-full overflow-x-auto overscroll-x-contain touch-pan-x">
+      <div className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain touch-pan-x">
         <svg viewBox={`0 0 ${width} ${HEIGHT}`} role="img" aria-label="Scrollable candlestick chart with SMA, Bollinger Bands, order levels and market price" style={{ width: `${width}px`, maxWidth: 'none', height: 'auto' }} className="block">
           <defs><linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#60a5fa" stopOpacity="0.16" /><stop offset="100%" stopColor="#60a5fa" stopOpacity="0.02" /></linearGradient></defs>
           {[0, 1, 2, 3].map((step) => {
@@ -140,7 +140,7 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
           <span className="w-14 text-right">{scrollPosition === 100 ? 'Latest' : 'History'}</span>
         </label>
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-white/10 px-3 py-2 text-[10px] text-slate-300">
+      <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-2 border-t border-white/10 px-3 py-2 text-[10px] text-slate-300">
         {orderLines.map((line) => <span key={line.label} className="flex items-center gap-1.5"><i className="h-0.5 w-3" style={{ backgroundColor: line.color }} />{line.label}: {formatPrice(line.value, digits)}</span>)}
         {showSma && <span className="flex items-center gap-1.5"><i className="h-0.5 w-3 bg-yellow-400" />SMA 60</span>}
         {showBands && <><span className="flex items-center gap-1.5"><i className="h-0.5 w-3 bg-rose-400" />Upper band</span><span className="flex items-center gap-1.5"><i className="h-0.5 w-3 bg-blue-400" />Lower band</span></>}
