@@ -276,12 +276,12 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
                   <div>
                     <p className="text-sm font-semibold text-ink">
                       {pendingOrderIdea.status === 'WAITING' ? 'You can place this pending trade' :
-                        pendingOrderIdea.status === 'ENTRY HIT' ? 'Trade executed · wait for the next order' :
+                        pendingOrderIdea.status === 'ENTRY HIT' ? 'Entry level reached · check broker fill' :
                         pendingOrderIdea.status === 'TARGET HIT' ? 'Target reached' :
                         pendingOrderIdea.status === 'STOP-LOSS HIT' ? 'Stop-loss reached' :
                         pendingOrderIdea.status === 'EXPIRED' ? 'Pending setup expired' : 'Pending setup invalidated'}
                     </p>
-                    <p className="mt-1 text-xs text-ink-2">{pendingOrderIdea.type} · {pendingOrderIdea.status} · BB(60, 2.5) two-candle confirmation</p>
+                    <p className="mt-1 text-xs text-ink-2">{pendingOrderIdea.type} · {pendingOrderIdea.status} · BB(60, 2.5) two-candle confirmation{pendingOrderIdea.status === 'ENTRY HIT' ? ' · market-data touch is not broker-fill confirmation' : ''}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
                     <span className="text-ink-2">Entry <b className="text-ink">{formatPrice(pendingOrderIdea.entry, 6)}</b></span>
