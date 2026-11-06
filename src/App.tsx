@@ -180,7 +180,7 @@ function App() {
 
         {view === 'alerts' && (
           <section className="mt-8 grid gap-6 lg:grid-cols-2">
-            <NotificationSettings assets={assets} />
+            <NotificationSettings assets={selectedAssets} />
             <ServiceHealth />
           </section>
         )}
