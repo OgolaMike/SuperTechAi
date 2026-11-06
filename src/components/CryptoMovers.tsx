@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CryptoMoverAnalysis } from '@/components/CryptoMoverAnalysis';
 import { MAX_MONITORED_ASSETS } from '@/lib/sma';
+import type { SignalLearningModel } from '@/lib/aiLearning';
 import { Coins, Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import {
   fetchCryptoMovers,
@@ -12,11 +13,11 @@ import {
 
 const LEADERBOARD_SIZE = 10;
 
-type Props = { selectedSymbols: string[]; onMonitorAsset: (symbol: string) => void };
+type Props = { selectedSymbols: string[]; onMonitorAsset: (symbol: string) => void; aiModel: SignalLearningModel };
 
 type LoadState = { movers: CryptoMover[]; error: string | null; loading: boolean };
 
-export function CryptoMovers({ selectedSymbols, onMonitorAsset }: Props) {
+export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props) {
   const [load, setLoad] = useState<LoadState>({ movers: [], error: null, loading: true });
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -135,6 +136,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset }: Props) {
               isMonitored={selectedSymbols.includes(selectedMover.symbol)}
               canMonitor={selectedSymbols.length < MAX_MONITORED_ASSETS}
               onMonitor={() => onMonitorAsset(selectedMover.symbol)}
+              aiModel={aiModel}
             />
           )}
 
