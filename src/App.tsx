@@ -178,12 +178,10 @@ function App() {
         {view === 'crypto' && <CryptoMovers />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
-        {view === 'alerts' && (
-          <section className="mt-8 grid gap-6 lg:grid-cols-2">
-            <NotificationSettings assets={selectedAssets} />
-            <ServiceHealth />
-          </section>
-        )}
+        <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>
+          <NotificationSettings assets={selectedAssets} />
+          {view === 'alerts' && <ServiceHealth />}
+        </section>
 
         {view === 'referrals' && <FinancePanel initialTab="referrals" />}
         {view === 'earnings' && <FinancePanel initialTab="wallet" />}
