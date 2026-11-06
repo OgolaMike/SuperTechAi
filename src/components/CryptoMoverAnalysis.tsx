@@ -67,6 +67,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(80);
+  const [spacing, setSpacing] = useState(12);
   const [showSma, setShowSma] = useState(true);
   const [showBands, setShowBands] = useState(true);
 
@@ -125,15 +126,15 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
-    const plotWidth = CHART_WIDTH - PADDING.left - PADDING.right;
+    const plotWidth = Math.max(600, data.length * spacing);
     const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom;
-    const x = (index: number) => PADDING.left + (index / Math.max(data.length - 1, 1)) * plotWidth;
+    const x = (index: number) => PADDING.left + index * spacing;
     const y = (price: number) => PADDING.top + ((max - price) / range) * plotHeight;
     const path = (key: 'mean' | 'upper' | 'lower') => visibleStats
       .map((item, index) => item ? `${index === 0 || !visibleStats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
       .filter(Boolean).join(' ');
-    return { min, max, x, y, path, bodyWidth: Math.max(3, Math.min(18, plotWidth / data.length * 0.7)) };
-  }, [data, visibleStats, showBands, showSma]);
+    return { min, max, x, y, path, width: PADDING.left + plotWidth + PADDING.right, bodyWidth: Math.max(2, Math.min(28, spacing * 0.72)) };
+  }, [data, visibleStats, showBands, showSma, spacing]);
 
   const latestSignal = state.latestSignal;
   const signalFresh = latestSignal != null && Math.floor(Date.now() / 1000) - (latestSignal.signalEpoch + timeframe.granularity) <= 2 * timeframe.granularity;
@@ -217,13 +218,18 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
                 <button type="button" onClick={() => setVisibleCount((value) => Math.max(30, value - 20))} className="rounded-lg border border-line/15 px-2 py-1 text-xs text-ink-2">Zoom in</button>
               </div>
             </div>
+            <label className="mb-3 flex items-center gap-3 text-xs text-ink-2">
+              <span className="shrink-0">Candle spacing</span>
+              <input type="range" min="5" max="24" step="1" value={spacing} onChange={(event) => setSpacing(Number(event.target.value))} className="min-w-0 flex-1 accent-accent" />
+              <span className="w-8 text-right tabular-nums text-ink-3">{spacing}px</span>
+            </label>
             {chart ? (
               <div className="w-full overflow-x-auto overscroll-x-contain">
-                <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={`${name} ${timeframe.label} candlestick chart with SMA 60 and Bollinger Bands`} className="block min-w-[720px] w-full">
+                <svg viewBox={`0 0 ${chart.width} ${CHART_HEIGHT}`} role="img" aria-label={`${name} ${timeframe.label} candlestick chart with SMA 60 and Bollinger Bands`} className="block min-w-[720px] w-full">
                   {[0,1,2,3].map((step) => {
                     const y = PADDING.top + ((CHART_HEIGHT - PADDING.top - PADDING.bottom) * step) / 3;
                     const value = chart.max - ((chart.max - chart.min) * step) / 3;
-                    return <g key={step}><line x1={PADDING.left} x2={CHART_WIDTH - PADDING.right} y1={y} y2={y} stroke="currentColor" opacity="0.12" strokeDasharray="3 5" /><text x={CHART_WIDTH - 6} y={y - 4} textAnchor="end" fill="currentColor" opacity="0.6" fontSize="11">{value.toPrecision(6)}</text></g>;
+                    return <g key={step}><line x1={PADDING.left} x2={chart.width - PADDING.right} y1={y} y2={y} stroke="currentColor" opacity="0.12" strokeDasharray="3 5" /><text x={chart.width - 6} y={y - 4} textAnchor="end" fill="currentColor" opacity="0.6" fontSize="11">{value.toPrecision(6)}</text></g>;
                   })}
                   {showBands && <><path d={chart.path('upper')} fill="none" stroke="#ef7777" strokeWidth="2" /><path d={chart.path('lower')} fill="none" stroke="#60a5fa" strokeWidth="2" /></>}
                   {showSma && <path d={chart.path('mean')} fill="none" stroke="#eab308" strokeWidth="2" />}
