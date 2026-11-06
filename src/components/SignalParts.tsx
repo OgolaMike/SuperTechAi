@@ -69,7 +69,7 @@ export function LevelList({ rows, digits }: LevelListProps) {
   return (
     <ul className="divide-y divide-line/10 overflow-hidden rounded-xl border border-line/10">
       {rows.map((row) => (
-        <li key={row.label} className={`level-dial flex flex-col items-start gap-2 rounded-xl border-y border-r border-line/10 border-l-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 ${row.tone === 'text-down' ? 'level-dial-down' : row.tone === 'text-up' ? 'level-dial-up' : 'level-dial-neutral'} ${row.hitEpoch !== null ? 'level-dial-hit' : 'level-dial-pending'}`}>
+        <li key={row.label} className={`level-dial flex flex-col items-start gap-2 rounded-xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 ${row.tone === 'text-entry' ? 'level-dial-entry' : row.tone === 'text-down' ? 'level-dial-down' : row.tone === 'text-up' ? 'level-dial-up' : 'level-dial-neutral'} ${row.hitEpoch !== null ? 'level-dial-hit' : 'level-dial-pending'}`}>
           <div className="min-w-0">
             <div className={`flex flex-wrap items-center gap-2 text-lg font-bold leading-snug sm:text-xl ${row.tone}`}>
               {row.hitEpoch !== null && <Check className="h-5 w-5 flex-shrink-0 text-up" />}
