@@ -18,6 +18,7 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 });
 
 type Ticker24h = { symbol: string; quoteVolume: string };
+type ExchangeSymbol = { symbol: string; baseAsset: string; quoteAsset: string; status: string; isSpotTradingAllowed?: boolean };
 
 function isTicker24h(value: unknown): value is Ticker24h {
   return typeof value === "object" && value !== null
@@ -73,11 +74,22 @@ Deno.serve(async (req) => {
     if (dayStart >= utcDayStart(0)) return jsonResponse({ error: "Only completed UTC days can be stored" }, 400);
     const tradeDate = new Date(dayStart).toISOString().slice(0, 10);
 
-    const tickerData = await getJson("/ticker/24hr");
-    if (!Array.isArray(tickerData)) throw new Error("Market data source returned an invalid ticker list");
+    const [tickerData, exchangeData] = await Promise.all([
+      getJson("/ticker/24hr"),
+      getJson("/exchangeInfo"),
+    ]);
+    if (!Array.isArray(tickerData) || !Array.isArray((exchangeData as { symbols?: unknown })?.symbols)) {
+      throw new Error("Market data source returned an invalid spot market list");
+    }
+    const tradableSymbols = new Set(
+      (exchangeData as { symbols: ExchangeSymbol[] }).symbols
+        .filter((item) => item.status === "TRADING" && item.quoteAsset === "USDT" && item.isSpotTradingAllowed !== false)
+        .filter((item) => usdtBase(item.symbol) !== null)
+        .map((item) => item.symbol),
+    );
     const tickers = tickerData.filter(isTicker24h);
     const universe = tickers
-      .filter((ticker) => usdtBase(ticker.symbol) !== null)
+      .filter((ticker) => tradableSymbols.has(ticker.symbol))
       .sort((a, b) => Number(b.quoteVolume) - Number(a.quoteVolume))
       .slice(0, UNIVERSE_SIZE);
 
