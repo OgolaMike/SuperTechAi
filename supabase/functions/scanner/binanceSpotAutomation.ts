@@ -165,12 +165,6 @@ export async function submitBinanceSpotLimitIntents(
     const allowed = account.allowed_symbols ?? [];
     if (allowed.length > 0 && !allowed.includes(symbol)) { skipped += buyIntents.length; continue; }
 
-    const { data: existing, error: existingError } = await db.from("binance_spot_orders")
-      .select("id").eq("user_id", account.user_id)
-      .in("status", ["queued", "submitted", "partially_filled", "filled", "uncertain"]);
-    if (existingError) { failed += 1; continue; }
-    if ((existing?.length ?? 0) >= account.max_open_positions) { skipped += buyIntents.length; continue; }
-
     const { data: stored, error: credentialError } = await db.schema("private").from("binance_spot_credentials")
       .select("encrypted_api_key,encrypted_api_secret").eq("user_id", account.user_id).maybeSingle();
     if (credentialError || !stored) { failed += 1; continue; }
@@ -179,6 +173,11 @@ export async function submitBinanceSpotLimitIntents(
     try {
       [apiKey, apiSecret] = await Promise.all([decrypt(stored.encrypted_api_key), decrypt(stored.encrypted_api_secret)]);
       await reconcileOrderLists(db, account.user_id, apiKey, apiSecret);
+      const { data: existing, error: existingError } = await db.from("binance_spot_orders")
+        .select("id").eq("user_id", account.user_id)
+        .in("status", ["queued", "submitted", "partially_filled", "filled", "uncertain"]);
+      if (existingError) { failed += 1; continue; }
+      if ((existing?.length ?? 0) >= account.max_open_positions) { skipped += buyIntents.length; continue; }
       const accountInfo = await signedBinance(apiKey, apiSecret, "/api/v3/account", "GET", {});
       const usdt = Array.isArray(accountInfo.balances)
         ? (accountInfo.balances as Array<Record<string, unknown>>).find((b) => b.asset === "USDT")
