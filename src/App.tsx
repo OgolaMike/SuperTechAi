@@ -165,7 +165,7 @@ function App() {
         )}
 
         {view === 'mt5' && <Mt5AutoTrading />}
-        {view === 'orders' && <PendingOrdersPanel assets={assets.filter((asset) => selectedSymbols.includes(asset.symbol))} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
+        {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
         {view === 'crypto' && <CryptoMovers />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
