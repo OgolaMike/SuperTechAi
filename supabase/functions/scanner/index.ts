@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } from "./deriv.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
-import { buildBackendStopIntent, buildBackendLimitIntent } from "./pendingIntents.ts";
+import { buildBackendStopIntent, buildBackendLimitIntent, buildBackendReversalPendingOrder } from "./pendingIntents.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
 
 const corsHeaders = {
@@ -413,6 +413,30 @@ async function runScan(): Promise<Record<string, unknown>> {
           fetchedCount += 1;
           const result = await processTimeframe(symbol, timeframe, candles, nowEpoch, previousMark);
           rowsWritten += result.rowsWritten;
+
+          // Queue the same confirmed BB(60, 2.5) two-candle reversal proposal
+          // used by the Pending Orders screen, so selected devices can receive
+          // server push alerts even when the app is closed.
+          if (timeframe.granularity === 900 && result.lastEpoch !== null &&
+              (previousMark === undefined || result.lastEpoch > previousMark)) {
+            const pendingOrder = buildBackendReversalPendingOrder(symbol.symbol, candles, nowEpoch);
+            if (pendingOrder && pendingOrder.signalEpoch === result.lastEpoch &&
+                nowEpoch - (pendingOrder.signalEpoch + 900) <= 2 * 900) {
+              const { error: pendingEventError } = await db.from("push_events").upsert([{
+                event_key: pendingOrder.idempotencyKey + "|pending_order",
+                signal_key: pendingOrder.idempotencyKey,
+                kind: "pending_order",
+                payload: {
+                  label: "PENDING ORDER", symbol: symbol.symbol, assetName: symbol.name, timeframe: "M15",
+                  direction: pendingOrder.direction, digits: symbol.digits, signalEpoch: pendingOrder.signalEpoch,
+                  entry: pendingOrder.entry, stopLoss: pendingOrder.stopLoss,
+                  tp1: pendingOrder.takeProfit, tp2: pendingOrder.takeProfit, tp3: pendingOrder.takeProfit,
+                  price: pendingOrder.currentPrice, eventEpoch: pendingOrder.signalEpoch,
+                },
+              }], { onConflict: "event_key", ignoreDuplicates: true });
+              if (pendingEventError) throw new Error("Could not queue pending-order push event: " + pendingEventError.message);
+            }
+          }
 
           // Create review-only backend STOP proposals when a fresh M15 signal appears.
           if (timeframe.granularity === 900 && result.lastEpoch !== null &&
