@@ -16,7 +16,6 @@ type Props = {
 };
 
 const CHART_HEIGHT = 280;
-const CHART_WIDTH = 1040;
 const PADDING = { top: 18, right: 84, bottom: 24, left: 14 };
 
 function describeMarket(state: TfState) {
