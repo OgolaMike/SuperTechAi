@@ -1,5 +1,5 @@
 import { getAiPatternScore, type SignalLearningModel } from './aiLearning';
-import { isStale, TIMEFRAMES, type Asset, type TfState } from './sma';
+import { isStale, type Asset, type TfState } from './sma';
 import type { Direction } from './signals';
 
 export type M15StopIdea = {
@@ -26,15 +26,6 @@ export type M15StopIdea = {
 
 const M15 = 900;
 const MAX_SIGNAL_AGE_BARS = 8;
-
-function timeframeBias(state: TfState): Direction | null {
-  if (state.lastClose == null || state.currentSma == null || state.stdDev == null) return null;
-  const neutral = state.stdDev * 0.1;
-  const difference = state.lastClose - state.currentSma;
-  if (difference > neutral) return 'BUY';
-  if (difference < -neutral) return 'SELL';
-  return null;
-}
 
 function findLevelHits(
   direction: Direction,
@@ -99,12 +90,6 @@ export function buildM15StopOrderIdeas(
     if (!states || !m15 || currentPrice == null || !Number.isFinite(currentPrice) || !signal) continue;
     if (isStale(m15, nowEpoch) || nowEpoch - signal.signalEpoch > MAX_SIGNAL_AGE_BARS * M15) continue;
 
-    const biases = TIMEFRAMES.map((timeframe) => {
-      const state = states[timeframe.granularity];
-      return !state || isStale(state, nowEpoch) ? null : timeframeBias(state);
-    });
-    if (biases.length !== TIMEFRAMES.length || !biases.every((bias) => bias === signal.direction)) continue;
-
     const { entry: originalEntry, tp1, tp3 } = signal.levels;
     if (!(tp1 > 0 && tp3 > 0 && originalEntry > 0)) continue;
 
@@ -132,8 +117,8 @@ export function buildM15StopOrderIdeas(
       currentPrice,
       aiScore,
       momentumScore: null,
-      reason: `M15 ${signal.direction} signal. The stop entry is placed at the signal's TP1 level, the original signal entry becomes the stop-loss, and TP3 remains the final target.`,
-      timeframeAgreement: TIMEFRAMES.length,
+      reason: `Fresh M15 ${signal.direction} signal from the all-asset scanner. Entry uses TP1, stop-loss uses the original signal entry, and TP3 is the final target.`,
+      timeframeAgreement: 1,
       signalEpoch: signal.signalEpoch,
       strengthScore: aiScore ?? 0,
       ...hits,
