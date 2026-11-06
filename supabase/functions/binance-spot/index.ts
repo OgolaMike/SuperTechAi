@@ -96,6 +96,9 @@ Deno.serve(async (req) => {
       const symbols = Array.isArray(body.allowedSymbols) ? [...new Set(body.allowedSymbols.map((v: unknown) => String(v).toUpperCase()).filter((v: string) => /^[A-Z0-9]{4,20}$/.test(v)))].slice(0, 100) : [];
       if (!Number.isFinite(maxTrade) || maxTrade < 5 || maxTrade > 100000 || !Number.isInteger(maxOpen) || maxOpen < 1 || maxOpen > 20) return json({ error: "invalid_spot_risk_limits" }, 400);
       const emergency = body.emergencyStop !== false;
+      if (body.autoTradeEnabled === true && body.liveExecutionEnabled === true && !emergency && symbols.length === 0) {
+        return json({ error: "select_at_least_one_binance_spot_symbol" }, 400);
+      }
       const { error } = await admin.from("binance_spot_settings").update({
         auto_trade_enabled: body.autoTradeEnabled === true && !emergency,
         live_execution_enabled: body.liveExecutionEnabled === true && !emergency,
