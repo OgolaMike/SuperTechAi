@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Clock3, Info } from 'lucide-react';
 import { buildM15StopOrderIdeas, mergeTrackedStopOrders, type M15StopIdea } from '@/lib/stopOrders';
 import { LevelList } from '@/components/SignalParts';
+import { PendingOrderChart } from '@/components/PendingOrderChart';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import type { Asset } from '@/lib/sma';
@@ -59,10 +60,10 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
   return (
     <section className="mt-8 space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 orders</p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">M15 Order Signals</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 order intelligence</p>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT proposals across discovered Deriv assets. Order progress and outcomes update as confirmed M15 candles close.
+          BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT setups across discovered Deriv assets. Every order includes a live M15 chart snapshot with its entry, stop-loss, take-profit and current market levels.
         </p>
       </div>
 
@@ -85,7 +86,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-5 text-sm text-ink-2">Waiting for M15 market data…</div>
       ) : visibleOrders.length === 0 ? (
         <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-5 text-sm text-ink-2">
-          {filter === 'results' ? 'No completed order results yet. Results will appear here as orders resolve.' : 'No tracked M15 orders in this view yet. Scanning continues across all discovered assets.'}
+          {filter === 'results' ? 'No completed order results yet. Results will appear here as orders resolve.' : 'No tracked pending orders in this view yet. Scanning continues across all discovered assets.'}
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -105,8 +106,20 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                   : <div className="rounded-xl border border-line/25 bg-surface/[0.02] p-3"><p className="text-xs text-ink-3">M15 AI score</p><p className="mt-1 text-sm font-medium text-ink-2">Learning</p></div>}
               </div>
               <div className="mt-4">
+                <PendingOrderChart
+                  candles={states[idea.symbol]?.[900]?.candles ?? []}
+                  entry={idea.entry}
+                  stopLoss={idea.stopLoss}
+                  takeProfit={idea.takeProfit}
+                  currentPrice={idea.currentPrice}
+                  digits={idea.digits}
+                  direction={idea.direction}
+                  symbol={idea.symbol}
+                />
+              </div>
+              <div className="mt-4">
                 <LevelList digits={idea.digits} rows={[
-                  { label: 'Entry', hint: 'Entry level', value: idea.entry, hitEpoch: idea.entryHitEpoch, tone: 'text-entry' },
+                  { label: 'Entry', hint: 'Pending entry level', value: idea.entry, hitEpoch: idea.entryHitEpoch, tone: 'text-entry' },
                   { label: 'Stop-loss', hint: 'Protective stop level', value: idea.stopLoss, hitEpoch: idea.stopLossHitEpoch, tone: 'text-down' },
                   { label: 'Target', hint: 'Take-profit level', value: idea.takeProfit, hitEpoch: idea.takeProfitHitEpoch, tone: 'text-up' },
                 ]} />
@@ -122,7 +135,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
 
       <div className="flex items-start gap-2 rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-warn" />
-        <p>These are tracked signal proposals, not live broker orders. Signals use confirmed M15 candle structure; tracked outcomes use candle high/low levels and are saved on this device.</p>
+        <p>These are tracked pending-order proposals, not broker orders placed automatically. Signals use confirmed M15 candle structure; the chart displays the latest 60 M15 candles and the order levels. Tracked outcomes are saved on this device.</p>
       </div>
     </section>
   );
