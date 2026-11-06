@@ -11,9 +11,11 @@ import {
 
 const LEADERBOARD_SIZE = 10;
 
+type Props = { selectedSymbols: string[]; onMonitorAsset: (symbol: string) => void };
+
 type LoadState = { movers: CryptoMover[]; error: string | null; loading: boolean };
 
-export function CryptoMovers() {
+export function CryptoMovers({ selectedSymbols, onMonitorAsset }: Props) {
   const [load, setLoad] = useState<LoadState>({ movers: [], error: null, loading: true });
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -122,7 +124,18 @@ export function CryptoMovers() {
             <Leaderboard title="Top losers" tone="down" movers={losers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} />
           </div>
 
-          {selectedMover && <CryptoMoverAnalysis key={selectedMover.symbol} symbol={selectedMover.symbol} name={selectedMover.base} changePct={selectedMover.changePct} close={selectedMover.close} />}
+          {selectedMover && (
+            <CryptoMoverAnalysis
+              key={selectedMover.symbol}
+              symbol={selectedMover.symbol}
+              name={selectedMover.base}
+              changePct={selectedMover.changePct}
+              close={selectedMover.close}
+              isMonitored={selectedSymbols.includes(selectedMover.symbol)}
+              canMonitor={selectedSymbols.length < 10}
+              onMonitor={() => onMonitorAsset(selectedMover.symbol)}
+            />
+          )}
 
           <WatchListTable movers={dayMovers} />
         </>
