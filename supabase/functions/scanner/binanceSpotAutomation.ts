@@ -165,7 +165,7 @@ export async function submitBinanceSpotLimitIntents(
     const allowed = account.allowed_symbols ?? [];
     if (allowed.length > 0 && !allowed.includes(symbol)) { skipped += buyIntents.length; continue; }
 
-    const { data: stored, error: credentialError } = await db.schema("private").from("binance_spot_credentials")
+    const { data: stored, error: credentialError } = await db.from("binance_spot_credentials")
       .select("encrypted_api_key,encrypted_api_secret").eq("user_id", account.user_id).maybeSingle();
     if (credentialError || !stored) { failed += 1; continue; }
 
