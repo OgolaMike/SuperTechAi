@@ -224,7 +224,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
             </label>
             {chart ? (
               <div className="w-full overflow-x-auto overscroll-x-contain">
-                <svg viewBox={`0 0 ${chart.width} ${CHART_HEIGHT}`} role="img" aria-label={`${name} ${timeframe.label} candlestick chart with SMA 60 and Bollinger Bands`} className="block min-w-[720px] w-full">
+                <svg viewBox={`0 0 ${chart.width} ${CHART_HEIGHT}`} role="img" aria-label={`${name} ${timeframe.label} candlestick chart with SMA 60 and Bollinger Bands`} style={{ width: `${chart.width}px`, maxWidth: "none", height: "auto" }} className="block">
                   {[0,1,2,3].map((step) => {
                     const y = PADDING.top + ((CHART_HEIGHT - PADDING.top - PADDING.bottom) * step) / 3;
                     const value = chart.max - ((chart.max - chart.min) * step) / 3;
