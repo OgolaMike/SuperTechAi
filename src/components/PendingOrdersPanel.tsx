@@ -22,7 +22,9 @@ type Props = {
 function loadTrackedOrders(): M15StopIdea[] {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-    return Array.isArray(stored) ? stored as M15StopIdea[] : [];
+    return Array.isArray(stored)
+      ? (stored as M15StopIdea[]).filter((order) => order.type === 'BUY LIMIT' || order.type === 'SELL LIMIT')
+      : [];
   } catch {
     return [];
   }
@@ -50,7 +52,10 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
   }, [loaded, liveIdeas]);
 
   const selectedSymbols = useMemo(() => new Set(assets.map((asset) => asset.symbol)), [assets]);
-  const selectedOrders = useMemo(() => trackedOrders.filter((order) => selectedSymbols.has(order.symbol)), [trackedOrders, selectedSymbols]);
+  const selectedOrders = useMemo(
+    () => trackedOrders.filter((order) => selectedSymbols.has(order.symbol) && (order.type === 'BUY LIMIT' || order.type === 'SELL LIMIT')),
+    [trackedOrders, selectedSymbols],
+  );
   const activeCount = selectedOrders.filter((order) => order.status === 'WAITING' || order.status === 'ENTRY HIT').length;
   const resultCount = selectedOrders.length - activeCount;
   const visibleOrders = selectedOrders.filter((order) =>
