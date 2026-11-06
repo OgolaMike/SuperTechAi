@@ -49,9 +49,11 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
     });
   }, [loaded, liveIdeas]);
 
-  const activeCount = trackedOrders.filter((order) => order.status === 'WAITING' || order.status === 'ENTRY HIT').length;
-  const resultCount = trackedOrders.length - activeCount;
-  const visibleOrders = trackedOrders.filter((order) =>
+  const selectedSymbols = useMemo(() => new Set(assets.map((asset) => asset.symbol)), [assets]);
+  const selectedOrders = useMemo(() => trackedOrders.filter((order) => selectedSymbols.has(order.symbol)), [trackedOrders, selectedSymbols]);
+  const activeCount = selectedOrders.filter((order) => order.status === 'WAITING' || order.status === 'ENTRY HIT').length;
+  const resultCount = selectedOrders.length - activeCount;
+  const visibleOrders = selectedOrders.filter((order) =>
     filter === 'all' ? true : filter === 'active'
       ? order.status === 'WAITING' || order.status === 'ENTRY HIT'
       : order.status === 'TARGET HIT' || order.status === 'STOP-LOSS HIT' || order.status === 'INVALIDATED' || order.status === 'EXPIRED',
@@ -63,7 +65,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 order intelligence</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT setups across discovered Deriv assets. Every order includes a live M15 chart snapshot with its entry, stop-loss, take-profit and current market levels.
+          BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT setups for the assets currently selected above (up to 10). Alerts follow that same selection. Every order includes a live M15 chart snapshot with its entry, stop-loss, take-profit and current market levels.
         </p>
       </div>
 
