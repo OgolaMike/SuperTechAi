@@ -131,7 +131,7 @@ export function BinanceSpotAutomation() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Binance Spot automation</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Connect Binance Spot</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">
-            Connect a Spot-only API key. SuperTechAi places BUY LIMIT entries and attaches exchange-managed take-profit and stop-loss exits through Binance OTOCO order lists.
+            Connect a Spot API key. SuperTechAi places BUY LIMIT entries with Binance OTOCO take-profit and stop-loss exits; partial fills are reconciled by cancelling the remainder and attaching an OCO exit to the filled quantity.
           </p>
         </div>
         <span className={`rounded-full border px-3 py-1 text-xs font-medium ${connected ? 'border-up/20 bg-up/10 text-up' : 'border-amber-400/20 bg-amber-400/10 text-amber-500'}`}>
@@ -203,9 +203,9 @@ export function BinanceSpotAutomation() {
           <h3 className="font-semibold text-ink">How Binance Spot automation works</h3>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-ink-2">
             <li>Uses the same closed-candle M15/M5/M1 confirmation and BUY LIMIT entry levels as the signal engine.</li>
-            <li>When an entry is accepted, Binance OTOCO holds the protective take-profit and stop-loss orders until the BUY limit fills.</li>
+            <li>When an entry is accepted, Binance OTOCO holds protective exits until the BUY limit fills. Partial fills are separately protected by an OCO exit after the scanner reconciles them.</li>
             <li>Spot is long-only here: bearish signals do not open borrowed or short positions.</li>
-            <li>Only SuperTechAi-created order lists are counted for its active-trade limit; unrelated exchange orders are not modified.</li>
+            <li>Unfilled entries expire after two hours. Only SuperTechAi-created orders are counted for its active-trade limit; unrelated exchange orders are not modified.</li>
             <li>Withdrawals are not used. Existing exchange orders are not automatically cancelled when you disconnect.</li>
           </ul>
         </div></div>
