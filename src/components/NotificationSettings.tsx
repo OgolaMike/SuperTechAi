@@ -8,7 +8,8 @@ const CATEGORIES: { key: BoolPrefKey; label: string; description: string }[] = [
   { key: 'signals', label: 'New signals', description: 'A confirmed BUY or SELL crossover, with entry and levels.' },
   { key: 'targets', label: 'Target hits', description: 'TP1, TP2 or TP3 reached on a confirmed candle close.' },
   { key: 'stops', label: 'Stop-loss hits', description: 'A stop-loss reached on a confirmed candle close.' },
-  { key: 'limitOrders', label: 'Pending-order alerts', description: 'New confirmed M15 BB(60, 2.5) reversal setups for your selected assets.' },
+  { key: 'limitOrders', label: 'New limit-order signals', description: 'M15/M5/M1 confluence limit-entry opportunities.' },
+  { key: 'pendingOrders', label: 'Pending-order alerts', description: 'New confirmed M15 BB(60, 2.5) reversal setups for your selected assets.' },
 ];
 
 const STATUS_TEXT: Record<PushStatus, string> = {
