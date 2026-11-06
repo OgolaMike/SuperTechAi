@@ -416,7 +416,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                     await persistAccountSignalIntent(accounts, symbol.name, limitIntent,
                       "server_scanner_limit", limitIntent.strengthScore);
                   }
-                        }
+                }
               } catch (error) {
                 lastError = `MT5 intent ${symbol.symbol}: ${messageOf(error)}`;
               }
