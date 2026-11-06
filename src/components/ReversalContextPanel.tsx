@@ -14,7 +14,6 @@ type Read = { label: string; bias: Bias };
 
 const PRIMARY_GRANULARITY = 900;
 const DAY = 86400;
-const WEEK = 7 * DAY;
 const LOOKBACK_SECONDS = 8 * PRIMARY_GRANULARITY;
 
 function biasFromState(state: TfState | undefined, nowEpoch: number): Bias {
@@ -30,47 +29,16 @@ function biasFromState(state: TfState | undefined, nowEpoch: number): Bias {
   return 'Neutral';
 }
 
-// Deriv's weekly context is derived from completed daily candles, never from a
-// forming week or an assumed broker W1 subscription.
-function weeklyBias(daily: TfState | undefined, nowEpoch: number): Bias {
-  if (!daily?.candles?.length) return 'No data';
-  const buckets = new Map<number, { close: number; count: number }>();
-  for (const candle of daily.candles) {
-    const dayStart = Math.floor(candle.epoch / DAY) * DAY;
-    const weekStart = dayStart - ((new Date(dayStart * 1000).getUTCDay() + 6) % 7) * DAY;
-    if (weekStart + WEEK > nowEpoch || candle.epoch + DAY > nowEpoch) continue;
-    const bucket = buckets.get(weekStart);
-    if (!bucket) buckets.set(weekStart, { close: candle.close, count: 1 });
-    else {
-      bucket.close = candle.close;
-      bucket.count += 1;
-    }
-  }
-  const completeWeeks = [...buckets.entries()]
-    .filter(([, value]) => value.count >= 5)
-    .sort(([a], [b]) => a - b)
-    .map(([, value]) => value.close);
-  if (completeWeeks.length < 60) return 'No data';
-  const recent = completeWeeks.slice(-60);
-  const mean = recent.reduce((sum, close) => sum + close, 0) / recent.length;
-  const variance = recent.reduce((sum, close) => sum + (close - mean) ** 2, 0) / recent.length;
-  const deviation = Math.sqrt(variance);
-  const gap = recent[recent.length - 1] - mean;
-  if (gap > deviation * 0.1) return 'Bullish';
-  if (gap < -deviation * 0.1) return 'Bearish';
-  return 'Neutral';
-}
-
 function expectedBias(direction: Direction): Bias {
   return direction === 'BUY' ? 'Bullish' : 'Bearish';
 }
 
 function interpretation(direction: Direction, reads: Read[]): { title: string; detail: string; confirmation: string } {
   const expected = expectedBias(direction);
-  const higher = reads.filter((read) => ['H1', 'H4', 'D1', 'W1'].includes(read.label));
+  const higher = reads.filter((read) => ['H1', 'H4', 'H8', 'D1'].includes(read.label));
   const opposing = higher.filter((read) => read.bias !== 'No data' && read.bias !== 'Neutral' && read.bias !== expected);
   const aligned = higher.filter((read) => read.bias === expected);
-  const majorOpposition = opposing.some((read) => ['H4', 'D1', 'W1'].includes(read.label));
+  const majorOpposition = opposing.some((read) => ['H4', 'H8', 'D1'].includes(read.label));
 
   if (opposing.length === 0 && aligned.length >= 2) {
     return {
@@ -83,7 +51,7 @@ function interpretation(direction: Direction, reads: Read[]): { title: string; d
     return {
       title: 'Likely pullback risk — not a confirmed trend change',
       detail: `The ${direction} move conflicts with ${opposing.map((read) => read.label).join(', ')}. It may be a short-term retracement against the broader trend rather than a durable reversal.`,
-      confirmation: 'Do not promote this to a high-confluence reversal until H1/M30 structure turns and a completed candle confirms the change; major H4/D1/W1 opposition must be resolved.',
+      confirmation: 'Do not promote this to a high-confluence reversal until H1/M30 structure turns and a completed candle confirms the change; major H4/H8/D1 opposition must be resolved.',
     };
   }
   if (opposing.length > 0) {
@@ -96,7 +64,7 @@ function interpretation(direction: Direction, reads: Read[]): { title: string; d
   return {
     title: 'Insufficient higher-timeframe evidence',
     detail: 'One or more important timeframe readings are unavailable or neutral. The system should not infer a reversal from missing data.',
-    confirmation: 'Wait until valid H1, H4, D1 and derived W1 context is available before assigning high-confluence status.',
+    confirmation: 'Wait until valid H1, H4, H8 and D1 context is available before assigning high-confluence status.',
   };
 }
 
@@ -109,8 +77,8 @@ export function ReversalContextPanel({ assets, states, nowEpoch }: Props) {
     const reads: Read[] = [
       { label: 'H1', bias: biasFromState(byTimeframe?.[3600], nowEpoch) },
       { label: 'H4', bias: biasFromState(byTimeframe?.[14400], nowEpoch) },
+      { label: 'H8', bias: biasFromState(byTimeframe?.[28800], nowEpoch) },
       { label: 'D1', bias: biasFromState(byTimeframe?.[DAY], nowEpoch) },
-      { label: 'W1', bias: weeklyBias(byTimeframe?.[DAY], nowEpoch) },
     ];
     const expected = expectedBias(signal.direction);
     if (!reads.some((read) => read.bias !== 'No data' && read.bias !== 'Neutral' && read.bias !== expected)) return [];
