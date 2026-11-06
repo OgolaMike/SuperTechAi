@@ -102,6 +102,11 @@ function App() {
     localStorage.setItem(ASSET_STORAGE_KEY, JSON.stringify(next));
   };
 
+  const monitorAsset = (symbol: string) => {
+    if (selectedSymbols.includes(symbol) || selectedSymbols.length >= MAX_MONITORED_ASSETS) return;
+    updateSelected([...selectedSymbols, symbol]);
+  };
+
   const toggleSounds = () => {
     const next = !soundsEnabled;
     setSoundsEnabled(next);
@@ -175,7 +180,7 @@ function App() {
 
         {view === 'mt5' && <Mt5AutoTrading />}
         {view === 'orders' && <PendingOrdersPanel assets={selectedAssets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
-        {view === 'crypto' && <CryptoMovers />}
+        {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
         <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>
