@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } from "./deriv.ts";
 import { fetchBinanceCandles, loadBinanceSymbols } from "./binance.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
-import { buildBackendStopIntent, buildBackendLimitIntent, buildBackendReversalPendingOrder } from "./pendingIntents.ts";
+import { buildBackendLimitIntent, buildBackendReversalPendingOrder } from "./pendingIntents.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
 
 const corsHeaders = {
@@ -311,11 +311,11 @@ async function runScan(): Promise<Record<string, unknown>> {
       symbolName: string,
       intent: {
         symbol: string; signalEpoch: number; direction: "BUY" | "SELL";
-        orderType: "BUY_STOP" | "SELL_STOP" | "BUY_LIMIT" | "SELL_LIMIT";
+        orderType: "BUY_LIMIT" | "SELL_LIMIT";
         entry: number; stopLoss: number; takeProfit: number; currentPrice: number;
         timeframeAgreement: 3; strategyVersion: string; idempotencyKey: string;
       },
-      source: "server_scanner_limit" | "server_scanner_stop",
+      source: "server_scanner_limit",
       strengthScore?: number,
     ) {
       if (!accounts.length) return;
@@ -381,9 +381,9 @@ async function runScan(): Promise<Record<string, unknown>> {
               const { error: pendingEventError } = await db.from("push_events").upsert([{
                 event_key: pendingOrder.idempotencyKey + "|pending_order",
                 signal_key: pendingOrder.idempotencyKey,
-                kind: "pending_order",
+                kind: "limit_order",
                 payload: {
-                  label: "PENDING ORDER", symbol: symbol.symbol, assetName: symbol.name, timeframe: "M15",
+                  label: "LIMIT ORDER", symbol: symbol.symbol, assetName: symbol.name, timeframe: "M15",
                   direction: pendingOrder.direction, digits: symbol.digits, signalEpoch: pendingOrder.signalEpoch,
                   entry: pendingOrder.entry, stopLoss: pendingOrder.stopLoss,
                   tp1: pendingOrder.takeProfit, tp2: pendingOrder.takeProfit, tp3: pendingOrder.takeProfit,
@@ -394,7 +394,7 @@ async function runScan(): Promise<Record<string, unknown>> {
             }
           }
 
-          // Create review-only backend STOP proposals when a fresh M15 signal appears.
+          // Create review-only backend LIMIT proposals when a fresh M15 signal appears.
           if (timeframe.granularity === 900 && result.lastEpoch !== null &&
               (previousMark === undefined || result.lastEpoch > previousMark)) {
             const m15Signals = computeSignals(candles, 900, nowEpoch).signals;
@@ -440,12 +440,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                     await persistAccountSignalIntent(accounts, symbol.name, limitIntent,
                       "server_scanner_limit", limitIntent.strengthScore);
                   }
-                  const stopIntents = buildBackendStopIntent(symbol.symbol, candleCache, nowEpoch)
-                    .filter((intent) => intent.signalEpoch === latestSignal.signalEpoch);
-                  for (const stopIntent of stopIntents) {
-                    await persistAccountSignalIntent(accounts, symbol.name, stopIntent, "server_scanner_stop");
-                  }
-                }
+                        }
               } catch (error) {
                 lastError = `MT5 intent ${symbol.symbol}: ${messageOf(error)}`;
               }
