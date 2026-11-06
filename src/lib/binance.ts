@@ -63,7 +63,7 @@ export async function fetchBinanceCandles(symbol: string, timeframe: Timeframe, 
   if (!response.ok) throw new Error(`Binance candle request failed for ${symbol} ${timeframe.label}: ${response.status}`);
   const rows: unknown = await response.json();
   if (!Array.isArray(rows)) throw new Error(`Binance returned invalid candles for ${symbol}`);
-  return rows.map((row: unknown) => {
+  return rows.map((row: unknown): Candle | null => {
     if (!Array.isArray(row)) return null;
     return {
       epoch: Math.floor(Number(row[0]) / 1000),
