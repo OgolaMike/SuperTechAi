@@ -159,7 +159,6 @@ export async function submitBinanceSpotLimitIntents(
   const rules = await getRules(symbol);
   if (!rules) return { submitted, skipped: buyIntents.length, failed };
   const priceTick = rules.tickSize;
-  const limit = buyIntents.length;
 
   for (const account of (accounts ?? []) as AccountSettings[]) {
     const allowed = account.allowed_symbols ?? [];
@@ -177,7 +176,8 @@ export async function submitBinanceSpotLimitIntents(
         .select("id").eq("user_id", account.user_id)
         .in("status", ["queued", "submitted", "partially_filled", "filled", "uncertain"]);
       if (existingError) { failed += 1; continue; }
-      if ((existing?.length ?? 0) >= account.max_open_positions) { skipped += buyIntents.length; continue; }
+      const availableSlots = account.max_open_positions - (existing?.length ?? 0);
+      if (availableSlots <= 0) { skipped += buyIntents.length; continue; }
       const accountInfo = await signedBinance(apiKey, apiSecret, "/api/v3/account", "GET", {});
       const usdt = Array.isArray(accountInfo.balances)
         ? (accountInfo.balances as Array<Record<string, unknown>>).find((b) => b.asset === "USDT")
@@ -185,10 +185,13 @@ export async function submitBinanceSpotLimitIntents(
       let availableUsdt = Number(usdt?.free ?? 0);
       if (!Number.isFinite(availableUsdt) || availableUsdt <= 0) { skipped += buyIntents.length; continue; }
 
-      const budget = Math.min(Number(account.max_trade_usdt), availableUsdt);
-      const perOrderBudget = budget / limit;
-      for (let index = 0; index < buyIntents.length; index += 1) {
-        const intent = buyIntents[index];
+      const budget = Math.min(Number(account.max_trade_usdt), availableUsdt * 0.995);
+      const orderCount = Math.min(buyIntents.length, availableSlots, Math.floor(budget / rules.minNotional));
+      if (orderCount < 1) { skipped += buyIntents.length; continue; }
+      const selectedIntents = buyIntents.slice(0, orderCount);
+      const perOrderBudget = budget / selectedIntents.length;
+      for (let index = 0; index < selectedIntents.length; index += 1) {
+        const intent = selectedIntents[index];
         const entryPrice = floorToStep(intent.entry, priceTick);
         const takeProfit = floorToStep(intent.takeProfit, priceTick);
         const stopLoss = floorToStep(intent.stopLoss, priceTick);
