@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CryptoMoverAnalysis } from '@/components/CryptoMoverAnalysis';
+import { MAX_MONITORED_ASSETS } from '@/lib/sma';
 import { Coins, Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import {
   fetchCryptoMovers,
@@ -132,7 +133,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset }: Props) {
               changePct={selectedMover.changePct}
               close={selectedMover.close}
               isMonitored={selectedSymbols.includes(selectedMover.symbol)}
-              canMonitor={selectedSymbols.length < 10}
+              canMonitor={selectedSymbols.length < MAX_MONITORED_ASSETS}
               onMonitor={() => onMonitorAsset(selectedMover.symbol)}
             />
           )}
