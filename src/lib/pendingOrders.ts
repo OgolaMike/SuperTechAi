@@ -2,7 +2,7 @@ import { isStale, TIMEFRAMES, type Asset, type TfState } from './sma';
 import { getAiPatternScore, type SignalLearningModel } from './aiLearning';
 import type { Direction, SignalLevels } from './signals';
 
-export type PendingOrderType = 'BUY STOP' | 'SELL STOP' | 'BUY LIMIT' | 'SELL LIMIT';
+export type PendingOrderType = 'BUY LIMIT' | 'SELL LIMIT';
 
 export type PendingOrderIdea = {
   id: string;
@@ -25,7 +25,6 @@ export type PendingOrderIdea = {
 
 const PRIMARY_GRANULARITY = 300;
 const SIGNAL_MAX_AGE_BARS = 8;
-const SWING_LOOKBACK = 5;
 const M5_GRANULARITY = 300;
 const M5_LOOKBACK = 5;
 const M5_MIN_DIRECTIONAL_CANDLES = 4;
@@ -165,22 +164,8 @@ export function buildPendingOrderIdeas(
     if (nowEpoch - triggerSignal.signalEpoch > SIGNAL_MAX_AGE_BARS * PRIMARY_GRANULARITY) continue;
     if (primary.stdDev == null || primary.stdDev <= 0 || primary.currentSma == null) continue;
 
-    const recentCandles = primary.candles.slice(-SWING_LOOKBACK);
-    if (recentCandles.length < SWING_LOOKBACK) continue;
-    const buffer = primary.stdDev * 0.1;
-    const swingHigh = Math.max(...recentCandles.map((candle) => candle.high));
-    const swingLow = Math.min(...recentCandles.map((candle) => candle.low));
-
     const candidates: Array<{ type: PendingOrderType; entry: number; reason: string }> = [];
     if (direction === 'BUY') {
-      const breakoutEntry = Math.max(swingHigh, currentPrice) + buffer;
-      if (breakoutEntry > currentPrice) {
-        candidates.push({
-          type: 'BUY STOP',
-          entry: breakoutEntry,
-          reason: 'The market is moving up across all eight timeframes. This order waits for price to break above the recent high.',
-        });
-      }
       if (primary.currentSma < currentPrice) {
         candidates.push({
           type: 'BUY LIMIT',
@@ -189,14 +174,6 @@ export function buildPendingOrderIdeas(
         });
       }
     } else {
-      const breakoutEntry = Math.min(swingLow, currentPrice) - buffer;
-      if (breakoutEntry < currentPrice && breakoutEntry > 0) {
-        candidates.push({
-          type: 'SELL STOP',
-          entry: breakoutEntry,
-          reason: 'The market is moving down across all eight timeframes. This order waits for price to break below the recent low.',
-        });
-      }
       if (primary.currentSma > currentPrice) {
         candidates.push({
           type: 'SELL LIMIT',
@@ -207,7 +184,7 @@ export function buildPendingOrderIdeas(
     }
 
     for (const candidate of candidates) {
-      // The strict M5/AI gate applies to limit orders only; fresh M5 candle-close signals trigger both stop and limit order reassessment.
+      // Stop-entry orders are disabled. The M5/AI gate continues to qualify limit orders only.
       if (candidate.type.endsWith('LIMIT') && !m5LimitGate.approved) continue;
       const levels = makeLevels(direction, candidate.entry, primary.stdDev);
       const scoreLevels: SignalLevels = {
