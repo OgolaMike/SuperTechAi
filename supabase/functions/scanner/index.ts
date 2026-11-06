@@ -3,7 +3,7 @@ import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } fr
 import { fetchBinanceCandles, loadBinanceSymbols } from "./binance.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
 import { buildBackendLimitIntent } from "./pendingIntents.ts";
-import { submitBinanceSpotLimitIntents } from "./binanceSpotAutomation.ts";
+import { reconcileBinanceSpotOrders, submitBinanceSpotLimitIntents } from "./binanceSpotAutomation.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
 
 const corsHeaders = {
@@ -284,6 +284,11 @@ async function runScan(): Promise<Record<string, unknown>> {
     let rowsWritten = 0;
     let scannedSymbols = 0;
     let lastError: string | null = [derivLoadError, binanceLoadError].filter(Boolean).join('; ') || null;
+    try {
+      await reconcileBinanceSpotOrders(db);
+    } catch (error) {
+      lastError = `Binance Spot order management: ${messageOf(error)}`;
+    }
 
     let mt5AccountsPromise: Promise<Array<{
       user_id: string; login: string; server: string;
