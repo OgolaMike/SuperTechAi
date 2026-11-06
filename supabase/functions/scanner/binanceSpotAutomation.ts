@@ -17,7 +17,7 @@ type AccountSettings = {
   max_open_positions: number;
   allowed_symbols: string[] | null;
 };
-type SymbolRules = { baseAsset: string; tickSize: number; stepSize: number; minQty: number; maxQty: number; minNotional: number };
+type SymbolRules = { baseAsset: string; quoteAsset: string; tickSize: number; stepSize: number; minQty: number; maxQty: number; minNotional: number };
 const BASE = "https://api.binance.com";
 const encoder = new TextEncoder();
 const ruleCache = new Map<string, SymbolRules | null>();
@@ -75,7 +75,7 @@ async function getRules(symbol: string): Promise<SymbolRules | null> {
   if (!response.ok) throw new Error("binance_exchange_rules_unavailable");
   const payload = await response.json();
   const item = Array.isArray(payload?.symbols) ? payload.symbols[0] : null;
-  if (!item || item.status !== "TRADING" || item.isSpotTradingAllowed === false) {
+  if (!item || item.status !== "TRADING" || item.isSpotTradingAllowed === false || item.quoteAsset !== "USDT") {
     ruleCache.set(symbol, null);
     return null;
   }
@@ -89,6 +89,7 @@ async function getRules(symbol: string): Promise<SymbolRules | null> {
   }
   const rules = {
     baseAsset: String(item.baseAsset ?? ""),
+    quoteAsset: String(item.quoteAsset ?? ""),
     tickSize: Number(price.tickSize),
     stepSize: Number(lot.stepSize),
     minQty: Number(lot.minQty),
@@ -270,9 +271,6 @@ export async function submitBinanceSpotLimitIntents(
   const priceTick = rules.tickSize;
 
   for (const account of (accounts ?? []) as AccountSettings[]) {
-    const allowed = account.allowed_symbols ?? [];
-    if (allowed.length === 0 || !allowed.includes(symbol)) { skipped += buyIntents.length; continue; }
-
     const { data: stored, error: credentialError } = await db.from("binance_spot_credentials")
       .select("encrypted_api_key,encrypted_api_secret").eq("user_id", account.user_id).maybeSingle();
     if (credentialError || !stored) { failed += 1; continue; }
