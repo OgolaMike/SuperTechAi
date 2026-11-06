@@ -1,6 +1,14 @@
 import { getAiPatternScore, type SignalLearningModel } from './aiLearning';
-import { isStale, type Asset, type TfState } from './sma';
-import type { Direction } from './signals';
+import type { Asset, TfState } from './sma';
+import type { Direction, Signal } from './signals';
+
+export type StopOrderStatus =
+  | 'WAITING'
+  | 'ENTRY HIT'
+  | 'TARGET HIT'
+  | 'STOP-LOSS HIT'
+  | 'INVALIDATED'
+  | 'EXPIRED';
 
 export type M15StopIdea = {
   id: string;
@@ -14,33 +22,34 @@ export type M15StopIdea = {
   takeProfit: number;
   currentPrice: number;
   aiScore: number | null;
-  momentumScore: null;
-  reason: string;
-  timeframeAgreement: number;
   signalEpoch: number;
-  strengthScore: number;
   entryHitEpoch: number | null;
   stopLossHitEpoch: number | null;
   takeProfitHitEpoch: number | null;
+  status: StopOrderStatus;
+  resolvedEpoch: number | null;
 };
 
 const M15 = 900;
-const MAX_SIGNAL_AGE_BARS = 8;
+const MAX_PENDING_AGE = 8 * M15;
 
-function findLevelHits(
+function evaluateOrder(
   direction: Direction,
   entry: number,
   stopLoss: number,
   takeProfit: number,
   candles: TfState['candles'],
   signalEpoch: number,
+  nowEpoch: number,
 ) {
-  const afterSignal = candles.filter((candle) => candle.epoch > signalEpoch);
   let entryHitEpoch: number | null = null;
   let stopLossHitEpoch: number | null = null;
   let takeProfitHitEpoch: number | null = null;
+  let status: StopOrderStatus = 'WAITING';
+  let resolvedEpoch: number | null = null;
 
-  for (const candle of afterSignal) {
+  for (const candle of candles) {
+    if (candle.epoch <= signalEpoch) continue;
     const close = candle.close;
     const entered = direction === 'BUY' ? close >= entry : close <= entry;
     const stopped = direction === 'BUY' ? close <= stopLoss : close >= stopLoss;
@@ -49,30 +58,38 @@ function findLevelHits(
     if (entryHitEpoch === null) {
       if (stopped) {
         stopLossHitEpoch = candle.epoch;
+        status = 'INVALIDATED';
+        resolvedEpoch = candle.epoch;
         break;
       }
       if (!entered) continue;
       entryHitEpoch = candle.epoch;
+      status = 'ENTRY HIT';
     }
 
     if (stopped) {
       stopLossHitEpoch = candle.epoch;
+      status = 'STOP-LOSS HIT';
+      resolvedEpoch = candle.epoch;
       break;
     }
     if (targeted) {
       takeProfitHitEpoch = candle.epoch;
+      status = 'TARGET HIT';
+      resolvedEpoch = candle.epoch;
       break;
     }
   }
 
-  return { entryHitEpoch, stopLossHitEpoch, takeProfitHitEpoch };
+  if (status === 'WAITING' && nowEpoch - signalEpoch > MAX_PENDING_AGE) {
+    status = 'EXPIRED';
+    resolvedEpoch = signalEpoch + MAX_PENDING_AGE;
+  }
+
+  return { entryHitEpoch, stopLossHitEpoch, takeProfitHitEpoch, status, resolvedEpoch };
 }
 
-/**
- * Builds M15 breakout stop-order proposals from the existing M15 signal levels.
- * Entry = TP1, stop-loss = original signal entry, target = TP3.
- * It only monitors confirmed M15 candle closes and never places broker orders.
- */
+/** Builds and evaluates M15 stop-order ideas using confirmed M15 candles only. */
 export function buildM15StopOrderIdeas(
   assets: Asset[],
   statesBySymbol: Record<string, Record<number, TfState>>,
@@ -83,47 +100,59 @@ export function buildM15StopOrderIdeas(
   const ideas: M15StopIdea[] = [];
 
   for (const asset of assets) {
-    const states = statesBySymbol[asset.symbol];
+    const m15 = statesBySymbol[asset.symbol]?.[M15];
     const currentPrice = prices[asset.symbol];
-    const m15 = states?.[M15];
-    const signal = m15?.latestSignal;
-    if (!states || !m15 || currentPrice == null || !Number.isFinite(currentPrice) || !signal) continue;
-    if (isStale(m15, nowEpoch) || nowEpoch - signal.signalEpoch > MAX_SIGNAL_AGE_BARS * M15) continue;
+    if (!m15 || currentPrice == null || !Number.isFinite(currentPrice)) continue;
 
-    const { entry: originalEntry, tp1, tp3 } = signal.levels;
-    if (!(tp1 > 0 && tp3 > 0 && originalEntry > 0)) continue;
+    for (const signal of m15.signals) {
+      const { entry: originalEntry, tp1, tp3 } = signal.levels;
+      if (!(tp1 > 0 && tp3 > 0 && originalEntry > 0)) continue;
 
-    const hits = findLevelHits(
-      signal.direction,
-      tp1,
-      originalEntry,
-      tp3,
-      m15.candles,
-      signal.signalEpoch,
-    );
-    const type = signal.direction === 'BUY' ? 'BUY STOP' : 'SELL STOP';
-    const aiScore = getAiPatternScore(aiModel, M15, signal.direction, signal.levels);
+      const type = signal.direction === 'BUY' ? 'BUY STOP' : 'SELL STOP';
+      const aiScore = getAiPatternScore(aiModel, M15, signal.direction, signal.levels);
+      const outcome = evaluateOrder(
+        signal.direction,
+        tp1,
+        originalEntry,
+        tp3,
+        m15.candles,
+        signal.signalEpoch,
+        nowEpoch,
+      );
 
-    ideas.push({
-      id: `${asset.symbol}|${type}|${signal.signalEpoch}`,
-      symbol: asset.symbol,
-      assetName: asset.fullName,
-      digits: asset.digits,
-      type,
-      direction: signal.direction,
-      entry: tp1,
-      stopLoss: originalEntry,
-      takeProfit: tp3,
-      currentPrice,
-      aiScore,
-      momentumScore: null,
-      reason: `Fresh M15 ${signal.direction} signal from the all-asset scanner. Entry uses TP1, stop-loss uses the original signal entry, and TP3 is the final target.`,
-      timeframeAgreement: 1,
-      signalEpoch: signal.signalEpoch,
-      strengthScore: aiScore ?? 0,
-      ...hits,
-    });
+      ideas.push({
+        id: `${asset.symbol}|${type}|${signal.signalEpoch}`,
+        symbol: asset.symbol,
+        assetName: asset.fullName,
+        digits: asset.digits,
+        type,
+        direction: signal.direction,
+        entry: tp1,
+        stopLoss: originalEntry,
+        takeProfit: tp3,
+        currentPrice,
+        aiScore,
+        signalEpoch: signal.signalEpoch,
+        ...outcome,
+      });
+    }
   }
 
-  return ideas.sort((a, b) => (b.aiScore ?? -1) - (a.aiScore ?? -1));
+  return ideas.sort((a, b) => b.signalEpoch - a.signalEpoch);
+}
+
+/** Merge live evaluations into a durable per-device order journal. */
+export function mergeTrackedStopOrders(
+  previous: M15StopIdea[],
+  updates: M15StopIdea[],
+  limit = 1000,
+): M15StopIdea[] {
+  const merged = new Map(previous.map((idea) => [idea.id, idea]));
+  for (const update of updates) {
+    const existing = merged.get(update.id);
+    merged.set(update.id, existing ? { ...existing, ...update } : update);
+  }
+  return [...merged.values()]
+    .sort((a, b) => b.signalEpoch - a.signalEpoch)
+    .slice(0, limit);
 }
