@@ -7,4 +7,4 @@ set risk_percent = 3
 where risk_percent is null or risk_percent <= 0;
 
 comment on column public.binance_spot_settings.risk_percent is
-  'Planned account risk percentage per scanner batch; position quantity is calculated from entry-to-stop distance and capped by free USDT.';
+  'Planned account risk percentage per Binance trade; position quantity is calculated from entry-to-stop distance and capped by free USDT.';
