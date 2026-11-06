@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } from "./deriv.ts";
+import { fetchBinanceCandles, loadBinanceSymbols } from "./binance.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
 import { buildBackendStopIntent, buildBackendLimitIntent, buildBackendReversalPendingOrder } from "./pendingIntents.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
@@ -31,7 +32,7 @@ function latestClosedEpoch(granularity: number, nowEpoch: number): number {
 
 async function loadTimeframeCandles(
   feed: DerivFeed,
-  symbol: string,
+  symbol: SymbolInfo,
   timeframe: Timeframe,
   _nowEpoch: number,
   cache: Map<number, Candle[]>,
@@ -39,7 +40,9 @@ async function loadTimeframeCandles(
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
 
-  const candles = await fetchCandles(feed, symbol, timeframe.granularity, timeframe.candleCount);
+  const candles = symbol.exchange === "BINANCE"
+    ? await fetchBinanceCandles(symbol.symbol, timeframe.granularity, timeframe.candleCount)
+    : await fetchCandles(feed, symbol.symbol, timeframe.granularity, timeframe.candleCount);
   cache.set(timeframe.granularity, candles);
   return candles;
 }
@@ -251,7 +254,15 @@ async function runScan(): Promise<Record<string, unknown>> {
   }
 
   try {
-    const symbols = await loadSymbols(feed);
+    const derivSymbols = await loadSymbols(feed);
+    let binanceSymbols: SymbolInfo[] = [];
+    let binanceLoadError: string | null = null;
+    try {
+      binanceSymbols = await loadBinanceSymbols();
+    } catch (error) {
+      binanceLoadError = `Binance asset discovery: ${messageOf(error)}`;
+    }
+    const symbols = [...derivSymbols, ...binanceSymbols];
     const marks = await loadMarks();
     // Rotate the starting symbol each minute so a time-limited run never always skips the same assets.
     const offset = symbols.length ? Math.floor(started / 60000) % symbols.length : 0;
@@ -260,7 +271,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     let fetchedCount = 0;
     let rowsWritten = 0;
     let scannedSymbols = 0;
-    let lastError: string | null = null;
+    let lastError: string | null = binanceLoadError;
 
     let mt5AccountsPromise: Promise<Array<{
       user_id: string; login: string; server: string;
@@ -343,7 +354,7 @@ async function runScan(): Promise<Record<string, unknown>> {
         if (previousMark !== undefined && previousMark >= latestClosed) continue;
 
         try {
-          const candles = await loadTimeframeCandles(feed, symbol.symbol, timeframe, nowEpoch, candleCache);
+          const candles = await loadTimeframeCandles(feed, symbol, timeframe, nowEpoch, candleCache);
           fetchedCount += 1;
           const result = await processTimeframe(symbol, timeframe, candles, nowEpoch, previousMark);
           rowsWritten += result.rowsWritten;
@@ -386,7 +397,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                 // Higher frames remain available for context but never veto execution setups.
                 for (const frame of AUTOMATION_TIMEFRAMES) {
                   if (!candleCache.has(frame.granularity)) {
-                    await loadTimeframeCandles(feed, symbol.symbol, frame, nowEpoch, candleCache);
+                    await loadTimeframeCandles(feed, symbol, frame, nowEpoch, candleCache);
                     fetchedCount += 1;
                   }
                 }
@@ -409,15 +420,20 @@ async function runScan(): Promise<Record<string, unknown>> {
                   }], { onConflict: "event_key", ignoreDuplicates: true });
                   if (limitEventError) throw new Error("Could not queue LIMIT push event: " + limitEventError.message);
                 }
-                const accounts = await loadMt5Accounts();
-                for (const limitIntent of limitIntents) {
-                  await persistAccountSignalIntent(accounts, symbol.name, limitIntent,
-                    "server_scanner_limit", limitIntent.strengthScore);
-                }
-                const stopIntents = buildBackendStopIntent(symbol.symbol, candleCache, nowEpoch)
-                  .filter((intent) => intent.signalEpoch === latestSignal.signalEpoch);
-                for (const stopIntent of stopIntents) {
-                  await persistAccountSignalIntent(accounts, symbol.name, stopIntent, "server_scanner_stop");
+                // Binance spot pairs are included in signals, records and alerts.
+                // Broker execution intents remain Deriv-only until an explicit broker
+                // instrument mapping exists for each Binance pair.
+                if (symbol.exchange !== "BINANCE") {
+                  const accounts = await loadMt5Accounts();
+                  for (const limitIntent of limitIntents) {
+                    await persistAccountSignalIntent(accounts, symbol.name, limitIntent,
+                      "server_scanner_limit", limitIntent.strengthScore);
+                  }
+                  const stopIntents = buildBackendStopIntent(symbol.symbol, candleCache, nowEpoch)
+                    .filter((intent) => intent.signalEpoch === latestSignal.signalEpoch);
+                  for (const stopIntent of stopIntents) {
+                    await persistAccountSignalIntent(accounts, symbol.name, stopIntent, "server_scanner_stop");
+                  }
                 }
               } catch (error) {
                 lastError = `MT5 intent ${symbol.symbol}: ${messageOf(error)}`;
