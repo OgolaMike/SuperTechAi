@@ -60,9 +60,9 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
     <section className="mt-8 space-y-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 orders</p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">M15 Stop Signals</h2>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">M15 Order Signals</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          BUY STOP and SELL STOP order details across all discovered Deriv assets. Order progress and outcomes update as confirmed M15 candles close.
+          BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT proposals across discovered Deriv assets. Order progress and outcomes update as confirmed M15 candles close.
         </p>
       </div>
 
@@ -122,7 +122,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
 
       <div className="flex items-start gap-2 rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-warn" />
-        <p>These are tracked signal proposals, not live broker orders. Results are based on confirmed M15 candle closes and are saved on this device.</p>
+        <p>These are tracked signal proposals, not live broker orders. Signals use confirmed M15 candle structure; tracked outcomes use candle high/low levels and are saved on this device.</p>
       </div>
     </section>
   );
