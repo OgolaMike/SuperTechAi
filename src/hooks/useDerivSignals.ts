@@ -158,7 +158,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               symbols.some((item) => item.symbol === symbol),
             );
             const allSymbols = symbols.map((item) => item.symbol);
-            watchedRef.current = new Set(allSymbols);
+            watchedRef.current = new Set([...allSymbols, ...binanceAssets.filter((asset) => selectedRef.current.includes(asset.symbol)).map((asset) => asset.symbol)]);
             const selectedM15Tasks = currentAssets.map((symbol) => () =>
               client
                 .subscribeCandles(symbol, M15_GRANULARITY, ALL_ASSET_M15_HISTORY)
