@@ -1,4 +1,4 @@
-export type SymbolInfo = { symbol: string; name: string; digits: number };
+export type SymbolInfo = { symbol: string; name: string; digits: number; exchange?: 'DERIV' | 'BINANCE' };
 export type Candle = { epoch: number; open?: number; high?: number; low?: number; close: number };
 
 const DERIV_WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
@@ -104,6 +104,7 @@ export async function loadSymbols(feed: DerivFeed): Promise<SymbolInfo[]> {
         ? item.underlying_symbol_name
         : item.underlying_symbol,
       digits,
+      exchange: 'DERIV',
     });
   }
   return [...byCode.values()];
