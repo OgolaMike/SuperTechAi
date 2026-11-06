@@ -338,3 +338,56 @@ nav[aria-label="Sections"] button[aria-current="page"] {
 }
 .dark .level-dial-entry { border-left-width: 4px; }
 .light .level-dial-entry { border-left-width: 4px; }
+
+
+/* High-contrast dial outlines: white in dark mode, black in light mode.
+   Apply to every trade-level dial, not only the entry dial. */
+.dark .level-dial,
+.dark .level-dial.level-dial-entry,
+.dark .level-dial.level-dial-up,
+.dark .level-dial.level-dial-down,
+.dark .level-dial.level-dial-neutral {
+  border: 1px solid #fff !important;
+}
+.light .level-dial,
+.light .level-dial.level-dial-entry,
+.light .level-dial.level-dial-up,
+.light .level-dial.level-dial-down,
+.light .level-dial.level-dial-neutral {
+  border: 1px solid #000 !important;
+}
+.dark .level-dial.level-dial-entry,
+.light .level-dial.level-dial-entry {
+  border-left-width: 4px !important;
+}
+
+
+/* Signature dial finish: thicker monochrome frame with a restrained gold edge glow. */
+.dark .level-dial {
+  border: 2px solid #f7fbff !important;
+  box-shadow: inset 0 0 0 1px rgb(212 175 55 / .42), 0 0 13px -7px rgb(212 175 55 / .72), var(--dial-existing-shadow, 0 0 0 transparent);
+}
+.light .level-dial {
+  border: 2px solid #080b10 !important;
+  box-shadow: inset 0 0 0 1px rgb(184 134 11 / .42), 0 0 12px -8px rgb(184 134 11 / .55), var(--dial-existing-shadow, 0 0 0 transparent);
+}
+.dark .level-dial-entry,
+.light .level-dial-entry {
+  border-left-width: 5px !important;
+}
+.dark .level-dial-hit {
+  box-shadow: inset 0 0 0 1px rgb(212 175 55 / .6), 0 0 18px -5px rgb(212 175 55 / .72), 0 0 22px -5px rgb(var(--up) / .55);
+}
+.light .level-dial-hit {
+  box-shadow: inset 0 0 0 1px rgb(184 134 11 / .58), 0 0 15px -6px rgb(184 134 11 / .58), 0 0 18px -6px rgb(var(--up) / .4);
+}
+@media (prefers-reduced-motion: reduce) {
+  .level-dial { transition: none !important; }
+}
+
+.dark .level-dial-up { box-shadow: inset 0 0 0 1px rgb(212 175 55 / .32), inset 0 0 18px rgb(var(--up) / .045), 0 0 13px -7px rgb(212 175 55 / .62), 0 0 14px -10px rgb(var(--up) / .55); }
+.dark .level-dial-down { box-shadow: inset 0 0 0 1px rgb(212 175 55 / .32), inset 0 0 18px rgb(var(--down) / .045), 0 0 13px -7px rgb(212 175 55 / .62), 0 0 14px -10px rgb(var(--down) / .55); }
+.dark .level-dial-neutral { box-shadow: inset 0 0 0 1px rgb(212 175 55 / .32), inset 0 0 18px rgb(var(--accent) / .04), 0 0 13px -7px rgb(212 175 55 / .62), 0 0 14px -10px rgb(var(--accent) / .5); }
+.light .level-dial-up { box-shadow: inset 0 0 0 1px rgb(184 134 11 / .3), inset 0 0 18px rgb(var(--up) / .045), 0 0 12px -8px rgb(184 134 11 / .5), 0 0 14px -10px rgb(var(--up) / .4); }
+.light .level-dial-down { box-shadow: inset 0 0 0 1px rgb(184 134 11 / .3), inset 0 0 18px rgb(var(--down) / .045), 0 0 12px -8px rgb(184 134 11 / .5), 0 0 14px -10px rgb(var(--down) / .4); }
+.light .level-dial-neutral { box-shadow: inset 0 0 0 1px rgb(184 134 11 / .3), inset 0 0 18px rgb(var(--accent) / .04), 0 0 12px -8px rgb(184 134 11 / .5), 0 0 14px -10px rgb(var(--accent) / .35); }
