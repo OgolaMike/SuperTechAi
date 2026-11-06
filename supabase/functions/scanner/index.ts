@@ -422,7 +422,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                   }
                 }
               } catch (error) {
-                lastError = `MT5 intent ${symbol.symbol}: ${messageOf(error)}`;
+                lastError = `Automation intent ${symbol.symbol}: ${messageOf(error)}`;
               }
             }
           }
