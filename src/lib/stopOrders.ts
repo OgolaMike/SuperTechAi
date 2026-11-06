@@ -15,7 +15,7 @@ export type M15StopIdea = {
   symbol: string;
   assetName: string;
   digits: number;
-  type: 'BUY STOP' | 'SELL STOP' | 'BUY LIMIT' | 'SELL LIMIT';
+  type: 'BUY LIMIT' | 'SELL LIMIT';
   direction: Direction;
   entry: number;
   stopLoss: number;
@@ -48,9 +48,8 @@ function calculateBands(candles: TfState['candles']): Array<BandPoint | null> {
   });
 }
 
-function getOrderType(direction: Direction, entry: number, currentPrice: number): M15StopIdea['type'] {
-  if (direction === 'BUY') return entry >= currentPrice ? 'BUY STOP' : 'BUY LIMIT';
-  return entry <= currentPrice ? 'SELL STOP' : 'SELL LIMIT';
+function getOrderType(direction: Direction): M15StopIdea['type'] {
+  return direction === 'BUY' ? 'BUY LIMIT' : 'SELL LIMIT';
 }
 
 function evaluateOrder(
@@ -72,10 +71,7 @@ function evaluateOrder(
   for (const candle of candles) {
     if (candle.epoch <= signalEpoch) continue;
     const isBuy = direction === 'BUY';
-    const entered = type === 'BUY STOP' ? candle.high >= entry
-      : type === 'BUY LIMIT' ? candle.low <= entry
-      : type === 'SELL STOP' ? candle.low <= entry
-      : candle.high >= entry;
+    const entered = type === 'BUY LIMIT' ? candle.low <= entry : candle.high >= entry;
 
     if (entryHitEpoch === null) {
       if (!entered) continue;
@@ -111,8 +107,8 @@ function evaluateOrder(
 
 /**
  * Creates M15 proposals from a BB(60, 2.5) rejection and two-candle structure
- * confirmation. The same signal may be expressed as a stop or limit order
- * according to where the live market is relative to the confirmed entry.
+ * confirmation. Stop-entry orders are disabled; only correctly positioned
+ * BUY LIMIT and SELL LIMIT proposals are emitted.
  */
 export function buildM15StopOrderIdeas(
   assets: Asset[],
@@ -163,7 +159,8 @@ export function buildM15StopOrderIdeas(
       const stopLoss = direction === 'BUY' ? entry - risk : entry + risk;
       if (!(stopLoss > 0)) continue;
 
-      const type = getOrderType(direction, entry, currentPrice);
+      if (direction === 'BUY' ? entry >= currentPrice : entry <= currentPrice) continue;
+      const type = getOrderType(direction);
       const signalEpoch = confirm.epoch;
       const levels = {
         mean: confirmBand.mean,
