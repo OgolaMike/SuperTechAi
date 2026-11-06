@@ -60,7 +60,6 @@ function executionContext(symbol: string, candlesByGranularity: Map<number, Cand
   const direction = biases[0] as Direction | null;
   if (!direction || !biases.every((bias) => bias === direction)) return null;
 
-  const primaryCandles = candlesByGranularity.get(900)!;
   const primary = stats.get(900)!;
   const trigger = computeSignals(primaryCandles, 900, nowEpoch).signals.slice(-1)[0];
   if (!trigger || trigger.direction !== direction || trigger.outcome.closed ||
@@ -115,73 +114,4 @@ export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Ma
       idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}|L${index + 1}`,
     }))
     .filter((intent) => [intent.stopLoss, intent.takeProfit].every((v) => Number.isFinite(v) && v > 0));
-}
-
-export type BackendReversalPendingOrder = {
-  symbol: string;
-  signalEpoch: number;
-  direction: Direction;
-  entry: number;
-  stopLoss: number;
-  takeProfit: number;
-  currentPrice: number;
-  orderType: OrderDirection;
-  strategyVersion: "bb60-2.5-two-candle-reversal-v1";
-  idempotencyKey: string;
-};
-
-/** Mirrors the Pending Orders BB(60, 2.5) rejection + two-candle confirmation rule. */
-export function buildBackendReversalPendingOrder(
-  symbol: string,
-  candles: Candle[],
-  nowEpoch: number,
-): BackendReversalPendingOrder | null {
-  const closed = candles
-    .filter((candle) => candle.epoch + 900 <= nowEpoch)
-    .sort((a, b) => a.epoch - b.epoch);
-  const i = closed.length - 1;
-  if (i < 61) return null;
-
-  const bandAt = (index: number) => {
-    if (index < 59) return null;
-    const window = closed.slice(index - 59, index + 1);
-    const mean = window.reduce((sum, candle) => sum + candle.close, 0) / 60;
-    const variance = window.reduce((sum, candle) => sum + (candle.close - mean) ** 2, 0) / 60;
-    const deviation = Math.sqrt(variance);
-    return { mean, high: mean + 2.5 * deviation, low: mean - 2.5 * deviation };
-  };
-
-  const crossIndex = i - 2;
-  const previousBand = bandAt(crossIndex - 1);
-  const crossBand = bandAt(crossIndex);
-  const targetBand = bandAt(i);
-  if (!previousBand || !crossBand || !targetBand) return null;
-
-  const beforeCross = closed[crossIndex - 1];
-  const cross = closed[crossIndex];
-  const firstConfirm = closed[crossIndex + 1];
-  const confirm = closed[i];
-  if (cross.low == null || firstConfirm.low == null || confirm.low == null ||
-      cross.high == null || firstConfirm.high == null || confirm.high == null) return null;
-  const sellCross = beforeCross.close >= previousBand.high && cross.close < crossBand.high;
-  const buyCross = beforeCross.close <= previousBand.low && cross.close > crossBand.low;
-  const sellStructure = firstConfirm.low < cross.low && confirm.low < firstConfirm.low;
-  const buyStructure = firstConfirm.high > cross.high && confirm.high > firstConfirm.high;
-  const direction: Direction | null = sellCross && sellStructure ? "SELL"
-    : buyCross && buyStructure ? "BUY" : null;
-  if (!direction) return null;
-
-  const entry = confirm.close;
-  const takeProfit = targetBand.mean;
-  const reward = direction === "BUY" ? takeProfit - entry : entry - takeProfit;
-  if (!(entry > 0 && takeProfit > 0 && reward > 0)) return null;
-  const stopLoss = direction === "BUY" ? entry - reward / 2 : entry + reward / 2;
-  if (!(stopLoss > 0)) return null;
-  const orderType: OrderDirection = direction === "BUY" ? "BUY_LIMIT" : "SELL_LIMIT";
-  const signalEpoch = confirm.epoch;
-  return {
-    symbol, signalEpoch, direction, orderType, entry, stopLoss, takeProfit,
-    currentPrice: confirm.close, strategyVersion: "bb60-2.5-two-candle-reversal-v1",
-    idempotencyKey: `${symbol}|${orderType}|${signalEpoch}|BB25REV`,
-  };
 }
