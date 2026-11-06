@@ -65,7 +65,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 order intelligence</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT setups for the assets currently selected above (up to 10). Alerts follow that same selection. Every order includes a live M15 chart snapshot with its entry, stop-loss, take-profit and current market levels.
+          BUY LIMIT and SELL LIMIT setups for the assets currently selected above (up to 10). Alerts follow that same selection. Every order includes a live M15 chart snapshot with its entry, stop-loss, take-profit and current market levels.
         </p>
       </div>
 
