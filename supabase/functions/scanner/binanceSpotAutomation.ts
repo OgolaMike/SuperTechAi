@@ -140,9 +140,30 @@ export async function submitBinanceSpotLimitIntents(
     const allowed = account.allowed_symbols ?? [];
     if (allowed.length > 0 && !allowed.includes(symbol)) { skipped += buyIntents.length; continue; }
 
+    const { data: trackedOrders, error: trackedError } = await db.from("binance_spot_orders")
+      .select("id,symbol,status,broker_order_list_id")
+      .eq("user_id", account.user_id)
+      .in("status", ["submitted", "partially_filled", "filled"]);
+    if (trackedError) { failed += 1; continue; }
+    for (const tracked of trackedOrders ?? []) {
+      if (!tracked.broker_order_list_id || !["submitted", "partially_filled", "filled"].includes(tracked.status)) continue;
+      try {
+        const list = await signedBinance(apiKeyForStatus, apiSecretForStatus, "/api/v3/orderList", "GET", {
+          orderListId: String(tracked.broker_order_list_id),
+        });
+        if (list.listOrderStatus === "ALL_DONE" || list.listStatusType === "ALL_DONE") {
+          await db.from("binance_spot_orders").update({
+            status: "closed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+            result_payload: list,
+          }).eq("id", tracked.id).eq("user_id", account.user_id);
+        }
+      } catch {
+        // A failed status poll never changes the order's recorded exchange state.
+      }
+    }
     const { data: existing, error: existingError } = await db.from("binance_spot_orders")
       .select("id").eq("user_id", account.user_id)
-      .in("status", ["queued", "submitted", "partially_filled", "filled"]);
+      .in("status", ["queued", "submitted", "partially_filled", "filled", "uncertain"]);
     if (existingError) { failed += 1; continue; }
     if ((existing?.length ?? 0) >= account.max_open_positions) { skipped += buyIntents.length; continue; }
 
@@ -153,6 +174,7 @@ export async function submitBinanceSpotLimitIntents(
     let apiKey: string, apiSecret: string;
     try {
       [apiKey, apiSecret] = await Promise.all([decrypt(stored.encrypted_api_key), decrypt(stored.encrypted_api_secret)]);
+      const apiKeyForStatus = apiKey, apiSecretForStatus = apiSecret;
       const accountInfo = await signedBinance(apiKey, apiSecret, "/api/v3/account", "GET", {});
       const usdt = Array.isArray(accountInfo.balances)
         ? (accountInfo.balances as Array<Record<string, unknown>>).find((b) => b.asset === "USDT")
