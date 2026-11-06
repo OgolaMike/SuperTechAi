@@ -65,7 +65,14 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <Price label="Live price" value={idea.currentPrice} digits={idea.digits} />
-                    <Price label="M15 AI score" value={idea.aiScore ?? 0} digits={0} />
+                    {idea.aiScore !== null ? (
+                      <Price label="M15 AI score" value={idea.aiScore} digits={0} />
+                    ) : (
+                      <div className="rounded-xl border border-line/10 bg-surface/[0.02] p-3">
+                        <p className="text-xs text-ink-3">M15 AI score</p>
+                        <p className="mt-1 text-sm font-medium text-ink-2">AI is still learning</p>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-4">
                     <LevelList
