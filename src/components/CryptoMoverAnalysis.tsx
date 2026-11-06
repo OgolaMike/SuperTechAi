@@ -139,7 +139,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
       candle.high, candle.low,
       ...(showBands && visibleStats[index] ? [visibleStats[index]!.upper, visibleStats[index]!.lower] : []),
       ...(showSma && visibleStats[index] ? [visibleStats[index]!.mean] : []),
-    ]).concat(latestSignal ? [latestSignal.levels.entry, latestSignal.levels.stopLoss, latestSignal.levels.tp3] : []);
+    ]).concat(latestSignal ? [latestSignal.levels.entry, latestSignal.levels.stopLoss, latestSignal.levels.tp3] : []).concat(pendingOrderIdea ? [pendingOrderIdea.entry, pendingOrderIdea.stopLoss, pendingOrderIdea.takeProfit] : []);
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
@@ -151,7 +151,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
       .map((item, index) => item ? `${index === 0 || !visibleStats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
       .filter(Boolean).join(' ');
     return { min, max, x, y, path, width: PADDING.left + plotWidth + PADDING.right, bodyWidth: Math.max(2, Math.min(28, spacing * 0.72)) };
-  }, [data, visibleStats, showBands, showSma, spacing, latestSignal]);
+  }, [data, visibleStats, showBands, showSma, spacing, latestSignal, pendingOrderIdea]);
 
   return (
     <section className="mt-5 overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.03]">
@@ -255,6 +255,16 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
                     <g key={level.label}>
                       <line x1={PADDING.left} x2={chart.width - PADDING.right} y1={chart.y(level.value)} y2={chart.y(level.value)} stroke={level.color} strokeDasharray="5 4" strokeWidth="1.5" />
                       <text x={PADDING.left + 4} y={Math.max(PADDING.top + 10, chart.y(level.value) - 4)} fill={level.color} fontSize="10" fontWeight="700">{level.label}</text>
+                    </g>
+                  ))}
+                  {pendingOrderIdea && [
+                    { label: 'PENDING ENTRY', value: pendingOrderIdea.entry, color: '#a78bfa' },
+                    { label: 'PENDING SL', value: pendingOrderIdea.stopLoss, color: '#fb7185' },
+                    { label: 'PENDING TARGET', value: pendingOrderIdea.takeProfit, color: '#4ade80' },
+                  ].map((level) => (
+                    <g key={level.label}>
+                      <line x1={PADDING.left} x2={chart.width - PADDING.right} y1={chart.y(level.value)} y2={chart.y(level.value)} stroke={level.color} strokeDasharray="2 4" strokeWidth="1.5" />
+                      <text x={PADDING.left + 4} y={Math.max(PADDING.top + 10, chart.y(level.value) - 4)} fill={level.color} fontSize="9" fontWeight="700">{level.label}</text>
                     </g>
                   ))}
                   {data.map((candle, index) => {
