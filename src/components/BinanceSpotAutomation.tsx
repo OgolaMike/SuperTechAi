@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, CircleHelp, KeyRound, RefreshCw, ShieldCheck, Unplug, Wallet } from 'lucide-react';
+import { CircleHelp, KeyRound, RefreshCw, ShieldCheck, Unplug, Wallet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 type Settings = {
