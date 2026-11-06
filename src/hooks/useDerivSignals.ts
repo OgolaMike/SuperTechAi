@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DerivClient, type Candle, type ConnectionStatus, type DerivSymbol } from '@/lib/deriv';
+import { BinanceStream, fetchBinanceCandles, loadBinanceAssets } from '@/lib/binance';
 import {
   TIMEFRAMES,
   computeTfState,
@@ -42,6 +43,7 @@ function toAsset(symbol: DerivSymbol): Asset {
     name: symbol.displayName,
     fullName: symbol.displayName,
     digits: symbol.digits,
+    exchange: 'DERIV',
   };
 }
 
@@ -54,6 +56,12 @@ function latestConfirmedEpoch(candles: Candle[], granularity: number, nowEpoch: 
     if (candles[index].epoch + granularity <= nowEpoch) return candles[index].epoch;
   }
   return null;
+}
+
+async function runTasksInBatches(tasks: Array<() => Promise<void>>, batchSize = 8): Promise<void> {
+  for (let index = 0; index < tasks.length; index += batchSize) {
+    await Promise.all(tasks.slice(index, index + batchSize).map((task) => task().catch(() => undefined)));
+  }
 }
 
 export function useDerivSignals(selectedSymbols: string[]): DashboardData {
@@ -90,6 +98,14 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
 
   useEffect(() => {
     const client = new DerivClient();
+    const binanceStream = new BinanceStream();
+    let derivAssets: Asset[] = [];
+    let binanceAssets: Asset[] = [];
+    let derivLoaded = false;
+    let binanceLoaded = false;
+    let stopped = false;
+    const publishAssets = () => setAssets([...derivAssets, ...binanceAssets]);
+    const markLoaded = () => { if (!stopped && derivLoaded && binanceLoaded) setLoaded(true); };
     candlesRef.current = {};
     computedConfirmedRef.current = {};
     pendingPricesRef.current = {};
@@ -100,17 +116,44 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     setPrices({});
     setLoaded(false);
 
+    const applyCandle = (symbol: string, granularity: number, candle: Candle) => {
+      if (!symbol || !watchedRef.current.has(symbol)) return;
+      pendingLastTickRef.current = candle.epoch;
+      pendingPricesRef.current[symbol] = candle.close;
+      if (!priceFlushTimerRef.current) {
+        priceFlushTimerRef.current = setTimeout(() => {
+          const updates = pendingPricesRef.current;
+          pendingPricesRef.current = {};
+          priceFlushTimerRef.current = null;
+          setPrices((previous) => ({ ...previous, ...updates }));
+          if (pendingLastTickRef.current !== null) setLastTick(pendingLastTickRef.current);
+          pendingLastTickRef.current = null;
+        }, 350);
+      }
+      candlesRef.current[symbol] ??= {};
+      const nextCandles = mergeCandle(candlesRef.current[symbol][granularity] ?? [], candle);
+      candlesRef.current[symbol][granularity] = nextCandles;
+      const confirmedEpoch = latestConfirmedEpoch(nextCandles, granularity, Math.floor(Date.now() / 1000));
+      const computeKey = `${symbol}:${granularity}`;
+      if (confirmedEpoch !== null && computedConfirmedRef.current[computeKey] !== confirmedEpoch) {
+        computedConfirmedRef.current[computeKey] = confirmedEpoch;
+        recompute(symbol, granularity);
+      }
+    };
+
     const unsubStatus = client.onStatus((nextStatus, detail) => {
       setStatus({ status: nextStatus, detail });
     });
 
     const unsubOpen = client.onOpen(() => {
       setLoaded(false);
+      derivLoaded = false;
       client.forgetAllCandles().finally(() => {
         client
           .loadActiveSymbols()
           .then((symbols) => {
-            setAssets(symbols.map(toAsset));
+            derivAssets = symbols.map(toAsset);
+            publishAssets();
             const currentAssets = selectedRef.current.filter((symbol) =>
               symbols.some((item) => item.symbol === symbol),
             );
@@ -158,7 +201,8 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               ...selectedM15Tasks,
               ...selectedHigherTimeframeTasks,
             ]).then(() => {
-              setLoaded(true);
+              derivLoaded = true;
+              markLoaded();
               if (backgroundM15Tasks.length > 0) void client.staggerSubscriptions(backgroundM15Tasks);
             });
           })
@@ -169,38 +213,45 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     });
 
     const unsubOhlc = client.onOhlc(({ granularity, candle }) => {
-      const symbol = candle.symbol ?? '';
-      if (!symbol || !watchedRef.current.has(symbol)) return;
-      pendingLastTickRef.current = candle.epoch;
-      pendingPricesRef.current[symbol] = candle.close;
-      if (!priceFlushTimerRef.current) {
-        priceFlushTimerRef.current = setTimeout(() => {
-          const updates = pendingPricesRef.current;
-          pendingPricesRef.current = {};
-          priceFlushTimerRef.current = null;
-          setPrices((previous) => ({ ...previous, ...updates }));
-          if (pendingLastTickRef.current !== null) setLastTick(pendingLastTickRef.current);
-          pendingLastTickRef.current = null;
-        }, 350);
-      }
+      applyCandle(candle.symbol ?? '', granularity, candle);
+    });
 
-      candlesRef.current[symbol] ??= {};
-      const current = candlesRef.current[symbol][granularity] ?? [];
-      const nextCandles = mergeCandle(current, candle);
-      candlesRef.current[symbol][granularity] = nextCandles;
-
-      // Forming-candle updates refresh prices only. Recalculate signals when a
-      // newly completed candle becomes available, not on every market tick.
-      const confirmedEpoch = latestConfirmedEpoch(nextCandles, granularity, Math.floor(Date.now() / 1000));
-      const computeKey = `${symbol}:${granularity}`;
-      if (confirmedEpoch !== null && computedConfirmedRef.current[computeKey] !== confirmedEpoch) {
-        computedConfirmedRef.current[computeKey] = confirmedEpoch;
-        recompute(symbol, granularity);
-      }
+    // Binance spot is an additional public market-data source. Its assets use
+    // the same eight timeframe calculations and state model as Deriv assets.
+    void loadBinanceAssets().then(async (markets) => {
+      if (stopped) return;
+      binanceAssets = markets.map((market) => ({
+        symbol: market.symbol, name: market.name, fullName: market.displayName,
+        digits: market.digits, exchange: 'BINANCE' as const,
+      }));
+      publishAssets();
+      const selectedMarkets = binanceAssets.filter((asset) => selectedRef.current.includes(asset.symbol));
+      watchedRef.current = new Set([...watchedRef.current, ...selectedMarkets.map((asset) => asset.symbol)]);
+      const tasks = selectedMarkets.flatMap((asset) => LIVE_TIMEFRAMES.map((timeframe) => async () => {
+        const candles = await fetchBinanceCandles(asset.symbol, timeframe, timeframe.candleCount);
+        if (stopped) return;
+        candlesRef.current[asset.symbol] ??= {};
+        candlesRef.current[asset.symbol][timeframe.granularity] = candles;
+        const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
+        if (confirmedEpoch !== null) computedConfirmedRef.current[`${asset.symbol}:${timeframe.granularity}`] = confirmedEpoch;
+        recompute(asset.symbol, timeframe.granularity);
+      }));
+      await runTasksInBatches(tasks, 8);
+      if (stopped) return;
+      binanceStream.start(selectedMarkets.map((asset) => asset.symbol), LIVE_TIMEFRAMES, applyCandle);
+      binanceLoaded = true;
+      markLoaded();
+    }).catch((error: Error) => {
+      if (stopped) return;
+      binanceLoaded = true;
+      setStatus((previous) => ({ ...previous, detail: `Binance market data unavailable: ${error.message}` }));
+      markLoaded();
     });
 
     client.start();
     return () => {
+      stopped = true;
+      binanceStream.stop();
       unsubStatus();
       unsubOpen();
       unsubOhlc();
