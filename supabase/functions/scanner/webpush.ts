@@ -17,7 +17,7 @@ export type PushSubscriptionRow = {
 export type PushEventRow = {
   event_key: string;
   signal_key: string;
-  kind: "signal" | "target" | "stop" | "limit_order";
+  kind: "signal" | "target" | "stop" | "limit_order" | "pending_order";
   payload: EventPayload;
 };
 
@@ -167,6 +167,9 @@ function buildMessage(event: PushEventRow): string {
   } else if (event.kind === "stop") {
     title = `${p.assetName} ${p.timeframe}: Stop-loss hit`;
     body = `Price ${price(p.price)} · Entry ${price(p.entry)} · Confirmed ${formatTime(p.eventEpoch)}`;
+  } else if (event.kind === "pending_order") {
+    title = `PENDING ${p.direction} ORDER · ${p.assetName}`;
+    body = `Confirmed M15 BB(60, 2.5) reversal · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · Target ${price(p.tp1)} · ${formatTime(p.eventEpoch)}`;
   } else {
     title = `${p.direction} LIMIT SIGNAL · ${p.assetName}`;
     body = `Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP ${price(p.tp3)} · Strength ${p.strengthScore ?? p.momentumScore ?? 0}/100 · ${p.timeframeAgreement ?? 8}/8 timeframes · ${formatTime(p.eventEpoch)}`;
