@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     }
     if (action === "status") {
       const [{ data: settings, error: settingsError }, { data: orders, error: ordersError }, { data: positions, error: positionsError }] = await Promise.all([
-        admin.from("binance_spot_settings").select("connection_status,auto_trade_enabled,live_execution_enabled,emergency_stop,quote_asset,max_trade_usdt,max_open_positions,allowed_symbols,api_key_last4,account_label,last_checked_at,last_error_code").eq("user_id", userId).maybeSingle(),
+        admin.from("binance_spot_settings").select("connection_status,auto_trade_enabled,live_execution_enabled,emergency_stop,quote_asset,risk_percent,max_open_positions,allowed_symbols,api_key_last4,account_label,last_checked_at,last_error_code").eq("user_id", userId).maybeSingle(),
         admin.from("binance_spot_orders").select("id,symbol,side,order_kind,entry_price,quantity,stop_loss,take_profit,status,broker_order_id,broker_order_list_id,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(30),
         admin.from("binance_spot_positions").select("id,symbol,base_asset,quantity,entry_price,stop_loss,take_profit,status,opened_at,closed_at").eq("user_id", userId).order("opened_at", { ascending: false }).limit(30)
       ]);
@@ -92,9 +92,9 @@ Deno.serve(async (req) => {
       const { data: current, error: currentError } = await admin.from("binance_spot_settings").select("connection_status").eq("user_id", userId).maybeSingle();
       if (currentError) throw currentError;
       if (!current || current.connection_status !== "connected") return json({ error: "connect_binance_account_first" }, 409);
-      const maxTrade = Number(body.maxTradeUsdt), maxOpen = Number(body.maxOpenPositions);
+      const maxOpen = Number(body.maxOpenPositions);
       const symbols = Array.isArray(body.allowedSymbols) ? [...new Set(body.allowedSymbols.map((v: unknown) => String(v).toUpperCase()).filter((v: string) => /^[A-Z0-9]{4,20}$/.test(v)))].slice(0, 100) : [];
-      if (!Number.isFinite(maxTrade) || maxTrade < 5 || maxTrade > 100000 || !Number.isInteger(maxOpen) || maxOpen < 1 || maxOpen > 20) return json({ error: "invalid_spot_risk_limits" }, 400);
+      if (!Number.isInteger(maxOpen) || maxOpen < 1 || maxOpen > 20) return json({ error: "invalid_spot_risk_limits" }, 400);
       const emergency = body.emergencyStop !== false;
       if (body.autoTradeEnabled === true && body.liveExecutionEnabled === true && !emergency && symbols.length === 0) {
         return json({ error: "select_at_least_one_binance_spot_symbol" }, 400);
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
       const { error } = await admin.from("binance_spot_settings").update({
         auto_trade_enabled: body.autoTradeEnabled === true && !emergency,
         live_execution_enabled: body.liveExecutionEnabled === true && !emergency,
-        emergency_stop: emergency, max_trade_usdt: maxTrade, max_open_positions: maxOpen,
+        emergency_stop: emergency, max_open_positions: maxOpen,
         allowed_symbols: symbols, updated_at: new Date().toISOString()
       }).eq("user_id", userId);
       if (error) throw error;
