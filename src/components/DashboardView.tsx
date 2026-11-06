@@ -46,16 +46,20 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
               <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-2">{asset.fullName}</h3>
               <div className="h-px flex-1 bg-line/10" />
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1 xl:gap-6">
               {TIMEFRAMES.map((timeframe) => (
-                <SignalCard
+                <div
                   key={`${symbol}-${timeframe.granularity}`}
-                  asset={asset}
-                  tf={assetStates[timeframe.granularity] ?? emptyTfState(timeframe)}
-                  loaded={loaded}
-                  price={prices[symbol]}
-                  aiModel={aiModel}
-                />
+                  className="min-w-0 xl:min-h-[calc(100vh-13rem)] xl:flex xl:flex-col xl:justify-center"
+                >
+                  <SignalCard
+                    asset={asset}
+                    tf={assetStates[timeframe.granularity] ?? emptyTfState(timeframe)}
+                    loaded={loaded}
+                    price={prices[symbol]}
+                    aiModel={aiModel}
+                  />
+                </div>
               ))}
             </div>
           </section>
