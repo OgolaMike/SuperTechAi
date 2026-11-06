@@ -65,7 +65,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset }: Props) {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Crypto watch list</p>
           <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">7-day crypto market history</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            Explore daily top gainers, top losers and the full watchlist across the last 7 completed market days. Binance daily candles retain their UTC market-day boundaries; all SuperTech AI clock times use your device's local timezone.
+            Explore daily top gainers, top losers and the full watchlist across the last 7 completed market days. Binance daily candles retain their UTC market-day boundaries; all SuperTech AI clock times use your device's local timezone. Select any mover to open its live chart, technical analysis and confirmed signals. Add it to your 10 monitored assets to receive your configured alerts.
           </p>
         </div>
         <button
