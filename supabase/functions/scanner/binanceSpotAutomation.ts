@@ -13,7 +13,7 @@ type SpotIntent = {
 };
 type AccountSettings = {
   user_id: string;
-  max_trade_usdt: number;
+  risk_percent: number;
   max_open_positions: number;
   allowed_symbols: string[] | null;
 };
@@ -253,7 +253,7 @@ export async function submitBinanceSpotLimitIntents(
   intents: SpotIntent[],
 ): Promise<{ submitted: number; skipped: number; failed: number }> {
   const { data: accounts, error: accountsError } = await db.from("binance_spot_settings")
-    .select("user_id,max_trade_usdt,max_open_positions,allowed_symbols")
+    .select("user_id,risk_percent,max_open_positions,allowed_symbols")
     .eq("connection_status", "connected")
     .eq("auto_trade_enabled", true)
     .eq("live_execution_enabled", true)
@@ -294,11 +294,20 @@ export async function submitBinanceSpotLimitIntents(
       let availableUsdt = Number(usdt?.free ?? 0);
       if (!Number.isFinite(availableUsdt) || availableUsdt <= 0) { skipped += buyIntents.length; continue; }
 
-      const budget = Math.min(Number(account.max_trade_usdt), availableUsdt * 0.995);
-      const orderCount = Math.min(buyIntents.length, availableSlots, Math.floor(budget / rules.minNotional));
-      if (orderCount < 1) { skipped += buyIntents.length; continue; }
-      const selectedIntents = buyIntents.slice(0, orderCount);
-      const perOrderBudget = budget / selectedIntents.length;
+      const accountUsdtBalance = Number(usdt?.free ?? 0) + Number(usdt?.locked ?? 0);
+      const riskPercent = Number(account.risk_percent);
+      if (!Number.isFinite(accountUsdtBalance) || accountUsdtBalance <= 0 ||
+          !Number.isFinite(riskPercent) || riskPercent <= 0 || riskPercent > 5) {
+        skipped += buyIntents.length;
+        continue;
+      }
+      // Risk budget is 3% of the member's current USDT account balance.
+      // Position quantity is derived from the entry-to-stop distance, then capped
+      // by free USDT so the order never spends funds that are not available.
+      const totalRiskBudget = accountUsdtBalance * (riskPercent / 100);
+      const selectedIntents = buyIntents.slice(0, Math.min(buyIntents.length, availableSlots));
+      if (!selectedIntents.length || totalRiskBudget <= 0) { skipped += buyIntents.length; continue; }
+      const perOrderRiskBudget = totalRiskBudget / selectedIntents.length;
       for (let index = 0; index < selectedIntents.length; index += 1) {
         const intent = selectedIntents[index];
         const entryPrice = floorToStep(intent.entry, priceTick);
@@ -306,12 +315,17 @@ export async function submitBinanceSpotLimitIntents(
         const stopLoss = floorToStep(intent.stopLoss, priceTick);
         const current = intent.currentPrice;
         if (!(takeProfit > current && current > stopLoss && entryPrice < current)) { skipped += 1; continue; }
-        const quantity = floorToStep(perOrderBudget / entryPrice, rules.stepSize);
+        const riskDistance = entryPrice - stopLoss;
+        if (!Number.isFinite(riskDistance) || riskDistance <= 0 || availableUsdt <= 0) { skipped += 1; continue; }
+        const riskSizedQuantity = perOrderRiskBudget / riskDistance;
+        const affordableQuantity = (availableUsdt * 0.995) / entryPrice;
+        const quantity = floorToStep(Math.min(riskSizedQuantity, affordableQuantity, rules.maxQty), rules.stepSize);
         const notional = quantity * entryPrice;
-        if (quantity < rules.minQty || quantity > rules.maxQty || notional < rules.minNotional || notional > availableUsdt) {
+        if (quantity < rules.minQty || notional < rules.minNotional || notional > availableUsdt) {
           skipped += 1;
           continue;
         }
+        const plannedRiskUsdt = quantity * riskDistance;
         const idempotencyKey = account.user_id + "|" + intent.idempotencyKey;
         const hash = await shortHash(idempotencyKey);
         const listClientOrderId = "stai_l_" + hash;
@@ -323,7 +337,13 @@ export async function submitBinanceSpotLimitIntents(
           signal_key: symbol + "|M15|" + intent.signalEpoch + "|BUY",
           idempotency_key: idempotencyKey, client_order_id: workingClientOrderId,
           status: "queued",
-          request_payload: { quote_budget_usdt: perOrderBudget, strategy: "M15-M5-M1-LIMIT-OTOCO" },
+          request_payload: {
+            risk_percent: riskPercent,
+            account_usdt_balance: accountUsdtBalance,
+            planned_risk_usdt: plannedRiskUsdt,
+            quote_notional_usdt: notional,
+            strategy: "M15-M5-M1-LIMIT-OTOCO",
+          },
         }).select("id").single();
         if (insertError) {
           if (insertError.code === "23505") { skipped += 1; continue; }
