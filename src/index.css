@@ -319,3 +319,22 @@ nav[aria-label="Sections"] button[aria-current="page"] {
   background: rgb(125 137 153 / .22);
   box-shadow: inset 0 0 22px rgb(75 88 106 / .12), 0 0 18px -5px rgb(75 88 106 / .55);
 }
+
+
+/* Dashboard trade dials: consistent full-contrast outline in both themes. */
+.dark .level-dial,
+.dark .level-dial-entry,
+.dark .level-dial-up,
+.dark .level-dial-down,
+.dark .level-dial-neutral {
+  border: 1px solid rgb(255 255 255 / .72);
+}
+.light .level-dial,
+.light .level-dial-entry,
+.light .level-dial-up,
+.light .level-dial-down,
+.light .level-dial-neutral {
+  border: 1px solid rgb(0 0 0 / .68);
+}
+.dark .level-dial-entry { border-left-width: 4px; }
+.light .level-dial-entry { border-left-width: 4px; }
