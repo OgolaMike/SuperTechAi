@@ -3,7 +3,9 @@ import { AlertTriangle, Loader2, TrendingDown, TrendingUp } from 'lucide-react';
 import { BinanceStream, fetchBinanceCandles } from '@/lib/binance';
 import type { Candle } from '@/lib/deriv';
 import { computeTfState, mergeCandle, TIMEFRAMES, type TfState, type Timeframe } from '@/lib/sma';
-import { formatPrice } from '@/lib/sma';
+import { formatPrice, type Asset } from '@/lib/sma';
+import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
+import { trainSignalLearningModel } from '@/lib/aiLearning';
 
 type Props = {
   symbol: string;
@@ -117,6 +119,19 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
 
   const latestSignal = state.latestSignal;
   const signalFresh = latestSignal != null && Math.floor(Date.now() / 1000) - (latestSignal.signalEpoch + timeframe.granularity) <= 2 * timeframe.granularity;
+
+  const pendingOrderIdea = useMemo(() => {
+    if (timeframe.granularity !== 900) return null;
+    const asset: Asset = { symbol, name, fullName: name + '/USDT', digits: 6, exchange: 'BINANCE' };
+    const currentPrice = candles[candles.length - 1]?.close ?? state.lastClose ?? close;
+    return buildM15StopOrderIdeas(
+      [asset],
+      { [symbol]: { 900: state } },
+      { [symbol]: currentPrice },
+      trainSignalLearningModel([]),
+      Math.floor(Date.now() / 1000),
+    )[0] ?? null;
+  }, [timeframe, symbol, name, candles, state, close]);
 
   const chart = useMemo(() => {
     if (data.length < 2) return null;
@@ -254,6 +269,35 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
             ) : <p className="py-8 text-center text-xs text-ink-3">Waiting for enough confirmed candles to draw this chart.</p>}
           </div>
 
+          {timeframe.granularity === 900 && (
+            <div className="border-t border-line/10 p-4">
+              {pendingOrderIdea ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-ink">
+                      {pendingOrderIdea.status === 'WAITING' ? 'You can place this pending trade' :
+                        pendingOrderIdea.status === 'ENTRY HIT' ? 'Trade executed · wait for the next order' :
+                        pendingOrderIdea.status === 'TARGET HIT' ? 'Target reached' :
+                        pendingOrderIdea.status === 'STOP-LOSS HIT' ? 'Stop-loss reached' :
+                        pendingOrderIdea.status === 'EXPIRED' ? 'Pending setup expired' : 'Pending setup invalidated'}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-2">{pendingOrderIdea.type} · {pendingOrderIdea.status} · BB(60, 2.5) two-candle confirmation</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
+                    <span className="text-ink-2">Entry <b className="text-ink">{formatPrice(pendingOrderIdea.entry, 6)}</b></span>
+                    <span className="text-ink-2">Stop <b className="text-ink">{formatPrice(pendingOrderIdea.stopLoss, 6)}</b></span>
+                    <span className="text-ink-2">Target <b className="text-ink">{formatPrice(pendingOrderIdea.takeProfit, 6)}</b></span>
+                    <span className="text-ink-2">Market <b className="text-ink">{formatPrice(pendingOrderIdea.currentPrice, 6)}</b></span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm font-semibold text-ink">No active M15 pending-order setup</p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-2">The live chart and market analysis remain available. A pending setup will appear only after the BB(60, 2.5) rejection and two-candle structure confirmation.</p>
+                </div>
+              )}
+            </div>
+          )}
           <div className="border-t border-line/10 p-4">
             {latestSignal ? (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
