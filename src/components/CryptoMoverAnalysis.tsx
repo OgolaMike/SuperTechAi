@@ -30,6 +30,7 @@ function describeMarket(state: TfState) {
       momentum: 'Not enough data',
       band: 'Not available',
       volatility: 'Not available',
+      structure: 'Waiting for candle history',
     };
   }
   const recent = state.candles.slice(-6);
@@ -40,6 +41,9 @@ function describeMarket(state: TfState) {
   const bias = price > sma ? 'Bullish bias' : price < sma ? 'Bearish bias' : 'Neutral bias';
   const band = price >= upper ? 'At / above upper band' : price <= lower ? 'At / below lower band' : 'Inside Bollinger Bands';
   const volatilityPct = price !== 0 ? (deviation * 2.5 / price) * 100 : 0;
+  const structureCandles = state.candles.slice(-20);
+  const support = Math.min(...structureCandles.map((candle) => candle.low));
+  const resistance = Math.max(...structureCandles.map((candle) => candle.high));
   const momentum = momentumPct > 0.15 ? `Positive · +${momentumPct.toFixed(2)}% over 6 candles`
     : momentumPct < -0.15 ? `Negative · ${momentumPct.toFixed(2)}% over 6 candles`
     : `Flat · ${momentumPct.toFixed(2)}% over 6 candles`;
@@ -53,6 +57,7 @@ function describeMarket(state: TfState) {
     momentum,
     band,
     volatility: `${volatilityPct.toFixed(2)}% band distance from the mean`,
+    structure: `20-candle support ${formatPrice(support, 6)} · resistance ${formatPrice(resistance, 6)}`,
   };
 }
 
@@ -176,7 +181,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
         <div className="flex items-center gap-2 p-5 text-sm text-down"><AlertTriangle className="h-4 w-4" />{error}</div>
       ) : (
         <>
-          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-xl border border-line/10 p-3">
               <p className="text-[10px] uppercase tracking-wider text-ink-3">Market bias</p>
               <p className="mt-1 text-sm font-semibold text-ink">{analysis.bias}</p>
@@ -193,6 +198,10 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
             <div className="rounded-xl border border-line/10 p-3">
               <p className="text-[10px] uppercase tracking-wider text-ink-3">Volatility</p>
               <p className="mt-1 text-sm font-semibold text-ink">{analysis.volatility}</p>
+            </div>
+            <div className="rounded-xl border border-line/10 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-ink-3">Market structure</p>
+              <p className="mt-1 text-xs font-semibold leading-relaxed text-ink">{analysis.structure}</p>
             </div>
           </div>
 
