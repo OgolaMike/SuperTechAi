@@ -238,7 +238,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       }));
       await runTasksInBatches(tasks, 8);
       if (stopped) return;
-      binanceStream.start(selectedMarkets.map((asset) => asset.symbol), LIVE_TIMEFRAMES, applyCandle);
+      binanceStream.start(selectedMarkets.map((asset) => asset.symbol), LIVE_TIMEFRAMES, (granularity, candle) => applyCandle(candle.symbol ?? '', granularity, candle));
       binanceLoaded = true;
       markLoaded();
     }).catch((error: Error) => {
