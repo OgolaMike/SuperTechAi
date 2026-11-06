@@ -7,7 +7,7 @@ type Settings = {
   auto_trade_enabled: boolean;
   live_execution_enabled: boolean;
   emergency_stop: boolean;
-  max_trade_usdt: number | string;
+  risk_percent: number | string;
   max_open_positions: number;
   allowed_symbols: string[] | null;
   api_key_last4: string | null;
@@ -34,7 +34,6 @@ export function BinanceSpotAutomation() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
-  const [maxTrade, setMaxTrade] = useState('25');
   const [maxOpen, setMaxOpen] = useState('3');
   const [allowedSymbols, setAllowedSymbols] = useState('');
   const [autoTrade, setAutoTrade] = useState(false);
@@ -52,7 +51,6 @@ export function BinanceSpotAutomation() {
       setSettings(next);
       setOrders((result.orders ?? []) as Order[]);
       if (next) {
-        setMaxTrade(String(next.max_trade_usdt ?? 25));
         setMaxOpen(String(next.max_open_positions ?? 3));
         setAllowedSymbols((next.allowed_symbols ?? []).join(', '));
         setAutoTrade(Boolean(next.auto_trade_enabled));
@@ -95,7 +93,6 @@ export function BinanceSpotAutomation() {
     setBusy(true); setError(''); setMessage('');
     try {
       await callBinance('settings', {
-        maxTradeUsdt: Number(maxTrade),
         maxOpenPositions: Number(maxOpen),
         allowedSymbols: allowedSymbols.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean),
         autoTradeEnabled: autoTrade,
@@ -178,9 +175,11 @@ export function BinanceSpotAutomation() {
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
           <div className="mb-4 flex items-center gap-2"><Wallet className="h-5 w-5 text-accent" /><h3 className="font-semibold text-ink">Trading controls</h3></div>
           <div className="grid grid-cols-2 gap-3">
-            <label className="text-xs font-medium text-ink-2">Max USDT per signal
-              <input type="number" min="5" max="100000" step="1" value={maxTrade} onChange={(e) => setMaxTrade(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" />
-            </label>
+            <div className="rounded-xl border border-accent/20 bg-accent/5 px-3 py-2.5">
+              <p className="text-xs font-medium text-ink-2">Risk per trade</p>
+              <p className="mt-1 text-lg font-semibold text-ink">{Number(settings?.risk_percent ?? 3)}%</p>
+              <p className="mt-1 text-[11px] leading-4 text-ink-3">Of current Binance USDT balance</p>
+            </div>
             <label className="text-xs font-medium text-ink-2">Max active trades
               <input type="number" min="1" max="20" step="1" value={maxOpen} onChange={(e) => setMaxOpen(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" />
             </label>
@@ -194,7 +193,7 @@ export function BinanceSpotAutomation() {
             <label className="flex items-center justify-between gap-3 text-sm font-semibold text-rose-500"><span>Emergency stop</span><input type="checkbox" checked={emergencyStop} onChange={(e) => setEmergencyStop(e.target.checked)} /></label>
           </div>
           <button disabled={busy || !connected} onClick={() => void saveSettings()} className="mt-4 w-full rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm font-semibold text-ink disabled:opacity-50">Save trading controls</button>
-          <p className="mt-3 text-xs leading-5 text-ink-3">Automation only runs when the account is connected, both permissions are enabled, and the emergency stop is OFF. Only the symbols you list can trade. The per-signal USDT budget is shared across the two limit entries.</p>
+          <p className="mt-3 text-xs leading-5 text-ink-3">Automation only runs when the account is connected, both permissions are enabled, and the emergency stop is OFF. Only the symbols you list can trade. Position size adjusts to the entry-to-stop distance so planned risk is limited to 3% of the current Binance USDT balance; available free USDT and exchange minimums can reduce or prevent an order.</p>
         </div>
       </div>
 
