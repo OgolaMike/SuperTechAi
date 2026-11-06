@@ -99,6 +99,29 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                 </div>
                 <StatusPill status={idea.status} />
               </div>
+              <div className="mt-3 rounded-xl border border-line/25 bg-surface/[0.025] px-3 py-3">
+                {idea.status === 'WAITING' ? (
+                  <>
+                    <p className="text-sm font-semibold text-ink">You can place this trade.</p>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-2">Place the {idea.type} order using the entry, stop-loss and take-profit levels below. The platform will keep tracking the setup.</p>
+                  </>
+                ) : idea.status === 'ENTRY HIT' ? (
+                  <>
+                    <p className="text-sm font-semibold text-up">TRADE EXECUTED</p>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-2">Price has reached the planned entry level. The trade is now being tracked against its stop-loss and take-profit.</p>
+                  </>
+                ) : idea.status === 'TARGET HIT' || idea.status === 'STOP-LOSS HIT' ? (
+                  <>
+                    <p className="text-sm font-semibold text-ink">{idea.status === 'TARGET HIT' ? 'Take-profit reached.' : 'Stop-loss reached.'}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-2">Wait for next order. SuperTechAi continues scanning for the next confirmed setup.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-ink">{idea.status === 'EXPIRED' ? 'Order setup expired.' : 'Order setup invalidated.'}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-2">Wait for next order. SuperTechAi continues scanning for a fresh confirmed setup.</p>
+                  </>
+                )}
+              </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <Price label="Live price" value={idea.currentPrice} digits={idea.digits} />
                 {idea.aiScore !== null
@@ -135,7 +158,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
 
       <div className="flex items-start gap-2 rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-warn" />
-        <p>These are tracked pending-order proposals, not broker orders placed automatically. Signals use confirmed M15 candle structure; the chart displays the latest 60 M15 candles and the order levels. Tracked outcomes are saved on this device.</p>
+        <p>These are trade suggestions for the member to place manually; they are not submitted to a broker by this screen. “TRADE EXECUTED” means the market price reached the planned entry level in the tracked M15 candles, not that a broker confirmed a fill. Signals use confirmed M15 candle structure; the chart displays the latest 60 M15 candles and the order levels. Tracked outcomes are saved on this device.</p>
       </div>
     </section>
   );
@@ -146,12 +169,13 @@ function Summary({ label, value }: { label: string; value: number }) {
 }
 
 function StatusPill({ status }: { status: M15StopIdea['status'] }) {
+  const label = status === 'ENTRY HIT' ? 'TRADE EXECUTED' : status;
   const tone = status === 'TARGET HIT' ? 'border-up/40 bg-up/10 text-up'
     : status === 'STOP-LOSS HIT' || status === 'INVALIDATED' ? 'border-down/40 bg-down/10 text-down'
     : status === 'EXPIRED' ? 'border-line/40 bg-surface/[0.08] text-ink-3'
-    : status === 'ENTRY HIT' ? 'border-accent/40 bg-accent/10 text-accent'
+    : status === 'ENTRY HIT' ? 'border-up/40 bg-up/10 text-up'
     : 'border-line/40 bg-surface/[0.04] text-ink-2';
-  return <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${tone}`}>{status}</span>;
+  return <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${tone}`}>{label}</span>;
 }
 
 function Price({ label, value, digits }: { label: string; value: number; digits: number }) {
