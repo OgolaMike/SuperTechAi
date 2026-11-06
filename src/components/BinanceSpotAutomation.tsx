@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CircleHelp, KeyRound, RefreshCw, ShieldCheck, Unplug, Wallet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -44,7 +44,7 @@ export function BinanceSpotAutomation() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setError('');
     try {
       const result = await callBinance('status');
@@ -62,9 +62,9 @@ export function BinanceSpotAutomation() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load Binance Spot settings.');
     }
-  };
+  }, []);
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const connect = async () => {
     setBusy(true); setError(''); setMessage('');
