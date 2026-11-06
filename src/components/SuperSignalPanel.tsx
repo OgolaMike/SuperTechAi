@@ -66,7 +66,7 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
         </div>
         <h3 className="text-lg font-semibold text-ink">No Super Signal right now</h3>
         <p className="max-w-md text-sm leading-relaxed text-ink-2">
-          We only show a Super Signal when all 8 timeframes (M1, M5, M15, M30, H1, H4, D1 and derived W1) point up together or down together. If they disagree, we wait.
+          We only show a Super Signal when all 8 timeframes (M1, M5, M15, M30, H1, H4, H8 and D1) point up together or down together. If they disagree, we wait.
         </p>
       </div>
     );
