@@ -69,6 +69,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
   const candlesRef = useRef<Record<string, Record<number, Candle[]>>>({});
   const computedConfirmedRef = useRef<Record<string, number>>({});
   const pendingPricesRef = useRef<Record<string, number>>({});
+  const pendingLastTickRef = useRef<number | null>(null);
   const priceFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSymbolsKey = selectedSymbols.join('|');
   const selectedRef = useRef(selectedSymbols);
@@ -99,6 +100,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     candlesRef.current = {};
     computedConfirmedRef.current = {};
     pendingPricesRef.current = {};
+    pendingLastTickRef.current = null;
     if (priceFlushTimerRef.current) clearTimeout(priceFlushTimerRef.current);
     priceFlushTimerRef.current = null;
     setStates({});
@@ -176,7 +178,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     const unsubOhlc = client.onOhlc(({ granularity, candle }) => {
       const symbol = candle.symbol ?? '';
       if (!symbol || !watchedRef.current.has(symbol)) return;
-      setLastTick(candle.epoch);
+      pendingLastTickRef.current = candle.epoch;
       pendingPricesRef.current[symbol] = candle.close;
       if (!priceFlushTimerRef.current) {
         priceFlushTimerRef.current = setTimeout(() => {
@@ -184,6 +186,8 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
           pendingPricesRef.current = {};
           priceFlushTimerRef.current = null;
           setPrices((previous) => ({ ...previous, ...updates }));
+          if (pendingLastTickRef.current !== null) setLastTick(pendingLastTickRef.current);
+          pendingLastTickRef.current = null;
         }, 350);
       }
 
