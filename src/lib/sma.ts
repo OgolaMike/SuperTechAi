@@ -27,6 +27,7 @@ export type Asset = {
   name: string;
   fullName: string;
   digits: number;
+  exchange?: 'DERIV' | 'BINANCE';
 };
 
 export const DEFAULT_ASSET = 'R_25';
