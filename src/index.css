@@ -338,3 +338,25 @@ nav[aria-label="Sections"] button[aria-current="page"] {
 }
 .dark .level-dial-entry { border-left-width: 4px; }
 .light .level-dial-entry { border-left-width: 4px; }
+
+
+/* High-contrast dial outlines: white in dark mode, black in light mode.
+   Apply to every trade-level dial, not only the entry dial. */
+.dark .level-dial,
+.dark .level-dial.level-dial-entry,
+.dark .level-dial.level-dial-up,
+.dark .level-dial.level-dial-down,
+.dark .level-dial.level-dial-neutral {
+  border: 1px solid #fff !important;
+}
+.light .level-dial,
+.light .level-dial.level-dial-entry,
+.light .level-dial.level-dial-up,
+.light .level-dial.level-dial-down,
+.light .level-dial.level-dial-neutral {
+  border: 1px solid #000 !important;
+}
+.dark .level-dial.level-dial-entry,
+.light .level-dial.level-dial-entry {
+  border-left-width: 4px !important;
+}
