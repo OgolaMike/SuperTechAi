@@ -1,11 +1,13 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Clock3, Info } from 'lucide-react';
-import { useMemo } from 'react';
-import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
+import { buildM15StopOrderIdeas, mergeTrackedStopOrders, type M15StopIdea } from '@/lib/stopOrders';
 import { LevelList } from '@/components/SignalParts';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import type { Asset } from '@/lib/sma';
 import { formatDateTime, formatPrice } from '@/lib/sma';
+
+const STORAGE_KEY = 'supertech-m15-stop-order-history';
 
 type Props = {
   assets: Asset[];
@@ -16,10 +18,42 @@ type Props = {
   loaded: boolean;
 };
 
+function loadTrackedOrders(): M15StopIdea[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    return Array.isArray(stored) ? stored as M15StopIdea[] : [];
+  } catch {
+    return [];
+  }
+}
+
 export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, loaded }: Props) {
-  const stopIdeas = useMemo(
+  const [trackedOrders, setTrackedOrders] = useState<M15StopIdea[]>(loadTrackedOrders);
+  const [filter, setFilter] = useState<'active' | 'results' | 'all'>('active');
+  const liveIdeas = useMemo(
     () => buildM15StopOrderIdeas(assets, states, prices, aiModel, nowEpoch),
     [assets, states, prices, aiModel, nowEpoch],
+  );
+
+  useEffect(() => {
+    if (!loaded || liveIdeas.length === 0) return;
+    setTrackedOrders((previous) => {
+      const next = mergeTrackedStopOrders(previous, liveIdeas);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Keep the in-memory tracker running if browser storage is unavailable.
+      }
+      return next;
+    });
+  }, [loaded, liveIdeas]);
+
+  const activeCount = trackedOrders.filter((order) => order.status === 'WAITING' || order.status === 'ENTRY HIT').length;
+  const resultCount = trackedOrders.length - activeCount;
+  const visibleOrders = trackedOrders.filter((order) =>
+    filter === 'all' ? true : filter === 'active'
+      ? order.status === 'WAITING' || order.status === 'ENTRY HIT'
+      : order.status === 'TARGET HIT' || order.status === 'STOP-LOSS HIT' || order.status === 'INVALIDATED' || order.status === 'EXPIRED',
   );
 
   return (
@@ -28,76 +62,85 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 orders</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">M15 Stop Signals</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          BUY STOP and SELL STOP order details across all discovered Deriv assets.
+          BUY STOP and SELL STOP order details across all discovered Deriv assets. Order progress and outcomes update as confirmed M15 candles close.
         </p>
       </div>
 
-      <section className="space-y-4">
-        {!loaded ? (
-          <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-5 text-sm text-ink-2">Waiting for M15 market data…</div>
-        ) : stopIdeas.length === 0 ? (
-          <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-5 text-sm text-ink-2">No fresh M15 BUY STOP or SELL STOP signals are available right now.</div>
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {stopIdeas.map((idea) => {
-              const buy = idea.direction === 'BUY';
-              const completed = idea.stopLossHitEpoch !== null || idea.takeProfitHitEpoch !== null;
-              return (
-                <article key={idea.id} className="rounded-2xl border border-line/35 bg-surface/[0.03] p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">{idea.assetName} ({idea.symbol}) · M15</p>
-                      <h4 className={`mt-1 text-xl font-bold ${buy ? 'text-up' : 'text-down'}`}>{idea.type}</h4>
-                    </div>
-                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${completed ? 'border-warn/40 bg-warn/10 text-warn' : 'border-up/35 bg-up/10 text-up'}`}>
-                      {idea.takeProfitHitEpoch !== null ? 'TARGET HIT' : idea.stopLossHitEpoch !== null ? 'STOP-LOSS HIT' : idea.entryHitEpoch !== null ? 'ENTRY HIT' : 'WAITING'}
-                    </span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <Price label="Live price" value={idea.currentPrice} digits={idea.digits} />
-                    {idea.aiScore !== null ? (
-                      <Price label="M15 AI score" value={idea.aiScore} digits={0} />
-                    ) : (
-                      <div className="rounded-xl border border-line/25 bg-surface/[0.02] p-3">
-                        <p className="text-xs text-ink-3">M15 AI score</p>
-                        <p className="mt-1 text-sm font-medium text-ink-2">Learning</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-4">
-                    <LevelList
-                      digits={idea.digits}
-                      rows={[
-                        { label: 'Entry', hint: 'Entry level', value: idea.entry, hitEpoch: idea.entryHitEpoch, tone: 'text-entry' },
-                        { label: 'Stop-loss', hint: 'Protective stop level', value: idea.stopLoss, hitEpoch: idea.stopLossHitEpoch, tone: 'text-down' },
-                        { label: 'Target', hint: 'Take-profit level', value: idea.takeProfit, hitEpoch: idea.takeProfitHitEpoch, tone: 'text-up' },
-                      ]}
-                    />
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line/25 pt-3 text-xs text-ink-3">
-                    <span className="flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" /> Signal: {formatDateTime(idea.signalEpoch)}</span>
-                    <span>M15</span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Summary label="Active orders" value={activeCount} />
+        <Summary label="Completed results" value={resultCount} />
+        <Summary label="Tracked total" value={trackedOrders.length} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {(['active', 'results', 'all'] as const).map((item) => (
+          <button key={item} type="button" onClick={() => setFilter(item)}
+            className={`rounded-lg border px-3 py-2 text-xs font-semibold capitalize transition-colors ${filter === item ? 'border-accent/50 bg-accent/10 text-accent' : 'border-line/25 bg-surface/[0.03] text-ink-2 hover:text-ink'}`}>
+            {item === 'results' ? 'Results' : item === 'active' ? 'Active' : 'All orders'}
+          </button>
+        ))}
+      </div>
+
+      {!loaded ? (
+        <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-5 text-sm text-ink-2">Waiting for M15 market data…</div>
+      ) : visibleOrders.length === 0 ? (
+        <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-5 text-sm text-ink-2">
+          {filter === 'results' ? 'No completed order results yet. Results will appear here as orders resolve.' : 'No tracked M15 orders in this view yet. Scanning continues across all discovered assets.'}
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {visibleOrders.map((idea) => (
+            <article key={idea.id} className="rounded-2xl border border-line/35 bg-surface/[0.03] p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">{idea.assetName} ({idea.symbol}) · M15</p>
+                  <h4 className={`mt-1 text-xl font-bold ${idea.direction === 'BUY' ? 'text-up' : 'text-down'}`}>{idea.type}</h4>
+                </div>
+                <StatusPill status={idea.status} />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <Price label="Live price" value={idea.currentPrice} digits={idea.digits} />
+                {idea.aiScore !== null
+                  ? <Price label="M15 AI score" value={idea.aiScore} digits={0} />
+                  : <div className="rounded-xl border border-line/25 bg-surface/[0.02] p-3"><p className="text-xs text-ink-3">M15 AI score</p><p className="mt-1 text-sm font-medium text-ink-2">Learning</p></div>}
+              </div>
+              <div className="mt-4">
+                <LevelList digits={idea.digits} rows={[
+                  { label: 'Entry', hint: 'Entry level', value: idea.entry, hitEpoch: idea.entryHitEpoch, tone: 'text-entry' },
+                  { label: 'Stop-loss', hint: 'Protective stop level', value: idea.stopLoss, hitEpoch: idea.stopLossHitEpoch, tone: 'text-down' },
+                  { label: 'Target', hint: 'Take-profit level', value: idea.takeProfit, hitEpoch: idea.takeProfitHitEpoch, tone: 'text-up' },
+                ]} />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line/25 pt-3 text-xs text-ink-3">
+                <span className="flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" /> Signal: {formatDateTime(idea.signalEpoch)}</span>
+                <span>{idea.resolvedEpoch !== null ? `Result: ${formatDateTime(idea.resolvedEpoch)}` : 'Tracking'}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-start gap-2 rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-warn" />
-        <p>These are signal proposals, not live broker orders.</p>
+        <p>These are tracked signal proposals, not live broker orders. Results are based on confirmed M15 candle closes and are saved on this device.</p>
       </div>
     </section>
   );
 }
 
+function Summary({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p></div>;
+}
+
+function StatusPill({ status }: { status: M15StopIdea['status'] }) {
+  const tone = status === 'TARGET HIT' ? 'border-up/40 bg-up/10 text-up'
+    : status === 'STOP-LOSS HIT' || status === 'INVALIDATED' ? 'border-down/40 bg-down/10 text-down'
+    : status === 'EXPIRED' ? 'border-line/40 bg-surface/[0.08] text-ink-3'
+    : status === 'ENTRY HIT' ? 'border-accent/40 bg-accent/10 text-accent'
+    : 'border-line/40 bg-surface/[0.04] text-ink-2';
+  return <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${tone}`}>{status}</span>;
+}
+
 function Price({ label, value, digits }: { label: string; value: number; digits: number }) {
-  return (
-    <div className="rounded-xl border border-line/25 bg-surface/[0.02] p-3">
-      <p className="text-xs text-ink-3">{label}</p>
-      <p className="mt-1 break-all font-mono text-base font-semibold tabular-nums text-ink">{formatPrice(value, digits)}</p>
-    </div>
-  );
+  return <div className="rounded-xl border border-line/25 bg-surface/[0.02] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 break-all font-mono text-base font-semibold tabular-nums text-ink">{formatPrice(value, digits)}</p></div>;
 }
