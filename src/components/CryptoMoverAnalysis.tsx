@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, TrendingDown, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
+import { SignalCard } from '@/components/SignalCard';
+import type { SignalLearningModel } from '@/lib/aiLearning';
 import { BinanceStream, fetchBinanceCandles } from '@/lib/binance';
 import type { Candle } from '@/lib/deriv';
 import { computeTfState, mergeCandle, TIMEFRAMES, type TfState, type Timeframe } from '@/lib/sma';
@@ -13,6 +15,7 @@ type Props = {
   isMonitored: boolean;
   canMonitor: boolean;
   onMonitor: () => void;
+  aiModel: SignalLearningModel;
 };
 
 const CHART_HEIGHT = 280;
@@ -60,7 +63,7 @@ function describeMarket(state: TfState) {
   };
 }
 
-export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitored, canMonitor, onMonitor }: Props) {
+export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitored, canMonitor, onMonitor, aiModel }: Props) {
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M15') ?? TIMEFRAMES[2]);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +127,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
       candle.high, candle.low,
       ...(showBands && visibleStats[index] ? [visibleStats[index]!.upper, visibleStats[index]!.lower] : []),
       ...(showSma && visibleStats[index] ? [visibleStats[index]!.mean] : []),
-    ]).concat(latestSignal ? [latestSignal.levels.entry, latestSignal.levels.stopLoss, latestSignal.levels.tp3] : []);
+    ]);
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
@@ -136,7 +139,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
       .map((item, index) => item ? `${index === 0 || !visibleStats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
       .filter(Boolean).join(' ');
     return { min, max, x, y, path, width: PADDING.left + plotWidth + PADDING.right, bodyWidth: Math.max(2, Math.min(28, spacing * 0.72)) };
-  }, [data, visibleStats, showBands, showSma, spacing, latestSignal]);
+  }, [data, visibleStats, showBands, showSma, spacing]);
 
   return (
     <section className="mt-5 overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.03]">
@@ -232,16 +235,6 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
                   })}
                   {showBands && <><path d={chart.path('upper')} fill="none" stroke="#ef7777" strokeWidth="2" /><path d={chart.path('lower')} fill="none" stroke="#60a5fa" strokeWidth="2" /></>}
                   {showSma && <path d={chart.path('mean')} fill="none" stroke="#eab308" strokeWidth="2" />}
-                  {latestSignal && [
-                    { label: 'ENTRY', value: latestSignal.levels.entry, color: '#60a5fa' },
-                    { label: 'STOP', value: latestSignal.levels.stopLoss, color: '#fb7185' },
-                    { label: 'TP3', value: latestSignal.levels.tp3, color: '#4ade80' },
-                  ].map((level) => (
-                    <g key={level.label}>
-                      <line x1={PADDING.left} x2={chart.width - PADDING.right} y1={chart.y(level.value)} y2={chart.y(level.value)} stroke={level.color} strokeDasharray="5 4" strokeWidth="1.5" />
-                      <text x={PADDING.left + 4} y={Math.max(PADDING.top + 10, chart.y(level.value) - 4)} fill={level.color} fontSize="10" fontWeight="700">{level.label}</text>
-                    </g>
-                  ))}
                   {data.map((candle, index) => {
                     const up = candle.close >= candle.open;
                     const color = up ? '#22c55e' : '#f43f5e';
@@ -256,28 +249,13 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
 
 
           <div className="border-t border-line/10 p-4">
-            {latestSignal ? (
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                  {latestSignal.direction === 'BUY' ? <TrendingUp className="h-4 w-4 text-up" /> : <TrendingDown className="h-4 w-4 text-down" />}
-                  <div>
-                    <p className="text-sm font-semibold text-ink">{signalFresh ? 'Latest confirmed signal' : 'Previous signal · not a fresh entry'}</p>
-                    <p className="text-xs text-ink-2">{latestSignal.direction} · {latestSignal.outcome.status} · {timeframe.label} candle-close confirmation</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
-                  <span className="text-ink-2">Entry <b className="text-ink">{formatPrice(latestSignal.levels.entry, 6)}</b></span>
-                  <span className="text-ink-2">Stop <b className="text-ink">{formatPrice(latestSignal.levels.stopLoss, 6)}</b></span>
-                  <span className="text-ink-2">TP1 <b className="text-ink">{formatPrice(latestSignal.levels.tp1, 6)}</b></span>
-                  <span className="text-ink-2">TP3 <b className="text-ink">{formatPrice(latestSignal.levels.tp3, 6)}</b></span>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm font-semibold text-ink">No confirmed {timeframe.label} signal</p>
-                <p className="mt-1 text-xs leading-relaxed text-ink-2">The chart and technical analysis are still available above. Wait for a candle-close confirmation; no BUY or SELL entry is being suggested right now.</p>
-              </div>
-            )}
+            <SignalCard
+              asset={{ symbol, name, fullName: name, digits: 6, exchange: 'BINANCE' }}
+              tf={state}
+              loaded={!loading && state.candles.length > 0}
+              price={state.lastClose ?? close}
+              aiModel={aiModel}
+            />
           </div>
         </>
       )}
