@@ -18,8 +18,8 @@ export const TIMEFRAMES: Timeframe[] = [
   { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 86400, label: 'D1', role: 'Daily bias', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 604800, label: 'W1', role: 'Weekly trend', candleCount: 200 },
+  { granularity: 28800, label: 'H8', role: 'Higher-timeframe trend', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 86400, label: 'D1', role: 'Highest timeframe · daily bias', candleCount: CHART_HISTORY_CANDLES },
 ];
 
 export type Asset = {
@@ -71,63 +71,6 @@ export function emptyTfState(timeframe: Timeframe): TfState {
 export function isStale(state: TfState, nowEpoch: number): boolean {
   if (state.updatedEpoch == null) return true;
   return nowEpoch - (state.updatedEpoch + state.granularity) > 2 * state.granularity;
-}
-
-const DAY_SECONDS = 86400;
-const WEEK_SECONDS = 7 * DAY_SECONDS;
-
-function weekStartUtc(epoch: number): number {
-  const dayStart = Math.floor(epoch / DAY_SECONDS) * DAY_SECONDS;
-  const weekday = new Date(dayStart * 1000).getUTCDay();
-  return dayStart - ((weekday + 6) % 7) * DAY_SECONDS;
-}
-
-/** Build completed Monday-to-Monday W1 candles from complete D1 candles. */
-export function aggregateWeeklyCandles(dailyCandles: Candle[], nowEpoch: number): Candle[] {
-  const buckets = new Map<number, {
-    epoch: number;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    days: Set<number>;
-  }>();
-
-  for (const candle of [...dailyCandles].sort((a, b) => a.epoch - b.epoch)) {
-    const dayStart = Math.floor(candle.epoch / DAY_SECONDS) * DAY_SECONDS;
-    if (candle.epoch + DAY_SECONDS > nowEpoch) continue;
-    const weekStart = weekStartUtc(dayStart);
-    if (weekStart + WEEK_SECONDS > nowEpoch) continue;
-
-    const existing = buckets.get(weekStart);
-    if (!existing) {
-      buckets.set(weekStart, {
-        epoch: weekStart,
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
-        days: new Set([dayStart]),
-      });
-      continue;
-    }
-
-    existing.high = Math.max(existing.high, candle.high);
-    existing.low = Math.min(existing.low, candle.low);
-    existing.close = candle.close;
-    existing.days.add(dayStart);
-  }
-
-  return [...buckets.values()]
-    .filter((bucket) => bucket.days.size >= 5)
-    .sort((a, b) => a.epoch - b.epoch)
-    .map((bucket) => ({
-      epoch: bucket.epoch,
-      open: bucket.open,
-      high: bucket.high,
-      low: bucket.low,
-      close: bucket.close,
-    }));
 }
 
 type Stats = { mean: number | null; deviation: number | null };
