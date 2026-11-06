@@ -254,7 +254,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     feed = await DerivFeed.open();
   } catch (error) {
     // Binance public market scanning must continue even if Deriv is temporarily unavailable.
-    derivLoadError = \`Deriv connection: \${messageOf(error)}\`;
+    derivLoadError = `Deriv connection: ${messageOf(error)}`;
   }
 
   try {
@@ -263,7 +263,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       try {
         derivSymbols = await loadSymbols(feed);
       } catch (error) {
-        derivLoadError = \`Deriv asset discovery: \${messageOf(error)}\`;
+        derivLoadError = `Deriv asset discovery: ${messageOf(error)}`;
       }
     }
     let binanceSymbols: SymbolInfo[] = [];
