@@ -3,9 +3,7 @@ import { AlertTriangle, Loader2, TrendingDown, TrendingUp } from 'lucide-react';
 import { BinanceStream, fetchBinanceCandles } from '@/lib/binance';
 import type { Candle } from '@/lib/deriv';
 import { computeTfState, mergeCandle, TIMEFRAMES, type TfState, type Timeframe } from '@/lib/sma';
-import { formatPrice, type Asset } from '@/lib/sma';
-import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
-import { trainSignalLearningModel } from '@/lib/aiLearning';
+import { formatPrice } from '@/lib/sma';
 
 type Props = {
   symbol: string;
@@ -120,26 +118,13 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
   const latestSignal = state.latestSignal;
   const signalFresh = latestSignal != null && Math.floor(Date.now() / 1000) - (latestSignal.signalEpoch + timeframe.granularity) <= 2 * timeframe.granularity;
 
-  const pendingOrderIdea = useMemo(() => {
-    if (timeframe.granularity !== 900) return null;
-    const asset: Asset = { symbol, name, fullName: name + '/USDT', digits: 6, exchange: 'BINANCE' };
-    const currentPrice = candles[candles.length - 1]?.close ?? state.lastClose ?? close;
-    return buildM15StopOrderIdeas(
-      [asset],
-      { [symbol]: { 900: state } },
-      { [symbol]: currentPrice },
-      trainSignalLearningModel([]),
-      Math.floor(Date.now() / 1000),
-    )[0] ?? null;
-  }, [timeframe, symbol, name, candles, state, close]);
-
   const chart = useMemo(() => {
     if (data.length < 2) return null;
     const values = data.flatMap((candle, index) => [
       candle.high, candle.low,
       ...(showBands && visibleStats[index] ? [visibleStats[index]!.upper, visibleStats[index]!.lower] : []),
       ...(showSma && visibleStats[index] ? [visibleStats[index]!.mean] : []),
-    ]).concat(latestSignal ? [latestSignal.levels.entry, latestSignal.levels.stopLoss, latestSignal.levels.tp3] : []).concat(pendingOrderIdea ? [pendingOrderIdea.entry, pendingOrderIdea.stopLoss, pendingOrderIdea.takeProfit] : []);
+    ]).concat(latestSignal ? [latestSignal.levels.entry, latestSignal.levels.stopLoss, latestSignal.levels.tp3] : []);
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
@@ -151,7 +136,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
       .map((item, index) => item ? `${index === 0 || !visibleStats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
       .filter(Boolean).join(' ');
     return { min, max, x, y, path, width: PADDING.left + plotWidth + PADDING.right, bodyWidth: Math.max(2, Math.min(28, spacing * 0.72)) };
-  }, [data, visibleStats, showBands, showSma, spacing, latestSignal, pendingOrderIdea]);
+  }, [data, visibleStats, showBands, showSma, spacing, latestSignal]);
 
   return (
     <section className="mt-5 overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.03]">
@@ -257,16 +242,6 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
                       <text x={PADDING.left + 4} y={Math.max(PADDING.top + 10, chart.y(level.value) - 4)} fill={level.color} fontSize="10" fontWeight="700">{level.label}</text>
                     </g>
                   ))}
-                  {pendingOrderIdea && [
-                    { label: 'PENDING ENTRY', value: pendingOrderIdea.entry, color: '#a78bfa' },
-                    { label: 'PENDING SL', value: pendingOrderIdea.stopLoss, color: '#fb7185' },
-                    { label: 'PENDING TARGET', value: pendingOrderIdea.takeProfit, color: '#4ade80' },
-                  ].map((level) => (
-                    <g key={level.label}>
-                      <line x1={PADDING.left} x2={chart.width - PADDING.right} y1={chart.y(level.value)} y2={chart.y(level.value)} stroke={level.color} strokeDasharray="2 4" strokeWidth="1.5" />
-                      <text x={PADDING.left + 4} y={Math.max(PADDING.top + 10, chart.y(level.value) - 4)} fill={level.color} fontSize="9" fontWeight="700">{level.label}</text>
-                    </g>
-                  ))}
                   {data.map((candle, index) => {
                     const up = candle.close >= candle.open;
                     const color = up ? '#22c55e' : '#f43f5e';
@@ -279,35 +254,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
             ) : <p className="py-8 text-center text-xs text-ink-3">Waiting for enough confirmed candles to draw this chart.</p>}
           </div>
 
-          {timeframe.granularity === 900 && (
-            <div className="border-t border-line/10 p-4">
-              {pendingOrderIdea ? (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-ink">
-                      {pendingOrderIdea.status === 'WAITING' ? 'You can place this pending trade' :
-                        pendingOrderIdea.status === 'ENTRY HIT' ? 'Entry level reached · check broker fill' :
-                        pendingOrderIdea.status === 'TARGET HIT' ? 'Target reached' :
-                        pendingOrderIdea.status === 'STOP-LOSS HIT' ? 'Stop-loss reached' :
-                        pendingOrderIdea.status === 'EXPIRED' ? 'Pending setup expired' : 'Pending setup invalidated'}
-                    </p>
-                    <p className="mt-1 text-xs text-ink-2">{pendingOrderIdea.type} · {pendingOrderIdea.status} · BB(60, 2.5) two-candle confirmation{pendingOrderIdea.status === 'ENTRY HIT' ? ' · market-data touch is not broker-fill confirmation' : ''}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
-                    <span className="text-ink-2">Entry <b className="text-ink">{formatPrice(pendingOrderIdea.entry, 6)}</b></span>
-                    <span className="text-ink-2">Stop <b className="text-ink">{formatPrice(pendingOrderIdea.stopLoss, 6)}</b></span>
-                    <span className="text-ink-2">Target <b className="text-ink">{formatPrice(pendingOrderIdea.takeProfit, 6)}</b></span>
-                    <span className="text-ink-2">Market <b className="text-ink">{formatPrice(pendingOrderIdea.currentPrice, 6)}</b></span>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-semibold text-ink">No active M15 pending-order setup</p>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-2">The live chart and market analysis remain available. A pending setup will appear only after the BB(60, 2.5) rejection and two-candle structure confirmation.</p>
-                </div>
-              )}
-            </div>
-          )}
+
           <div className="border-t border-line/10 p-4">
             {latestSignal ? (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
