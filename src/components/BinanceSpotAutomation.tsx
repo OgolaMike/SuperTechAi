@@ -185,8 +185,8 @@ export function BinanceSpotAutomation() {
               <input type="number" min="1" max="20" step="1" value={maxOpen} onChange={(e) => setMaxOpen(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" />
             </label>
           </div>
-          <label className="mt-3 block text-xs font-medium text-ink-2">Allowed Binance symbols (optional; comma-separated)
-            <input value={allowedSymbols} onChange={(e) => setAllowedSymbols(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" placeholder="BTCUSDT, ETHUSDT" />
+          <label className="mt-3 block text-xs font-medium text-ink-2">Allowed Binance symbols (required to arm automation; comma-separated)
+            <input value={allowedSymbols} onChange={(e) => setAllowedSymbols(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" placeholder="BTCUSDT, ETHUSDT (select only the pairs you want automated)" />
           </label>
           <div className="mt-4 space-y-3 rounded-xl border border-line/10 bg-canvas/50 p-3">
             <label className="flex items-center justify-between gap-3 text-sm text-ink"><span>Enable automation</span><input type="checkbox" checked={autoTrade} onChange={(e) => setAutoTrade(e.target.checked)} /></label>
@@ -194,7 +194,7 @@ export function BinanceSpotAutomation() {
             <label className="flex items-center justify-between gap-3 text-sm font-semibold text-rose-500"><span>Emergency stop</span><input type="checkbox" checked={emergencyStop} onChange={(e) => setEmergencyStop(e.target.checked)} /></label>
           </div>
           <button disabled={busy || !connected} onClick={() => void saveSettings()} className="mt-4 w-full rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm font-semibold text-ink disabled:opacity-50">Save trading controls</button>
-          <p className="mt-3 text-xs leading-5 text-ink-3">Automation only runs when the account is connected, both permissions are enabled, and the emergency stop is OFF. The per-signal USDT budget is shared across the two limit entries.</p>
+          <p className="mt-3 text-xs leading-5 text-ink-3">Automation only runs when the account is connected, both permissions are enabled, and the emergency stop is OFF. Only the symbols you list can trade. The per-signal USDT budget is shared across the two limit entries.</p>
         </div>
       </div>
 
