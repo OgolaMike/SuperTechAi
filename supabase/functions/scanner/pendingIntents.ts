@@ -61,6 +61,7 @@ function executionContext(symbol: string, candlesByGranularity: Map<number, Cand
   if (!direction || !biases.every((bias) => bias === direction)) return null;
 
   const primary = stats.get(900)!;
+  const primaryCandles = candlesByGranularity.get(900)!;
   const trigger = computeSignals(primaryCandles, 900, nowEpoch).signals.slice(-1)[0];
   if (!trigger || trigger.direction !== direction || trigger.outcome.closed ||
       nowEpoch - trigger.signalEpoch > 8 * 900) return null;
