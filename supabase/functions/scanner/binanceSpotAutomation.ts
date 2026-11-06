@@ -17,7 +17,7 @@ type AccountSettings = {
   max_open_positions: number;
   allowed_symbols: string[] | null;
 };
-type SymbolRules = { tickSize: number; stepSize: number; minQty: number; maxQty: number; minNotional: number };
+type SymbolRules = { baseAsset: string; tickSize: number; stepSize: number; minQty: number; maxQty: number; minNotional: number };
 const BASE = "https://api.binance.com";
 const encoder = new TextEncoder();
 const ruleCache = new Map<string, SymbolRules | null>();
@@ -88,13 +88,14 @@ async function getRules(symbol: string): Promise<SymbolRules | null> {
     return null;
   }
   const rules = {
+    baseAsset: String(item.baseAsset ?? ""),
     tickSize: Number(price.tickSize),
     stepSize: Number(lot.stepSize),
     minQty: Number(lot.minQty),
     maxQty: Number(lot.maxQty),
     minNotional: Number(notional?.minNotional ?? 5),
   };
-  if (Object.values(rules).some((v) => !Number.isFinite(v) || v <= 0)) {
+  if (!rules.baseAsset || [rules.tickSize, rules.stepSize, rules.minQty, rules.maxQty, rules.minNotional].some((v) => !Number.isFinite(v) || v <= 0)) {
     ruleCache.set(symbol, null);
     return null;
   }
@@ -116,7 +117,7 @@ async function shortHash(value: string) {
 }
 async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: string, apiSecret: string) {
   const { data: rows, error } = await db.from("binance_spot_orders")
-    .select("id,symbol,broker_order_list_id,status,client_order_id,expires_at")
+    .select("id,symbol,broker_order_list_id,status,client_order_id,expires_at,stop_loss,take_profit,request_payload")
     .eq("user_id", userId)
     .in("status", ["submitted", "partially_filled", "filled"]);
   if (error) throw error;
@@ -126,6 +127,77 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
       const list = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "GET", {
         orderListId: String(row.broker_order_list_id),
       });
+      const stage = String((row.request_payload as Record<string, unknown> | null)?.stage ?? "entry_OTOCO");
+      if (stage === "exit_oco") {
+        if (list.listOrderStatus === "ALL_DONE" || list.listStatusType === "ALL_DONE") {
+          await db.from("binance_spot_orders").update({
+            status: "closed", completed_at: new Date().toISOString(),
+            result_payload: list, updated_at: new Date().toISOString(),
+          }).eq("id", row.id).eq("user_id", userId);
+        }
+        continue;
+      }
+      const reports = Array.isArray(list.orderReports) ? list.orderReports as Array<Record<string, unknown>> : [];
+      const workingOrder = reports.find((item) => item.clientOrderId === row.client_order_id);
+      const executedQty = Number(workingOrder?.executedQty ?? 0);
+      const workingStatus = String(workingOrder?.status ?? "");
+      if (executedQty > 0 && ["PARTIALLY_FILLED", "CANCELED", "EXPIRED"].includes(workingStatus)) {
+        // OTOCO activates its exit pair only after the entry fully fills. Cancel the
+        // remaining entry quantity and protect any partial fill with a separate OCO.
+        if (workingStatus === "PARTIALLY_FILLED") {
+          await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "DELETE", {
+            orderListId: String(row.broker_order_list_id),
+          });
+        }
+        const rules = await getRules(row.symbol);
+        if (!rules) throw new Error("binance_symbol_rules_unavailable_for_partial_fill");
+        const accountInfo = await signedBinance(apiKey, apiSecret, "/api/v3/account", "GET", {});
+        const balances = Array.isArray(accountInfo.balances) ? accountInfo.balances as Array<Record<string, unknown>> : [];
+        const baseBalance = balances.find((balance) => balance.asset === rules.baseAsset);
+        const freeBase = Number(baseBalance?.free ?? 0);
+        const quantity = floorToStep(Math.min(executedQty * 0.999, freeBase), rules.stepSize);
+        if (quantity < rules.minQty || quantity * Number(row.stop_loss ?? 0) < rules.minNotional) {
+          await db.from("binance_spot_orders").update({
+            status: "uncertain", last_error_code: "partial_fill_below_exit_minimum",
+            result_payload: list, updated_at: new Date().toISOString(),
+          }).eq("id", row.id).eq("user_id", userId);
+          continue;
+        }
+        const tickerResponse = await fetch(BASE + "/api/v3/ticker/price?symbol=" + encodeURIComponent(row.symbol));
+        const ticker = await tickerResponse.json();
+        const currentPrice = Number(ticker?.price);
+        const stopLoss = floorToStep(Number(row.stop_loss), rules.tickSize);
+        const takeProfit = floorToStep(Number(row.take_profit), rules.tickSize);
+        let exitResult: Record<string, unknown>;
+        let exitListId: string | null = null;
+        if (!tickerResponse.ok || !Number.isFinite(currentPrice)) throw new Error("binance_current_price_unavailable");
+        if (currentPrice <= stopLoss || currentPrice >= takeProfit) {
+          exitResult = await signedBinance(apiKey, apiSecret, "/api/v3/order", "POST", {
+            symbol: row.symbol, side: "SELL", type: "MARKET",
+            quantity: formatStep(quantity, rules.stepSize),
+            newClientOrderId: "stai_m_" + await shortHash(String(row.id)),
+          });
+        } else {
+          const oco = await signedBinance(apiKey, apiSecret, "/api/v3/orderList/oco", "POST", {
+            symbol: row.symbol, side: "SELL",
+            quantity: formatStep(quantity, rules.stepSize),
+            aboveType: "TAKE_PROFIT", aboveStopPrice: formatStep(takeProfit, rules.tickSize),
+            belowType: "STOP_LOSS", belowStopPrice: formatStep(stopLoss, rules.tickSize),
+            listClientOrderId: "stai_x_" + await shortHash(String(row.id)),
+          });
+          exitListId = oco.orderListId == null ? null : String(oco.orderListId);
+          exitResult = oco;
+        }
+        await db.from("binance_spot_orders").update({
+          status: exitListId ? "filled" : "closed",
+          broker_order_list_id: exitListId,
+          request_payload: { ...(row.request_payload as Record<string, unknown> ?? {}), stage: exitListId ? "exit_oco" : "closed_after_partial_fill" },
+          result_payload: { entryOrderList: list, partialFillExit: exitResult },
+          completed_at: exitListId ? null : new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("id", row.id).eq("user_id", userId);
+        continue;
+      }
       if (list.listOrderStatus === "ALL_DONE" || list.listStatusType === "ALL_DONE") {
         await db.from("binance_spot_orders").update({
           status: "closed", completed_at: new Date().toISOString(),
@@ -133,14 +205,11 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
         }).eq("id", row.id).eq("user_id", userId);
         continue;
       }
-      const reports = Array.isArray(list.orderReports) ? list.orderReports as Array<Record<string, unknown>> : [];
-      const workingOrder = reports.find((item) => item.clientOrderId === row.client_order_id);
-      if (workingOrder?.status === "FILLED") {
+      if (workingStatus === "FILLED") {
         await db.from("binance_spot_orders").update({
           status: "filled", result_payload: list, updated_at: new Date().toISOString(),
         }).eq("id", row.id).eq("user_id", userId);
-      } else if (row.expires_at && Date.now() >= new Date(row.expires_at).getTime() &&
-          (workingOrder?.status === "NEW" || workingOrder?.status === "PARTIALLY_FILLED")) {
+      } else if (row.expires_at && Date.now() >= new Date(row.expires_at).getTime() && workingStatus === "NEW") {
         const cancelled = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "DELETE", {
           orderListId: String(row.broker_order_list_id),
         });
@@ -149,8 +218,31 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
           result_payload: cancelled, updated_at: new Date().toISOString(),
         }).eq("id", row.id).eq("user_id", userId);
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "binance_order_reconciliation_failed";
+      await db.from("binance_spot_orders").update({
+        last_error_code: message.slice(0, 120), updated_at: new Date().toISOString(),
+      }).eq("id", row.id).eq("user_id", userId);
+    }
+  }
+}
+
+export async function reconcileBinanceSpotOrders(db: SupabaseClient) {
+  const { data: rows, error } = await db.from("binance_spot_orders")
+    .select("user_id").in("status", ["submitted", "partially_filled", "filled"]);
+  if (error) throw error;
+  const userIds = [...new Set((rows ?? []).map((row) => row.user_id as string))];
+  for (const userId of userIds) {
+    const { data: credentials, error: credentialError } = await db.from("binance_spot_credentials")
+      .select("encrypted_api_key,encrypted_api_secret").eq("user_id", userId).maybeSingle();
+    if (credentialError || !credentials) continue;
+    try {
+      const [apiKey, apiSecret] = await Promise.all([
+        decrypt(credentials.encrypted_api_key), decrypt(credentials.encrypted_api_secret),
+      ]);
+      await reconcileOrderLists(db, userId, apiKey, apiSecret);
     } catch {
-      // Keep the last known state if an exchange status check is temporarily unavailable.
+      // Leave the last known exchange state untouched if credentials or API are unavailable.
     }
   }
 }
