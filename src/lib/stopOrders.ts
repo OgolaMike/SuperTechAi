@@ -15,7 +15,7 @@ export type M15StopIdea = {
   symbol: string;
   assetName: string;
   digits: number;
-  type: 'BUY STOP' | 'SELL STOP';
+  type: 'BUY STOP' | 'SELL STOP' | 'BUY LIMIT' | 'SELL LIMIT';
   direction: Direction;
   entry: number;
   stopLoss: number;
@@ -32,8 +32,29 @@ export type M15StopIdea = {
 
 const M15 = 900;
 const MAX_PENDING_AGE = 8 * M15;
+const BB_PERIOD = 60;
+const BB_DEVIATION = 2.5;
+
+type BandPoint = { mean: number; high: number; low: number };
+
+function calculateBands(candles: TfState['candles']): Array<BandPoint | null> {
+  return candles.map((_, index) => {
+    if (index < BB_PERIOD - 1) return null;
+    const window = candles.slice(index - BB_PERIOD + 1, index + 1);
+    const mean = window.reduce((sum, candle) => sum + candle.close, 0) / BB_PERIOD;
+    const variance = window.reduce((sum, candle) => sum + (candle.close - mean) ** 2, 0) / BB_PERIOD;
+    const deviation = Math.sqrt(variance);
+    return { mean, high: mean + BB_DEVIATION * deviation, low: mean - BB_DEVIATION * deviation };
+  });
+}
+
+function getOrderType(direction: Direction, entry: number, currentPrice: number): M15StopIdea['type'] {
+  if (direction === 'BUY') return entry >= currentPrice ? 'BUY STOP' : 'BUY LIMIT';
+  return entry <= currentPrice ? 'SELL STOP' : 'SELL LIMIT';
+}
 
 function evaluateOrder(
+  type: M15StopIdea['type'],
   direction: Direction,
   entry: number,
   stopLoss: number,
@@ -50,23 +71,22 @@ function evaluateOrder(
 
   for (const candle of candles) {
     if (candle.epoch <= signalEpoch) continue;
-    const close = candle.close;
-    const entered = direction === 'BUY' ? close >= entry : close <= entry;
-    const stopped = direction === 'BUY' ? close <= stopLoss : close >= stopLoss;
-    const targeted = direction === 'BUY' ? close >= takeProfit : close <= takeProfit;
+    const isBuy = direction === 'BUY';
+    const entered = type === 'BUY STOP' ? candle.high >= entry
+      : type === 'BUY LIMIT' ? candle.low <= entry
+      : type === 'SELL STOP' ? candle.low <= entry
+      : candle.high >= entry;
 
     if (entryHitEpoch === null) {
-      if (stopped) {
-        stopLossHitEpoch = candle.epoch;
-        status = 'INVALIDATED';
-        resolvedEpoch = candle.epoch;
-        break;
-      }
       if (!entered) continue;
       entryHitEpoch = candle.epoch;
       status = 'ENTRY HIT';
     }
 
+    const stopped = isBuy ? candle.low <= stopLoss : candle.high >= stopLoss;
+    const targeted = isBuy ? candle.high >= takeProfit : candle.low <= takeProfit;
+
+    // If both levels occur inside one candle, record the conservative stop-first outcome.
     if (stopped) {
       stopLossHitEpoch = candle.epoch;
       status = 'STOP-LOSS HIT';
@@ -89,7 +109,11 @@ function evaluateOrder(
   return { entryHitEpoch, stopLossHitEpoch, takeProfitHitEpoch, status, resolvedEpoch };
 }
 
-/** Builds and evaluates M15 stop-order ideas using confirmed M15 candles only. */
+/**
+ * Creates M15 proposals from a BB(60, 2.5) rejection and two-candle structure
+ * confirmation. The same signal may be expressed as a stop or limit order
+ * according to where the live market is relative to the confirmed entry.
+ */
 export function buildM15StopOrderIdeas(
   assets: Asset[],
   statesBySymbol: Record<string, Record<number, TfState>>,
@@ -104,35 +128,70 @@ export function buildM15StopOrderIdeas(
     const currentPrice = prices[asset.symbol];
     if (!m15 || currentPrice == null || !Number.isFinite(currentPrice)) continue;
 
-    for (const signal of m15.signals) {
-      const { entry: originalEntry, tp1, tp3 } = signal.levels;
-      if (!(tp1 > 0 && tp3 > 0 && originalEntry > 0)) continue;
+    const candles = m15.candles;
+    const bands = calculateBands(candles);
 
-      const type = signal.direction === 'BUY' ? 'BUY STOP' : 'SELL STOP';
-      const aiScore = getAiPatternScore(aiModel, M15, signal.direction, signal.levels);
+    // A band rejection must be followed immediately by two consecutive
+    // lower lows (SELL) or higher highs (BUY) before a proposal is emitted.
+    for (let i = BB_PERIOD + 1; i < candles.length; i += 1) {
+      const crossIndex = i - 2;
+      const previousBand = bands[crossIndex - 1];
+      const crossBand = bands[crossIndex];
+      const confirmBand = bands[i];
+      if (!previousBand || !crossBand || !confirmBand) continue;
+
+      const beforeCross = candles[crossIndex - 1];
+      const cross = candles[crossIndex];
+      const firstConfirm = candles[crossIndex + 1];
+      const confirm = candles[i];
+
+      const sellCross = beforeCross.close >= previousBand.high && cross.close < crossBand.high;
+      const buyCross = beforeCross.close <= previousBand.low && cross.close > crossBand.low;
+      const sellStructure = firstConfirm.low < cross.low && confirm.low < firstConfirm.low;
+      const buyStructure = firstConfirm.high > cross.high && confirm.high > firstConfirm.high;
+
+      const direction: Direction | null = sellCross && sellStructure ? 'SELL'
+        : buyCross && buyStructure ? 'BUY' : null;
+      if (!direction) continue;
+
+      const entry = confirm.close;
+      const takeProfit = confirmBand.mean;
+      const reward = direction === 'BUY' ? takeProfit - entry : entry - takeProfit;
+      if (!(entry > 0 && takeProfit > 0 && reward > 0)) continue;
+
+      const risk = reward / 2;
+      const stopLoss = direction === 'BUY' ? entry - risk : entry + risk;
+      if (!(stopLoss > 0)) continue;
+
+      const type = getOrderType(direction, entry, currentPrice);
+      const signalEpoch = confirm.epoch;
+      const levels = {
+        mean: confirmBand.mean,
+        deviation: (confirmBand.high - confirmBand.mean) / BB_DEVIATION,
+        entry,
+        stopLoss,
+        tp1: takeProfit,
+        tp2: takeProfit,
+        tp3: takeProfit,
+      };
+      const aiScore = getAiPatternScore(aiModel, M15, direction, levels);
       const outcome = evaluateOrder(
-        signal.direction,
-        tp1,
-        originalEntry,
-        tp3,
-        m15.candles,
-        signal.signalEpoch,
-        nowEpoch,
+        type, direction, entry, stopLoss, takeProfit, candles, signalEpoch, nowEpoch,
       );
 
       ideas.push({
-        id: `${asset.symbol}|${type}|${signal.signalEpoch}`,
+        id: `${asset.symbol}|${type}|${signalEpoch}|${direction}`,
         symbol: asset.symbol,
         assetName: asset.fullName,
         digits: asset.digits,
         type,
-        direction: signal.direction,
-        entry: tp1,
-        stopLoss: originalEntry,
-        takeProfit: tp3,
+        direction,
+        entry,
+        stopLoss,
+        takeProfit,
         currentPrice,
         aiScore,
-        signalEpoch: signal.signalEpoch,
+        signalEpoch,
         ...outcome,
       });
     }
