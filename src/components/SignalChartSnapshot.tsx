@@ -13,8 +13,8 @@ type Props = {
 };
 
 const WIDTH = 1440;
-const HEIGHT = 620;
-const PAD = { top: 30, right: 116, bottom: 48, left: 24 };
+const HEIGHT = 320;
+const PAD = { top: 18, right: 56, bottom: 24, left: 14 };
 const PERIOD = 60;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -29,45 +29,35 @@ function rolling(values: number[], index: number) {
   return { mean, upper: mean + deviation * 2.5, lower: mean - deviation * 2.5 };
 }
 
-function timeLabel(epoch: number) {
-  const date = new Date(epoch * 1000);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits }: Props) {
-  const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
+  const gradientId = `signal-band-fill-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const chartViewportRef = useRef<HTMLDivElement>(null);
-
-  // Retain the full candle history for SMA/BB warm-up; display the latest 60 candles.
+  // Keep the full history as indicator warm-up, but render only the latest 60 candles.
   const history = candles;
   const historyCloses = history.map((item) => item.close);
   const historyStats = history.map((_, index) => rolling(historyCloses, index));
   const visibleStart = Math.max(0, history.length - PERIOD);
   const data = history.slice(visibleStart);
   const stats = historyStats.slice(visibleStart);
-
   useEffect(() => {
     const viewport = chartViewportRef.current;
     if (viewport && zoom > MIN_ZOOM) viewport.scrollLeft = viewport.scrollWidth;
   }, [zoom]);
-
   if (data.length < 2) {
     return (
-      <div className="rounded-xl border border-line/20 bg-surface/[0.03] px-4 py-8 text-center text-xs text-ink-3">
-        Chart will appear when enough live candle data is available.
+      <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-6 text-center text-xs text-ink-3">
+        Chart snapshot will appear when enough candle data is available.
       </div>
     );
   }
 
   const values = data.flatMap((candle, index) => [
-    candle.high,
-    candle.low,
+    candle.high, candle.low,
     stats[index]?.upper ?? candle.high,
     stats[index]?.lower ?? candle.low,
   ]);
   values.push(levels.entry, levels.stopLoss, levels.tp1, levels.tp2, levels.tp3);
-
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
@@ -77,150 +67,105 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * plotW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
   const candleSpacing = plotW / Math.max(data.length - 1, 1);
-  const bodyW = Math.max(5, Math.min(42, candleSpacing * 0.68));
-
+  const bodyW = Math.max(3, Math.min(64, candleSpacing * 0.78));
   const linePath = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
-    .filter(Boolean)
-    .join(' ');
-
-  const bandPoints: Array<[number, number, number] | null> = stats.map((item, index) =>
-    item ? [x(index), y(item.upper), y(item.lower)] : null
-  );
-  const upperPath = bandPoints
-    .map((item, index) => item ? `${index === 0 || !bandPoints[index - 1] ? 'M' : 'L'} ${item[0]} ${item[1]}` : '')
-    .filter(Boolean)
-    .join(' ');
+    .filter(Boolean).join(' ');
+  const bandPoints: Array<[number, number, number] | null> = stats.map((item, index) => item ? [x(index), y(item.upper), y(item.lower)] : null);
+  const upperPath = bandPoints.map((item, index) => item ? `${index === 0 || !bandPoints[index - 1] ? 'M' : 'L'} ${item[0]} ${item[1]}` : '').filter(Boolean).join(' ');
   const lowerPath = bandPoints.slice().reverse().map((item, reverseIndex) => {
     if (!item) return '';
     const index = bandPoints.length - 1 - reverseIndex;
     return `${reverseIndex === 0 || !bandPoints[index + 1] ? 'M' : 'L'} ${item[0]} ${item[2]}`;
   }).filter(Boolean).join(' ');
-
   const signalIndex = data.findIndex((candle) => candle.epoch === signalEpoch);
-  const transitionIndex = signalIndex >= 0 ? signalIndex : Math.max(0, data.length - 8);
-  const transitionX = x(transitionIndex);
-  const leftRegime = direction === 'BUY' ? '#ef4444' : '#2563eb';
-  const rightRegime = direction === 'BUY' ? '#2563eb' : '#ef4444';
-  const latest = data[data.length - 1];
-  const latestStats = stats[stats.length - 1];
-  const gridPrices = Array.from({ length: 6 }, (_, index) => max - (range * index) / 5);
-
   const levelsToDraw = [
-    { label: 'ENTRY', value: levels.entry, color: '#f8fafc', dash: '7 5', width: 1.8 },
-    { label: 'STOP LOSS', value: levels.stopLoss, color: '#fb7185', dash: '5 5', width: 1.5 },
-    { label: 'TAKE PROFIT 1', value: levels.tp1, color: '#4ade80', dash: '5 5', width: 1.4 },
-    { label: 'TAKE PROFIT 2', value: levels.tp2, color: '#22c55e', dash: '5 5', width: 1.4 },
-    { label: 'TAKE PROFIT 3', value: levels.tp3, color: '#16a34a', dash: '5 5', width: 1.4 },
+    { label: 'ENTRY', value: levels.entry, color: '#64748b', dash: '4 4' },
+    { label: 'STOP', value: levels.stopLoss, color: '#ef4444', dash: '5 4' },
+    { label: 'TAKE PROFIT 1', value: levels.tp1, color: '#4ade80', dash: '5 4' },
+    { label: 'TAKE PROFIT 2', value: levels.tp2, color: '#22c55e', dash: '5 4' },
+    { label: 'TAKE PROFIT 3', value: levels.tp3, color: '#16a34a', dash: '5 4' },
   ];
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/20 bg-[#080d18] text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,.9)]" aria-label={`Premium ${timeframe} market chart`}>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0c1423] px-4 py-3 sm:px-5">
-        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-          <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : 'bg-rose-400'} shadow-[0_0_12px_currentColor]`} />
-          <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · MARKET STRUCTURE</span>
-          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±2.5σ</span>
+    <section className="overflow-hidden rounded-xl border border-line/15 bg-[#0b1220] text-white" aria-label={`Chart snapshot for ${timeframe} signal`}>
+      <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className={`h-2 w-2 rounded-full ${direction === 'BUY' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+          <span className="text-xs font-semibold tracking-wide text-white">{timeframe} MARKET SNAPSHOT</span>
+          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] leading-relaxed text-slate-300">SMA 60 · BB ±2.5σ</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="mr-1 text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
-          <button type="button" onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))} disabled={zoom === MIN_ZOOM} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 hover:border-amber-200/60 hover:bg-white/10 disabled:opacity-30" aria-label="Zoom out chart" title="Zoom out chart"><ZoomOut className="h-4 w-4" /></button>
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:flex-shrink-0 sm:justify-end">
+          <span className="text-[10px] tabular-nums text-slate-400">{data.length} / 60 candles</span>
+          <button
+            type="button"
+            onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-white/5 text-slate-200 transition-colors hover:bg-white/10 disabled:opacity-35"
+            aria-label="Zoom out chart"
+            title="Zoom out chart"
+            disabled={zoom === MIN_ZOOM}
+          >
+            <ZoomOut className="h-3.5 w-3.5" />
+          </button>
           <span className="min-w-10 text-center text-[10px] tabular-nums text-slate-300">{zoom.toFixed(1)}×</span>
-          <button type="button" onClick={() => setZoom((current) => Math.min(MAX_ZOOM, current + ZOOM_STEP))} disabled={zoom === MAX_ZOOM} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 hover:border-amber-200/60 hover:bg-white/10 disabled:opacity-30" aria-label="Zoom in chart" title="Zoom in chart"><ZoomIn className="h-4 w-4" /></button>
+          <button
+            type="button"
+            onClick={() => setZoom((current) => Math.min(MAX_ZOOM, current + ZOOM_STEP))}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-white/5 text-slate-200 transition-colors hover:bg-white/10 disabled:opacity-35"
+            aria-label="Zoom in chart"
+            title="Zoom in chart"
+            disabled={zoom === MAX_ZOOM}
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
-
       <div ref={chartViewportRef} className="w-full overflow-x-auto overscroll-x-contain touch-pan-x">
-        <svg viewBox={`0 0 ${svgWidth} ${HEIGHT}`} role="img" aria-label="Candlestick chart with directional market cloud, upper and lower volatility bands, moving average, entry, stop-loss and take-profit levels" style={{ width: zoom === 1 ? '100%' : `${svgWidth}px`, minWidth: zoom === 1 ? '720px' : undefined, maxWidth: 'none', height: 'auto', display: 'block' }}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#93c5fd" stopOpacity="0.24" />
-              <stop offset="50%" stopColor="#bfdbfe" stopOpacity="0.10" />
-              <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.20" />
-            </linearGradient>
-            <linearGradient id={`${gradientId}-left`} x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor={leftRegime} stopOpacity="0.42" />
-              <stop offset="100%" stopColor={leftRegime} stopOpacity="0.20" />
-            </linearGradient>
-            <linearGradient id={`${gradientId}-right`} x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor={rightRegime} stopOpacity="0.24" />
-              <stop offset="100%" stopColor={rightRegime} stopOpacity="0.42" />
-            </linearGradient>
-          </defs>
-
-          <rect x={PAD.left} y={PAD.top} width={Math.max(0, transitionX - PAD.left)} height={plotH} fill={`url(#${gradientId}-left)`} />
-          <rect x={transitionX} y={PAD.top} width={Math.max(0, svgWidth - PAD.right - transitionX)} height={plotH} fill={`url(#${gradientId}-right)`} />
-
-          {gridPrices.map((price, index) => {
-            const gy = y(price);
-            return <g key={index}>
-              <line x1={PAD.left} x2={svgWidth - PAD.right} y1={gy} y2={gy} stroke="#cbd5e1" strokeOpacity="0.16" strokeDasharray="3 7" />
-              <text x={svgWidth - PAD.right + 10} y={gy + 4} fill="#cbd5e1" fontSize="13" fontWeight="500">{price.toFixed(digits)}</text>
-            </g>;
-          })}
-
-          {upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
-          {upperPath && <path d={upperPath} fill="none" stroke="#ef4444" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />}
-          {lowerPath && <path d={lowerPath} fill="none" stroke="#2563eb" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />}
-          {linePath('mean') && <path d={linePath('mean')} fill="none" stroke="#facc15" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />}
-
-          {levelsToDraw.map((level) => <g key={level.label}>
-            <line x1={PAD.left} x2={svgWidth - PAD.right} y1={y(level.value)} y2={y(level.value)} stroke={level.color} strokeWidth={level.width} strokeDasharray={level.dash} strokeOpacity="0.92" />
-            <rect x={PAD.left + 8} y={Math.max(PAD.top + 3, y(level.value) - 19)} width={level.label.length * 7 + 18} height="18" rx="4" fill="#0b1220" fillOpacity="0.82" stroke={level.color} strokeOpacity="0.7" />
-            <text x={PAD.left + 16} y={Math.max(PAD.top + 16, y(level.value) - 6)} fill={level.color} fontSize="10" fontWeight="700" letterSpacing="0.6">{level.label}</text>
-          </g>)}
-
-          {data.map((candle, index) => {
-            const up = candle.close >= candle.open;
-            const color = up ? '#2563eb' : '#ef4444';
-            const top = y(Math.max(candle.open, candle.close));
-            const bottom = y(Math.min(candle.open, candle.close));
-            const bodyHeight = Math.max(2, bottom - top);
-            return <g key={candle.epoch}>
-              <line x1={x(index)} x2={x(index)} y1={y(candle.high)} y2={y(candle.low)} stroke={color} strokeWidth="2" />
-              <rect x={x(index) - bodyW / 2} y={top} width={bodyW} height={bodyHeight} rx="1.2" fill={color} stroke={up ? '#93c5fd' : '#fda4af'} strokeWidth="0.8" />
-            </g>;
-          })}
-
-          {signalIndex >= 0 && <g>
-            <line x1={transitionX} x2={transitionX} y1={PAD.top} y2={HEIGHT - PAD.bottom} stroke={direction === 'BUY' ? '#93c5fd' : '#fda4af'} strokeWidth="2" strokeDasharray="5 6" />
-            <rect x={Math.min(svgWidth - PAD.right - 112, transitionX + 12)} y={Math.max(PAD.top + 8, y(data[signalIndex].close) - 42)} width="96" height="27" rx="6" fill={direction === 'BUY' ? '#1d4ed8' : '#be123c'} stroke="#fff" strokeOpacity="0.65" />
-            <text x={Math.min(svgWidth - PAD.right - 64, transitionX + 60)} y={Math.max(PAD.top + 26, y(data[signalIndex].close) - 24)} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">{direction}</text>
-            <circle cx={transitionX} cy={y(data[signalIndex].close)} r="7" fill={direction === 'BUY' ? '#60a5fa' : '#fb7185'} stroke="#fff" strokeWidth="2" />
-          </g>}
-
-          {latestStats && <>
-            <rect x={svgWidth - PAD.right + 5} y={Math.max(PAD.top, y(latestStats.upper) - 12)} width="104" height="23" rx="4" fill="#ef4444" />
-            <text x={svgWidth - PAD.right + 57} y={Math.max(PAD.top + 16, y(latestStats.upper) + 4)} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">{latestStats.upper.toFixed(digits)}</text>
-            <rect x={svgWidth - PAD.right + 5} y={Math.max(PAD.top, y(latestStats.mean) - 12)} width="104" height="23" rx="4" fill="#eab308" />
-            <text x={svgWidth - PAD.right + 57} y={Math.max(PAD.top + 16, y(latestStats.mean) + 4)} textAnchor="middle" fill="#111827" fontSize="12" fontWeight="700">{latestStats.mean.toFixed(digits)}</text>
-            <rect x={svgWidth - PAD.right + 5} y={Math.max(PAD.top, y(latestStats.lower) - 12)} width="104" height="23" rx="4" fill="#2563eb" />
-            <text x={svgWidth - PAD.right + 57} y={Math.max(PAD.top + 16, y(latestStats.lower) + 4)} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">{latestStats.lower.toFixed(digits)}</text>
-          </>}
-
-          <rect x={svgWidth - PAD.right + 5} y={Math.min(HEIGHT - PAD.bottom - 25, Math.max(PAD.top, y(latest.close) - 12))} width="104" height="24" rx="4" fill="#f8fafc" />
-          <text x={svgWidth - PAD.right + 57} y={Math.min(HEIGHT - PAD.bottom - 8, Math.max(PAD.top + 16, y(latest.close) + 5))} textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="800">{latest.close.toFixed(digits)}</text>
-
-          {[0, 1, 2, 3, 4].map((step) => {
-            const index = Math.round((data.length - 1) * step / 4);
-            return <g key={step}>
-              <line x1={x(index)} x2={x(index)} y1={HEIGHT - PAD.bottom} y2={HEIGHT - PAD.bottom + 5} stroke="#94a3b8" strokeOpacity="0.6" />
-              <text x={x(index)} y={HEIGHT - 14} textAnchor="middle" fill="#94a3b8" fontSize="12">{timeLabel(data[index].epoch)}</text>
-            </g>;
-          })}
-          <text x={PAD.left + 2} y={HEIGHT - 14} fill="#cbd5e1" fontSize="10" fontWeight="700" letterSpacing="1.4">SUPERTECH AI · MARKET INTELLIGENCE</text>
-        </svg>
+      <svg viewBox={`0 0 ${svgWidth} ${HEIGHT}`} role="img" aria-label="Scrollable candlestick chart with zoom controls, moving average, volatility bands, entry, stop-loss and target levels" style={{ width: `${svgWidth}px`, maxWidth: "none", height: "auto" }} className="block">
+        <defs>
+          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.13" />
+            <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {[0, 1, 2, 3].map((step) => {
+          const gy = PAD.top + (plotH * step) / 3;
+          const price = max - (range * step) / 3;
+          return <g key={step}><line x1={PAD.left} x2={svgWidth - PAD.right} y1={gy} y2={gy} stroke="#94a3b8" strokeOpacity="0.13" strokeDasharray="3 5" /><text x={svgWidth - PAD.right - 2} y={gy - 4} fill="#94a3b8" fontSize="10" textAnchor="end">{price.toFixed(digits)}</text></g>;
+        })}
+        {upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
+        {upperPath && <path d={upperPath} fill="none" stroke="#f87171" strokeWidth="2" strokeOpacity="0.9" />}
+        {lowerPath && <path d={lowerPath} fill="none" stroke="#60a5fa" strokeWidth="2" strokeOpacity="0.9" />}
+        {linePath('mean') && <path d={linePath('mean')} fill="none" stroke="#facc15" strokeWidth="2.5" />}
+        {levelsToDraw.map((level) => <g key={level.label}>
+          <line x1={PAD.left} x2={svgWidth - PAD.right} y1={y(level.value)} y2={y(level.value)} stroke={level.color} strokeWidth="1.4" strokeDasharray={level.dash} />
+          <text x={PAD.left + 4} y={Math.max(PAD.top + 10, y(level.value) - 4)} fill={level.color} fontSize="9" fontWeight="700">{level.label} {level.value.toFixed(digits)}</text>
+        </g>)}
+        {data.map((candle, index) => {
+          const up = candle.close >= candle.open;
+          const color = up ? '#22c55e' : '#f43f5e';
+          const top = y(Math.max(candle.open, candle.close));
+          const bottom = y(Math.min(candle.open, candle.close));
+          const height = Math.max(1.5, bottom - top);
+          return <g key={candle.epoch}>
+            <line x1={x(index)} x2={x(index)} y1={y(candle.high)} y2={y(candle.low)} stroke={color} strokeWidth="1.3" />
+            <rect x={x(index) - bodyW / 2} y={top} width={bodyW} height={height} rx="0.7" fill={color} stroke={color} strokeWidth="0.7" />
+          </g>;
+        })}
+        {signalIndex >= 0 && <g>
+          <line x1={x(signalIndex)} x2={x(signalIndex)} y1={PAD.top} y2={HEIGHT - PAD.bottom} stroke={direction === 'BUY' ? '#34d399' : '#fb7185'} strokeWidth="1.5" strokeDasharray="3 3" />
+          <circle cx={x(signalIndex)} cy={y(data[signalIndex].close)} r="5" fill={direction === 'BUY' ? '#34d399' : '#fb7185'} stroke="#0b1220" strokeWidth="2" />
+          <text x={Math.min(svgWidth - 65, x(signalIndex) + 7)} y={Math.max(PAD.top + 12, y(data[signalIndex].close) - 9)} fill={direction === 'BUY' ? '#6ee7b7' : '#fda4af'} fontSize="10" fontWeight="700">{direction}</text>
+        </g>}
+        <text x={PAD.left + 2} y={HEIGHT - 6} fill="#64748b" fontSize="10">SUPERTECH AI · PRICE ACTION</text>
+      </svg>
       </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] text-slate-300 sm:px-5">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-rose-500" /> Upper band</span>
-          <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-yellow-400" /> SMA 60</span>
-          <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-blue-500" /> Lower band</span>
-          <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-blue-500" /> Bullish candle</span>
-          <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-rose-500" /> Bearish candle</span>
-        </div>
-        <span className="font-semibold tracking-[0.12em] text-amber-200/90">HIDE THE COMPLEXITY. DELIVER THE INTELLIGENCE.</span>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-white/10 px-3 py-3 text-[10px] leading-snug text-slate-300 sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
+        <span className="flex min-w-0 items-center gap-1.5"><i className="h-0.5 w-3 bg-yellow-400" /> SMA 60</span>
+        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-400" /> Upper band</span>
+        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-blue-400" /> Lower band</span>
+        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-emerald-400" /> BUY / TP1 · TP2 · TP3</span>
+        <span className="flex items-center gap-1"><i className="h-0.5 w-3 bg-rose-500" /> Stop / SELL</span>
       </div>
     </section>
   );
