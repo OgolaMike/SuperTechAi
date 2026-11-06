@@ -196,6 +196,8 @@ export function buildBackendReversalPendingOrder(
   const cross = closed[crossIndex];
   const firstConfirm = closed[crossIndex + 1];
   const confirm = closed[i];
+  if (cross.low == null || firstConfirm.low == null || confirm.low == null ||
+      cross.high == null || firstConfirm.high == null || confirm.high == null) return null;
   const sellCross = beforeCross.close >= previousBand.high && cross.close < crossBand.high;
   const buyCross = beforeCross.close <= previousBand.low && cross.close > crossBand.low;
   const sellStructure = firstConfirm.low < cross.low && confirm.low < firstConfirm.low;
