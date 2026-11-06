@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DerivClient, type Candle, type ConnectionStatus, type DerivSymbol } from '@/lib/deriv';
 import {
   TIMEFRAMES,
-  aggregateWeeklyCandles,
   computeTfState,
   emptyTfState,
   mergeCandle,
@@ -11,9 +10,7 @@ import {
   type Timeframe,
 } from '@/lib/sma';
 
-const DAILY_GRANULARITY = 86400;
-const WEEKLY_TIMEFRAME = TIMEFRAMES.find((timeframe) => timeframe.label === 'W1')!;
-const LIVE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => timeframe.label !== 'W1');
+const LIVE_TIMEFRAMES = TIMEFRAMES;
 const M15_GRANULARITY = 900;
 const ALL_ASSET_M15_HISTORY = 200;
 
@@ -82,15 +79,11 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     const nowEpoch = Math.floor(Date.now() / 1000);
     const candles = candlesRef.current[symbol]?.[granularity] ?? [];
     const state = computeTfState(timeframe, candles, nowEpoch);
-    const weeklyState = granularity === DAILY_GRANULARITY
-      ? computeTfState(WEEKLY_TIMEFRAME, aggregateWeeklyCandles(candles, nowEpoch), nowEpoch)
-      : null;
     setStates((previous) => ({
       ...previous,
       [symbol]: {
         ...(previous[symbol] ?? emptyTimeframes()),
         [granularity]: state,
-        ...(weeklyState ? { [WEEKLY_TIMEFRAME.granularity]: weeklyState } : {}),
       },
     }));
   }, []);
