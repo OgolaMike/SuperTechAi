@@ -35,7 +35,6 @@ export function BinanceSpotAutomation() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
   const [maxOpen, setMaxOpen] = useState('3');
-  const [allowedSymbols, setAllowedSymbols] = useState('');
   const [autoTrade, setAutoTrade] = useState(false);
   const [liveExecution, setLiveExecution] = useState(false);
   const [emergencyStop, setEmergencyStop] = useState(true);
@@ -52,7 +51,6 @@ export function BinanceSpotAutomation() {
       setOrders((result.orders ?? []) as Order[]);
       if (next) {
         setMaxOpen(String(next.max_open_positions ?? 3));
-        setAllowedSymbols((next.allowed_symbols ?? []).join(', '));
         setAutoTrade(Boolean(next.auto_trade_enabled));
         setLiveExecution(Boolean(next.live_execution_enabled));
         setEmergencyStop(next.emergency_stop !== false);
@@ -94,7 +92,6 @@ export function BinanceSpotAutomation() {
     try {
       await callBinance('settings', {
         maxOpenPositions: Number(maxOpen),
-        allowedSymbols: allowedSymbols.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean),
         autoTradeEnabled: autoTrade,
         liveExecutionEnabled: liveExecution,
         emergencyStop,
@@ -184,16 +181,17 @@ export function BinanceSpotAutomation() {
               <input type="number" min="1" max="20" step="1" value={maxOpen} onChange={(e) => setMaxOpen(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" />
             </label>
           </div>
-          <label className="mt-3 block text-xs font-medium text-ink-2">Allowed Binance symbols (required to arm automation; comma-separated)
-            <input value={allowedSymbols} onChange={(e) => setAllowedSymbols(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" placeholder="BTCUSDT, ETHUSDT (select only the pairs you want automated)" />
-          </label>
+          <div className="mt-3 rounded-xl border border-up/20 bg-up/5 p-3">
+            <p className="text-sm font-semibold text-ink">Automatic Binance market access</p>
+            <p className="mt-1 text-xs leading-5 text-ink-2">All eligible Binance USDT Spot pairs covered by SuperTech AI analysis are automatically permitted for automation. The system checks live exchange trading status and symbol rules before every order. No manual symbol list is needed.</p>
+          </div>
           <div className="mt-4 space-y-3 rounded-xl border border-line/10 bg-canvas/50 p-3">
             <label className="flex items-center justify-between gap-3 text-sm text-ink"><span>Enable automation</span><input type="checkbox" checked={autoTrade} onChange={(e) => setAutoTrade(e.target.checked)} /></label>
             <label className="flex items-center justify-between gap-3 text-sm text-ink"><span>Authorize live spot orders</span><input type="checkbox" checked={liveExecution} onChange={(e) => setLiveExecution(e.target.checked)} /></label>
             <label className="flex items-center justify-between gap-3 text-sm font-semibold text-rose-500"><span>Emergency stop</span><input type="checkbox" checked={emergencyStop} onChange={(e) => setEmergencyStop(e.target.checked)} /></label>
           </div>
           <button disabled={busy || !connected} onClick={() => void saveSettings()} className="mt-4 w-full rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm font-semibold text-ink disabled:opacity-50">Save trading controls</button>
-          <p className="mt-3 text-xs leading-5 text-ink-3">Automation only runs when the account is connected, both permissions are enabled, and the emergency stop is OFF. Only the symbols you list can trade. Position size adjusts to the entry-to-stop distance so planned risk is limited to 3% of the current Binance USDT balance; available free USDT and exchange minimums can reduce or prevent an order.</p>
+          <p className="mt-3 text-xs leading-5 text-ink-3">Automation only runs when the account is connected, both permissions are enabled, and the emergency stop is OFF. Only currently active, supported USDT Spot pairs can trade. Position size adjusts to the entry-to-stop distance so planned risk is limited to 3% of the current Binance USDT balance; available free USDT and exchange minimums can reduce or prevent an order.</p>
         </div>
       </div>
 
