@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Loader2, TrendingDown, TrendingUp } from 'lucide-react';
-import { fetchBinanceCandles } from '@/lib/binance';
+import { BinanceStream, fetchBinanceCandles } from '@/lib/binance';
 import type { Candle } from '@/lib/deriv';
-import { computeTfState, TIMEFRAMES, type TfState, type Timeframe } from '@/lib/sma';
+import { computeTfState, mergeCandle, TIMEFRAMES, type TfState, type Timeframe } from '@/lib/sma';
 import { formatPrice } from '@/lib/sma';
 
 type Props = {
@@ -66,20 +66,29 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close }: Props) {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    const stream = new BinanceStream();
     fetchBinanceCandles(symbol, timeframe, 500)
       .then((rows) => {
-        if (!cancelled) setCandles(rows);
+        if (cancelled) return;
+        setCandles(rows);
+        stream.start([symbol], [timeframe], (_granularity, candle) => {
+          if (!cancelled) setCandles((previous) => mergeCandle(previous, candle));
+        });
       })
       .catch((reason: Error) => {
         if (!cancelled) {
           setCandles([]);
           setError(reason.message || 'Market candles are temporarily unavailable.');
+          // Keep the live stream available even if the REST history endpoint is temporarily unavailable.
+          stream.start([symbol], [timeframe], (_granularity, candle) => {
+            if (!cancelled) setCandles((previous) => mergeCandle(previous, candle));
+          });
         }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; stream.stop(); };
   }, [symbol, timeframe]);
 
   const state = useMemo(() => computeTfState(timeframe, candles, Math.floor(Date.now() / 1000)), [timeframe, candles]);
