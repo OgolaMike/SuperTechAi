@@ -3,6 +3,7 @@ import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } fr
 import { fetchBinanceCandles, loadBinanceSymbols } from "./binance.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
 import { buildBackendLimitIntent } from "./pendingIntents.ts";
+import { submitBinanceSpotLimitIntents } from "./binanceSpotAutomation.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
 
 const corsHeaders = {
@@ -407,10 +408,13 @@ async function runScan(): Promise<Record<string, unknown>> {
                   }], { onConflict: "event_key", ignoreDuplicates: true });
                   if (limitEventError) throw new Error("Could not queue LIMIT push event: " + limitEventError.message);
                 }
-                // Binance spot pairs are included in signals, records and alerts.
-                // Broker execution intents remain Deriv-only until an explicit broker
-                // instrument mapping exists for each Binance pair.
-                if (symbol.exchange !== "BINANCE") {
+                if (symbol.exchange === "BINANCE") {
+                  // Spot is long-only: bullish BUY LIMIT entries are wrapped in a native
+                  // Binance OTOCO list. The protective SELL take-profit and stop-loss
+                  // orders activate only after the working BUY LIMIT is fully filled.
+                  const spotResult = await submitBinanceSpotLimitIntents(db, symbol.symbol, limitIntents);
+                  if (spotResult.failed > 0) lastError = `Binance Spot execution ${symbol.symbol}: ${spotResult.failed} order(s) need review.`;
+                } else {
                   const accounts = await loadMt5Accounts();
                   for (const limitIntent of limitIntents) {
                     await persistAccountSignalIntent(accounts, symbol.name, limitIntent,
