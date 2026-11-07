@@ -4,20 +4,20 @@ import type { Toast } from '@/hooks/useSignalAlerts';
 import { formatPrice, formatDateTime } from '@/lib/sma';
 
 export const TOAST_DURATION_MS = 15000;
-type Props = { toasts: Toast[]; onDismiss: (id: string) => void };
+type Props = { toasts: Toast[]; onDismiss: (id: string) => void; onOpenChart: (symbol: string, timeframe: string) => void };
 
-export function Toasts({ toasts, onDismiss }: Props) {
+export function Toasts({ toasts, onDismiss, onOpenChart }: Props) {
   const signals = toasts.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal');
   const hits = toasts.filter((toast) => toast.kind === 'hit');
   return <>
     <div aria-live="polite" className="pointer-events-none fixed inset-0 z-[70] overflow-hidden">
-      {signals.map((toast, index) => <SignalBubble key={toast.id} toast={toast} index={index} onDismiss={onDismiss} />)}
+      {signals.map((toast, index) => <SignalBubble key={toast.id} toast={toast} index={index} onDismiss={onDismiss} onOpenChart={onOpenChart} />)}
       {hits.map((toast, index) => <HitBubble key={toast.id} toast={toast} index={index + signals.length} onDismiss={onDismiss} />)}
     </div>
   </>;
 }
 
-function SignalBubble({ toast, index, onDismiss }: { toast: Toast; index: number; onDismiss: (id: string) => void }) {
+function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; index: number; onDismiss: (id: string) => void; onOpenChart: (symbol: string, timeframe: string) => void }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => onDismiss(toast.id), TOAST_DURATION_MS);
@@ -35,12 +35,12 @@ function SignalBubble({ toast, index, onDismiss }: { toast: Toast; index: number
       <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.timeframe}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
-    {open && <SignalDetails toast={toast} onClose={() => setOpen(false)} />}
+    {open && <SignalDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.timeframe)} />}
   </>;
 }
 
 
-function HitBubble({ toast, index, onDismiss }: { toast: Toast; index: number; onDismiss: (id: string) => void }) {
+function HitBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; index: number; onDismiss: (id: string) => void; onOpenChart: (symbol: string, timeframe: string) => void }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => onDismiss(toast.id), TOAST_DURATION_MS);
@@ -58,7 +58,7 @@ function HitBubble({ toast, index, onDismiss }: { toast: Toast; index: number; o
       <span className="text-xs font-black tracking-wider">{isStop ? 'STOP' : hitLabel}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
-    {open && <HitDetails toast={toast} onClose={() => setOpen(false)} />}
+    {open && <HitDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.timeframe)} />}
   </>;
 }
 
@@ -76,7 +76,7 @@ function BubbleAssetName({ name, size, id }: { name: string; size: number; id: s
   </svg>;
 }
 
-function HitDetails({ toast, onClose }: { toast: Toast; onClose: () => void }) {
+function HitDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toast; onClose: () => void; onDismiss: () => void; onOpenChart: () => void }) {
   return <div className="pointer-events-auto fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm" onClick={onClose}>
     <section role="dialog" aria-modal="true" aria-label="Target or stop details" onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-3xl border border-line/30 bg-canvas p-5 shadow-2xl">
       <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Trade update</p><h2 className={`mt-1 text-2xl font-black ${toast.tone === 'STOP' ? 'text-down' : 'text-up'}`}>{toast.message}</h2><p className="text-sm text-ink-2">{toast.assetName} ({toast.symbol}) · {toast.timeframe}</p></div><button type="button" onClick={onClose} aria-label="Close details" className="rounded-full p-2 text-ink-2 hover:bg-surface/10"><X className="h-5 w-5" /></button></div>
@@ -88,12 +88,15 @@ function HitDetails({ toast, onClose }: { toast: Toast; onClose: () => void }) {
         <Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" />
         <Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" />
       </div>
-      <button type="button" onClick={onClose} className="mt-5 w-full rounded-xl bg-accent px-4 py-3 text-sm font-bold text-canvas">Close</button>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => { onDismiss(); onClose(); }} className="min-w-0 rounded-xl border border-line/25 bg-surface/10 px-3 py-3 text-sm font-bold text-ink">Close</button>
+        <button type="button" onClick={() => { onOpenChart(); onDismiss(); onClose(); }} className="min-w-0 rounded-xl bg-accent px-3 py-3 text-sm font-bold text-canvas">Open Chart</button>
+      </div>
     </section>
   </div>;
 }
 
-function SignalDetails({ toast, onClose }: { toast: Toast; onClose: () => void }) {
+function SignalDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toast; onClose: () => void; onDismiss: () => void; onOpenChart: () => void }) {
   const buy = toast.direction === 'BUY';
   return <div className="pointer-events-auto fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm" onClick={onClose}>
     <section role="dialog" aria-modal="true" aria-label="Signal details" onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-3xl border border-line/30 bg-canvas p-5 shadow-2xl">
@@ -107,7 +110,10 @@ function SignalDetails({ toast, onClose }: { toast: Toast; onClose: () => void }
         <Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" />
         <Detail label="Signal time" value={formatDateTime(toast.at)} />
       </div>
-      <button type="button" onClick={onClose} className="mt-5 w-full rounded-xl bg-accent px-4 py-3 text-sm font-bold text-canvas">Close</button>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => { onDismiss(); onClose(); }} className="min-w-0 rounded-xl border border-line/25 bg-surface/10 px-3 py-3 text-sm font-bold text-ink">Close</button>
+        <button type="button" onClick={() => { onOpenChart(); onDismiss(); onClose(); }} className="min-w-0 rounded-xl bg-accent px-3 py-3 text-sm font-bold text-canvas">Open Chart</button>
+      </div>
     </section>
   </div>;
 }
