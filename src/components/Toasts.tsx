@@ -12,7 +12,7 @@ export function Toasts({ toasts, onDismiss, onOpenChart }: Props) {
   return <>
     <div aria-live="polite" className="pointer-events-none fixed inset-0 z-[70] overflow-hidden">
       {signals.map((toast, index) => <SignalBubble key={toast.id} toast={toast} index={index} onDismiss={onDismiss} onOpenChart={onOpenChart} />)}
-      {hits.map((toast, index) => <HitBubble key={toast.id} toast={toast} index={index + signals.length} onDismiss={onDismiss} />)}
+      {hits.map((toast, index) => <HitBubble key={toast.id} toast={toast} index={index + signals.length} onDismiss={onDismiss} onOpenChart={onOpenChart} />)}
     </div>
   </>;
 }
