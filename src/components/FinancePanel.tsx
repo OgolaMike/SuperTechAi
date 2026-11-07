@@ -384,7 +384,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
                 ['Unallocated referrals', 'pool:unallocated_referral'],
                 ['Treasury received', 'company:treasury_inflow'],
                 ['Network & transaction reserve', 'company:operations_pending'],
-                ['Operating fund', 'company:operations'],
+                ['Network & transaction reserve collected', 'company:operations'],
               ].map(([label, account]) => <div key={account} className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-lg font-semibold text-ink">{money(adminData?.accountBalances[account] ?? 0)}</p></div>)}
             </div>
           </div>
