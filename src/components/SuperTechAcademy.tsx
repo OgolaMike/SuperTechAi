@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { BookOpen, CheckCircle2, ChevronRight, Clock3, Copy, GraduationCap, PlayCircle, Search, ShieldCheck, Video, WandSparkles } from 'lucide-react';
+import { AcademyFreeVideoStudio } from '@/components/AcademyFreeVideoStudio';
+import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video, WandSparkles } from 'lucide-react';
 
 type Lesson = {
   id: string; title: string; category: string; level: string; duration: string; summary: string;
@@ -20,46 +21,16 @@ const LESSONS: Lesson[] = [
 ];
 
 type AcademyVideo = {
-  id: string; lesson_id: string; lesson_title: string; status: 'pending' | 'processing' | 'completed' | 'failed';
-  video_url?: string | null; thumbnail_url?: string | null; failure_reason?: string | null; created_at: string;
+  id: string;
+  lesson_id: string;
+  lesson_title: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  video_url?: string | null;
+  thumbnail_url?: string | null;
+  created_at: string;
 };
 
-async function academyVideoRequest(payload: Record<string, unknown>) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
-  if (!token) throw new Error('Please sign in again to use Academy video production.');
-  const { data, error } = await supabase.functions.invoke('academy-videos', {
-    body: payload,
-    headers: { Authorization: 'Bearer ' + token },
-  });
-  if (error) {
-    const context = (error as { context?: Response }).context;
-    const detail = context ? await context.clone().json().catch(() => null) : null;
-    throw new Error(typeof detail?.error === 'string' ? detail.error : error.message || 'Academy video service is unavailable.');
-  }
-  if (data?.error) throw new Error(data.error);
-  return data;
-}
-
 const CATEGORIES = ['All lessons', 'Getting started', 'Trading intelligence', 'Crypto', 'Automation', 'Membership'];
-function makeBrief(lesson: Lesson) {
-  return [
-    'SUPERTECHAI ACADEMY — AI VIDEO PRODUCTION BRIEF',
-    'Lesson: ' + lesson.title,
-    'Audience: ' + lesson.level + ' SuperTechAi members',
-    'Target duration: ' + lesson.duration,
-    'Format: 16:9 landscape, 1080p, professional screen-led explainer.',
-    'Brand: premium dark navy fintech interface, electric cyan highlights, subtle gold details, crisp white captions.',
-    'Voice: warm, confident, clear English narrator; simple language; moderate pace.',
-    'Accuracy: demonstrate only the described feature; use fictional sample data; never invent live performance statistics or promise profits.',
-    '',
-    'VISUAL DIRECTION:', lesson.visualPrompt, '',
-    'NARRATION SCRIPT:', lesson.narration, '',
-    'ON-SCREEN LEARNING STEPS:', ...lesson.steps.map((step, index) => (index + 1) + '. ' + step),
-    '', 'ENDING: “SuperTechAi — Understand the tools. Make informed decisions. Always manage risk.”',
-  ].join('\n');
-}
-
 export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
   const [category, setCategory] = useState('All lessons');
   const [query, setQuery] = useState('');
@@ -68,77 +39,46 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
     try { return JSON.parse(localStorage.getItem('supertech-academy-completed') ?? '[]'); } catch { return []; }
   });
   const [answer, setAnswer] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
   const [studio, setStudio] = useState(false);
   const [videos, setVideos] = useState<AcademyVideo[]>([]);
-  const [videoBusy, setVideoBusy] = useState(false);
   const [videoError, setVideoError] = useState('');
-  const [videoNotice, setVideoNotice] = useState('');
 
   useEffect(() => {
     let active = true;
-    academyVideoRequest({ action: isAdmin ? 'jobs' : 'list' })
-      .then((result) => { if (active) setVideos(Array.isArray(result.videos) ? result.videos : []); })
-      .catch((error) => { if (active) setVideoError(error instanceof Error ? error.message : 'Could not load Academy videos.'); });
+    supabase.from('academy_videos')
+      .select('id,lesson_id,lesson_title,status,video_url,thumbnail_url,created_at')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .then(async ({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          setVideoError('Published Academy videos could not be loaded.');
+          return;
+        }
+        const withLinks = await Promise.all((data || []).map(async (video) => {
+          if (!video.video_url) return video;
+          const { data: signed, error: signedError } = await supabase.storage
+            .from('academy-videos').createSignedUrl(video.video_url, 60 * 60 * 24 * 7);
+          return { ...video, video_url: signedError ? null : signed?.signedUrl || null };
+        }));
+        if (active) setVideos(withLinks as AcademyVideo[]);
+      });
     return () => { active = false; };
-  }, [isAdmin]);
+  }, []);
 
-  const generateVideo = async () => {
-    setVideoBusy(true); setVideoError(''); setVideoNotice('');
-    try {
-      const prompt = makeBrief(selected) + '\n\nPRODUCTION REQUIREMENTS: Create a complete, polished 3–5 minute training video, not a short teaser. Preserve the lesson narration and teach every listed step. Use a friendly professional presenter, clear English narration, scene-by-scene screen demonstrations, captions, transitions, and the SuperTechAi dark navy, electric cyan and subtle gold visual identity. Landscape 16:9. Never invent platform performance or promise profits.';
-      const result = await academyVideoRequest({ action: 'create', lessonId: selected.id, lessonTitle: selected.title, prompt });
-      if (result.video) setVideos((current) => [result.video, ...current.filter((item) => item.id !== result.video.id)]);
-      setVideoNotice('Video submitted to HeyGen. Rendering happens in the background; check its status shortly.');
-    } catch (error) {
-      setVideoError(error instanceof Error ? error.message : 'Could not start video generation.');
-    } finally { setVideoBusy(false); }
-  };
-
-  const refreshVideo = async (videoId: string) => {
-    setVideoBusy(true); setVideoError('');
-    try {
-      const result = await academyVideoRequest({ action: 'refresh', videoId });
-      if (result.video) setVideos((current) => current.map((item) => item.id === result.video.id ? result.video : item));
-      if (result.video?.status === 'completed') setVideoNotice('Your lesson video is ready for members.');
-      else if (result.video?.status === 'failed') setVideoError(result.video.failure_reason || 'HeyGen could not complete this video.');
-      else setVideoNotice('HeyGen is still rendering this lesson. Check again in a little while.');
-    } catch (error) { setVideoError(error instanceof Error ? error.message : 'Could not refresh video status.'); }
-    finally { setVideoBusy(false); }
-  };
-
-  const checkProvider = async () => {
-    setVideoBusy(true); setVideoError(''); setVideoNotice('');
-    try {
-      const result = await academyVideoRequest({ action: 'health' });
-      setVideoNotice(result.configured ? 'HeyGen is connected and its API key was accepted.' : 'HeyGen connection could not be verified.');
-    } catch (error) { setVideoError(error instanceof Error ? error.message : 'HeyGen connection check failed.'); }
-    finally { setVideoBusy(false); }
-  };
-
+  const selected = LESSONS.find((lesson) => lesson.id === selectedId) ?? LESSONS[0];
   const selectedVideo = videos.find((video) => video.lesson_id === selected.id && video.status === 'completed' && video.video_url);
   const filtered = useMemo(() => LESSONS.filter((lesson) =>
     (category === 'All lessons' || lesson.category === category) &&
     (lesson.title.toLowerCase().includes(query.toLowerCase()) || lesson.summary.toLowerCase().includes(query.toLowerCase()))
   ), [category, query]);
-  const selected = LESSONS.find((lesson) => lesson.id === selectedId) ?? LESSONS[0];
   const progress = Math.round(completed.length / LESSONS.length * 100);
   const markComplete = () => {
     const next = completed.includes(selected.id) ? completed : [...completed, selected.id];
     setCompleted(next);
     localStorage.setItem('supertech-academy-completed', JSON.stringify(next));
   };
-  const copyBrief = async () => {
-    const brief = makeBrief(selected);
-    try {
-      await navigator.clipboard.writeText(brief);
-    } catch {
-      const area = document.createElement('textarea');
-      area.value = brief; document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove();
-    }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2200);
-  };
+
 
   return (
     <main className="mt-8 space-y-6">
@@ -151,7 +91,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Short, practical lessons for your Dashboard, signals, crypto, automation, referrals and earnings.</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <button onClick={() => { setSelectedId('welcome'); setAnswer(null); }} className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-200"><PlayCircle className="h-4 w-4" /> Start learning</button>
-              <button onClick={() => setStudio(!studio)} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"><WandSparkles className="h-4 w-4" /> AI video studio</button>
+              {isAdmin && <button onClick={() => setStudio(!studio)} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"><WandSparkles className="h-4 w-4" /> Free video studio</button>}
             </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-5">
@@ -165,30 +105,8 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
         </div>
       </section>
 
-      {studio && <section className="rounded-2xl border border-cyan-300/20 bg-surface/[0.04] p-5">
-        <div className="flex items-start gap-3"><WandSparkles className="mt-1 h-5 w-5 text-accent" /><div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">AI video production studio</p>
-          <h2 className="mt-1 text-xl font-semibold text-ink">Turn this lesson into a branded video</h2>
-          <p className="mt-2 text-sm leading-6 text-ink-2">Generate a narrated lesson with HeyGen, then publish the finished video for members to watch inside Academy.</p>
-          {isAdmin && <div className="mt-4 flex flex-wrap gap-2">
-            <button onClick={generateVideo} disabled={videoBusy} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> {videoBusy ? 'Working…' : 'Generate selected lesson'}</button>
-            <button onClick={checkProvider} disabled={videoBusy} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-4 py-2.5 text-sm font-semibold text-ink-2 disabled:opacity-50">Check HeyGen connection</button>
-            <button onClick={copyBrief} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-4 py-2.5 text-sm font-semibold text-ink-2"><Copy className="h-4 w-4" /> {copied ? 'Brief copied' : 'Copy production brief'}</button>
-          </div>}
-          {videoNotice && <p className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3 text-xs text-emerald-500">{videoNotice}</p>}
-          {videoError && <p className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-400">{videoError}</p>}
-          {isAdmin && <div className="mt-4 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">Video production queue</p>
-            {videos.length === 0 && <p className="text-xs text-ink-3">No Academy videos generated yet.</p>}
-            {videos.map((video) => <div key={video.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line/10 p-3">
-              <div className="min-w-0"><p className="text-sm font-medium text-ink">{video.lesson_title}</p><p className="text-xs capitalize text-ink-3">{video.status}</p></div>
-              {video.status !== 'completed' && video.status !== 'failed' && <button onClick={() => refreshVideo(video.id)} disabled={videoBusy} className="rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-50">Check status</button>}
-              {video.status === 'completed' && video.video_url && <a href={video.video_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-accent">Open video</a>}
-            </div>)}
-          </div>}
-          {!isAdmin && <p className="mt-3 text-xs text-ink-3">Completed teaching videos appear here when published by the Academy team.</p>}
-        </div></div>
-      </section>}
+      {videoError && <p className="rounded-xl border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-400">{videoError}</p>}
+      {studio && isAdmin && <AcademyFreeVideoStudio lesson={selected} isAdmin={isAdmin} />}
 
       <section className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="space-y-4">
@@ -202,14 +120,14 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
         <article className="min-w-0 overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.035]">
           <div className="relative flex min-h-48 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-7 text-center">
             <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 25% 20%, rgba(34,211,238,.4), transparent 35%), radial-gradient(circle at 80% 80%, rgba(251,191,36,.2), transparent 35%)' }} />
-            <div className="relative max-w-md"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200"><Video className="h-7 w-7" /></div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Academy lesson</p><h2 className="mt-2 text-2xl font-bold text-white">{selected.title}</h2><p className="mt-2 text-sm text-slate-300">{selected.duration} · {selected.level}</p><p className="mt-3 text-xs text-slate-400">Guided lesson and video-production script</p></div>
+            <div className="relative max-w-md"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200"><Video className="h-7 w-7" /></div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Academy lesson</p><h2 className="mt-2 text-2xl font-bold text-white">{selected.title}</h2><p className="mt-2 text-sm text-slate-300">{selected.duration} · {selected.level}</p><p className="mt-3 text-xs text-slate-400">{selectedVideo ? 'Published teaching video' : 'Guided lesson and teaching script'}</p></div>
           </div>
-          {selectedVideo?.video_url && <div className="border-b border-line/10 bg-black p-2"><video className="aspect-video w-full rounded-xl" controls preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
+          {selectedVideo?.video_url && <div className="border-b border-line/10 bg-black p-2"><video className="aspect-video w-full rounded-xl" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
           <div className="space-y-5 p-5 sm:p-6">
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">What you will learn</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
             <div className="space-y-3">{selected.steps.map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/30 text-xs font-semibold text-accent">{index + 1}</span><p className="pt-0.5 text-sm leading-6 text-ink-2">{step}</p></div>)}</div>
             <div className="rounded-xl border border-line/10 bg-surface/[0.035] p-4"><div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4 text-accent" /> Knowledge check</div><p className="mt-3 text-sm font-medium text-ink">{selected.quiz.question}</p><div className="mt-3 space-y-2">{selected.quiz.answers.map((option, index) => <button key={option} onClick={() => setAnswer(index)} className={'w-full rounded-lg border px-3 py-2.5 text-left text-sm ' + (answer === index ? (index === selected.quiz.correct ? 'border-emerald-400/50 bg-emerald-400/10 text-ink' : 'border-rose-400/50 bg-rose-400/10 text-ink') : 'border-line/10 text-ink-2 hover:border-accent/30')}>{option}</button>)}</div>{answer !== null && <p className={'mt-3 text-xs leading-5 ' + (answer === selected.quiz.correct ? 'text-emerald-400' : 'text-rose-400')}>{answer === selected.quiz.correct ? 'Correct. ' : 'Not quite. '}{selected.quiz.explanation}</p>}</div>
-            <div className="flex flex-wrap gap-3"><button onClick={markComplete} disabled={completed.includes(selected.id) || answer !== selected.quiz.correct} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-4 w-4" /> {completed.includes(selected.id) ? 'Lesson completed' : 'Mark lesson complete'}</button><button onClick={copyBrief} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-4 py-2.5 text-sm font-semibold text-ink-2 hover:text-ink"><Copy className="h-4 w-4" /> Copy AI video brief</button></div>
+            <div className="flex flex-wrap gap-3"><button onClick={markComplete} disabled={completed.includes(selected.id) || answer !== selected.quiz.correct} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-4 w-4" /> {completed.includes(selected.id) ? 'Lesson completed' : 'Mark lesson complete'}</button></div>
             <div className="flex items-start gap-2 border-t border-line/10 pt-4 text-xs leading-5 text-ink-3"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" /> Trading involves risk. Lessons are educational and do not promise returns or replace independent judgement.</div>
           </div>
         </article>
