@@ -299,9 +299,8 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
             <p className="mt-1 text-sm text-ink-2">Payouts use your saved USDT TRC20 wallet address.</p>
             <label className="mt-4 block text-xs font-medium text-ink-2">Gross withdrawal amount (USDT)</label>
             <input type="number" min="0.000001" step="0.000001" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} className="mt-1 w-full rounded-xl border border-line/10 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent/60" placeholder="e.g. 50" required />
-            <label className="mt-3 block text-xs font-medium text-ink-2">Your TRON wallet address</label>
-            <input value={withdrawAddress} onChange={(event) => setWithdrawAddress(event.target.value)} className="mt-1 w-full rounded-xl border border-line/10 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent/60" placeholder="T..." required />
-            {withdrawAmount && Number(withdrawAmount) > 0 && <div className="mt-3 rounded-xl bg-surface/[0.05] p-3 text-xs text-ink-2"><div className="flex justify-between"><span>Company contribution (15%)</span><strong>{money(Number(withdrawAmount) * 0.15)}</strong></div><div className="mt-1 flex justify-between text-ink"><span>You receive</span><strong>{money(Number(withdrawAmount) * 0.85)}</strong></div></div>}
+            <div className="mt-3 rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Saved payout wallet</p><p className="mt-1 break-all font-mono text-xs text-ink">{dashboard?.ownerAccount?.payout_address ?? dashboard?.profile.payout_tron_address ?? 'No payout wallet saved'}</p><button type="button" onClick={() => setTab('referrals')} className="mt-2 text-xs font-semibold text-accent">Manage payout wallet</button></div>
+            {withdrawAmount && Number(withdrawAmount) > 0 && <div className="mt-3 rounded-xl bg-surface/[0.05] p-3 text-xs text-ink-2"><div className="flex justify-between"><span>Network & transaction reserve (15%)</span><strong>{money(Number(withdrawAmount) * 0.15)}</strong></div><div className="mt-1 flex justify-between text-ink"><span>You receive</span><strong>{money(Number(withdrawAmount) * 0.85)}</strong></div></div>}
             <button type="submit" disabled={busy || !withdrawAmount || !(dashboard?.ownerAccount?.payout_address ?? dashboard?.profile.payout_tron_address)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><ArrowDownToLine className="h-4 w-4" /> Request withdrawal</button>
           </form>
 
@@ -337,6 +336,14 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
               <div className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Direct referrals</p><p className="mt-1 text-xl font-semibold text-ink">{dashboard?.directReferrals ?? 0}</p></div>
             </div>
           </div>
+          <form onSubmit={savePayoutWallet} className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
+            <h3 className="font-semibold text-ink">USDT payout wallet</h3>
+            <p className="mt-1 text-sm text-ink-2">Your USDT withdrawals will be sent to this TRON (TRC20) address.</p>
+            <label className="mt-4 block text-xs font-medium text-ink-2">Receiving wallet address</label>
+            <input value={withdrawAddress} onChange={(event) => setWithdrawAddress(event.target.value.trim())} className="mt-1 w-full rounded-xl border border-line/10 bg-canvas px-3 py-3 text-sm font-mono text-ink outline-none focus:border-accent/60" placeholder="T..." required />
+            <p className="mt-2 text-xs text-ink-3">Wallet changes are blocked while a withdrawal is being processed. Make sure this address belongs to you.</p>
+            <button type="submit" disabled={busy || !withdrawAddress.trim()} className="mt-3 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save payout wallet</button>
+          </form>
           <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
             <h3 className="font-semibold text-ink">Join through a referral</h3>
             <p className="mt-1 text-sm text-ink-2">If someone invited you, enter their referral code before creating your membership payment order.</p>
