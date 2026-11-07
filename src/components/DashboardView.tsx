@@ -23,9 +23,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">COMMAND THE MARKET.</p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">8 Timeframes. One Intelligence.</h2>
-          <p className="mt-1 max-w-2xl text-sm font-medium tracking-wide text-ink-2">
-            SEE THE SIGNAL. OWN THE MOMENT.
-          </p>
+          <p className="mt-1 max-w-2xl text-sm font-medium tracking-wide text-ink-2">SEE THE SIGNAL. OWN THE MOMENT.</p>
           <p className="mt-1 text-xs text-ink-3">
             {aiModel.ready
               ? `AI has learned from ${aiModel.sampleCount} completed signals (${aiModel.wins} reached the final target, ${aiModel.losses} hit stop-loss).`
@@ -49,20 +47,18 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
               <div className="h-px flex-1 bg-line/10" />
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1 xl:gap-6">
-              {TIMEFRAMES.map((timeframe) => (
-                <div
-                  key={`${symbol}-${timeframe.granularity}`}
-                  className="min-w-0 xl:min-h-[calc(100vh-13rem)] xl:flex xl:flex-col xl:justify-center"
-                >
-                  <SignalCard
-                    asset={asset}
-                    tf={assetStates[timeframe.granularity] ?? emptyTfState(timeframe)}
-                    loaded={loaded}
-                    price={prices[symbol]}
-                    aiModel={aiModel}
-                  />
-                </div>
-              ))}
+              {TIMEFRAMES.map((timeframe) => {
+                const tf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
+                const direction = tf.latestSignal?.direction;
+                const confluenceCount = direction
+                  ? TIMEFRAMES.filter((item) => assetStates[item.granularity]?.latestSignal?.direction === direction).length
+                  : undefined;
+                return (
+                  <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0 xl:min-h-[calc(100vh-13rem)] xl:flex xl:flex-col xl:justify-center">
+                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
+                  </div>
+                );
+              })}
             </div>
           </section>
         );
