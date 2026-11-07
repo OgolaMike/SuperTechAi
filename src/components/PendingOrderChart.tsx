@@ -12,6 +12,8 @@ type Props = {
   digits: number;
   direction: 'BUY' | 'SELL';
   symbol: string;
+  zone: { startEpoch: number; endEpoch: number; low: number; high: number };
+  patternType: 'TRIPLE BOTTOM' | 'TRIPLE TOP' | 'BREAK & RETEST';
 };
 
 const HEIGHT = 280;
@@ -30,7 +32,7 @@ function calculateBands(candles: Candle[]) {
   });
 }
 
-export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, currentPrice, digits, direction, symbol }: Props) {
+export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, currentPrice, digits, direction, symbol, zone, patternType }: Props) {
   const gradientId = `pending-band-${useId().replace(/:/g, '')}`;
   const [visibleCount, setVisibleCount] = useState(60);
   const [spacing, setSpacing] = useState(12);
@@ -54,7 +56,7 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
     candle.low,
     ...(showBands && stats[index] ? [stats[index]!.upper, stats[index]!.lower] : []),
     ...(showSma && stats[index] ? [stats[index]!.mean] : []),
-  ]).concat([entry, stopLoss, takeProfit, currentPrice]);
+  ]).concat([entry, stopLoss, takeProfit, currentPrice, zone.low, zone.high]);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
@@ -64,6 +66,15 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
   const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * plotW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
   const bodyW = Math.max(2, Math.min(spacing * 0.72, 18));
+  const zoneStartIndex = data.findIndex((candle) => candle.epoch >= zone.startEpoch);
+  const zoneEndIndex = data.findIndex((candle) => candle.epoch >= zone.endEpoch);
+  const zoneX1 = zoneStartIndex >= 0 ? x(zoneStartIndex) : PAD.left;
+  const zoneX2 = zoneEndIndex >= 0 ? x(zoneEndIndex) : width - PAD.right;
+  const zoneRectX = Math.min(zoneX1, zoneX2);
+  const zoneRectWidth = Math.max(bodyW * 2, Math.abs(zoneX2 - zoneX1));
+  const zoneRectY = y(zone.high);
+  const zoneRectHeight = Math.max(3, y(zone.low) - zoneRectY);
+  const zoneColor = patternType === 'TRIPLE BOTTOM' ? '#facc15' : patternType === 'TRIPLE TOP' ? '#fb7185' : '#38bdf8';
   const pathFor = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
     .filter(Boolean).join(' ');
@@ -109,13 +120,17 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
         </label>
       </div>
       <div className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain touch-pan-x">
-        <svg viewBox={`0 0 ${width} ${HEIGHT}`} role="img" aria-label="Scrollable candlestick chart with SMA, Bollinger Bands, order levels and market price" style={{ width: `${width}px`, maxWidth: 'none', height: 'auto' }} className="block">
+        <svg viewBox={`0 0 ${width} ${HEIGHT}`} role="img" aria-label="Scrollable candlestick chart with SMA 60, Bollinger Bands, pattern zone, order levels and market price" style={{ width: `${width}px`, maxWidth: 'none', height: 'auto' }} className="block">
           <defs><linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#60a5fa" stopOpacity="0.16" /><stop offset="100%" stopColor="#60a5fa" stopOpacity="0.02" /></linearGradient></defs>
           {[0, 1, 2, 3].map((step) => {
             const gy = PAD.top + (plotH * step) / 3;
             const price = max - (range * step) / 3;
             return <g key={step}><line x1={PAD.left} x2={width - PAD.right} y1={gy} y2={gy} stroke="#94a3b8" strokeOpacity="0.16" strokeDasharray="3 5" /><text x={width - PAD.right + 7} y={gy + 3} fill="#94a3b8" fontSize="10">{formatPrice(price, digits)}</text></g>;
           })}
+          <g>
+            <rect x={zoneRectX} y={zoneRectY} width={zoneRectWidth} height={zoneRectHeight} fill={zoneColor} fillOpacity="0.13" stroke={zoneColor} strokeWidth="2" rx="2" strokeDasharray={patternType === 'BREAK & RETEST' ? '5 3' : undefined} />
+            <text x={zoneRectX + 5} y={Math.max(PAD.top + 10, zoneRectY - 5)} fill={zoneColor} fontSize="10" fontWeight="700">{patternType} ZONE</text>
+          </g>
           {showBands && upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
           {showBands && <><path d={upperPath} fill="none" stroke="#f87171" strokeWidth="1.8" /><path d={lowerPath} fill="none" stroke="#60a5fa" strokeWidth="1.8" /></>}
           {showSma && <path d={pathFor('mean')} fill="none" stroke="#facc15" strokeWidth="2.2" />}
