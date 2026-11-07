@@ -28,12 +28,13 @@ Deno.serve(async (req: Request) => {
     if (authError || !authData.user) return reply({ error: "Your sign-in session is invalid. Please sign in again." }, 401);
 
     const userId = authData.user.id;
-    let { data: profile, error: profileError } = await db
+    const profileResult = await db
       .from("finance_member_profiles")
       .select("referral_code,sponsor_user_id")
       .eq("user_id", userId)
       .maybeSingle();
-    if (profileError) throw profileError;
+    if (profileResult.error) throw profileResult.error;
+    let profile = profileResult.data;
     if (!profile) {
       const referralCode = crypto.randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase();
       const { data: created, error: createError } = await db
