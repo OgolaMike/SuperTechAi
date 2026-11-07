@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, Mic, MicOff, Play, RefreshCw, Upload, Video, WandSparkles } from 'lucide-react';
+import { Download, Mic, MicOff, RefreshCw, Upload, Video, WandSparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 type LessonForVideo = {
