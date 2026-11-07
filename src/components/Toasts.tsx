@@ -14,9 +14,6 @@ export function Toasts({ toasts, onDismiss }: Props) {
       {signals.map((toast, index) => <SignalBubble key={toast.id} toast={toast} index={index} onDismiss={onDismiss} />)}
       {hits.map((toast, index) => <HitBubble key={toast.id} toast={toast} index={index + signals.length} onDismiss={onDismiss} />)}
     </div>
-    <div aria-live="polite" className="pointer-events-none fixed inset-x-3 bottom-3 z-[71] flex flex-col gap-3 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[24rem]">
-      {hits.map((toast) => <HitToastCard key={toast.id} toast={toast} onDismiss={onDismiss} />)}
-    </div>
   </>;
 }
 
@@ -101,21 +98,3 @@ function Detail({ label, value, tone = 'text-ink' }: { label: string; value: str
   return <div className="rounded-xl border border-line/15 bg-surface/[0.04] p-3"><div className="text-[10px] uppercase tracking-wider text-ink-3">{label}</div><div className={`mt-1 break-all font-mono text-sm font-bold tabular-nums ${tone}`}>{value}</div></div>;
 }
 
-const TONE_STYLE: Record<Toast['tone'], { accent: string; bar: string; icon: string }> = {
-  BUY: { accent: 'border-up/40', bar: 'bg-up', icon: 'bg-up/15 text-up' },
-  SELL: { accent: 'border-down/40', bar: 'bg-down', icon: 'bg-down/15 text-down' },
-  TARGET: { accent: 'border-warn/40', bar: 'bg-warn', icon: 'bg-warn/15 text-warn' },
-  STOP: { accent: 'border-down/40', bar: 'bg-down', icon: 'bg-down/15 text-down' },
-};
-function HitToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
-  useEffect(() => {
-    const timer = window.setTimeout(() => onDismiss(toast.id), TOAST_DURATION_MS);
-    return () => window.clearTimeout(timer);
-  }, [toast.id, onDismiss]);
-  const style = TONE_STYLE[toast.tone];
-  const Icon = toast.tone === 'TARGET' ? Target : ShieldAlert;
-  return <div role="status" className={`pointer-events-auto relative overflow-hidden rounded-2xl border bg-canvas/95 p-4 shadow-2xl backdrop-blur-xl ${style.accent}`}>
-    <div className="flex items-center gap-3"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${style.icon}`}><Icon className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="text-sm font-bold text-ink">{toast.tone === 'STOP' ? 'Stop-loss hit' : toast.message}</div><div className="text-xs text-ink-2">{toast.assetName} · {toast.timeframe}</div><div className="font-mono text-sm tabular-nums text-ink">{formatPrice(toast.price, toast.digits)}</div></div><button type="button" onClick={() => onDismiss(toast.id)} aria-label="Dismiss alert" className="rounded-lg p-2 text-ink-3 hover:bg-surface/[0.06]"><X className="h-4 w-4" /></button></div>
-    <div className="absolute inset-x-0 bottom-0 h-1 bg-surface/[0.06]"><div className={`h-full origin-left animate-toast-drain ${style.bar}`} /></div>
-  </div>;
-}
