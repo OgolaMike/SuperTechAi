@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
+import { SuperTechAcademy } from '@/components/SuperTechAcademy';
 import { AdminPanel } from '@/components/AdminPanel';
 import { FinancePanel } from '@/components/FinancePanel';
 import { NetworkPanel } from '@/components/NetworkPanel';
@@ -156,6 +157,8 @@ function App() {
         </div>
 
         <div key={view} className="view-transition">
+        {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
+
         {view === 'dashboard' && (
           <DashboardView
             selectedSymbols={selectedSymbols}
