@@ -10,6 +10,8 @@ type Props = {
   direction: 'BUY' | 'SELL';
   timeframe: string;
   digits: number;
+  assetName: string;
+  symbol: string;
 };
 
 const WIDTH = 1440;
@@ -34,7 +36,7 @@ function timeLabel(epoch: number) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits }: Props) {
+export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits, assetName, symbol }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const chartViewportRef = useRef<HTMLDivElement>(null);
@@ -220,7 +222,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-blue-500" /> Bullish candle</span>
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-rose-500" /> Bearish candle</span>
         </div>
-        <span className="font-semibold tracking-[0.12em] text-amber-200/90">HIDE THE COMPLEXITY. DELIVER THE INTELLIGENCE.</span>
+        <span className="min-w-0 truncate font-semibold tracking-[0.08em] text-amber-200/90" title={`${assetName} (${symbol})`}>{assetName} <span className="text-white/60">·</span> {symbol}</span>
       </div>
     </section>
   );
