@@ -95,9 +95,14 @@ function InfinityNode({ member, childrenBySponsor, expandedIds, onToggle, visibl
           </div>
         </div>
       </div>
-      {expanded && visibleChildren.length > 0 && (
+      {expanded && (
         <div className="ml-4 mt-2 space-y-2 border-l border-accent/20 pl-3 sm:ml-7 sm:pl-4">
           {visibleChildren.map((child) => <InfinityNode key={child.user_id} member={child} childrenBySponsor={childrenBySponsor} expandedIds={expandedIds} onToggle={onToggle} visibleIds={visibleIds} />)}
+          {Array.from({ length: Math.max(0, 2 - firstTwo.length) }, (_, index) => (
+            <div key={`open-${member.user_id}-${index}`} className="rounded-xl border border-dashed border-accent/25 bg-accent/[0.025] p-3 text-xs text-ink-3">
+              <span className="font-semibold text-accent">Open position</span><span className="ml-2">Your next member can grow this branch.</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -146,8 +151,11 @@ export function NetworkPanel() {
       setAllMembers(result.allMembers ?? []);
       setReferralCode(result.profile?.referral_code ?? '');
       setExpandedIds(new Set((result.members ?? []).filter((member) => member.depth === 1).map((member) => member.user_id)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load your network.');
+    } catch {
+      // Keep the network structure visible when the service is temporarily unavailable.
+      setMembers([]);
+      setAllMembers([]);
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -259,7 +267,7 @@ export function NetworkPanel() {
         <label className="relative block w-full sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" /><input value={search} onChange={(event) => { const value = event.target.value; setSearch(value); if (value.trim()) setExpandedIds(new Set(members.map((member) => member.user_id))); }} placeholder="Search by member or referral code" className="w-full rounded-xl border border-line/10 bg-surface/[0.04] py-3 pl-10 pr-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-accent/50" /></label>
       </div>
 
-      {loading ? <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-ink-2"><Loader2 className="h-5 w-5 animate-spin" /> Loading your connected members…</div> : (mode === 'members' && isAdmin ? allMembers.length === 0 : members.length === 0) ? (
+      {loading ? <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-ink-2"><Loader2 className="h-5 w-5 animate-spin" /> Loading your connected members…</div> : (mode === 'members' && isAdmin && allMembers.length === 0) ? (
         <div className="rounded-2xl border border-dashed border-line/15 p-8 text-center"><Users className="mx-auto h-8 w-8 text-ink-3" /><p className="mt-3 font-semibold text-ink">Your network is ready to grow</p><p className="mt-1 text-sm text-ink-2">When people join through your personal invitation link, they will appear here automatically.</p></div>
       ) : mode === 'infinity' ? (
         <div className="space-y-4">
@@ -269,10 +277,9 @@ export function NetworkPanel() {
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-3"><span className="rounded-lg bg-surface/[0.06] px-3 py-2">First 2 directs: upline’s Infinity</span><span className="rounded-lg bg-surface/[0.06] px-3 py-2">Direct 3 onward: your own separate Infinities</span></div>
           </div>
           {visibleInfinityRoots.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-line/15 p-8 text-center">
-              <NetworkIcon className="mx-auto h-8 w-8 text-ink-3" />
-              <p className="mt-3 font-semibold text-ink">{infinityRoots.length === 0 ? 'Your Infinity Networks will appear here' : 'No Infinity networks match your search'}</p>
-              <p className="mt-1 text-sm text-ink-2">{infinityRoots.length === 0 ? 'Your own Infinity Networks begin with your third direct referral.' : 'Try another member name or referral code.'}</p>
+            <div className="rounded-2xl border border-dashed border-accent/25 bg-accent/[0.025] p-6">
+              <div className="flex items-center gap-3"><NetworkIcon className="h-8 w-8 text-accent" /><div><p className="font-semibold text-ink">{infinityRoots.length === 0 ? 'Your Infinity network starts here' : 'No Infinity networks match your search'}</p><p className="mt-1 text-sm text-ink-2">{infinityRoots.length === 0 ? 'Your third direct referral will occupy this starting position and open a new Infinity branch.' : 'Try another member name or referral code.'}</p></div></div>
+              {infinityRoots.length === 0 && <div className="mt-4 rounded-xl border border-dashed border-accent/30 p-4 text-center text-xs text-ink-3"><span className="font-semibold text-accent">Infinity starting position</span><p className="mt-1">Waiting for direct referral #3</p></div>}
             </div>
           ) : (
             <div className="grid gap-4 xl:grid-cols-2">
@@ -298,6 +305,12 @@ export function NetworkPanel() {
           {search.trim() && filteredMembers.length === 0 ? <p className="py-8 text-center text-sm text-ink-3">No members match “{search}”.</p> : (
             <div className="space-y-2">
               {(childrenBySponsor.get(session.user.id) ?? []).filter((member) => !visibleIds || visibleIds.has(member.user_id)).map((member) => <MemberNode key={member.user_id} member={member} childrenBySponsor={childrenBySponsor} visibleIds={visibleIds} expandedIds={expandedIds} onToggle={toggle} />)}
+              {Array.from({ length: Math.max(1, 2 - directCount) }, (_, index) => (
+                <div key={`direct-open-${index}`} className="flex items-center gap-3 rounded-xl border border-dashed border-accent/25 bg-accent/[0.025] p-3">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-dashed border-accent/30 text-accent"><UserRound className="h-4 w-4" /></div>
+                  <div className="min-w-0"><p className="text-sm font-semibold text-ink">Open position</p><p className="text-xs text-ink-3">{directCount < 2 ? `Direct referral position ${directCount + index + 1}` : 'Your next direct referral starts another Infinity network'}</p></div>
+                </div>
+              ))}
             </div>
           )}
         </div>
