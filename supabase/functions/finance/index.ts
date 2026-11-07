@@ -112,6 +112,10 @@ async function processUnilevelPayouts() {
   if (pendingError) throw pendingError;
   const { data: inFlight, error: inFlightError } = await db.from("unilevel_auto_payouts").select("*").eq("status", "processing").not("tx_hash", "is", null).order("created_at", { ascending: true }).limit(10);
   if (inFlightError) throw inFlightError;
+  await db.from("unilevel_auto_payouts")
+    .update({ status: "broadcast_unknown", last_error: "Worker stopped before saving a transaction hash; manual TRON reconciliation is required.", updated_at: new Date().toISOString() })
+    .eq("status", "processing").is("tx_hash", null)
+    .lt("updated_at", new Date(Date.now() - 15 * 60_000).toISOString());
   const contract = await tron.contract().at(USDT_CONTRACT);
   const results = [];
 
@@ -292,6 +296,10 @@ Deno.serve(async (req) => {
         .select("id").eq("user_id", user.id).in("status", ["pending", "approved", "processing"]).limit(1);
       if (pendingError) throw pendingError;
       if (pending?.length) return reply({ error: "Your payout wallet cannot be changed while a withdrawal is being processed." }, 409);
+      const { data: automaticPayouts, error: payoutError } = await db.from("unilevel_auto_payouts")
+        .select("id").eq("user_id", user.id).in("status", ["queued", "processing", "broadcast_unknown"]).limit(1);
+      if (payoutError) throw payoutError;
+      if (automaticPayouts?.length) return reply({ error: "Your payout wallet cannot be changed while a monthly Unilevel payout is queued or being reconciled." }, 409);
       const { error: updateError } = await db.from("finance_member_profiles")
         .update({ payout_tron_address: destination, updated_at: new Date().toISOString() }).eq("user_id", user.id);
       if (updateError) throw updateError;
