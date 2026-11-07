@@ -23,7 +23,9 @@ function loadTrackedOrders(): M15StopIdea[] {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
     return Array.isArray(stored)
-      ? (stored as M15StopIdea[]).filter((order) => order.type === 'BUY LIMIT' || order.type === 'SELL LIMIT')
+      ? (stored as M15StopIdea[]).filter((order) => (order.type === 'BUY LIMIT' || order.type === 'SELL LIMIT') &&
+        !!order.zone && Number.isFinite(order.zone.low) && Number.isFinite(order.zone.high) &&
+        !!order.patternType)
       : [];
   } catch {
     return [];
