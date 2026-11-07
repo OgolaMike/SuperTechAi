@@ -1,5 +1,6 @@
 import { BellRing, VolumeX } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
+import { Just4YouBonus } from '@/components/Just4YouBonus';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
@@ -17,6 +18,7 @@ type Props = {
 export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel }: Props) {
   return (
     <>
+      <Just4YouBonus />
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">COMMAND THE MARKET.</p>
