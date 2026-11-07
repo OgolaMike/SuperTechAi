@@ -124,9 +124,12 @@ Deno.serve(async (req) => {
       const { data: balanceValue, error: balanceError } = await db.rpc("finance_get_balance", { p_account_code: accountCode });
       if (balanceError) throw balanceError;
       const balance = Number(balanceValue ?? 0);
+      const { data: unilevelValue, error: unilevelError } = await db.rpc("finance_get_balance", { p_account_code: `unilevel:${user.id}` });
+      if (unilevelError) throw unilevelError;
+      const unilevelBalance = Number(unilevelValue ?? 0);
       const { count: referralCount, error: referralError } = await db.from("finance_member_profiles").select("user_id", { count: "exact", head: true }).eq("sponsor_user_id", user.id);
       if (referralError) throw referralError;
-      return reply({ profile, orders: orders ?? [], ledger: ownEntries ?? [], withdrawals: withdrawals ?? [], balance, accountCode, ownerAccount: owner ?? null, directReferrals: referralCount ?? 0, membershipPrice: 300, withdrawalFeePct: 15, membershipActive: !!access });
+      return reply({ profile, orders: orders ?? [], ledger: ownEntries ?? [], withdrawals: withdrawals ?? [], balance, unilevelBalance, accountCode, ownerAccount: owner ?? null, directReferrals: referralCount ?? 0, membershipPrice: 300, withdrawalFeePct: 15, membershipActive: !!access });
     }
 
     if (method === "POST" && action === "create-payment") {
@@ -226,6 +229,22 @@ Deno.serve(async (req) => {
       const { data, error } = await db.rpc("finance_create_withdrawal", {
         p_user_id: user.id, p_owner_slot: owner?.owner_slot ?? null,
         p_gross_amount: amount, p_destination_address: destination,
+      });
+      if (error) throw error;
+      return reply(data);
+    }
+
+    if (method === "POST" && action === "request-unilevel-withdrawal") {
+      const amount = Number(body.amount);
+      if (!Number.isFinite(amount) || amount <= 0) return reply({ error: "Enter a valid USDT withdrawal amount." }, 400);
+      const { data: profile, error: profileError } = await db.from("finance_member_profiles").select("payout_tron_address").eq("user_id", user.id).single();
+      if (profileError) throw profileError;
+      if (!isTronAddress(profile.payout_tron_address)) return reply({ error: "Save a valid USDT TRC20 payout wallet before requesting a Unilevel withdrawal." }, 409);
+      const { data: access, error: accessError } = await db.from("member_access").select("user_id").eq("user_id", user.id).maybeSingle();
+      if (accessError) throw accessError;
+      if (!access) return reply({ error: "Complete your membership payment before requesting Unilevel withdrawals." }, 403);
+      const { data, error } = await db.rpc("finance_create_unilevel_withdrawal", {
+        p_user_id: user.id, p_gross_amount: amount, p_destination_address: profile.payout_tron_address,
       });
       if (error) throw error;
       return reply(data);
