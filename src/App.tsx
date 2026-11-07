@@ -110,12 +110,15 @@ function App() {
     updateSelected([...selectedSymbols, symbol]);
   };
 
-  const openSignalChart = (symbol: string, timeframe: string) => {
+  const openSignalChart = (symbol: string, granularity: number) => {
+    // Keep the exact asset in the dashboard before locating its exact timeframe chart.
+    setSelectedSymbols((current) => current.includes(symbol) ? current : [...current, symbol].slice(-10));
     setView('dashboard');
     window.setTimeout(() => {
-      const target = document.getElementById(`signal-chart-${encodeURIComponent(symbol)}-${encodeURIComponent(timeframe)}`);
-      target?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    }, 350);
+      const target = document.getElementById(`signal-chart-${encodeURIComponent(symbol)}-${granularity}`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 500);
   };
 
   const toggleSounds = () => {
