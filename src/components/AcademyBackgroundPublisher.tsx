@@ -157,7 +157,7 @@ async function generateLessonVideo(lesson: LessonForRender, tts: { generate: (te
   let running = 0;
   scenes.forEach((scene) => { running += scene.weight / totalWeight; sceneEnds.push(running); });
   const chunks: BlobPart[] = [];
-  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 2800000 });
+  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 500000 });
   const finished = new Promise<Blob>((resolve, reject) => {
     recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
     recorder.onerror = () => reject(new Error('Browser video encoding failed.'));
@@ -186,7 +186,7 @@ async function generateLessonVideo(lesson: LessonForRender, tts: { generate: (te
     if (blob.size < 50_000) throw new Error('The rendered tutorial was unexpectedly small.');
     return blob;
   } finally {
-    recorder.stop();
+    if (recorder.state === 'recording') recorder.stop();
     stream.getTracks().forEach((track) => track.stop());
     canvasStream.getTracks().forEach((track) => track.stop());
     await audioContext.close();
