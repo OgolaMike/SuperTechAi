@@ -173,7 +173,7 @@ function SuperSignalCard({
         ]}
       />
 
-      <SignalChartSnapshot candles={candles} levels={levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe="M15" digits={signal.digits} assetName={signal.name} symbol={signal.symbol} />
+      <SignalChartSnapshot candles={candles} levels={levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe="M15" digits={signal.digits} assetName={signal.name} symbol={signal.symbol} anchorId={`super-signal-chart-${signal.symbol}`} />
 
       <div className="flex flex-col items-start gap-3 rounded-xl border border-line/10 bg-surface/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4">
         <div className="min-w-0">
