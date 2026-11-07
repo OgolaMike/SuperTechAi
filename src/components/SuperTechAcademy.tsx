@@ -63,7 +63,7 @@ type AcademyVideo = {
   created_at: string;
 };
 
-const CATEGORIES = ['All lessons', 'Getting started', 'Trading foundations', 'Chart reading', 'Risk management', 'Trading practice', 'Trading intelligence', 'Crypto', 'Automation', 'Membership'];
+const CATEGORIES = ['All lessons', 'Getting started', 'Trading foundations', 'Chart reading', 'Risk management', 'Trading practice', 'Advanced trading', 'Trading intelligence', 'Crypto', 'Automation', 'Membership'];
 export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
   const [category, setCategory] = useState('All lessons');
   const [query, setQuery] = useState('');
