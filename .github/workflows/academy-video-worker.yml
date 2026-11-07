@@ -37,6 +37,9 @@ jobs:
           path: .cache/kokoro
           key: kokoro-onnx-int8-v1
 
+      - name: Validate worker syntax
+        run: python -m py_compile scripts/academy_video_worker/generate_videos.py
+
       - name: Install system video tools
         run: |
           sudo apt-get update
