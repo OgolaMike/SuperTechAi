@@ -162,7 +162,7 @@ export function NetworkPanel() {
       children.push(member);
       map.set(member.sponsor_user_id, children);
     }
-    for (const children of map.values()) children.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    for (const children of map.values()) children.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.user_id.localeCompare(b.user_id));
     return map;
   }, [members]);
 
