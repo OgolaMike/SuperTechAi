@@ -13,11 +13,11 @@ export async function signIn(email: string, password: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function signUp(email: string, password: string): Promise<boolean> {
+export async function signUp(email: string, password: string, payoutTronAddress: string): Promise<boolean> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: authRedirect('confirmed') },
+    options: { emailRedirectTo: authRedirect('confirmed'), data: { payout_tron_address: payoutTronAddress } },
   });
   if (error) throw error;
   return data.session !== null;

@@ -5,7 +5,7 @@ import { useSession } from '@/lib/sessionContext';
 import { formatLocalDateTime } from '@/lib/localTime';
 
 type FinanceResult = {
-  profile: { referral_code: string; sponsor_user_id: string | null };
+  profile: { referral_code: string; sponsor_user_id: string | null; payout_tron_address: string | null };
   orders: Array<{ id: string; amount: number; network: string; status: string; tx_hash: string | null; created_at: string; expires_at: string; confirmed_at: string | null; treasury_address?: string }>;
   ledger: Array<{ amount: number; entry_type: string; created_at: string }>;
   withdrawals: Array<{ id: string; gross_amount: number; fee_amount: number; net_amount: number; destination_address: string; status: string; tx_hash: string | null; requested_at: string }>;
@@ -80,7 +80,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
     try {
       const member = await financeCall<FinanceResult>({ action: 'dashboard' });
       setDashboard(member);
-      if (member.ownerAccount?.payout_address) setWithdrawAddress(member.ownerAccount.payout_address);
+      setWithdrawAddress(member.ownerAccount?.payout_address ?? member.profile.payout_tron_address ?? '');
       if (isAdmin) {
         const admin = await financeCall<AdminResult>({ action: 'admin' });
         setAdminData(admin);
@@ -145,12 +145,27 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
     event.preventDefault(); setBusy(true); setError(null); setNotice(null);
     try {
       const result = await financeCall<{ gross_amount: number; fee_amount: number; net_amount: number }>({
-        action: 'request-withdrawal', amount: Number(withdrawAmount), destination_address: withdrawAddress.trim(),
+        action: 'request-withdrawal', amount: Number(withdrawAmount),
       });
-      setNotice(`Withdrawal requested: ${money(result.gross_amount)} gross, ${money(result.fee_amount)} operating contribution, ${money(result.net_amount)} net payout.`);
+      setNotice(`Withdrawal submitted: ${money(result.gross_amount)} gross, ${money(result.fee_amount)} network and transaction reserve, ${money(result.net_amount)} net payout.`);
       setWithdrawAmount('');
       await load(true);
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not request withdrawal.'); }
+    finally { setBusy(false); }
+  };
+
+  const savePayoutWallet = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(withdrawAddress.trim())) {
+      setError('Enter a valid USDT TRC20 wallet address.');
+      return;
+    }
+    setBusy(true); setError(null); setNotice(null);
+    try {
+      await financeCall({ action: 'save-payout-wallet', payout_tron_address: withdrawAddress.trim() });
+      setNotice('Your USDT TRC20 payout wallet has been saved.');
+      await load(true);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not save payout wallet.'); }
     finally { setBusy(false); }
   };
 
@@ -276,18 +291,17 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
               <div className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Invited accounts</p><p className="mt-1 text-xl font-semibold text-ink">{dashboard?.directReferrals ?? 0}</p></div>
               <div className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Withdrawal contribution</p><p className="mt-1 text-xl font-semibold text-ink">15%</p></div>
             </div>
-            <p className="mt-4 text-xs leading-relaxed text-ink-3">A 15% contribution is deducted from every approved withdrawal to support hosting, AI services, security, maintenance and other recurring company expenses.</p>
+            <p className="mt-4 text-xs leading-relaxed text-ink-3">A 15% reserve is deducted from every withdrawal to cover TRON network fees, USDT transfer costs and related payout processing expenses.</p>
           </div>
 
           <form onSubmit={requestWithdrawal} className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
             <h3 className="font-semibold text-ink">Request a USDT withdrawal</h3>
-            <p className="mt-1 text-sm text-ink-2">Withdrawals are sent on the TRON network after finance approval.</p>
+            <p className="mt-1 text-sm text-ink-2">Payouts use your saved USDT TRC20 wallet address.</p>
             <label className="mt-4 block text-xs font-medium text-ink-2">Gross withdrawal amount (USDT)</label>
             <input type="number" min="0.000001" step="0.000001" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} className="mt-1 w-full rounded-xl border border-line/10 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent/60" placeholder="e.g. 50" required />
-            <label className="mt-3 block text-xs font-medium text-ink-2">Your TRON wallet address</label>
-            <input value={withdrawAddress} onChange={(event) => setWithdrawAddress(event.target.value)} className="mt-1 w-full rounded-xl border border-line/10 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent/60" placeholder="T..." required />
-            {withdrawAmount && Number(withdrawAmount) > 0 && <div className="mt-3 rounded-xl bg-surface/[0.05] p-3 text-xs text-ink-2"><div className="flex justify-between"><span>Company contribution (15%)</span><strong>{money(Number(withdrawAmount) * 0.15)}</strong></div><div className="mt-1 flex justify-between text-ink"><span>You receive</span><strong>{money(Number(withdrawAmount) * 0.85)}</strong></div></div>}
-            <button type="submit" disabled={busy || !withdrawAmount || !withdrawAddress} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><ArrowDownToLine className="h-4 w-4" /> Request withdrawal</button>
+            <div className="mt-3 rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Saved payout wallet</p><p className="mt-1 break-all font-mono text-xs text-ink">{dashboard?.ownerAccount?.payout_address ?? dashboard?.profile.payout_tron_address ?? 'No payout wallet saved'}</p><button type="button" onClick={() => setTab('referrals')} className="mt-2 text-xs font-semibold text-accent">Manage payout wallet</button></div>
+            {withdrawAmount && Number(withdrawAmount) > 0 && <div className="mt-3 rounded-xl bg-surface/[0.05] p-3 text-xs text-ink-2"><div className="flex justify-between"><span>Network & transaction reserve (15%)</span><strong>{money(Number(withdrawAmount) * 0.15)}</strong></div><div className="mt-1 flex justify-between text-ink"><span>You receive</span><strong>{money(Number(withdrawAmount) * 0.85)}</strong></div></div>}
+            <button type="submit" disabled={busy || !withdrawAmount || !(dashboard?.ownerAccount?.payout_address ?? dashboard?.profile.payout_tron_address)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><ArrowDownToLine className="h-4 w-4" /> Request withdrawal</button>
           </form>
 
           <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5 lg:col-span-2">
@@ -322,6 +336,14 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
               <div className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Direct referrals</p><p className="mt-1 text-xl font-semibold text-ink">{dashboard?.directReferrals ?? 0}</p></div>
             </div>
           </div>
+          <form onSubmit={savePayoutWallet} className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
+            <h3 className="font-semibold text-ink">USDT payout wallet</h3>
+            <p className="mt-1 text-sm text-ink-2">Your USDT withdrawals will be sent to this TRON (TRC20) address.</p>
+            <label className="mt-4 block text-xs font-medium text-ink-2">Receiving wallet address</label>
+            <input value={withdrawAddress} onChange={(event) => setWithdrawAddress(event.target.value.trim())} className="mt-1 w-full rounded-xl border border-line/10 bg-canvas px-3 py-3 text-sm font-mono text-ink outline-none focus:border-accent/60" placeholder="T..." required />
+            <p className="mt-2 text-xs text-ink-3">Wallet changes are blocked while a withdrawal is being processed. Make sure this address belongs to you.</p>
+            <button type="submit" disabled={busy || !withdrawAddress.trim()} className="mt-3 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save payout wallet</button>
+          </form>
           <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
             <h3 className="font-semibold text-ink">Join through a referral</h3>
             <p className="mt-1 text-sm text-ink-2">If someone invited you, enter their referral code before creating your membership payment order.</p>
@@ -332,9 +354,9 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
           <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5 lg:col-span-2">
             <h3 className="font-semibold text-ink">Referral rewards</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[['Direct referral','30%'],['Third referral onward','50%'],['Infinity pool','20%'],['Unilevel + Lucky pools','15%']].map(([label, value]) => <div key={label} className="rounded-xl bg-surface/[0.05] p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-xl font-semibold text-ink">{value}</p></div>)}
+              {[['Direct commission','30%'],['Direct + Infinity allocation','50%'],['Infinity share','20%'],['Unilevel + Lucky pools','15%']].map(([label, value]) => <div key={label} className="rounded-xl bg-surface/[0.05] p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-xl font-semibold text-ink">{value}</p></div>)}
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-ink-3">The third-and-later 50% direct rate replaces the 30% direct plus 20% Infinity allocation for that sale. Infinity, Unilevel and Lucky amounts are held in separate company pools pending the agreed qualification and distribution rules.</p>
+            <p className="mt-3 text-xs leading-relaxed text-ink-3">From the third direct onward, the 50% referral allocation is split into 30% direct commission and 20% Infinity allocation. The Infinity share is held in its separate pool until the qualified 2×2 matrix identifies its single eligible recipient. A qualifying sale must never be credited twice. Unilevel remains five levels at 2% each; Lucky remains separate.</p>
           </div>
         </div>
       )}
@@ -361,8 +383,8 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
                 ['Lucky pool', 'pool:lucky'],
                 ['Unallocated referrals', 'pool:unallocated_referral'],
                 ['Treasury received', 'company:treasury_inflow'],
-                ['Operating fee pending', 'company:operations_pending'],
-                ['Operating fund', 'company:operations'],
+                ['Network & transaction reserve', 'company:operations_pending'],
+                ['Network & transaction reserve collected', 'company:operations'],
               ].map(([label, account]) => <div key={account} className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-lg font-semibold text-ink">{money(adminData?.accountBalances[account] ?? 0)}</p></div>)}
             </div>
           </div>
@@ -396,7 +418,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
 
       <div className="rounded-xl border border-line/10 bg-surface/[0.02] p-4 text-xs leading-relaxed text-ink-3">
         <div className="flex items-center gap-2 font-semibold text-ink-2"><Coins className="h-4 w-4" /> Payment and payout safeguards</div>
-        USDT is accepted only on TRC20 using the official Tether contract. Membership is activated only after a confirmed blockchain transfer is verified. Withdrawal requests are recorded first and require finance approval; the 15% company operating contribution is disclosed before submission.
+        USDT is accepted only on TRC20 using the official Tether contract. Membership is activated only after a confirmed blockchain transfer is verified. Withdrawal requests are recorded first and require finance approval; the 15% network and transaction reserve is disclosed before submission.
       </div>
     </section>
   );

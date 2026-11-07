@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { AdminPanel } from '@/components/AdminPanel';
 import { FinancePanel } from '@/components/FinancePanel';
+import { NetworkPanel } from '@/components/NetworkPanel';
 import { AssetSelector } from '@/components/AssetSelector';
 import { AmbientBackground } from '@/components/AmbientBackground';
 import { DashboardView } from '@/components/DashboardView';
@@ -190,6 +191,7 @@ function App() {
           {view === 'alerts' && <ServiceHealth />}
         </section>
 
+        {view === 'network' && <NetworkPanel />}
         {view === 'referrals' && <FinancePanel initialTab="referrals" />}
         {view === 'earnings' && <FinancePanel initialTab="wallet" />}
         {view === 'finance' && isAdmin && <FinancePanel initialTab="admin" />}

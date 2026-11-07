@@ -196,11 +196,28 @@ Deno.serve(async (req) => {
       return reply({ ok: true, status: "confirmed", activated: true, settlement: settled });
     }
 
+    if (method === "POST" && action === "save-payout-wallet") {
+      const destination = String(body.payout_tron_address ?? "").trim();
+      if (!isTronAddress(destination)) return reply({ error: "Enter a valid USDT TRC20 receiving wallet address." }, 400);
+      const { data: pending, error: pendingError } = await db.from("finance_withdrawal_requests")
+        .select("id").eq("user_id", user.id).in("status", ["pending", "approved", "processing"]).limit(1);
+      if (pendingError) throw pendingError;
+      if (pending?.length) return reply({ error: "Your payout wallet cannot be changed while a withdrawal is being processed." }, 409);
+      const { error: updateError } = await db.from("finance_member_profiles")
+        .update({ payout_tron_address: destination, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+      if (updateError) throw updateError;
+      await db.from("finance_audit_log").insert({ actor_user_id: user.id, event_type: "member_payout_wallet_updated", entity_type: "member_profile", entity_id: user.id, details: { network: "TRC20" } });
+      return reply({ ok: true });
+    }
+
     if (method === "POST" && action === "request-withdrawal") {
       const amount = Number(body.amount);
-      const destination = String(body.destination_address ?? "").trim();
-      if (!Number.isFinite(amount) || amount <= 0 || !isTronAddress(destination)) return reply({ error: "Enter a valid USDT amount and TRON wallet address." }, 400);
-      const { data: owner } = await db.from("finance_owner_accounts").select("owner_slot").eq("user_id", user.id).eq("active", true).maybeSingle();
+      if (!Number.isFinite(amount) || amount <= 0) return reply({ error: "Enter a valid USDT withdrawal amount." }, 400);
+      const { data: owner } = await db.from("finance_owner_accounts").select("owner_slot,payout_address").eq("user_id", user.id).eq("active", true).maybeSingle();
+      const { data: profile, error: profileError } = await db.from("finance_member_profiles").select("payout_tron_address").eq("user_id", user.id).single();
+      if (profileError) throw profileError;
+      const destination = owner?.payout_address ?? profile.payout_tron_address;
+      if (!isTronAddress(destination)) return reply({ error: "Save a valid USDT TRC20 payout wallet before requesting a withdrawal." }, 409);
       if (!owner) {
         const { data: access, error: accessError } = await db.from("member_access").select("user_id").eq("user_id", user.id).maybeSingle();
         if (accessError) throw accessError;
