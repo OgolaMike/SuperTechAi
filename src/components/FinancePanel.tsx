@@ -10,6 +10,7 @@ type FinanceResult = {
   ledger: Array<{ amount: number; entry_type: string; created_at: string }>;
   withdrawals: Array<{ id: string; gross_amount: number; fee_amount: number; net_amount: number; destination_address: string; status: string; tx_hash: string | null; requested_at: string }>;
   balance: number;
+  unilevelBalance: number;
   accountCode: string;
   ownerAccount: { owner_slot: number; display_name: string; payout_address: string | null } | null;
   directReferrals: number;
@@ -67,6 +68,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
   const [txHash, setTxHash] = useState('');
   const [pollingHash, setPollingHash] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [unilevelWithdrawAmount, setUnilevelWithdrawAmount] = useState('');
   const [withdrawAddress, setWithdrawAddress] = useState('');
   const [treasuryAddress, setTreasuryAddress] = useState('');
   const [ownerDrafts, setOwnerDrafts] = useState<Record<number, { display_name: string; user_id: string; payout_address: string }>>({});
@@ -151,6 +153,19 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
       setWithdrawAmount('');
       await load(true);
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not request withdrawal.'); }
+    finally { setBusy(false); }
+  };
+
+  const requestUnilevelWithdrawal = async (event: FormEvent) => {
+    event.preventDefault(); setBusy(true); setError(null); setNotice(null);
+    try {
+      const result = await financeCall<{ gross_amount: number; fee_amount: number; net_amount: number }>({
+        action: 'request-unilevel-withdrawal', amount: Number(unilevelWithdrawAmount),
+      });
+      setNotice(`Unilevel withdrawal submitted: ${money(result.gross_amount)} gross, ${money(result.fee_amount)} reserve, ${money(result.net_amount)} net payout.`);
+      setUnilevelWithdrawAmount('');
+      await load(true);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not request Unilevel withdrawal.'); }
     finally { setBusy(false); }
   };
 
@@ -292,6 +307,25 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
               <div className="rounded-xl bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">Withdrawal contribution</p><p className="mt-1 text-xl font-semibold text-ink">15%</p></div>
             </div>
             <p className="mt-4 text-xs leading-relaxed text-ink-3">A 15% reserve is deducted from every withdrawal to cover TRON network fees, USDT transfer costs and related payout processing expenses.</p>
+          </div>
+
+          <div className="rounded-2xl border border-accent/20 bg-accent/[0.035] p-5 lg:col-span-2">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">Unilevel earnings · 5 levels</p>
+                <h3 className="mt-1 text-xl font-semibold text-ink">{money(dashboard?.unilevelBalance ?? 0)} available</h3>
+                <p className="mt-1 max-w-2xl text-sm text-ink-2">Your Unilevel commissions are kept separate from Direct and other earnings. Any remaining balance is scheduled for automatic payout on the 1st of each month to your saved TRC20 wallet.</p>
+              </div>
+              <span className="rounded-full border border-line/10 px-3 py-1 text-xs text-ink-2">15% withdrawal reserve</span>
+            </div>
+            <form onSubmit={requestUnilevelWithdrawal} className="mt-4 flex flex-wrap items-end gap-3">
+              <div className="min-w-[180px] flex-1">
+                <label className="block text-xs font-medium text-ink-2">Withdraw Unilevel (USDT)</label>
+                <input type="number" min="0.000001" max={dashboard?.unilevelBalance ?? 0} step="0.000001" value={unilevelWithdrawAmount} onChange={(event) => setUnilevelWithdrawAmount(event.target.value)} className="mt-1 w-full rounded-xl border border-line/10 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent/60" placeholder="Enter amount" required />
+              </div>
+              <button type="submit" disabled={busy || !unilevelWithdrawAmount || Number(unilevelWithdrawAmount) <= 0 || Number(unilevelWithdrawAmount) > (dashboard?.unilevelBalance ?? 0) || !dashboard?.profile.payout_tron_address} className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"><ArrowDownToLine className="h-4 w-4" /> Request Unilevel withdrawal</button>
+            </form>
+            <p className="mt-2 text-xs text-ink-3">Manual withdrawals use the same saved wallet and 15% reserve. If you do not withdraw, the remaining eligible balance is queued for the monthly payout.</p>
           </div>
 
           <form onSubmit={requestWithdrawal} className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
