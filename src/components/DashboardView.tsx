@@ -54,7 +54,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                   ? TIMEFRAMES.filter((item) => assetStates[item.granularity]?.latestSignal?.direction === direction).length
                   : undefined;
                 return (
-                  <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0 xl:min-h-[calc(100vh-13rem)] xl:flex xl:flex-col xl:justify-center">
+                  <div id={`signal-chart-${encodeURIComponent(symbol)}-${encodeURIComponent(timeframe.label)}`} key={`${symbol}-${timeframe.granularity}`} className="min-w-0 xl:min-h-[calc(100vh-13rem)] xl:flex xl:flex-col xl:justify-center">
                     <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
                   </div>
                 );
