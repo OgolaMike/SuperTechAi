@@ -12,6 +12,7 @@ type Props = {
   digits: number;
   assetName: string;
   symbol: string;
+  anchorId: string;
 };
 
 const WIDTH = 1440;
@@ -36,7 +37,7 @@ function timeLabel(epoch: number) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits, assetName, symbol }: Props) {
+export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits, assetName, symbol, anchorId }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const chartViewportRef = useRef<HTMLDivElement>(null);
@@ -117,7 +118,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   ];
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/20 bg-[#080d18] text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,.9)]" aria-label={`Premium ${timeframe} market chart`}>
+    <section id={anchorId} className="scroll-mt-[50vh] overflow-hidden rounded-2xl border border-white/20 bg-[#080d18] text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,.9)]" aria-label={`Premium ${timeframe} market chart`}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0c1423] px-4 py-3 sm:px-5">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : 'bg-rose-400'} shadow-[0_0_12px_currentColor]`} />
