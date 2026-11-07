@@ -276,7 +276,7 @@ export function NetworkPanel() {
             </div>
           ) : (
             <div className="grid gap-4 xl:grid-cols-2">
-              {visibleInfinityRoots.map((root, index) => (
+              {visibleInfinityRoots.map((root) => (
                 <div key={root.user_id} className="rounded-2xl border border-line/10 bg-surface/[0.025] p-4 sm:p-5">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">Infinity Network {directMembers.findIndex((member) => member.user_id === root.user_id) - 1}</p><p className="mt-1 text-base font-semibold text-ink">{root.display_name}</p><p className="text-xs text-ink-3">Your direct referral #{directMembers.findIndex((member) => member.user_id === root.user_id) + 1} · {root.referral_code}</p></div>
