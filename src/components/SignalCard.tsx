@@ -26,12 +26,12 @@ export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
     }`}>
       <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="mb-1 truncate text-xs font-semibold uppercase tracking-wider text-accent" title={asset.fullName}>
+          <div className="mb-1 break-words whitespace-normal text-xs font-semibold uppercase tracking-wider text-accent" title={asset.fullName}>
             {asset.fullName} <span className="font-medium text-ink-3">({asset.symbol})</span>
           </div>
           <div className="flex min-w-0 items-center gap-2">
             <span className="text-lg font-semibold text-ink">{tf.label}</span>
-            <span className="truncate text-xs uppercase tracking-wider text-ink-3">{tf.role}</span>
+            <span className="break-words whitespace-normal text-xs uppercase tracking-wider text-ink-3">{tf.role}</span>
           </div>
         </div>
         {signal && (
