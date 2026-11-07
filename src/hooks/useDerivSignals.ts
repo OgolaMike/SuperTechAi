@@ -158,7 +158,8 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               symbols.some((item) => item.symbol === symbol),
             );
             const allSymbols = symbols.map((item) => item.symbol);
-            watchedRef.current = new Set([...allSymbols, ...binanceAssets.filter((asset) => selectedRef.current.includes(asset.symbol)).map((asset) => asset.symbol)]);
+            // Keep every discovered market eligible for background 8-timeframe scanning.
+            watchedRef.current = new Set([...allSymbols, ...binanceAssets.map((asset) => asset.symbol)]);
             const selectedM15Tasks = currentAssets.map((symbol) => () =>
               client
                 .subscribeCandles(symbol, M15_GRANULARITY, ALL_ASSET_M15_HISTORY)
@@ -184,17 +185,19 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               ),
             );
             const selectedSet = new Set(currentAssets);
-            const backgroundM15Tasks = allSymbols.filter((symbol) => !selectedSet.has(symbol)).map((symbol) => () =>
-              client
-                .subscribeCandles(symbol, M15_GRANULARITY, ALL_ASSET_M15_HISTORY)
-                .then((candles) => {
+            const backgroundMarketTasks = allSymbols
+              .filter((symbol) => !selectedSet.has(symbol))
+              .flatMap((symbol) => LIVE_TIMEFRAMES.map((timeframe) => () => {
+                const granularity = timeframe.granularity;
+                const historyCount = granularity === M15_GRANULARITY ? ALL_ASSET_M15_HISTORY : timeframe.candleCount;
+                return client.subscribeCandles(symbol, granularity, historyCount).then((candles) => {
                   candlesRef.current[symbol] ??= {};
-                  candlesRef.current[symbol][M15_GRANULARITY] = candles;
-                  const confirmedEpoch = latestConfirmedEpoch(candles, M15_GRANULARITY, Math.floor(Date.now() / 1000));
-                  if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${M15_GRANULARITY}`] = confirmedEpoch;
-                  recompute(symbol, M15_GRANULARITY);
-                }),
-            );
+                  candlesRef.current[symbol][granularity] = candles;
+                  const confirmedEpoch = latestConfirmedEpoch(candles, granularity, Math.floor(Date.now() / 1000));
+                  if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${granularity}`] = confirmedEpoch;
+                  recompute(symbol, granularity);
+                });
+              }));
 
             // Prioritise selected dashboard feeds; finish the all-market scan setup in the background.
             return client.staggerSubscriptions([
@@ -203,7 +206,9 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
             ]).then(() => {
               derivLoaded = true;
               markLoaded();
-              if (backgroundM15Tasks.length > 0) void client.staggerSubscriptions(backgroundM15Tasks);
+              // Complete the same eight-timeframe scan for every unselected Deriv market.
+              // Selected assets retain their prioritised feeds above.
+              if (backgroundMarketTasks.length > 0) void client.staggerSubscriptions(backgroundMarketTasks);
             });
           })
           .catch((error: Error) => {
@@ -225,9 +230,10 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
         digits: market.digits, exchange: 'BINANCE' as const,
       }));
       publishAssets();
-      const selectedMarkets = binanceAssets.filter((asset) => selectedRef.current.includes(asset.symbol));
-      watchedRef.current = new Set([...watchedRef.current, ...selectedMarkets.map((asset) => asset.symbol)]);
-      const tasks = selectedMarkets.flatMap((asset) => LIVE_TIMEFRAMES.map((timeframe) => async () => {
+      // Super Signal scans the full Binance spot universe, not only dashboard selections.
+      const allMarkets = binanceAssets;
+      watchedRef.current = new Set([...watchedRef.current, ...allMarkets.map((asset) => asset.symbol)]);
+      const tasks = allMarkets.flatMap((asset) => LIVE_TIMEFRAMES.map((timeframe) => async () => {
         const candles = await fetchBinanceCandles(asset.symbol, timeframe, timeframe.candleCount);
         if (stopped) return;
         candlesRef.current[asset.symbol] ??= {};
@@ -238,7 +244,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       }));
       await runTasksInBatches(tasks, 8);
       if (stopped) return;
-      binanceStream.start(selectedMarkets.map((asset) => asset.symbol), LIVE_TIMEFRAMES, (granularity, candle) => applyCandle(candle.symbol ?? '', granularity, candle));
+      binanceStream.start(allMarkets.map((asset) => asset.symbol), LIVE_TIMEFRAMES, (granularity, candle) => applyCandle(candle.symbol ?? '', granularity, candle));
       binanceLoaded = true;
       markLoaded();
     }).catch((error: Error) => {
