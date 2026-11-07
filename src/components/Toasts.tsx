@@ -24,14 +24,16 @@ function SignalBubble({ toast, index, onDismiss }: { toast: Toast; index: number
     return () => window.clearTimeout(timer);
   }, [toast.id, onDismiss]);
   const buy = toast.direction === 'BUY';
+  const displayName = toast.assetName || toast.symbol;
+  const bubbleSize = Math.min(132, Math.max(88, 82 + displayName.length * 2.6));
   return <>
     <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => setOpen(true)}
-      className={`signal-bubble pointer-events-auto absolute bottom-[-110px] flex h-[88px] w-[88px] flex-col items-center justify-center rounded-full border-2 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${buy ? 'border-up/80 bg-up/15 text-up shadow-up/40' : 'border-down/80 bg-down/15 text-down shadow-down/40'}`}
-      style={{ left: `calc(8% + ${(index % 5) * 19}%)` }}>
+      className={`signal-bubble pointer-events-auto absolute bottom-[-140px] flex flex-col items-center justify-center rounded-full border-2 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${buy ? 'border-up/80 bg-up/15 text-up shadow-up/40' : 'border-down/80 bg-down/15 text-down shadow-down/40'}`}
+      style={{ width: bubbleSize, height: bubbleSize, left: `calc(4% + ${(index % 5) * 18}%)` }}>
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
       <span className="text-sm font-black tracking-wider">{toast.direction}</span>
       <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.timeframe}</span>
-      <span className="max-w-[76px] truncate text-[9px] font-extrabold tracking-wide opacity-90">{toast.symbol}</span>
+      <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
     {open && <SignalDetails toast={toast} onClose={() => setOpen(false)} />}
   </>;
@@ -46,16 +48,32 @@ function HitBubble({ toast, index, onDismiss }: { toast: Toast; index: number; o
   }, [toast.id, onDismiss]);
   const isStop = toast.tone === 'STOP';
   const hitLabel = toast.tag.split('|').pop() ?? 'TARGET';
+  const displayName = toast.assetName || toast.symbol;
+  const bubbleSize = Math.min(132, Math.max(88, 82 + displayName.length * 2.6));
   return <>
     <button type="button" aria-label={`Open ${toast.message} details for ${toast.symbol}`} onClick={() => setOpen(true)}
-      className={`signal-bubble pointer-events-auto absolute bottom-[-110px] flex h-[88px] w-[88px] flex-col items-center justify-center rounded-full border-2 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isStop ? 'border-down/80 bg-down/15 text-down shadow-down/40' : 'border-warn/80 bg-warn/15 text-warn shadow-warn/40'}`}
-      style={{ left: `calc(8% + ${(index % 5) * 19}%)` }}>
+      className={`signal-bubble pointer-events-auto absolute bottom-[-140px] flex flex-col items-center justify-center rounded-full border-2 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isStop ? 'border-down/80 bg-down/15 text-down shadow-down/40' : 'border-warn/80 bg-warn/15 text-warn shadow-warn/40'}`}
+      style={{ width: bubbleSize, height: bubbleSize, left: `calc(4% + ${(index % 5) * 18}%)` }}>
       {isStop ? <ShieldAlert className="h-6 w-6" /> : <Target className="h-6 w-6" />}
       <span className="text-xs font-black tracking-wider">{isStop ? 'STOP' : hitLabel}</span>
-      <span className="max-w-[76px] truncate text-[9px] font-extrabold tracking-wide opacity-90">{toast.symbol}</span>
+      <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
     {open && <HitDetails toast={toast} onClose={() => setOpen(false)} />}
   </>;
+}
+
+function BubbleAssetName({ name, size, id }: { name: string; size: number; id: string }) {
+  const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '');
+  const pathId = `asset-smile-${safeId}`;
+  const label = name.toUpperCase();
+  const fontSize = label.length > 15 ? 7 : label.length > 11 ? 8 : 9;
+  const textWidth = Math.min(size - 20, Math.max(38, label.length * fontSize * 0.66));
+  return <svg aria-label={name} role="img" viewBox="0 0 120 34" width={size - 12} height="30" className="pointer-events-none absolute bottom-[7px] overflow-visible">
+    <defs><path id={pathId} d="M 8 8 Q 60 34 112 8" /></defs>
+    <text fill="currentColor" fontSize={fontSize} fontWeight="900" letterSpacing=".7" textAnchor="middle" opacity=".96">
+      <textPath href={`#${pathId}`} startOffset="50%" textLength={textWidth} lengthAdjust="spacingAndGlyphs">{label}</textPath>
+    </text>
+  </svg>;
 }
 
 function HitDetails({ toast, onClose }: { toast: Toast; onClose: () => void }) {
