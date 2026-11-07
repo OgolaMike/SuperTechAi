@@ -54,38 +54,45 @@ const LESSONS: Lesson[] = [
 ];
 
 function LessonVisual({ lesson }: { lesson: Lesson }) {
-  const advanced = lesson.level === 'Advanced';
-  const candles = [
-    { x: 36, y: 95, h: 28, up: true }, { x: 70, y: 82, h: 34, up: true },
-    { x: 104, y: 91, h: 25, up: false }, { x: 138, y: 65, h: 40, up: true },
-    { x: 172, y: 57, h: 35, up: true }, { x: 206, y: 70, h: 31, up: false },
-    { x: 240, y: 45, h: 42, up: true }, { x: 274, y: 37, h: 36, up: true },
-    { x: 308, y: 49, h: 29, up: false }, { x: 342, y: 25, h: 44, up: true },
-  ];
+  const stages = lesson.steps.slice(0, 3);
+  const stageColors = ['#22d3ee', '#fbbf24', '#34d399'];
   return (
-    <div className="overflow-hidden rounded-2xl border border-cyan-300/15 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3 sm:p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-200">Visual learning studio</p><p className="mt-1 text-sm font-semibold text-white">{lesson.category} · illustrated concept</p></div>
-        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] text-cyan-100">{advanced ? 'Advanced framework' : 'Learning diagram'}</span>
+    <div key={lesson.id} className="relative overflow-hidden rounded-2xl border border-cyan-300/20 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3 sm:p-5">
+      <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-cyan-400/10 blur-3xl" />
+      <div className="relative mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-200">Visual learning studio · live lesson map</p>
+          <p className="mt-1 break-words text-sm font-semibold text-white">{lesson.title}</p>
+        </div>
+        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] text-cyan-100">{lesson.level} · {lesson.duration}</span>
       </div>
-      <svg viewBox="0 0 390 158" role="img" aria-label="Illustrative candlestick chart showing price movement, a reference level and a planned risk area" className="h-auto w-full">
-        {[28, 62, 96, 130].map(y => <line key={y} x1="12" x2="378" y1={y} y2={y} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" />)}
-        <path d="M12 112 C70 106 90 108 130 83 S210 80 250 61 S330 53 378 30" fill="none" stroke="#38bdf8" strokeWidth="2" strokeDasharray="5 4" opacity=".75" />
-        <line x1="12" x2="378" y1="105" y2="105" stroke="#fbbf24" strokeDasharray="5 4" opacity=".8" />
-        <text x="376" y="99" textAnchor="end" fill="#fcd34d" fontSize="8">Reference level</text>
-        {candles.map((c, i) => <g key={c.x}>
-          <line x1={c.x + 7} x2={c.x + 7} y1={c.y - 10} y2={c.y + c.h + 8} stroke={c.up ? '#34d399' : '#fb7185'} strokeWidth="1.5" />
-          <rect x={c.x} y={c.y} width="14" height={c.h} rx="2" fill={c.up ? '#10b981' : '#f43f5e'} opacity=".9" />
-        </g>)}
-        <rect x="244" y="116" width="100" height="20" rx="5" fill="rgba(244,63,94,.14)" stroke="rgba(251,113,133,.5)" />
-        <text x="294" y="129" textAnchor="middle" fill="#fda4af" fontSize="9">Risk is defined first</text>
-        <text x="15" y="15" fill="#cbd5e1" fontSize="9">Illustrative price action · not a live market</text>
-      </svg>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2"><p className="text-[10px] font-semibold text-cyan-200">1 · Observe</p><p className="mt-1 break-words text-[11px] leading-4 text-slate-300">Read the market context before choosing a direction.</p></div>
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2"><p className="text-[10px] font-semibold text-cyan-200">2 · Plan</p><p className="mt-1 break-words text-[11px] leading-4 text-slate-300">Define the entry idea, invalidation and exit.</p></div>
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2"><p className="text-[10px] font-semibold text-cyan-200">3 · Protect</p><p className="mt-1 break-words text-[11px] leading-4 text-slate-300">Size the position around an acceptable loss.</p></div>
+      <div className="relative rounded-xl border border-white/10 bg-white/[0.035] p-3 sm:p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-200">What this lesson teaches</span>
+          <span className="text-[10px] text-slate-400">{stages.length} learning stages</span>
+        </div>
+        <p className="break-words text-xs leading-5 text-slate-300">{lesson.objective}</p>
+        <div className="relative mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="absolute left-[8%] right-[8%] top-4 hidden h-px bg-gradient-to-r from-cyan-300/20 via-amber-300/70 to-emerald-300/20 sm:block" />
+          {stages.map((step, index) => (
+            <div key={index} className="relative min-w-0 rounded-xl border border-white/10 bg-slate-950/80 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold text-white" style={{ borderColor: stageColors[index], boxShadow: '0 0 16px ' + stageColors[index] + '35' }}>
+                  <span className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ backgroundColor: stageColors[index] }} />
+                  {index + 1}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: stageColors[index] }}>Stage {index + 1}</span>
+              </div>
+              <p className="break-words text-xs leading-5 text-slate-200">{step}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-cyan-300/10 bg-cyan-300/[0.05] px-3 py-2">
+          <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-cyan-300" />
+          <p className="min-w-0 break-words text-[10px] leading-4 text-cyan-100">{lesson.visualPrompt}</p>
+        </div>
       </div>
+      <p className="mt-3 text-[10px] leading-4 text-slate-400">Illustrative teaching guide · changes with the selected lesson · not a live trading signal</p>
     </div>
   );
 }
@@ -116,8 +123,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
     let active = true;
     const loadPublishedVideos = async () => {
       const { data, error } = await supabase.from('academy_videos')
-        .select('id,lesson_id,lesson_title,status,video_url,thumbnail_url,created_at')
-        .eq('status', 'completed')
+        .select('id,lesson_id,lesson_title,status,video_url,thumbnail_url,created_at,failure_reason')
         .order('created_at', { ascending: false });
       if (!active) return;
       if (error) {
@@ -125,7 +131,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
         return;
       }
       const withLinks = await Promise.all((data || []).map(async (video) => {
-        if (!video.video_url) return video;
+        if (video.status !== 'completed' || !video.video_url) return video;
         const { data: signed, error: signedError } = await supabase.storage
           .from('academy-videos').createSignedUrl(video.video_url, 60 * 60 * 24 * 7);
         return { ...video, video_url: signedError ? null : signed?.signedUrl || null };
@@ -141,7 +147,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
   }, []);
 
   const selected = LESSONS.find((lesson) => lesson.id === selectedId) ?? LESSONS[0];
-  const selectedVideo = videos.find((video) => video.lesson_id === selected.id && video.status === 'completed' && video.video_url);
+  const selectedVideo = videos.find((video) => video.lesson_id === selected.id && video.status === 'completed' && video.video_url) ?? videos.find((video) => video.lesson_id === selected.id);
   const filtered = useMemo(() => LESSONS.filter((lesson) =>
     (category === 'All lessons' || lesson.category === category) &&
     (lesson.title.toLowerCase().includes(query.toLowerCase()) || lesson.summary.toLowerCase().includes(query.toLowerCase()))
@@ -192,18 +198,18 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
         <div className="min-w-0 space-y-3 sm:space-y-4">
           <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a lesson..." className="w-full rounded-xl border border-line/15 bg-surface/[0.04] py-2.5 pl-10 pr-3 text-sm sm:py-3 text-ink outline-none focus:border-accent/60" /></div>
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2 sm:gap-2">{CATEGORIES.map((item) => <button key={item} onClick={() => setCategory(item)} className={'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ' + (category === item ? 'border-accent/50 bg-accent/10 text-accent' : 'border-line/10 text-ink-2')}>{item}</button>)}</div>
-          <div className="space-y-2">{filtered.map((lesson) => <button key={lesson.id} onClick={() => { setSelectedId(lesson.id); setAnswer(null); }} className={'w-full rounded-2xl border p-3 text-left transition sm:p-4 ' + (selected.id === lesson.id ? 'border-accent/50 bg-accent/[0.07]' : 'border-line/10 bg-surface/[0.025] hover:border-accent/30')}>
+          <div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-semibold text-ink-2">All course lessons</p><span className="text-[10px] text-ink-3">Showing {filtered.length} of {LESSONS.length}</span></div><div className="space-y-2">{filtered.map((lesson) => <div key={lesson.id}><button onClick={() => { setSelectedId(lesson.id); setAnswer(null); }} className={'w-full rounded-2xl border p-3 text-left transition sm:p-4 ' + (selected.id === lesson.id ? 'border-accent/50 bg-accent/[0.07]' : 'border-line/10 bg-surface/[0.025] hover:border-accent/30')}>
             <div className="flex items-start gap-3"><div className={'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ' + (completed.includes(lesson.id) ? 'bg-emerald-400/10 text-emerald-400' : 'bg-accent/10 text-accent')}>{completed.includes(lesson.id) ? <CheckCircle2 className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}</div>
               <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-xs text-ink-3">Lesson {LESSONS.findIndex((item) => item.id === lesson.id) + 1}</span><span className="rounded-full bg-surface/10 px-2 py-0.5 text-[10px] text-ink-3">{lesson.level}</span></div><p className="mt-1 break-words font-semibold text-ink">{lesson.title}</p><p className="mt-1 break-words text-xs leading-5 text-ink-2">{lesson.summary}</p><div className="mt-2 flex items-center gap-1 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" /> {lesson.duration}</div></div><ChevronRight className="mt-2 h-4 w-4 shrink-0 text-ink-3" />
-            </div></button>)}{filtered.length === 0 && <p className="rounded-xl border border-dashed border-line/20 p-5 text-sm text-ink-3">No lessons match that search.</p>}</div>
+            </div></button>{selected.id === lesson.id && <div className="mt-2 space-y-2 rounded-xl border border-cyan-300/20 bg-black/20 p-2.5 lg:hidden">{selectedVideo?.video_url ? <><p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-200">Now playing · {selected.title}</p><video key={selectedVideo.id} className="aspect-video w-full rounded-lg bg-black" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></> : <p className="text-xs leading-5 text-ink-3">{selectedVideo?.status === 'failed' ? 'This lesson video needs another render attempt. The publisher will retry it.' : selectedVideo?.status === 'processing' || selectedVideo?.status === 'pending' ? 'This lesson video is in the background rendering queue.' : 'This lesson is included in the free background video publishing queue.'}</p>}</div>}</div>)}{filtered.length === 0 && <p className="rounded-xl border border-dashed border-line/20 p-5 text-sm text-ink-3">No lessons match that search.</p>}</div>
         </div>
         <article className="min-w-0 overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.035]">
           <div className="relative flex min-h-44 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 text-center sm:min-h-48 sm:p-7">
             <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 25% 20%, rgba(34,211,238,.4), transparent 35%), radial-gradient(circle at 80% 80%, rgba(251,191,36,.2), transparent 35%)' }} />
             <div className="relative max-w-md"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200"><Video className="h-7 w-7" /></div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Academy lesson</p><h2 className="mt-2 text-xl font-bold leading-tight text-white sm:text-2xl">{selected.title}</h2><p className="mt-2 text-sm text-slate-300">{selected.duration} · {selected.level}</p><p className="mt-3 text-xs text-slate-400">{selectedVideo ? 'Published teaching video' : 'Guided lesson and teaching script'}</p></div>
           </div>
-          {selectedVideo?.video_url && <div className="border-b border-line/10 bg-black p-2"><video className="aspect-video w-full rounded-xl" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
-          {!selectedVideo?.video_url && <div className="border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3">{isAdmin ? 'This lesson video will appear here automatically after the background publisher finishes rendering it.' : 'The teaching video for this lesson is being prepared. Please check back soon.'}</div>}
+          {selectedVideo?.video_url && <div className="border-b border-line/10 bg-black p-2"><video key={selectedVideo.id} className="aspect-video w-full rounded-xl" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
+          {!selectedVideo?.video_url && <div className="border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3">{selectedVideo?.status === 'failed' ? 'This lesson needs a retry. The background publisher will attempt it again.' : selectedVideo?.status === 'processing' || selectedVideo?.status === 'pending' ? 'This lesson video is currently rendering in the background.' : 'This lesson is included in the free background video publishing queue.'}</div>}
           <div className="space-y-4 p-4 sm:space-y-5 sm:p-6">
             <LessonVisual lesson={selected} />
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">Learning objective</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
