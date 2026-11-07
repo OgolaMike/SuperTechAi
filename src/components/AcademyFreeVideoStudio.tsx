@@ -344,7 +344,7 @@ export function AcademyFreeVideoStudio({ lesson, isAdmin }: Props) {
           </div>
         </div>
         <div className="rounded-xl border border-line/10 p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink"><Video className="h-4 w-4 text-accent" /> 2. Render lesson video</div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink"><Video className="h-4 w-4 text-accent" /> 3. Render lesson video</div>
           <p className="mt-2 text-xs leading-5 text-ink-3">The studio creates animated SuperTechAi slides, captions and progress graphics locally on your device.</p>
           <button onClick={renderVideo} disabled={rendering || recording} className="mt-3 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"><WandSparkles className="mr-1 inline h-3.5 w-3.5" /> {rendering ? 'Rendering on this device…' : 'Generate video'}</button>
         </div>
