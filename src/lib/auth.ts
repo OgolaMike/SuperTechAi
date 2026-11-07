@@ -63,6 +63,9 @@ export function friendlyAuthError(error: unknown): string {
   if (e?.code === 'email_not_confirmed' || /email not confirmed/i.test(message)) {
     return 'Your email address is not confirmed yet. Resend the confirmation email below, then open its link to activate your SuperTech AI account.';
   }
+  if (/rate.?limit|too many requests|email.*limit/i.test(message)) {
+    return 'SuperTech AI could not send this email because the project has reached its email-sending limit. Please do not keep retrying. The administrator must finish configuring the dedicated email provider, then request a fresh confirmation or recovery email.';
+  }
   if (/invalid login credentials/i.test(message)) return 'The email or password is incorrect.';
   if (/already registered/i.test(message)) return 'An account with this email already exists. Try signing in instead.';
   if (/failed to fetch|network|fetch failed|load failed|timeout/i.test(message)) {
