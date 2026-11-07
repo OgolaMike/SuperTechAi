@@ -49,10 +49,19 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
       .select('id,lesson_id,lesson_title,status,video_url,thumbnail_url,created_at')
       .eq('status', 'completed')
       .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+      .then(async ({ data, error }) => {
         if (!active) return;
-        if (error) setVideoError('Published Academy videos could not be loaded.');
-        else setVideos((data || []) as AcademyVideo[]);
+        if (error) {
+          setVideoError('Published Academy videos could not be loaded.');
+          return;
+        }
+        const withLinks = await Promise.all((data || []).map(async (video) => {
+          if (!video.video_url) return video;
+          const { data: signed, error: signedError } = await supabase.storage
+            .from('academy-videos').createSignedUrl(video.video_url, 60 * 60 * 24 * 7);
+          return { ...video, video_url: signedError ? null : signed?.signedUrl || null };
+        }));
+        if (active) setVideos(withLinks as AcademyVideo[]);
       });
     return () => { active = false; };
   }, []);
