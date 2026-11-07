@@ -27,64 +27,7 @@ SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SERVICE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 HEADERS = {"apikey": SERVICE_KEY, "Authorization": f"Bearer {SERVICE_KEY}"}
 
-LESSONS = [
-    {
-        "id": "welcome", "title": "Welcome to SuperTechAi",
-        "summary": "Understand what the platform does and where to begin.",
-        "objective": "Know where to find the tools you need and what the platform can and cannot do.",
-        "steps": ["Open your Dashboard for the market overview and monitored assets.", "Explore signals, crypto, orders, network and earnings.", "Visit Academy whenever you need a guided explanation.", "Signals support decisions; they do not guarantee outcomes."],
-        "narration": "Welcome to SuperTechAi. Your platform brings market intelligence, trading signals, crypto monitoring, automation tools and member services into one place. Start with the Dashboard, explore each section at your own pace, and use the Academy whenever you need help. SuperTechAi helps you make more informed decisions. It does not remove market risk or guarantee profits."
-    },
-    {
-        "id": "dashboard", "title": "Your Dashboard explained",
-        "summary": "Read the market overview, asset selector, live status and signal cards.",
-        "objective": "Find key information without getting lost in technical details.",
-        "steps": ["Check the connection and market status at the top.", "Choose the assets you want SuperTechAi to monitor.", "Review signal direction, entry information and current status.", "Open the chart snapshot to understand recent price movement."],
-        "narration": "The Dashboard is your starting point. First, check that market data is connected. Next, choose the assets you want to follow. Each signal card presents the current direction and important trade information. Open the chart snapshot to inspect recent price movement. A signal is a prompt to review the market, not an instruction to trade blindly."
-    },
-    {
-        "id": "signals", "title": "Understanding Trading Signals",
-        "summary": "Learn BUY and SELL signals, confirmation and trade levels.",
-        "objective": "Understand what a signal communicates before deciding whether it fits your plan.",
-        "steps": ["BUY indicates conditions may favour an upward move.", "SELL indicates conditions may favour a downward move.", "Review timeframe, entry, stop loss and take-profit information.", "Wait for confirmation and use your own risk controls."],
-        "narration": "A BUY signal means the system has detected conditions that may favour an upward move. A SELL signal means conditions may favour a downward move. Neither is a promise. Before taking action, review the timeframe, entry area, stop loss and targets. Respect confirmation rules and never risk money you cannot afford to lose."
-    },
-    {
-        "id": "super", "title": "How Super Signal works",
-        "summary": "Understand why agreement across all eight timeframes matters.",
-        "objective": "Recognise a high-confluence alert and why confirmation still matters.",
-        "steps": ["Super Signal looks for agreement across eight timeframes.", "The alert appears when all required timeframes align.", "Review reversal context and the underlying chart before acting.", "If conditions change, wait for a fresh setup instead of chasing price."],
-        "narration": "Super Signal highlights moments when all eight monitored timeframes point in the same direction. This agreement can provide stronger context than a single timeframe alone. It does not guarantee a successful trade. Check the chart, understand the broader move, and apply your risk plan."
-    },
-    {
-        "id": "crypto", "title": "Crypto Watchlist and market movers",
-        "summary": "Explore Binance assets, top gainers, losers and alerts.",
-        "objective": "Find crypto opportunities without confusing market movement with a confirmed setup.",
-        "steps": ["Open Crypto to view monitored assets and market movers.", "Use gainers and losers as a discovery list, not an automatic trade list.", "Open an asset to review its chart and available analysis.", "Add assets to your monitored list when you want them on your Dashboard."],
-        "narration": "The Crypto section helps you discover what is moving. Top gainers and losers show movement, not a guaranteed opportunity. Open an asset to inspect its chart and analysis. Add symbols you want to monitor, then review any signal and your risk settings before considering a trade."
-    },
-    {
-        "id": "automation", "title": "Trading automation and pending orders",
-        "summary": "Understand connected accounts, automation controls and order monitoring.",
-        "objective": "Know the difference between an analysis signal and an executed order.",
-        "steps": ["Read connection and account status before enabling automation.", "Review configured assets, order rules and risk limits.", "Use Pending Orders to inspect queued opportunities and their status.", "Monitor execution and account exposure; pause automation if anything looks wrong."],
-        "narration": "Automation can help carry out a defined plan, but it makes configuration and monitoring more important. A signal is analysis. A pending order is an instruction waiting for its conditions. An executed order is a live position. Check your connection, allowed assets, risk limits and order details before enabling automation. Monitor activity regularly."
-    },
-    {
-        "id": "network", "title": "Referrals and your network",
-        "summary": "Find your referral link and understand how your network grows.",
-        "objective": "Share your invitation correctly and distinguish real members from open positions.",
-        "steps": ["Open My Referrals to find your personal referral link.", "Share the link with someone who wants to join.", "After payment confirmation, the member becomes active.", "Open Network to explore the structure and available positions."],
-        "narration": "Your referral link helps new members register under your invitation. Share the correct link and let the person complete membership payment. Once payment is confirmed, the member becomes active and appears in the network. Open positions are spaces for future members; they are not people or confirmed sales."
-    },
-    {
-        "id": "wallet", "title": "Earnings, wallet and withdrawals",
-        "summary": "Understand balances, your TRC20 wallet and withdrawal procedures.",
-        "objective": "Know where earnings are shown and how to keep payout details accurate.",
-        "steps": ["Open My Earnings to review balances and transaction history.", "Save the correct USDT TRC20 payout address in wallet settings.", "Review any withdrawal fee and net payout before submitting.", "Check withdrawal status and transaction reference after processing."],
-        "narration": "Your Earnings area shows balances recorded for your member account. Keep your USDT TRC20 payout wallet accurate and secure. Before submitting a withdrawal, review the amount, fee and net payout. A submitted request does not always mean the blockchain transfer is complete. Check the final status and transaction reference."
-    },
-]
+LESSONS = json.loads((ROOT / "scripts" / "academy_video_worker" / "lessons.json").read_text(encoding="utf-8"))
 
 def download(url: str, target: Path) -> None:
     if target.exists() and target.stat().st_size > 1_000_000:
@@ -178,30 +121,41 @@ def main():
     if not admins:
         raise RuntimeError("No Academy admin account was found for the publisher record.")
     publisher_id = admins[0]["user_id"]
-    for lesson in LESSONS:
-        if lesson["id"] in completed:
-            print(f"Already published: {lesson['id']}")
+    failures = []
+    for index, lesson in enumerate(LESSONS, start=1):
+        lesson_id = lesson["id"]
+        if lesson_id in completed:
+            print(f"[{index}/{len(LESSONS)}] Already published: {lesson_id}")
             continue
-        output = WORK / f"{lesson['id']}.mp4"
-        print(f"Generating: {lesson['title']}")
-        render_lesson(tts, lesson, output)
-        if output.stat().st_size > 100 * 1024 * 1024:
-            raise RuntimeError(f"{lesson['id']} video exceeds the Academy 100 MB upload limit.")
-        object_path = f"lessons/{lesson['id']}-kokoro.mp4"
-        upload = requests.post(
-            f"{SUPABASE_URL}/storage/v1/object/academy-videos/{object_path}",
-            headers={**HEADERS, "Content-Type": "video/mp4", "x-upsert": "true"},
-            data=output.read_bytes(), timeout=240,
-        )
-        upload.raise_for_status()
-        insert = requests.post(
-            f"{SUPABASE_URL}/rest/v1/academy_videos",
-            headers={**HEADERS, "Content-Type": "application/json", "Prefer": "return=minimal"},
-            json={"lesson_id": lesson["id"], "lesson_title": lesson["title"], "status": "completed", "video_url": object_path, "created_by": publisher_id},
-            timeout=45,
-        )
-        insert.raise_for_status()
-        print(f"Published: {lesson['id']} ({output.stat().st_size} bytes)")
+        output = WORK / f"{lesson_id}.mp4"
+        try:
+            print(f"[{index}/{len(LESSONS)}] Generating: {lesson['title']}", flush=True)
+            render_lesson(tts, lesson, output)
+            if output.stat().st_size > 100 * 1024 * 1024:
+                raise RuntimeError("Video exceeds the Academy 100 MB upload limit.")
+            object_path = f"lessons/{lesson_id}-kokoro.mp4"
+            upload = requests.post(
+                f"{SUPABASE_URL}/storage/v1/object/academy-videos/{object_path}",
+                headers={**HEADERS, "Content-Type": "video/mp4", "x-upsert": "true"},
+                data=output.read_bytes(), timeout=240,
+            )
+            upload.raise_for_status()
+            insert = requests.post(
+                f"{SUPABASE_URL}/rest/v1/academy_videos",
+                headers={**HEADERS, "Content-Type": "application/json", "Prefer": "return=minimal"},
+                json={"lesson_id": lesson_id, "lesson_title": lesson["title"], "status": "completed", "video_url": object_path, "created_by": publisher_id},
+                timeout=45,
+            )
+            insert.raise_for_status()
+            completed.add(lesson_id)
+            print(f"Published: {lesson_id} ({output.stat().st_size} bytes)", flush=True)
+        except Exception as error:
+            failures.append((lesson_id, str(error)))
+            print(f"FAILED: {lesson_id}: {error}", flush=True)
+    print(f"Academy publisher finished: {len(completed)}/{len(LESSONS)} lessons published.", flush=True)
+    if failures:
+        details = "; ".join(f"{lesson_id}: {reason}" for lesson_id, reason in failures)
+        raise RuntimeError(f"{len(failures)} lesson(s) failed and will be retried on the next run: {details}")
     if hasattr(tts, "voices") and hasattr(tts.voices, "close"):
         tts.voices.close()
 
