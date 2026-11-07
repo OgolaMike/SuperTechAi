@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Copy, Loader2, Network as NetworkIcon, RefreshCw, Search, Users, UserCheck, UserRound } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, Loader2, Network as NetworkIcon, RefreshCw, Search, Users, UserCheck, UserRound, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/sessionContext';
 import { formatLocalDateTime } from '@/lib/localTime';
@@ -64,6 +64,53 @@ function MemberNode({ member, childrenBySponsor, visibleIds, expandedIds, onTogg
   );
 }
 
+
+type InfinityNodeProps = {
+  member: NetworkMember;
+  childrenBySponsor: Map<string | null, NetworkMember[]>;
+  expandedIds: Set<string>;
+  onToggle: (id: string) => void;
+  visibleIds: Set<string> | null;
+};
+
+function InfinityNode({ member, childrenBySponsor, expandedIds, onToggle, visibleIds }: InfinityNodeProps) {
+  const firstTwo = (childrenBySponsor.get(member.user_id) ?? []).slice(0, 2);
+  const visibleChildren = visibleIds ? firstTwo.filter((child) => visibleIds.has(child.user_id)) : firstTwo;
+  const expanded = expandedIds.has(member.user_id);
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2 rounded-xl border border-line/10 bg-surface/[0.035] p-3">
+        <button type="button" onClick={() => onToggle(member.user_id)} disabled={visibleChildren.length === 0} aria-label={expanded ? 'Collapse Infinity branch' : 'Expand Infinity branch'} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-line/10 text-ink-2 disabled:opacity-30">
+          {visibleChildren.length > 0 ? (expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : <UserRound className="h-4 w-4" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm font-semibold text-ink">{member.display_name}</p>
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${member.membership_active ? 'border-up/30 bg-up/10 text-up' : 'border-line/15 bg-surface/[0.05] text-ink-3'}`}>{member.membership_active ? 'Active' : 'Not active'}</span>
+            {member.depth === 1 && <span className="rounded-full border border-accent/20 px-2 py-0.5 text-[10px] text-accent">Infinity starting direct</span>}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-3">
+            <span>Code: {member.referral_code}</span>
+            <span>{firstTwo.length} of first 2 referrals shown</span>
+          </div>
+        </div>
+      </div>
+      {expanded && visibleChildren.length > 0 && (
+        <div className="ml-4 mt-2 space-y-2 border-l border-accent/20 pl-3 sm:ml-7 sm:pl-4">
+          {visibleChildren.map((child) => <InfinityNode key={child.user_id} member={child} childrenBySponsor={childrenBySponsor} expandedIds={expandedIds} onToggle={onToggle} visibleIds={visibleIds} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function countInfinityMembers(root: NetworkMember, childrenBySponsor: Map<string | null, NetworkMember[]>, seen = new Set<string>()): number {
+  if (seen.has(root.user_id)) return 0;
+  seen.add(root.user_id);
+  const children = (childrenBySponsor.get(root.user_id) ?? []).slice(0, 2);
+  return 1 + children.reduce((total, child) => total + countInfinityMembers(child, childrenBySponsor, seen), 0);
+}
+
 export function NetworkPanel() {
   const { session, isAdmin } = useSession();
   const [members, setMembers] = useState<NetworkMember[]>([]);
@@ -72,7 +119,7 @@ export function NetworkPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState<'structure' | 'members'>('structure');
+  const [mode, setMode] = useState<'structure' | 'infinity' | 'members'>('structure');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
 
@@ -125,6 +172,10 @@ export function NetworkPanel() {
   })), [members]);
   const activeCount = members.filter((member) => member.membership_active).length;
   const directCount = childrenBySponsor.get(session.user.id)?.length ?? 0;
+  const directMembers = childrenBySponsor.get(session.user.id) ?? [];
+  const infinityRoots = directMembers.slice(2);
+  const searchTerm = search.trim().toLowerCase();
+  const visibleInfinityRoots = infinityRoots.filter((member) => !searchTerm || member.display_name.toLowerCase().includes(searchTerm) || member.referral_code.toLowerCase().includes(searchTerm) || (visibleIds?.has(member.user_id) ?? false));
 
   const visibleIds = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -201,6 +252,7 @@ export function NetworkPanel() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-1 rounded-xl border border-line/10 bg-surface/[0.03] p-1">
           <button type="button" onClick={() => setMode('structure')} className={`rounded-lg px-4 py-2 text-sm ${mode === 'structure' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}><NetworkIcon className="mr-2 inline h-4 w-4" />Structure</button>
+          <button type="button" onClick={() => setMode('infinity')} className={`rounded-lg px-4 py-2 text-sm ${mode === 'infinity' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}><Sparkles className="mr-2 inline h-4 w-4" />Infinity ({infinityRoots.length})</button>
           <button type="button" onClick={() => setMode('members')} className={`rounded-lg px-4 py-2 text-sm ${mode === 'members' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}><Users className="mr-2 inline h-4 w-4" />{isAdmin ? 'Member directory' : 'All members'}</button>
         </div>
         <label className="relative block w-full sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" /><input value={search} onChange={(event) => { const value = event.target.value; setSearch(value); if (value.trim()) setExpandedIds(new Set(members.map((member) => member.user_id))); }} placeholder="Search by member or referral code" className="w-full rounded-xl border border-line/10 bg-surface/[0.04] py-3 pl-10 pr-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-accent/50" /></label>
@@ -208,6 +260,34 @@ export function NetworkPanel() {
 
       {loading ? <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-ink-2"><Loader2 className="h-5 w-5 animate-spin" /> Loading your connected members…</div> : (mode === 'members' && isAdmin ? allMembers.length === 0 : members.length === 0) ? (
         <div className="rounded-2xl border border-dashed border-line/15 p-8 text-center"><Users className="mx-auto h-8 w-8 text-ink-3" /><p className="mt-3 font-semibold text-ink">Your network is ready to grow</p><p className="mt-1 text-sm text-ink-2">When people join through your personal invitation link, they will appear here automatically.</p></div>
+      ) : mode === 'infinity' ? (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-accent/20 bg-accent/[0.035] p-4 sm:p-5">
+            <p className="text-sm font-semibold text-ink">Your separate Infinity Networks</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">Each direct referral from your third onward starts a separate Infinity. Inside each one, only the first two direct referrals at every position continue that Infinity branch. Your first two directs remain part of your upline’s Infinity structure.</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-3"><span className="rounded-lg bg-surface/[0.06] px-3 py-2">First 2 directs: upline’s Infinity</span><span className="rounded-lg bg-surface/[0.06] px-3 py-2">Direct 3 onward: your own separate Infinities</span></div>
+          </div>
+          {visibleInfinityRoots.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-line/15 p-8 text-center">
+              <NetworkIcon className="mx-auto h-8 w-8 text-ink-3" />
+              <p className="mt-3 font-semibold text-ink">{infinityRoots.length === 0 ? 'Your Infinity Networks will appear here' : 'No Infinity networks match your search'}</p>
+              <p className="mt-1 text-sm text-ink-2">{infinityRoots.length === 0 ? 'Your own Infinity Networks begin with your third direct referral.' : 'Try another member name or referral code.'}</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {visibleInfinityRoots.map((root, index) => (
+                <div key={root.user_id} className="rounded-2xl border border-line/10 bg-surface/[0.025] p-4 sm:p-5">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">Infinity Network {index + 1}</p><p className="mt-1 text-base font-semibold text-ink">{root.display_name}</p><p className="text-xs text-ink-3">Your direct referral #{directMembers.findIndex((member) => member.user_id === root.user_id) + 1} · {root.referral_code}</p></div>
+                    <div className="rounded-xl bg-surface/[0.06] px-3 py-2 text-right"><p className="text-lg font-semibold text-ink">{countInfinityMembers(root, childrenBySponsor)}</p><p className="text-[10px] text-ink-3">Network positions</p></div>
+                  </div>
+                  <div className="mb-3 rounded-xl border border-accent/15 bg-accent/[0.035] px-3 py-2 text-xs text-ink-2">This direct referral is the starting point of this separate Infinity.</div>
+                  <InfinityNode member={root} childrenBySponsor={childrenBySponsor} expandedIds={expandedIds} onToggle={toggle} visibleIds={visibleIds} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : mode === 'structure' ? (
         <div className="rounded-2xl border border-line/10 bg-surface/[0.02] p-3 sm:p-5">
           <div className="mb-4 flex items-center gap-3 rounded-xl border border-accent/25 bg-accent/[0.04] p-3">
