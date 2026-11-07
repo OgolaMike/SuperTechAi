@@ -54,8 +54,21 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "kokoro-onnx==0.6.1" "soundfile>=0.12" "Pillow>=10" "requests>=2.31" "numpy>=2.0"
 
+      - name: Check background publisher credentials
+        id: publisher_credentials
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in repository Actions secrets to enable automatic video publishing."
+          fi
+
       - name: Generate and publish missing Academy lessons
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' && steps.publisher_credentials.outputs.ready == 'true' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
