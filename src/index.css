@@ -403,7 +403,7 @@ nav[aria-label="Sections"] button[aria-current="page"] {
 .view-transition :where(section, article, aside, main, header, footer, form, fieldset, div) {
   min-width: 0;
 }
-.view-transition :where(h1, h2, h3, h4, h5, h6, p, span, small, strong, label, li, dt, dd, td, th, legend) {
+#root :where(h1, h2, h3, h4, h5, h6, p, span, small, strong, label, li, dt, dd, td, th, legend) {
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: normal;
