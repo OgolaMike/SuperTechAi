@@ -17,6 +17,7 @@ export type Toast = {
   symbol: string;
   assetName: string;
   timeframe: string;
+  granularity: number;
   digits: number;
   message: string;
   price: number;
@@ -73,6 +74,7 @@ function toastFor(
     symbol: view.symbol,
     assetName: view.assetName,
     timeframe: view.timeframe,
+    granularity: view.granularity,
     digits: view.digits,
     direction: signal.direction,
     levels: signal.levels,
