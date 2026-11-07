@@ -218,22 +218,19 @@ export function AcademyFreeVideoStudio({ lesson, isAdmin }: Props) {
       const scenes = buildScenes(lesson);
       const canvasStream = canvas.captureStream(30);
       let combined = new MediaStream([...canvasStream.getVideoTracks()]);
-      let audioElement: HTMLAudioElement | null = null;
+      let audioSource: AudioBufferSourceNode | null = null;
       let totalDuration = scenes.length * 6;
 
-      if (voiceBlob && voiceUrl) {
-        audioElement = new Audio(voiceUrl);
-        audioElement.preload = 'auto';
-        await new Promise<void>((resolve, reject) => {
-          audioElement!.onloadedmetadata = () => resolve();
-          audioElement!.onerror = () => reject(new Error('Could not load the recorded narration.'));
-          audioElement!.load();
-        });
-        totalDuration = Math.max(5, audioElement.duration || 0);
+      if (voiceBlob) {
         audioContext = new AudioContext();
-        const source = audioContext.createMediaElementSource(audioElement);
+        await audioContext.resume();
+        const audioBytes = await voiceBlob.arrayBuffer();
+        const decodedAudio = await audioContext.decodeAudioData(audioBytes);
+        totalDuration = Math.max(5, decodedAudio.duration);
+        audioSource = audioContext.createBufferSource();
+        audioSource.buffer = decodedAudio;
         const destination = audioContext.createMediaStreamDestination();
-        source.connect(destination);
+        audioSource.connect(destination);
         combined = new MediaStream([...canvasStream.getVideoTracks(), ...destination.stream.getAudioTracks()]);
       }
 
@@ -265,10 +262,9 @@ export function AcademyFreeVideoStudio({ lesson, isAdmin }: Props) {
       paintScene(canvas, scenes[0], 0, scenes.length, lesson.title);
       recorder.start(500);
       frameId = requestAnimationFrame(draw);
-      if (audioElement && audioContext) {
-        await audioContext.resume();
-        await audioElement.play();
-        audioElement.onended = () => { if (recorder?.state === 'recording') recorder.stop(); };
+      if (audioSource) {
+        audioSource.onended = () => { if (recorder?.state === 'recording') recorder.stop(); };
+        audioSource.start();
       }
       const blob = await finished;
       cancelAnimationFrame(frameId);
