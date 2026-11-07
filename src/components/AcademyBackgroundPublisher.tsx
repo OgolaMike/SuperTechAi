@@ -12,6 +12,7 @@ type LessonForRender = {
   objective: string;
   steps: string[];
   narration: string;
+  quiz: { question: string; answers: string[]; correct: number; explanation: string };
 };
 
 type KokoroAudio = { audio?: Float32Array; data?: Float32Array; sampling_rate?: number; samplingRate?: number };
@@ -37,6 +38,9 @@ function makeScenes(lesson: LessonForRender): Scene[] {
     step: index + 1,
     weight: Math.max(45, step.length),
   }));
+  scenes.push({
+    eyebrow: 'KNOWLEDGE CHECK', heading: lesson.quiz.question, body: 'Correct answer: ' + lesson.quiz.answers[lesson.quiz.correct] + '. ' + lesson.quiz.explanation, step: lesson.steps.length, weight: 65,
+  });
   scenes.push({
     eyebrow: 'KEY TAKEAWAY',
     heading: 'Learn it. Check it. Apply it carefully.',
@@ -86,13 +90,15 @@ function drawScreen(canvas: HTMLCanvasElement, lesson: LessonForRender, scene: S
   ctx.fillStyle = '#a5f3fc'; ctx.font = '600 16px Arial'; ctx.fillText('SUPERTECHAI', 150, 60);
   ctx.fillStyle = '#26364c'; ctx.fillRect(28, 82, 205, h - 110);
   const nav = ['Dashboard', 'Signals', 'Crypto', 'Orders', 'Academy'];
+  const category = lesson.category.toLowerCase();
+  const activeNav = category.includes('crypto') ? 2 : category.includes('automation') ? 3 : category.includes('membership') ? 4 : category.includes('trading intelligence') ? 1 : 0;
   nav.forEach((item, i) => {
     const y = 135 + i * 54;
-    if (i === (scene.step % nav.length)) {
+    if (i === activeNav) {
       ctx.fillStyle = 'rgba(34,211,238,.15)'; ctx.fillRect(42, y - 26, 175, 40);
       ctx.fillStyle = '#22d3ee'; ctx.fillRect(42, y - 26, 4, 40);
     }
-    ctx.fillStyle = i === (scene.step % nav.length) ? '#a5f3fc' : '#8da0b8';
+    ctx.fillStyle = i === activeNav ? '#a5f3fc' : '#8da0b8';
     ctx.font = '500 17px Arial'; ctx.fillText(item, 60, y);
   });
 
@@ -131,7 +137,9 @@ async function generateLessonVideo(lesson: LessonForRender, tts: { generate: (te
     lesson.title + '.',
     lesson.summary + '.',
     'By the end of this lesson, you will be able to: ' + lesson.objective,
+    lesson.narration,
     ...lesson.steps.map((step, index) => 'Step ' + (index + 1) + '. ' + step),
+    'Knowledge check. ' + lesson.quiz.question + ' The correct answer is: ' + lesson.quiz.answers[lesson.quiz.correct] + '. ' + lesson.quiz.explanation,
     'Key reminder. ' + 'Use your own judgement, verify important details and manage risk. This is educational content, not a promise of results.',
   ].join(' ');
   const audio = await tts.generate(script, { voice: 'af_heart' });
@@ -236,7 +244,6 @@ export function AcademyBackgroundPublisher({ lessons, isAdmin }: { lessons: Less
           setCurrent(lesson.title);
           setMessage('Creating narrated screen walkthrough: ' + lesson.title);
           const videoBlob = await generateLessonVideo(lesson, tts);
-          if (!alive || cancelledRef.current) break;
           const path = 'lessons/' + lesson.id + '-auto-' + Date.now() + '.webm';
           const { error: uploadError } = await supabase.storage.from('academy-videos').upload(path, videoBlob, {
             contentType: 'video/webm', cacheControl: '3600', upsert: false,
@@ -272,6 +279,7 @@ export function AcademyBackgroundPublisher({ lessons, isAdmin }: { lessons: Less
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Autonomous Academy studio</p>
           <p className="mt-1 text-sm font-semibold text-ink">{running ? 'Creating narrated tutorials in the background' : 'Background publishing status'}</p>
           <p className="mt-1 text-xs text-ink-3">{message || 'The studio checks which lessons still need a video.'}</p>
+          <p className="mt-1 text-[11px] text-ink-3">No recording or microphone is needed. It builds an illustrative on-screen walkthrough from each lesson and generates the voice locally. Keep this Academy tab open until publishing finishes.</p>
           {current && running && <p className="mt-1 text-xs text-cyan-400">Now creating: {current}</p>}
           {total > 0 && <p className="mt-1 text-xs text-ink-3">{completed} lessons ready · {Math.max(0, total - (completed - (lessons.length - total)))} remaining in this run</p>}
         </div>
