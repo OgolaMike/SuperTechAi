@@ -354,9 +354,9 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
           <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5 lg:col-span-2">
             <h3 className="font-semibold text-ink">Referral rewards</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[['Direct referral','30%'],['Third referral onward','50%'],['Infinity pool','20%'],['Unilevel + Lucky pools','15%']].map(([label, value]) => <div key={label} className="rounded-xl bg-surface/[0.05] p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-xl font-semibold text-ink">{value}</p></div>)}
+              {[['Direct commission','30%'],['Direct + Infinity allocation','50%'],['Infinity share','20%'],['Unilevel + Lucky pools','15%']].map(([label, value]) => <div key={label} className="rounded-xl bg-surface/[0.05] p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-xl font-semibold text-ink">{value}</p></div>)}
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-ink-3">The third-and-later 50% direct rate replaces the 30% direct plus 20% Infinity allocation for that sale. Infinity, Unilevel and Lucky amounts are held in separate company pools pending the agreed qualification and distribution rules.</p>
+            <p className="mt-3 text-xs leading-relaxed text-ink-3">From the third direct onward, the 50% referral allocation is split into 30% direct commission and 20% Infinity allocation. The Infinity share is held in its separate pool until the qualified 2×2 matrix identifies its single eligible recipient. A qualifying sale must never be credited twice. Unilevel remains five levels at 2% each; Lucky remains separate.</p>
           </div>
         </div>
       )}
