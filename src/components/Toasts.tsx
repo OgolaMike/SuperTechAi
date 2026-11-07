@@ -12,6 +12,7 @@ export function Toasts({ toasts, onDismiss }: Props) {
   return <>
     <div aria-live="polite" className="pointer-events-none fixed inset-0 z-[70] overflow-hidden">
       {signals.map((toast, index) => <SignalBubble key={toast.id} toast={toast} index={index} onDismiss={onDismiss} />)}
+      {hits.map((toast, index) => <HitBubble key={toast.id} toast={toast} index={index + signals.length} onDismiss={onDismiss} />)}
     </div>
     <div aria-live="polite" className="pointer-events-none fixed inset-x-3 bottom-3 z-[71] flex flex-col gap-3 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[24rem]">
       {hits.map((toast) => <HitToastCard key={toast.id} toast={toast} onDismiss={onDismiss} />)}
@@ -33,9 +34,48 @@ function SignalBubble({ toast, index, onDismiss }: { toast: Toast; index: number
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
       <span className="text-sm font-black tracking-wider">{toast.direction}</span>
       <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.timeframe}</span>
+      <span className="max-w-[76px] truncate text-[9px] font-extrabold tracking-wide opacity-90">{toast.symbol}</span>
     </button>
     {open && <SignalDetails toast={toast} onClose={() => setOpen(false)} />}
   </>;
+}
+
+
+function HitBubble({ toast, index, onDismiss }: { toast: Toast; index: number; onDismiss: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => onDismiss(toast.id), TOAST_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [toast.id, onDismiss]);
+  const isStop = toast.tone === 'STOP';
+  const hitLabel = toast.tag.split('|').pop() ?? 'TARGET';
+  return <>
+    <button type="button" aria-label={`Open ${toast.message} details for ${toast.symbol}`} onClick={() => setOpen(true)}
+      className={`signal-bubble pointer-events-auto absolute bottom-[-110px] flex h-[88px] w-[88px] flex-col items-center justify-center rounded-full border-2 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isStop ? 'border-down/80 bg-down/15 text-down shadow-down/40' : 'border-warn/80 bg-warn/15 text-warn shadow-warn/40'}`}
+      style={{ left: `calc(8% + ${(index % 5) * 19}%)` }}>
+      {isStop ? <ShieldAlert className="h-6 w-6" /> : <Target className="h-6 w-6" />}
+      <span className="text-xs font-black tracking-wider">{isStop ? 'STOP' : hitLabel}</span>
+      <span className="max-w-[76px] truncate text-[9px] font-extrabold tracking-wide opacity-90">{toast.symbol}</span>
+    </button>
+    {open && <HitDetails toast={toast} onClose={() => setOpen(false)} />}
+  </>;
+}
+
+function HitDetails({ toast, onClose }: { toast: Toast; onClose: () => void }) {
+  return <div className="pointer-events-auto fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm" onClick={onClose}>
+    <section role="dialog" aria-modal="true" aria-label="Target or stop details" onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-3xl border border-line/30 bg-canvas p-5 shadow-2xl">
+      <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Trade update</p><h2 className={`mt-1 text-2xl font-black ${toast.tone === 'STOP' ? 'text-down' : 'text-up'}`}>{toast.message}</h2><p className="text-sm text-ink-2">{toast.assetName} ({toast.symbol}) · {toast.timeframe}</p></div><button type="button" onClick={onClose} aria-label="Close details" className="rounded-full p-2 text-ink-2 hover:bg-surface/10"><X className="h-5 w-5" /></button></div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Detail label="Hit price" value={formatPrice(toast.price, toast.digits)} tone={toast.tone === 'STOP' ? 'text-down' : 'text-up'} />
+        <Detail label="Entry" value={formatPrice(toast.levels.entry, toast.digits)} />
+        <Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" />
+        <Detail label="Take-profit 1" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" />
+        <Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" />
+        <Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" />
+      </div>
+      <button type="button" onClick={onClose} className="mt-5 w-full rounded-xl bg-accent px-4 py-3 text-sm font-bold text-canvas">Close</button>
+    </section>
+  </div>;
 }
 
 function SignalDetails({ toast, onClose }: { toast: Toast; onClose: () => void }) {
