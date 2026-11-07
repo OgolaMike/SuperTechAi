@@ -174,8 +174,6 @@ export function NetworkPanel() {
   const directCount = childrenBySponsor.get(session.user.id)?.length ?? 0;
   const directMembers = childrenBySponsor.get(session.user.id) ?? [];
   const infinityRoots = directMembers.slice(2);
-  const searchTerm = search.trim().toLowerCase();
-  const visibleInfinityRoots = infinityRoots.filter((member) => !searchTerm || member.display_name.toLowerCase().includes(searchTerm) || member.referral_code.toLowerCase().includes(searchTerm) || (visibleIds?.has(member.user_id) ?? false));
 
   const visibleIds = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -192,6 +190,9 @@ export function NetworkPanel() {
     }
     return visible;
   }, [members, search]);
+
+  const searchTerm = search.trim().toLowerCase();
+  const visibleInfinityRoots = infinityRoots.filter((member) => !searchTerm || member.display_name.toLowerCase().includes(searchTerm) || member.referral_code.toLowerCase().includes(searchTerm) || (visibleIds?.has(member.user_id) ?? false));
 
   const directoryMembers = isAdmin && mode === 'members' ? allMembers : members;
   const filteredMembers = useMemo(() => {
@@ -278,7 +279,7 @@ export function NetworkPanel() {
               {visibleInfinityRoots.map((root, index) => (
                 <div key={root.user_id} className="rounded-2xl border border-line/10 bg-surface/[0.025] p-4 sm:p-5">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">Infinity Network {index + 1}</p><p className="mt-1 text-base font-semibold text-ink">{root.display_name}</p><p className="text-xs text-ink-3">Your direct referral #{directMembers.findIndex((member) => member.user_id === root.user_id) + 1} · {root.referral_code}</p></div>
+                    <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">Infinity Network {directMembers.findIndex((member) => member.user_id === root.user_id) - 1}</p><p className="mt-1 text-base font-semibold text-ink">{root.display_name}</p><p className="text-xs text-ink-3">Your direct referral #{directMembers.findIndex((member) => member.user_id === root.user_id) + 1} · {root.referral_code}</p></div>
                     <div className="rounded-xl bg-surface/[0.06] px-3 py-2 text-right"><p className="text-lg font-semibold text-ink">{countInfinityMembers(root, childrenBySponsor)}</p><p className="text-[10px] text-ink-3">Network positions</p></div>
                   </div>
                   <div className="mb-3 rounded-xl border border-accent/15 bg-accent/[0.035] px-3 py-2 text-xs text-ink-2">This direct referral is the starting point of this separate Infinity.</div>
