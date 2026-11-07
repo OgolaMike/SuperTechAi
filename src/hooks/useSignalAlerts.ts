@@ -18,6 +18,7 @@ export type Toast = {
   assetName: string;
   timeframe: string;
   granularity: number;
+  chartTargetId?: string;
   digits: number;
   message: string;
   price: number;
