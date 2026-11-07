@@ -40,7 +40,7 @@ function MemberNode({ member, childrenBySponsor, visibleIds, expandedIds, onTogg
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-semibold text-ink">{member.display_name}</p>
+            <p className="break-words whitespace-normal text-sm font-semibold text-ink">{member.display_name}</p>
             <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${member.membership_active ? 'border-up/30 bg-up/10 text-up' : 'border-line/15 bg-surface/[0.05] text-ink-3'}`}>
               {member.membership_active ? 'Active access' : 'Awaiting activation'}
             </span>
@@ -317,14 +317,14 @@ export function NetworkPanel() {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.02]">
           {isAdmin && <div className="border-b border-line/10 bg-accent/[0.035] px-4 py-3 text-xs leading-relaxed text-ink-2">Administrator directory: {allMembers.length} registered profiles. Sponsor relationships are taken from recorded referrals; unlinked profiles are never assigned a sponsor automatically.</div>}
-          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-line/10 px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-ink-3"><span>Member / Sponsor</span><span>{isAdmin ? 'Referral' : 'Level'}</span><span>Access</span></div>
+          <div className="grid grid-cols-1 gap-2 border-b sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:gap-3 border-line/10 px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-ink-3"><span>Member / Sponsor</span><span>{isAdmin ? 'Referral' : 'Level'}</span><span>Access</span></div>
           {filteredMembers.map((member) => {
             const sponsor = member.sponsor_account_code === 'company:account'
               ? 'SuperTech AI company'
               : member.sponsor_user_id
                 ? (allMembers.find((candidate) => candidate.user_id === member.sponsor_user_id)?.display_name ?? 'Connected sponsor')
                 : 'Not linked yet';
-            return <div key={member.user_id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-line/5 px-4 py-3 last:border-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-ink">{member.display_name}</p><p className="mt-0.5 truncate text-[11px] text-ink-3">{isAdmin ? `Sponsor: ${sponsor}` : `Code ${member.referral_code}`} · Joined {formatLocalDateTime(member.created_at)}</p></div><span className="text-xs text-ink-2">{isAdmin ? member.referral_code : `L${member.depth}`}</span><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${member.membership_active ? 'bg-up/10 text-up' : 'bg-surface/[0.08] text-ink-3'}`}>{member.membership_active ? 'Active' : 'Pending'}</span></div>;
+            return <div key={member.user_id} className="grid grid-cols-1 items-start gap-2 border-b sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-3 border-line/5 px-4 py-3 last:border-0"><div className="min-w-0"><p className="break-words whitespace-normal text-sm font-medium text-ink">{member.display_name}</p><p className="mt-0.5 break-words whitespace-normal text-[11px] text-ink-3">{isAdmin ? `Sponsor: ${sponsor}` : `Code ${member.referral_code}`} · Joined {formatLocalDateTime(member.created_at)}</p></div><span className="text-xs text-ink-2">{isAdmin ? member.referral_code : `L${member.depth}`}</span><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${member.membership_active ? 'bg-up/10 text-up' : 'bg-surface/[0.08] text-ink-3'}`}>{member.membership_active ? 'Active' : 'Pending'}</span></div>;
           })}
           {filteredMembers.length === 0 && <p className="p-8 text-center text-sm text-ink-3">No members match “{search}”.</p>}
         </div>
