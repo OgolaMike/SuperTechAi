@@ -150,7 +150,8 @@ def render_lesson(tts: Kokoro, lesson: dict, output: Path):
         make_slide(slide, eyebrow, heading, body, index, len(scenes), lesson["title"])
         seconds = duration * weights[index] / total_weight
         lines.extend([f"file '{slide.as_posix()}'", f"duration {seconds:.3f}"])
-    lines.append(f"file '{(WORK / f\"{lesson['id']}-{len(scenes)-1:02d}.png\").as_posix()}'")
+    last_slide = WORK / f"{lesson['id']}-{len(scenes)-1:02d}.png"
+    lines.append(f"file '{last_slide.as_posix()}'")
     concat.write_text("\n".join(lines), encoding="utf-8")
     subprocess.run([
         "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(concat),
