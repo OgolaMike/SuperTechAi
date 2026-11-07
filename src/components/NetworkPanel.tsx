@@ -6,7 +6,7 @@ import { formatLocalDateTime } from '@/lib/localTime';
 
 type NetworkMember = {
   user_id: string;
-  sponsor_user_id: string;
+  sponsor_user_id: string | null;
   depth: number;
   referral_code: string;
   created_at: string;
@@ -22,7 +22,7 @@ type NetworkResponse = {
 };
 type TreeProps = {
   member: NetworkMember;
-  childrenBySponsor: Map<string, NetworkMember[]>;
+  childrenBySponsor: Map<string | null, NetworkMember[]>;
   visibleIds: Set<string> | null;
   expandedIds: Set<string>;
   onToggle: (id: string) => void;
@@ -109,7 +109,7 @@ export function NetworkPanel() {
   useEffect(() => { void load(); }, [load]);
 
   const childrenBySponsor = useMemo(() => {
-    const map = new Map<string, NetworkMember[]>();
+    const map = new Map<string | null, NetworkMember[]>();
     for (const member of members) {
       const children = map.get(member.sponsor_user_id) ?? [];
       children.push(member);
@@ -206,7 +206,7 @@ export function NetworkPanel() {
         <label className="relative block w-full sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" /><input value={search} onChange={(event) => { const value = event.target.value; setSearch(value); if (value.trim()) setExpandedIds(new Set(members.map((member) => member.user_id))); }} placeholder="Search by member or referral code" className="w-full rounded-xl border border-line/10 bg-surface/[0.04] py-3 pl-10 pr-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-accent/50" /></label>
       </div>
 
-      {loading ? <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-ink-2"><Loader2 className="h-5 w-5 animate-spin" /> Loading your connected members…</div> : members.length === 0 ? (
+      {loading ? <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-ink-2"><Loader2 className="h-5 w-5 animate-spin" /> Loading your connected members…</div> : (mode === 'members' && isAdmin ? allMembers.length === 0 : members.length === 0) ? (
         <div className="rounded-2xl border border-dashed border-line/15 p-8 text-center"><Users className="mx-auto h-8 w-8 text-ink-3" /><p className="mt-3 font-semibold text-ink">Your network is ready to grow</p><p className="mt-1 text-sm text-ink-2">When people join through your personal invitation link, they will appear here automatically.</p></div>
       ) : mode === 'structure' ? (
         <div className="rounded-2xl border border-line/10 bg-surface/[0.02] p-3 sm:p-5">
@@ -222,7 +222,7 @@ export function NetworkPanel() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.02]">
-          {isAdmin && <div className="border-b border-line/10 bg-accent/[0.035] px-4 py-3 text-xs leading-relaxed text-ink-2">Administrator directory: all registered member profiles are shown. Sponsor relationships are taken from recorded referrals; unlinked profiles are never assigned a sponsor automatically.</div>}
+          {isAdmin && <div className="border-b border-line/10 bg-accent/[0.035] px-4 py-3 text-xs leading-relaxed text-ink-2">Administrator directory: {allMembers.length} registered profiles. Sponsor relationships are taken from recorded referrals; unlinked profiles are never assigned a sponsor automatically.</div>}
           <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-line/10 px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-ink-3"><span>Member / Sponsor</span><span>{isAdmin ? 'Referral' : 'Level'}</span><span>Access</span></div>
           {filteredMembers.map((member) => {
             const sponsor = member.sponsor_account_code === 'company:account'
