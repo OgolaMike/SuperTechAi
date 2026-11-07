@@ -1,0 +1,526 @@
+[
+  {
+    "id": "welcome",
+    "title": "Welcome to SuperTechAi",
+    "summary": "Understand what the platform does and where to begin.",
+    "objective": "Know where to find the tools you need and what the platform can and cannot do.",
+    "steps": [
+      "Open your Dashboard for the market overview and monitored assets.",
+      "Use the navigation bar to explore signals, crypto, orders, network and earnings.",
+      "Visit Academy whenever you need a guided explanation.",
+      "Remember that signals support decisions; they do not guarantee outcomes."
+    ],
+    "narration": "Welcome to SuperTechAi. Your platform brings market intelligence, trading signals, crypto monitoring, automation tools and member services into one place. Start with the Dashboard, explore each section at your own pace, and use the Academy whenever you need help. SuperTechAi helps you make more informed decisions. It does not remove market risk or guarantee profits."
+  },
+  {
+    "id": "dashboard",
+    "title": "Your Dashboard explained",
+    "summary": "Read the market overview, asset selector, live status and signal cards.",
+    "objective": "Find key information without getting lost in technical details.",
+    "steps": [
+      "Check the connection and market status at the top.",
+      "Choose the assets you want SuperTechAi to monitor.",
+      "Review signal direction, entry information and current status.",
+      "Open the chart snapshot to understand recent price movement."
+    ],
+    "narration": "The Dashboard is your starting point. First, check that market data is connected. Next, choose the assets you want to follow. Each signal card presents the current direction and important trade information. Open the chart snapshot to inspect recent price movement. A signal is a prompt to review the market, not an instruction to trade blindly."
+  },
+  {
+    "id": "signals",
+    "title": "Understanding Trading Signals",
+    "summary": "Learn BUY and SELL signals, confirmation and trade levels.",
+    "objective": "Understand what a signal communicates before deciding whether it fits your plan.",
+    "steps": [
+      "BUY indicates conditions may favour an upward move.",
+      "SELL indicates conditions may favour a downward move.",
+      "Review timeframe, entry, stop loss and take-profit information.",
+      "Wait for confirmation and use your own risk controls."
+    ],
+    "narration": "A BUY signal means the system has detected conditions that may favour an upward move. A SELL signal means conditions may favour a downward move. Neither is a promise. Before taking action, review the timeframe, entry area, stop loss and targets. Respect confirmation rules and never risk money you cannot afford to lose."
+  },
+  {
+    "id": "super",
+    "title": "How Super Signal works",
+    "summary": "Understand why agreement across all eight timeframes matters.",
+    "objective": "Recognise a high-confluence alert and why confirmation still matters.",
+    "steps": [
+      "Super Signal looks for agreement across eight timeframes.",
+      "The alert appears when all required timeframes align.",
+      "Review reversal context and the underlying chart before acting.",
+      "If conditions change, wait for a fresh setup instead of chasing price."
+    ],
+    "narration": "Super Signal highlights moments when all eight monitored timeframes point in the same direction. This agreement can provide stronger context than a single timeframe alone. It does not guarantee a successful trade. Check the chart, understand the broader move, and apply your risk plan."
+  },
+  {
+    "id": "crypto",
+    "title": "Crypto Watchlist and market movers",
+    "summary": "Explore Binance assets, top gainers, losers and alerts.",
+    "objective": "Find crypto opportunities without confusing market movement with a confirmed setup.",
+    "steps": [
+      "Open Crypto to view monitored assets and market movers.",
+      "Use gainers and losers as a discovery list, not an automatic trade list.",
+      "Open an asset to review its chart and available analysis.",
+      "Add assets to your monitored list when you want them on your Dashboard."
+    ],
+    "narration": "The Crypto section helps you discover what is moving. Top gainers and losers show movement, not a guaranteed opportunity. Open an asset to inspect its chart and analysis. Add symbols you want to monitor, then review any signal and your risk settings before considering a trade."
+  },
+  {
+    "id": "automation",
+    "title": "Trading automation and pending orders",
+    "summary": "Understand connected accounts, automation controls and order monitoring.",
+    "objective": "Know the difference between an analysis signal and an executed order.",
+    "steps": [
+      "Read connection and account status before enabling automation.",
+      "Review configured assets, order rules and risk limits.",
+      "Use Pending Orders to inspect queued opportunities and their status.",
+      "Monitor execution and account exposure; pause automation if anything looks wrong."
+    ],
+    "narration": "Automation can help carry out a defined plan, but it makes configuration and monitoring more important. A signal is analysis. A pending order is an instruction waiting for its conditions. An executed order is a live position. Check your connection, allowed assets, risk limits and order details before enabling automation. Monitor activity regularly."
+  },
+  {
+    "id": "network",
+    "title": "Referrals and your network",
+    "summary": "Find your referral link and understand how your network grows.",
+    "objective": "Share your invitation correctly and distinguish real members from open positions.",
+    "steps": [
+      "Open My Referrals to find your personal referral link.",
+      "Share the link with someone who wants to join.",
+      "After payment confirmation, the member becomes active.",
+      "Open Network to explore the structure and available positions."
+    ],
+    "narration": "Your referral link helps new members register under your invitation. Share the correct link and let the person complete membership payment. Once payment is confirmed, the member becomes active and appears in the network. Open positions are spaces for future members; they are not people or confirmed sales."
+  },
+  {
+    "id": "wallet",
+    "title": "Earnings, wallet and withdrawals",
+    "summary": "Understand balances, your TRC20 wallet and withdrawal procedures.",
+    "objective": "Know where earnings are shown and how to keep payout details accurate.",
+    "steps": [
+      "Open My Earnings to review balances and transaction history.",
+      "Save the correct USDT TRC20 payout address in wallet settings.",
+      "Review any withdrawal fee and net payout before submitting.",
+      "Check withdrawal status and transaction reference after processing."
+    ],
+    "narration": "Your Earnings area shows balances recorded for your member account. Keep your USDT TRC20 payout wallet accurate and secure. Before submitting a withdrawal, review the amount, fee and net payout. A submitted request does not always mean the blockchain transfer is complete. Check the final status and transaction reference."
+  },
+  {
+    "id": "market-basics",
+    "title": "Trading from zero: what a market is",
+    "summary": "Understand buyers, sellers, price movement, and why markets move.",
+    "objective": "Explain trading in everyday language and understand that every trade has uncertainty.",
+    "steps": [
+      "A market is where buyers and sellers exchange an asset. The price changes as their willingness to buy and sell changes.",
+      "A BUY trade aims to benefit if the price rises after entry. A SELL trade aims to benefit if the price falls after entry. You can lose money in either direction.",
+      "Learn the difference between investing (often holding for a longer period) and trading (seeking to benefit from shorter price movements).",
+      "Know what you are trading: a currency pair, cryptocurrency, stock, index or another instrument. Each has different trading hours, costs and risks.",
+      "Before placing a trade, identify your reason for entering, the price that proves your idea wrong, and the amount you can afford to lose."
+    ],
+    "narration": "Trading is the act of buying or selling a financial instrument with the aim of benefiting from a change in its price. Imagine a marketplace. When more people are willing to buy at higher prices, price may rise. When sellers are more eager, price may fall. Nobody knows the next move with certainty. Your job is not to predict every candle. Your job is to make a plan, control risk and learn from the result."
+  },
+  {
+    "id": "market-types",
+    "title": "Forex, crypto, stocks and indices",
+    "summary": "Compare the main markets and understand what makes each one different.",
+    "objective": "Choose a market only after understanding its behaviour, costs and trading hours.",
+    "steps": [
+      "Forex involves exchanging one currency against another. A pair such as EUR/USD compares the euro with the US dollar.",
+      "Cryptocurrencies are digital assets. They can trade around the clock, but prices may move sharply and liquidity differs between coins.",
+      "Shares represent ownership in a company. Their prices can respond to company results, industry changes and wider economic conditions.",
+      "Indices track a group of shares and provide a broad view of a market, rather than representing one company.",
+      "Check market hours, spreads, fees, liquidity, volatility and local rules before choosing an instrument."
+    ],
+    "narration": "There is no single market that is best for everyone. Forex compares currencies. Crypto assets can trade day and night and can be very volatile. Shares represent companies, while indices track groups of companies. Each market has different costs, opening hours and risks. Start by learning one market well instead of jumping between many instruments."
+  },
+  {
+    "id": "quotes-spread",
+    "title": "Bid, ask, spread and trading costs",
+    "summary": "Learn the real price you buy and sell at, and how costs affect results.",
+    "objective": "Recognise trading costs before opening a position.",
+    "steps": [
+      "The bid is generally the price at which you can sell; the ask is generally the price at which you can buy.",
+      "The difference between ask and bid is called the spread. It is one of the basic costs of entering a trade.",
+      "Some brokers also charge commissions, overnight financing or other fees. Crypto venues may charge maker or taker fees.",
+      "A wide spread can make a very short-term trade difficult because price must move enough to cover the cost.",
+      "Check the broker or exchange fee schedule and the live spread before entering. Costs can change with market conditions."
+    ],
+    "narration": "The price shown on a chart is not always the exact price at which your order will be filled. There is usually a buying price and a selling price. The gap between them is the spread. You may also pay commission or overnight fees. These costs matter, especially when you trade frequently or aim for small price moves. Always understand the full cost before you enter."
+  },
+  {
+    "id": "candles",
+    "title": "Candlesticks made simple",
+    "summary": "Read candle open, close, high, low, body and wick.",
+    "objective": "Understand what one candle tells you and what it cannot tell you.",
+    "steps": [
+      "Every candle represents price movement during a chosen period, such as 5 minutes or 1 hour.",
+      "The candle body shows the open and close. The wicks show the highest and lowest prices reached during that period.",
+      "A rising candle usually closes above its open; a falling candle usually closes below its open. Chart colours can be customised, so read the legend.",
+      "A long body shows a larger move between open and close. Long wicks show that price travelled farther but did not hold that extreme.",
+      "Wait for the candle to close when your method depends on closing prices. An unfinished candle can change before it closes."
+    ],
+    "narration": "A candlestick is a small summary of what price did during a set period. The body shows where the candle opened and closed. The thin lines, called wicks, show the highest and lowest prices. A candle does not tell you what happens next. Read it together with the trend, important price areas and your trading plan."
+  },
+  {
+    "id": "timeframes",
+    "title": "Timeframes: from minutes to days",
+    "summary": "Understand M5, M15, H1, H4 and daily charts, and how they fit together.",
+    "objective": "Use higher and lower timeframes without confusing short-term movement with the bigger picture.",
+    "steps": [
+      "A timeframe tells you how much time one candle represents. M5 is five minutes, H1 is one hour and D1 is one day.",
+      "Higher timeframes show broader market movement but may produce fewer signals. Lower timeframes show more detail and more noise.",
+      "Start with a higher timeframe to understand the broad direction and major price areas.",
+      "Use a lower timeframe to study a possible entry, but do not let a tiny move make you ignore the bigger picture.",
+      "A candle on a higher timeframe is not complete until that full period ends."
+    ],
+    "narration": "Think of timeframes like maps. A daily chart is a map of the wider journey. A five-minute chart is a close-up of one small section. Both can be useful, but they answer different questions. First understand the wider picture, then zoom in only if your plan needs a more precise entry."
+  },
+  {
+    "id": "trend-structure",
+    "title": "Trends and market structure",
+    "summary": "Recognise rising, falling and sideways markets using swing highs and lows.",
+    "objective": "Describe the market condition before choosing a trade direction.",
+    "steps": [
+      "An uptrend often forms higher highs and higher lows: price reaches new peaks and pullbacks hold above earlier lows.",
+      "A downtrend often forms lower lows and lower highs: price makes weaker rallies and falls below earlier lows.",
+      "A sideways market moves between an upper area and a lower area without a clear sequence of rising or falling swings.",
+      "Do not label a trend from one candle. Look at several clear swings and the timeframe that matters to your plan.",
+      "A trend can pause or change. Wait for evidence instead of assuming one pullback means a full reversal."
+    ],
+    "narration": "A trend is the general direction of the market. In an uptrend, price tends to make higher highs and higher lows. In a downtrend, it tends to make lower highs and lower lows. Sometimes price moves sideways. These simple patterns help you describe what is happening, but they do not predict the future. Be patient when the structure is unclear."
+  },
+  {
+    "id": "support-resistance",
+    "title": "Support and resistance",
+    "summary": "Find price areas where buyers or sellers have reacted before.",
+    "objective": "Mark useful zones without treating them as exact or guaranteed barriers.",
+    "steps": [
+      "Support is an area where falling price has previously attracted buying or slowed its decline.",
+      "Resistance is an area where rising price has previously attracted selling or slowed its advance.",
+      "Think in zones rather than one perfect line. Price can move slightly through an area and return.",
+      "A broken support area may later act as resistance, and a broken resistance area may later act as support. This is possible, not automatic.",
+      "Use confirmation and a clear invalidation point. Never place a trade only because price touched a line."
+    ],
+    "narration": "Support and resistance are price areas where the market has reacted before. Support is an area where buyers have stepped in. Resistance is an area where sellers have appeared. They are not walls. Price can break through them, so use them as places to pay attention, then wait for evidence that supports your idea."
+  },
+  {
+    "id": "breakouts-pullbacks",
+    "title": "Breakouts, retests and pullbacks",
+    "summary": "Understand a breakout, a false breakout and a possible retest.",
+    "objective": "Avoid chasing price and learn to wait for a planned confirmation.",
+    "steps": [
+      "A breakout happens when price moves beyond a well-observed support, resistance or range boundary.",
+      "A false breakout happens when price moves beyond the boundary but quickly returns inside the range.",
+      "Some traders wait for price to return and test the broken area. This is called a retest; it may hold or fail.",
+      "A pullback is a temporary move against the recent direction. It can be a pause in a trend or the start of a change.",
+      "Plan the entry before the move. Decide what confirmation you need and where the idea is no longer valid."
+    ],
+    "narration": "When price leaves a range, it may be starting a new move, but not every breakout succeeds. Sometimes price quickly returns inside the range. A retest is when price comes back to check the area it crossed. A pullback is a move against the recent direction. Instead of chasing a fast candle, wait for the confirmation your plan requires."
+  },
+  {
+    "id": "indicators",
+    "title": "Indicators without the confusion",
+    "summary": "Learn what moving averages, Bollinger Bands and RSI can tell you.",
+    "objective": "Use indicators as supporting information rather than automatic buy and sell buttons.",
+    "steps": [
+      "A moving average smooths past prices to help show the general direction. It reacts after price has already moved.",
+      "Bollinger Bands use a moving average and bands based on price variation. The bands expand and contract as market conditions change.",
+      "RSI measures the speed and size of recent price changes. High or low readings do not mean price must reverse immediately.",
+      "Indicators are calculated from price data, so several indicators may repeat similar information rather than provide independent proof.",
+      "Use an indicator with market structure, important price areas and a tested rule. Learn what its settings mean before changing them."
+    ],
+    "narration": "Indicators are tools that reorganise information already present in the market. A moving average helps smooth price. Bollinger Bands show a moving average with bands that respond to changing price variation. RSI measures the strength of recent moves. None of these tools can see the future. Use them to support a clear method, not to replace understanding."
+  },
+  {
+    "id": "orders",
+    "title": "Market, limit and stop orders",
+    "summary": "Know the difference between entering now and waiting for a chosen price or condition.",
+    "objective": "Choose the correct order type and understand that fills are not always guaranteed at an exact price.",
+    "steps": [
+      "A market order asks to buy or sell as soon as possible at the best available price. The final fill can differ from the quote you saw.",
+      "A limit order sets the maximum price you are willing to pay when buying, or the minimum price you will accept when selling. It may never fill.",
+      "A stop order activates after its trigger price is reached. Depending on the order type, it may then become a market order or another instruction.",
+      "A stop-loss is an exit instruction designed to limit a trade loss; gaps and fast markets can mean the fill is worse than expected.",
+      "Always check order direction, size, trigger, expiry and attached protection before confirming."
+    ],
+    "narration": "An order tells the broker or exchange how you want to enter or exit. A market order prioritises getting a fill, but the exact price can change. A limit order prioritises your chosen price, but may not fill. A stop order waits for a trigger. Learn the difference before using them with real money."
+  },
+  {
+    "id": "risk-first",
+    "title": "Risk management: protect your account first",
+    "summary": "Learn why survival matters more than winning every trade.",
+    "objective": "Set a maximum loss before thinking about a possible profit.",
+    "steps": [
+      "Decide the maximum amount you are willing to lose on one trade before you enter. Many cautious traders use only a small fraction of their account, but no percentage is right for everyone.",
+      "Never risk rent, food, school fees, borrowed money or funds you cannot afford to lose.",
+      "A stop-loss marks where your trade idea is no longer valid. It does not guarantee the exact exit price in fast or gapping markets.",
+      "Avoid adding to a losing trade simply to recover. Do not increase size emotionally after a win or a loss.",
+      "If you cannot explain the possible loss in money before entry, do not place the trade."
+    ],
+    "narration": "Risk management is more important than finding a perfect entry. Every trade can lose. Decide how much you can afford to lose before you open it. A stop-loss can help manage risk, but it cannot guarantee an exact exit in every market condition. Protect the account first. There will always be another opportunity, but money lost through poor risk control may be difficult to replace."
+  },
+  {
+    "id": "position-size",
+    "title": "Position size and leverage explained",
+    "summary": "Understand trade size, leverage, margin and why small price moves can matter.",
+    "objective": "Avoid opening a position that is too large for your account.",
+    "steps": [
+      "Position size is how much of an asset or contract you trade. A larger position makes the same price move produce a larger gain or loss.",
+      "Leverage lets you control a larger position with a smaller amount of margin. It magnifies both gains and losses.",
+      "Margin is money set aside as collateral for a leveraged position. If losses grow, the broker may close positions or require more funds.",
+      "Calculate position size using your planned cash risk and the distance from entry to stop, while accounting for contract specifications and fees.",
+      "If you cannot verify pip value, contract size, tick value or liquidation rules for the instrument, do not guess. Use a broker calculator or seek qualified help."
+    ],
+    "narration": "Position size determines how much you gain or lose when price moves. Leverage allows a small deposit to control a much larger position, but this can magnify losses quickly. Margin is not a safety cushion against all losses. Before using leverage, understand the contract size, costs, stop distance and the broker’s liquidation rules. Smaller and simpler is often easier to manage while learning."
+  },
+  {
+    "id": "stop-target",
+    "title": "Stop-loss, take-profit and reward versus risk",
+    "summary": "Plan where a trade is wrong and where you may take profit.",
+    "objective": "Build an exit plan before entering rather than deciding under pressure.",
+    "steps": [
+      "A stop-loss is an exit level intended to limit loss if price moves against your idea.",
+      "A take-profit is a target where you plan to close all or part of a position if price reaches it.",
+      "Reward-to-risk compares the possible planned reward with the amount you are prepared to risk. A 2-to-1 plan aims for two units of possible reward for one unit of risk; it does not mean the trade is likely to win.",
+      "Set exits around the logic of the setup and market structure, not simply because a number looks attractive.",
+      "Do not move a stop farther away just to avoid accepting a planned loss. Know whether partial exits or trailing stops are part of your tested method."
+    ],
+    "narration": "Before you enter, know where you will admit the idea is wrong and where you may take profit. The stop-loss is there to control the planned loss. The take-profit is your planned exit target. Reward-to-risk compares the possible reward with the amount at risk. A good ratio does not guarantee a good trade. The quality of the setup and the discipline to follow your plan still matter."
+  },
+  {
+    "id": "sessions-news",
+    "title": "Trading sessions and economic news",
+    "summary": "Understand market activity, scheduled news and sudden volatility.",
+    "objective": "Know when conditions may change and when staying out is sensible.",
+    "steps": [
+      "Different markets have different active hours. Forex activity often changes as major financial centres open and overlap.",
+      "Some instruments trade beyond traditional exchange hours, but liquidity and spreads can still change during the day.",
+      "Economic releases, central bank decisions and company announcements can move prices quickly.",
+      "During major news, spreads may widen, orders may slip and charts may move sharply in both directions.",
+      "Check a reliable economic calendar or official announcement source. If you do not understand the event or its risk, wait until conditions settle."
+    ],
+    "narration": "Markets do not move at the same speed all day. Activity can increase when major trading centres overlap. Important economic announcements can cause fast price changes and wider spreads. News is not an invitation to guess. Check the calendar, understand the event and be willing to stay out when the conditions are too uncertain for your plan."
+  },
+  {
+    "id": "psychology",
+    "title": "Trading psychology: fear, greed and patience",
+    "summary": "Recognise emotional decisions and build habits that support discipline.",
+    "objective": "Follow a written process instead of reacting to every price move.",
+    "steps": [
+      "Fear can make you exit too early or avoid a valid setup. Greed can make you hold too long or take oversized positions.",
+      "FOMO is the fear of missing out. It often leads people to chase a move after the best entry has passed.",
+      "Revenge trading means taking new trades to recover a loss emotionally. Step away instead.",
+      "Use a checklist and set a maximum number of trades or daily loss limit that fits your plan.",
+      "A missed trade is not a loss. Protect your focus and wait for the next setup that meets your rules."
+    ],
+    "narration": "Trading tests your emotions. Fear, greed and the fear of missing out can push you away from your plan. After a loss, you may feel pressure to win the money back immediately. That is when stepping away can be the smartest decision. A disciplined trader does not need to trade all the time. Waiting is part of the skill."
+  },
+  {
+    "id": "strategy-plan",
+    "title": "Build a simple trading strategy",
+    "summary": "Turn ideas into clear entry, exit and no-trade rules.",
+    "objective": "Write a strategy that can be tested consistently rather than changing rules every trade.",
+    "steps": [
+      "Choose one instrument and one timeframe to study first.",
+      "Define the market condition you want: trend, range, breakout or another clearly described setup.",
+      "Write the exact entry trigger, the confirmation you require and the price that invalidates the idea.",
+      "Define position size, stop-loss, take-profit, maximum trades and when you will not trade.",
+      "Keep the rules stable while testing. Change one part at a time so you can understand what caused a difference."
+    ],
+    "narration": "A strategy is a set of rules, not a collection of random indicators. It should tell you what market you trade, what conditions you wait for, how you enter, where you exit and how much you risk. It should also tell you when not to trade. Write the rules in simple language. If two people read them, they should be able to identify the same setup."
+  },
+  {
+    "id": "backtesting-journal",
+    "title": "Backtesting, demo practice and your journal",
+    "summary": "Test a method on past charts, practise safely and learn from records.",
+    "objective": "Evaluate a strategy with evidence while understanding the limits of past results.",
+    "steps": [
+      "Backtesting means applying your written rules to historical data to see how they would have behaved.",
+      "Use enough examples across different market conditions. Include losing trades, costs, spread and realistic execution assumptions.",
+      "Avoid looking ahead at future candles while testing. This creates misleading results.",
+      "Practise in a demo environment before considering real funds. Demo fills and emotions may differ from live trading.",
+      "Record date, instrument, setup, entry, stop, target, result, costs, screenshot and whether you followed your rules. Review patterns regularly."
+    ],
+    "narration": "Do not judge a strategy from two or three trades. Backtesting applies the same rules to historical charts. Be careful not to use information that would not have been available at the time. Include costs and losing trades. Demo practice helps you learn the platform, while a trading journal helps you see whether you follow your rules. Past results do not guarantee future performance."
+  },
+  {
+    "id": "common-mistakes",
+    "title": "Common beginner mistakes and how to avoid them",
+    "summary": "Avoid overtrading, oversized positions, signal chasing and untested systems.",
+    "objective": "Recognise preventable mistakes before they damage your account.",
+    "steps": [
+      "Trading too many instruments at once makes it harder to understand each market. Focus on a small watchlist.",
+      "Entering because a signal or social post looks exciting is not a complete plan. Check the chart and your rules.",
+      "Using too much leverage or increasing size after a loss can turn a normal losing trade into a serious account problem.",
+      "Moving stop-losses farther away, removing protection or averaging down without a tested rule can increase risk.",
+      "Beware of anyone promising guaranteed returns, secret signals or asking for your password, private key or recovery phrase."
+    ],
+    "narration": "Many beginner losses come from habits rather than complicated chart patterns. People trade too often, use too much size, chase a move or follow claims they have not checked. Keep your process simple. Never give anyone your account password or wallet recovery phrase. If someone promises guaranteed profits, treat that as a warning sign."
+  },
+  {
+    "id": "supertech-workflow",
+    "title": "Putting it together with SuperTechAi",
+    "summary": "Use the platform as one part of a complete trading routine.",
+    "objective": "Combine market context, signal review and risk controls into a repeatable workflow.",
+    "steps": [
+      "Start with market status and confirm the data connection is healthy.",
+      "Choose a small set of assets you understand and review the higher-timeframe context.",
+      "Treat a signal as a reason to investigate. Check the chart, entry, stop, target and the conditions that would cancel the idea.",
+      "If using automation, verify the connected account, allowed assets, order settings and risk limits before enabling it.",
+      "Record the decision and review the outcome later. Never assume that an alert, AI analysis or automated order guarantees a result."
+    ],
+    "narration": "SuperTechAi can help organise market information and highlight possible setups. Your routine should still begin with checking the data connection and understanding the market. Review each signal, decide whether it fits your strategy and define the risk. If you use automation, check every setting first. Finish by recording and reviewing your decisions. Technology can support your process, but responsibility for risk remains with you."
+  },
+  {
+    "id": "market-regimes",
+    "title": "Advanced market regimes: trend, range and transition",
+    "summary": "Identify the environment before choosing a strategy.",
+    "objective": "Match a trading approach to the current market environment and recognise when conditions are changing.",
+    "steps": [
+      "A trending market makes directional progress; a range repeatedly rotates between areas; a transition is a period when the old behaviour weakens and a new one may be forming.",
+      "Volatility describes how much price moves, while liquidity describes how easily orders can be executed without moving price too much. They are related but not the same.",
+      "A trend-following method may struggle in a tight range. A range method may fail when a strong breakout begins.",
+      "Use swing structure, range boundaries, volatility and the behaviour around important levels to classify the environment.",
+      "If the market is unclear or changing quickly, reduce activity or wait. Not trading is a valid decision."
+    ],
+    "narration": "Advanced trading begins by asking a better question: what kind of market am I dealing with? A trend, a range and a transition behave differently. A strategy that works in one environment may struggle in another. Learn to recognise the environment first, then decide whether your method belongs there. If the evidence is mixed, patience is a position too."
+  },
+  {
+    "id": "liquidity-sweeps",
+    "title": "Liquidity, stop clusters and false breaks",
+    "summary": "Understand liquidity pools, stop runs and why price can briefly cross obvious levels.",
+    "objective": "Interpret moves around visible highs and lows without assuming every sweep is a reversal.",
+    "steps": [
+      "Liquidity is the ability to buy or sell without causing a large price change. In chart discussions, traders also use the word for areas where many orders may be waiting.",
+      "Prior swing highs, swing lows and range edges are visible to many participants. Stop orders and breakout orders may cluster around these areas, but the exact orders are not visible on an ordinary chart.",
+      "A liquidity sweep describes price moving beyond a visible high or low and then returning. It is a description of price behaviour, not proof of who caused it.",
+      "Wait for a close back inside, a structure change or another rule-based confirmation. A price wick alone is not enough evidence.",
+      "Define invalidation beyond the relevant structure and calculate the position size before entry. Sweeps can continue into genuine breakouts."
+    ],
+    "narration": "You may hear traders talk about liquidity pools and stop hunts. Be careful with these terms. A normal chart does not show every order in the market, so you cannot know exactly where every stop is. You can observe price moving beyond a visible high or low and returning. Some traders call this a sweep. It can create a useful area to study, but it is not automatically a reversal signal."
+  },
+  {
+    "id": "multi-timeframe",
+    "title": "Advanced multi-timeframe analysis",
+    "summary": "Build a top-down process from broad context to precise execution.",
+    "objective": "Separate higher-timeframe context from lower-timeframe entry triggers.",
+    "steps": [
+      "Choose one higher timeframe for broad structure, one middle timeframe for the setup and one lower timeframe only if your method needs precise execution.",
+      "Mark major swing points and important zones on the higher timeframe before zooming in.",
+      "On the middle timeframe, decide whether price is trending, ranging, pulling back or breaking structure.",
+      "On the entry timeframe, wait for the exact trigger you have tested. Do not change the higher-timeframe story to justify a lower-timeframe impulse.",
+      "If timeframes disagree, define which one has priority in your written rules or skip the trade."
+    ],
+    "narration": "Top-down analysis is like planning a journey with a map before looking at the next street. Start with the broad chart, mark the important areas, then move to the timeframe where your setup forms. The smallest timeframe should help with execution, not force you to ignore the larger picture. Decide in advance how you handle disagreement between timeframes."
+  },
+  {
+    "id": "correlation-diversification",
+    "title": "Correlation and diversification",
+    "summary": "Understand why several open trades may represent one large risk.",
+    "objective": "Recognise overlapping exposure across instruments and avoid accidental concentration.",
+    "steps": [
+      "Correlation describes how two assets have tended to move in relation to each other over a period. It can change and is not fixed.",
+      "Two different currency pairs may share a currency. Several crypto assets may respond to the same market-wide move.",
+      "Opening many similar positions can multiply exposure rather than diversify it.",
+      "Review total account exposure by currency, sector, asset class and market theme, not only the number of separate trades.",
+      "Diversification can spread some risks but cannot prevent losses during broad market stress."
+    ],
+    "narration": "Having five trades open does not always mean you have five independent ideas. If they are all exposed to the same currency or market theme, they may rise and fall together. Correlation changes over time, so do not rely on one old number. Think about the total risk across your account, not just each trade in isolation."
+  },
+  {
+    "id": "advanced-execution",
+    "title": "Execution quality: slippage, liquidity and gaps",
+    "summary": "Learn why your actual fill may differ from the chart price.",
+    "objective": "Include execution uncertainty and costs in strategy design and risk planning.",
+    "steps": [
+      "Slippage is the difference between the expected order price and the actual fill price. It can be positive or negative.",
+      "Thin liquidity, fast news, market openings and sudden volatility can increase slippage and widen spreads.",
+      "A stop order may trigger at its stop price but fill at a worse available price if the market moves quickly.",
+      "A price gap occurs when the next available quote is far from the previous one. A stop cannot guarantee protection at the exact requested level through a gap.",
+      "Test strategies with realistic spreads, commissions, funding and slippage assumptions rather than ideal chart prices."
+    ],
+    "narration": "A chart shows prices, but trading takes place through an order system. Your order may not fill at the exact price you expected. This is slippage. It can become larger when markets move quickly or there are fewer buyers and sellers available. A stop-loss is an important risk tool, but it cannot promise an exact exit during a gap. Realistic testing must include execution costs."
+  },
+  {
+    "id": "expectancy-statistics",
+    "title": "Expectancy, win rate and the numbers behind a strategy",
+    "summary": "Evaluate a method using average wins, average losses and enough trades.",
+    "objective": "Understand why win rate alone cannot tell you whether a strategy has an edge.",
+    "steps": [
+      "Win rate is the percentage of closed trades that are profitable. It does not show how large the wins and losses are.",
+      "Expectancy estimates the average result per trade: (win rate × average win) − (loss rate × average loss), before or after costs depending on how the inputs are measured.",
+      "For example, a method winning 40% of trades with an average win of 3R and an average loss of 1R has a gross expectancy of 0.2R per trade before costs. This is an illustration, not a forecast.",
+      "Include spread, commission, funding, slippage and missed fills. Costs can turn a small apparent edge into a losing method.",
+      "Use a meaningful sample across different conditions. Track drawdown, losing streaks and variation, not just the final profit figure."
+    ],
+    "narration": "A strategy does not need to win most of the time to have positive expectancy, and a high win rate does not automatically mean it is profitable. You need to know how much it wins when it wins and how much it loses when it loses. Expectancy combines these numbers. Then subtract the real costs. A small sample can mislead you, so collect enough consistent evidence and monitor drawdowns."
+  },
+  {
+    "id": "drawdown-recovery",
+    "title": "Drawdown, losing streaks and account recovery",
+    "summary": "Understand how losses affect account equity and why recovery gets harder.",
+    "objective": "Set risk limits that account for losing streaks and avoid desperate recovery trading.",
+    "steps": [
+      "Drawdown measures a decline from an account equity peak to a later lower point.",
+      "A 10% loss requires more than a 10% gain to return to the starting balance. The larger the loss, the larger the percentage recovery required.",
+      "Even a strategy with a positive long-run expectancy can experience losing streaks. Plan for them before they happen.",
+      "Set a maximum daily, weekly or overall drawdown limit and define when you will pause and review.",
+      "Never increase risk simply to recover faster. Reduce exposure, review execution and resume only when your rules allow it."
+    ],
+    "narration": "Losses compound in an uncomfortable way. If an account falls by ten percent, it needs more than ten percent growth to return to where it started. Losing streaks can happen even with a sound method. Decide in advance when you will stop trading and review. A recovery plan is not doubling the next trade. It is protecting your ability to continue learning."
+  },
+  {
+    "id": "derivatives-funding",
+    "title": "Futures, swaps and funding: understand the contract",
+    "summary": "Learn the extra risks of leveraged derivatives and perpetual contracts.",
+    "objective": "Know what you own, what you owe and how forced liquidation can happen.",
+    "steps": [
+      "A spot purchase generally means you own the asset. A derivative gives exposure through a contract whose value depends on an underlying market.",
+      "Futures have contract specifications and expiry dates. Perpetual contracts do not have a normal expiry and may use funding payments to help keep contract prices near spot prices.",
+      "Funding payments can be paid by one side to the other and can change. They are not guaranteed income.",
+      "Leverage reduces the margin needed for exposure but makes liquidation more likely after adverse price movement.",
+      "Read contract size, margin mode, maintenance margin, funding, liquidation and fee rules before trading. If any term is unclear, do not use the product with real funds."
+    ],
+    "narration": "A derivative is not the same as buying and holding the asset itself. Futures and perpetual contracts create contractual exposure and may use leverage. Perpetual contracts can include funding payments that change over time. If your margin becomes insufficient, the platform may liquidate the position. These products are complex and can cause rapid losses. Learn the exact contract rules before considering them."
+  },
+  {
+    "id": "portfolio-risk",
+    "title": "Portfolio-level risk and capital allocation",
+    "summary": "Manage total exposure, not just risk on one individual trade.",
+    "objective": "Create a portfolio risk framework that accounts for correlated positions and changing conditions.",
+    "steps": [
+      "Set a maximum amount of total open risk across all positions, not just a separate limit for each trade.",
+      "Group positions by shared drivers such as currency, sector, index, crypto-market direction or economic event.",
+      "Consider volatility and liquidity when deciding whether a position is appropriate for your plan.",
+      "Keep cash and avoid being fully committed simply because several signals appear at once.",
+      "Review exposure after large market moves, changes in correlation or important news."
+    ],
+    "narration": "Portfolio risk asks how all your positions behave together. Three individually small trades can create one large combined exposure if they depend on the same market driver. Set a total open-risk limit, understand the common factors and leave room for unexpected conditions. More trades do not automatically mean better diversification."
+  },
+  {
+    "id": "system-development",
+    "title": "Design and validate a complete trading system",
+    "summary": "Turn a strategy into a repeatable, measurable and reviewable process.",
+    "objective": "Build a written trading system and test whether it behaves as expected without overfitting.",
+    "steps": [
+      "Write the market, timeframe, setup conditions, entry trigger, exit rules, sizing method and no-trade conditions.",
+      "Separate development data from validation data. Do not keep adjusting rules until they perfectly fit historical examples.",
+      "Test across different market regimes and include realistic costs, spreads, slippage and execution constraints.",
+      "Use forward testing or a demo account to see whether the rules can be followed in live market conditions.",
+      "Track expectancy, drawdown, trade count, average win/loss, rule adherence and performance by market condition. Change one rule at a time and keep a version history."
+    ],
+    "narration": "A trading system is more than an entry signal. It is a complete set of rules covering when to trade, how much to risk, how to exit and when to stay out. Build it on one part of the data, then validate it on data you did not use to design it. This helps reduce overfitting. Finally, forward test carefully and keep records. No backtest can guarantee future performance."
+  },
+  {
+    "id": "capstone",
+    "title": "Final project: create your personal trading playbook",
+    "summary": "Bring the entire course together into a practical rulebook and readiness review.",
+    "objective": "Produce a written, testable trading plan and know what must be true before risking capital.",
+    "steps": [
+      "Choose one market and instrument you understand. Write why it suits your learning goals and list its trading hours, costs and contract risks.",
+      "Define the market environments you will trade and the setups you will ignore.",
+      "Write your entry trigger, confirmation, invalidation level, stop method, target method and position-sizing calculation.",
+      "Set daily and total drawdown limits, maximum combined open risk, a pause rule and a process for major news.",
+      "Backtest without looking ahead, validate on separate data, practise in demo and journal every example. Do not move to live trading until you can follow the plan consistently and understand the possible loss."
+    ],
+    "narration": "Your final project is a personal trading playbook. It should explain what you trade, when you trade, what confirms an entry, where the idea is wrong, how much you risk and when you stay out. Test it honestly and practise before considering real capital. Completing a course does not make trading risk-free. The real achievement is having a process you understand and can review."
+  }
+]
