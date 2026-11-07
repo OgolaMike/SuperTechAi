@@ -27,18 +27,18 @@ type Props = {
 
 export function ViewNav({ view, isAdmin, onChange }: Props) {
   return (
-    <nav className="flex w-full max-w-full overflow-x-auto rounded-xl border border-line/10 bg-surface/[0.03] p-1 sm:w-auto" aria-label="Sections">
+    <nav className="flex w-full max-w-full flex-wrap rounded-xl border border-line/10 bg-surface/[0.03] p-1 sm:w-auto" aria-label="Sections">
       {VIEWS.filter(({ adminOnly }) => !adminOnly || isAdmin).map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           type="button"
           onClick={() => onChange(id)}
           aria-current={view === id ? 'page' : undefined}
-          className={`flex flex-shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 sm:flex-none ${
+          className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-center text-sm font-medium transition-all duration-200 sm:px-4 ${
             view === id ? 'glow-ring bg-surface/[0.09] text-ink' : 'text-ink-2 hover:text-ink'
           }`}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-4 w-4 shrink-0" />
           <span>{label}</span>
         </button>
       ))}
