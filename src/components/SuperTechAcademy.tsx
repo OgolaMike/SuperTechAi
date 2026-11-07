@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import { BookOpen, CheckCircle2, ChevronRight, Clock3, Copy, GraduationCap, PlayCircle, Search, ShieldCheck, Video, WandSparkles } from 'lucide-react';
 
 type Lesson = {
@@ -17,6 +18,28 @@ const LESSONS: Lesson[] = [
   { id: 'network', title: 'Referrals and your network', category: 'Membership', level: 'Beginner', duration: '5 min', summary: 'Find your referral link and understand how your network grows.', objective: 'Share your invitation correctly and distinguish real members from open positions.', steps: ['Open My Referrals to find your personal referral link.', 'Share the link with someone who wants to join.', 'After payment confirmation, the member becomes active.', 'Open Network to explore the structure and available positions.'], narration: 'Your referral link helps new members register under your invitation. Share the correct link and let the person complete membership payment. Once payment is confirmed, the member becomes active and appears in the network. Open positions are spaces for future members; they are not people or confirmed sales.', visualPrompt: 'Show a referral link journey: share link, registration, payment confirmation, active member and network tree updating. Distinguish empty positions from actual members. Do not promise earnings.', quiz: { question: 'When should a new member appear as an active paid member?', answers: ['As soon as the link is shared', 'After membership payment is confirmed', 'When they view the network page'], correct: 1, explanation: 'Sharing a link is not a sale. Payment must be confirmed.' } },
   { id: 'wallet', title: 'Earnings, wallet and withdrawals', category: 'Membership', level: 'Intermediate', duration: '5 min', summary: 'Understand balances, your TRC20 wallet and withdrawal procedures.', objective: 'Know where earnings are shown and how to keep payout details accurate.', steps: ['Open My Earnings to review balances and transaction history.', 'Save the correct USDT TRC20 payout address in wallet settings.', 'Review any withdrawal fee and net payout before submitting.', 'Check withdrawal status and transaction reference after processing.'], narration: 'Your Earnings area shows balances recorded for your member account. Keep your USDT TRC20 payout wallet accurate and secure. Before submitting a withdrawal, review the amount, fee and net payout. A submitted request does not always mean the blockchain transfer is complete. Check the final status and transaction reference.', visualPrompt: 'Show a sample earnings ledger, masked example TRC20 address, withdrawal amount, fee and net payout confirmation. Never display real wallet credentials, private keys or member data. Explain that a submitted request and a confirmed blockchain transfer are different states.', quiz: { question: 'Should you share your wallet private key to receive a payout?', answers: ['Yes', 'No, only provide the public TRC20 receiving address'], correct: 1, explanation: 'Never share a private key or recovery phrase. A receiving address is public.' } },
 ];
+
+type AcademyVideo = {
+  id: string; lesson_id: string; lesson_title: string; status: 'pending' | 'processing' | 'completed' | 'failed';
+  video_url?: string | null; thumbnail_url?: string | null; failure_reason?: string | null; created_at: string;
+};
+
+async function academyVideoRequest(payload: Record<string, unknown>) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error('Please sign in again to use Academy video production.');
+  const { data, error } = await supabase.functions.invoke('academy-videos', {
+    body: payload,
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const detail = context ? await context.clone().json().catch(() => null) : null;
+    throw new Error(typeof detail?.error === 'string' ? detail.error : error.message || 'Academy video service is unavailable.');
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
 
 const CATEGORIES = ['All lessons', 'Getting started', 'Trading intelligence', 'Crypto', 'Automation', 'Membership'];
 function makeBrief(lesson: Lesson) {
@@ -47,6 +70,53 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
   const [answer, setAnswer] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [studio, setStudio] = useState(false);
+  const [videos, setVideos] = useState<AcademyVideo[]>([]);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoError, setVideoError] = useState('');
+  const [videoNotice, setVideoNotice] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    academyVideoRequest({ action: isAdmin ? 'jobs' : 'list' })
+      .then((result) => { if (active) setVideos(Array.isArray(result.videos) ? result.videos : []); })
+      .catch((error) => { if (active) setVideoError(error instanceof Error ? error.message : 'Could not load Academy videos.'); });
+    return () => { active = false; };
+  }, [isAdmin]);
+
+  const generateVideo = async () => {
+    setVideoBusy(true); setVideoError(''); setVideoNotice('');
+    try {
+      const prompt = makeBrief(selected) + '\n\nPRODUCTION REQUIREMENTS: Create a complete, polished 3–5 minute training video, not a short teaser. Preserve the lesson narration and teach every listed step. Use a friendly professional presenter, clear English narration, scene-by-scene screen demonstrations, captions, transitions, and the SuperTechAi dark navy, electric cyan and subtle gold visual identity. Landscape 16:9. Never invent platform performance or promise profits.';
+      const result = await academyVideoRequest({ action: 'create', lessonId: selected.id, lessonTitle: selected.title, prompt });
+      if (result.video) setVideos((current) => [result.video, ...current.filter((item) => item.id !== result.video.id)]);
+      setVideoNotice('Video submitted to HeyGen. Rendering happens in the background; check its status shortly.');
+    } catch (error) {
+      setVideoError(error instanceof Error ? error.message : 'Could not start video generation.');
+    } finally { setVideoBusy(false); }
+  };
+
+  const refreshVideo = async (videoId: string) => {
+    setVideoBusy(true); setVideoError('');
+    try {
+      const result = await academyVideoRequest({ action: 'refresh', videoId });
+      if (result.video) setVideos((current) => current.map((item) => item.id === result.video.id ? result.video : item));
+      if (result.video?.status === 'completed') setVideoNotice('Your lesson video is ready for members.');
+      else if (result.video?.status === 'failed') setVideoError(result.video.failure_reason || 'HeyGen could not complete this video.');
+      else setVideoNotice('HeyGen is still rendering this lesson. Check again in a little while.');
+    } catch (error) { setVideoError(error instanceof Error ? error.message : 'Could not refresh video status.'); }
+    finally { setVideoBusy(false); }
+  };
+
+  const checkProvider = async () => {
+    setVideoBusy(true); setVideoError(''); setVideoNotice('');
+    try {
+      const result = await academyVideoRequest({ action: 'health' });
+      setVideoNotice(result.configured ? 'HeyGen is connected and its API key was accepted.' : 'HeyGen connection could not be verified.');
+    } catch (error) { setVideoError(error instanceof Error ? error.message : 'HeyGen connection check failed.'); }
+    finally { setVideoBusy(false); }
+  };
+
+  const selectedVideo = videos.find((video) => video.lesson_id === selected.id && video.status === 'completed' && video.video_url);
   const filtered = useMemo(() => LESSONS.filter((lesson) =>
     (category === 'All lessons' || lesson.category === category) &&
     (lesson.title.toLowerCase().includes(query.toLowerCase()) || lesson.summary.toLowerCase().includes(query.toLowerCase()))
@@ -99,9 +169,24 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
         <div className="flex items-start gap-3"><WandSparkles className="mt-1 h-5 w-5 text-accent" /><div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">AI video production studio</p>
           <h2 className="mt-1 text-xl font-semibold text-ink">Turn this lesson into a branded video</h2>
-          <p className="mt-2 text-sm leading-6 text-ink-2">Copy a ready-made brief containing the narration, scene direction, on-screen steps and SuperTechAi visual style for your AI video generator.</p>
-          <button onClick={copyBrief} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white"><Copy className="h-4 w-4" /> {copied ? 'Brief copied' : 'Copy selected lesson video brief'}</button>
-          <p className="mt-3 text-xs text-ink-3">{isAdmin ? 'Admin production workflow.' : 'Video briefs are provided as learning resources.'} Direct video rendering is not connected yet; connect a video-generation provider before presenting clips as AI-generated.</p>
+          <p className="mt-2 text-sm leading-6 text-ink-2">Generate a narrated lesson with HeyGen, then publish the finished video for members to watch inside Academy.</p>
+          {isAdmin && <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={generateVideo} disabled={videoBusy} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> {videoBusy ? 'Working…' : 'Generate selected lesson'}</button>
+            <button onClick={checkProvider} disabled={videoBusy} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-4 py-2.5 text-sm font-semibold text-ink-2 disabled:opacity-50">Check HeyGen connection</button>
+            <button onClick={copyBrief} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-4 py-2.5 text-sm font-semibold text-ink-2"><Copy className="h-4 w-4" /> {copied ? 'Brief copied' : 'Copy production brief'}</button>
+          </div>}
+          {videoNotice && <p className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3 text-xs text-emerald-500">{videoNotice}</p>}
+          {videoError && <p className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-400">{videoError}</p>}
+          {isAdmin && <div className="mt-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">Video production queue</p>
+            {videos.length === 0 && <p className="text-xs text-ink-3">No Academy videos generated yet.</p>}
+            {videos.map((video) => <div key={video.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line/10 p-3">
+              <div className="min-w-0"><p className="text-sm font-medium text-ink">{video.lesson_title}</p><p className="text-xs capitalize text-ink-3">{video.status}</p></div>
+              {video.status !== 'completed' && video.status !== 'failed' && <button onClick={() => refreshVideo(video.id)} disabled={videoBusy} className="rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-50">Check status</button>}
+              {video.status === 'completed' && video.video_url && <a href={video.video_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-accent">Open video</a>}
+            </div>)}
+          </div>}
+          {!isAdmin && <p className="mt-3 text-xs text-ink-3">Completed teaching videos appear here when published by the Academy team.</p>}
         </div></div>
       </section>}
 
@@ -119,6 +204,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
             <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 25% 20%, rgba(34,211,238,.4), transparent 35%), radial-gradient(circle at 80% 80%, rgba(251,191,36,.2), transparent 35%)' }} />
             <div className="relative max-w-md"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200"><Video className="h-7 w-7" /></div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Academy lesson</p><h2 className="mt-2 text-2xl font-bold text-white">{selected.title}</h2><p className="mt-2 text-sm text-slate-300">{selected.duration} · {selected.level}</p><p className="mt-3 text-xs text-slate-400">Guided lesson and video-production script</p></div>
           </div>
+          {selectedVideo?.video_url && <div className="border-b border-line/10 bg-black p-2"><video className="aspect-video w-full rounded-xl" controls preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
           <div className="space-y-5 p-5 sm:p-6">
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">What you will learn</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
             <div className="space-y-3">{selected.steps.map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/30 text-xs font-semibold text-accent">{index + 1}</span><p className="pt-0.5 text-sm leading-6 text-ink-2">{step}</p></div>)}</div>
