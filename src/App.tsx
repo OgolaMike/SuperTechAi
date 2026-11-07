@@ -110,6 +110,14 @@ function App() {
     updateSelected([...selectedSymbols, symbol]);
   };
 
+  const openSignalChart = (symbol: string, timeframe: string) => {
+    setView('dashboard');
+    window.setTimeout(() => {
+      const target = document.getElementById(`signal-chart-${encodeURIComponent(symbol)}-${encodeURIComponent(timeframe)}`);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+  };
+
   const toggleSounds = () => {
     const next = !soundsEnabled;
     setSoundsEnabled(next);
@@ -212,7 +220,7 @@ function App() {
         </footer>
       </div>
 
-      <Toasts toasts={[...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); }} />
+      <Toasts toasts={[...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); }} onOpenChart={openSignalChart} />
     </div>
   );
 }
