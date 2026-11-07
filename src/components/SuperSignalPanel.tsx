@@ -140,6 +140,8 @@ function SuperSignalCard({
         </span>
       </header>
 
+      <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-up/60 bg-up/10 px-4 py-3 text-up shadow-[0_0_22px_rgba(34,197,94,0.16)]"><div><div className="text-[10px] font-bold uppercase tracking-[0.18em]">8-timeframe signal grade</div><div className="text-xs font-semibold">SUPER SIGNAL · All timeframes agree</div></div><div className="text-3xl font-black tabular-nums">8<span className="text-lg opacity-70">/8</span></div></div>
+
       <p className="text-sm leading-relaxed text-ink-2">{directionExplanation(signal.direction)}</p>
 
       <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-3">
@@ -179,7 +181,7 @@ function SuperSignalCard({
           <p className="mt-1 text-sm leading-relaxed text-ink-2">
             All 8 timeframes agree. This means the short and long charts are pointing in the same direction.
           </p>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-up">8 of 8 timeframes agree</p>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-up">8/8 · SUPER SIGNAL CONFIRMED</p>
         </div>
         <span className={`max-w-full rounded-full border px-3 py-1 text-xs font-semibold sm:flex-shrink-0 sm:text-sm ${STRENGTH_STYLE[signal.classification]}`}>
           {STRENGTH_LABEL[signal.classification]}
