@@ -17,7 +17,7 @@ export function Toasts({ toasts, onDismiss, onOpenChart }: Props) {
   </>;
 }
 
-function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; index: number; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number) => void }) {
+function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; index: number; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number, chartTargetId?: string) => void }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => onDismiss(toast.id), TOAST_DURATION_MS);
@@ -58,7 +58,7 @@ function HitBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; ind
       <span className="text-xs font-black tracking-wider">{isStop ? 'STOP' : hitLabel}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
-    {open && <HitDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.granularity)} />}
+    {open && <HitDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId)} />}
   </>;
 }
 
