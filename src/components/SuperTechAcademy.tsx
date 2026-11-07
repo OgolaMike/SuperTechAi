@@ -53,6 +53,43 @@ const LESSONS: Lesson[] = [
 
 ];
 
+function LessonVisual({ lesson }: { lesson: Lesson }) {
+  const advanced = lesson.level === 'Advanced';
+  const candles = [
+    { x: 36, y: 95, h: 28, up: true }, { x: 70, y: 82, h: 34, up: true },
+    { x: 104, y: 91, h: 25, up: false }, { x: 138, y: 65, h: 40, up: true },
+    { x: 172, y: 57, h: 35, up: true }, { x: 206, y: 70, h: 31, up: false },
+    { x: 240, y: 45, h: 42, up: true }, { x: 274, y: 37, h: 36, up: true },
+    { x: 308, y: 49, h: 29, up: false }, { x: 342, y: 25, h: 44, up: true },
+  ];
+  return (
+    <div className="overflow-hidden rounded-2xl border border-cyan-300/15 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3 sm:p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-200">Visual learning studio</p><p className="mt-1 text-sm font-semibold text-white">{lesson.category} · illustrated concept</p></div>
+        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] text-cyan-100">{advanced ? 'Advanced framework' : 'Learning diagram'}</span>
+      </div>
+      <svg viewBox="0 0 390 158" role="img" aria-label="Illustrative candlestick chart showing price movement, a reference level and a planned risk area" className="h-auto w-full">
+        {[28, 62, 96, 130].map(y => <line key={y} x1="12" x2="378" y1={y} y2={y} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" />)}
+        <path d="M12 112 C70 106 90 108 130 83 S210 80 250 61 S330 53 378 30" fill="none" stroke="#38bdf8" strokeWidth="2" strokeDasharray="5 4" opacity=".75" />
+        <line x1="12" x2="378" y1="105" y2="105" stroke="#fbbf24" strokeDasharray="5 4" opacity=".8" />
+        <text x="376" y="99" textAnchor="end" fill="#fcd34d" fontSize="8">Reference level</text>
+        {candles.map((c, i) => <g key={c.x}>
+          <line x1={c.x + 7} x2={c.x + 7} y1={c.y - 10} y2={c.y + c.h + 8} stroke={c.up ? '#34d399' : '#fb7185'} strokeWidth="1.5" />
+          <rect x={c.x} y={c.y} width="14" height={c.h} rx="2" fill={c.up ? '#10b981' : '#f43f5e'} opacity=".9" />
+        </g>)}
+        <rect x="244" y="116" width="100" height="20" rx="5" fill="rgba(244,63,94,.14)" stroke="rgba(251,113,133,.5)" />
+        <text x="294" y="129" textAnchor="middle" fill="#fda4af" fontSize="9">Risk is defined first</text>
+        <text x="15" y="15" fill="#cbd5e1" fontSize="9">Illustrative price action · not a live market</text>
+      </svg>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2"><p className="text-[10px] font-semibold text-cyan-200">1 · Observe</p><p className="mt-1 break-words text-[11px] leading-4 text-slate-300">Read the market context before choosing a direction.</p></div>
+        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2"><p className="text-[10px] font-semibold text-cyan-200">2 · Plan</p><p className="mt-1 break-words text-[11px] leading-4 text-slate-300">Define the entry idea, invalidation and exit.</p></div>
+        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2"><p className="text-[10px] font-semibold text-cyan-200">3 · Protect</p><p className="mt-1 break-words text-[11px] leading-4 text-slate-300">Size the position around an acceptable loss.</p></div>
+      </div>
+    </div>
+  );
+}
+
 type AcademyVideo = {
   id: string;
   lesson_id: string;
@@ -157,7 +194,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2 sm:gap-2">{CATEGORIES.map((item) => <button key={item} onClick={() => setCategory(item)} className={'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ' + (category === item ? 'border-accent/50 bg-accent/10 text-accent' : 'border-line/10 text-ink-2')}>{item}</button>)}</div>
           <div className="space-y-2">{filtered.map((lesson) => <button key={lesson.id} onClick={() => { setSelectedId(lesson.id); setAnswer(null); }} className={'w-full rounded-2xl border p-3 text-left transition sm:p-4 ' + (selected.id === lesson.id ? 'border-accent/50 bg-accent/[0.07]' : 'border-line/10 bg-surface/[0.025] hover:border-accent/30')}>
             <div className="flex items-start gap-3"><div className={'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ' + (completed.includes(lesson.id) ? 'bg-emerald-400/10 text-emerald-400' : 'bg-accent/10 text-accent')}>{completed.includes(lesson.id) ? <CheckCircle2 className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}</div>
-              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-xs text-ink-3">Lesson {LESSONS.findIndex((item) => item.id === lesson.id) + 1}</span><span className="rounded-full bg-surface/10 px-2 py-0.5 text-[10px] text-ink-3">{lesson.level}</span></div><p className="mt-1 font-semibold text-ink">{lesson.title}</p><p className="mt-1 text-xs leading-5 text-ink-2">{lesson.summary}</p><div className="mt-2 flex items-center gap-1 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" /> {lesson.duration}</div></div><ChevronRight className="mt-2 h-4 w-4 shrink-0 text-ink-3" />
+              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-xs text-ink-3">Lesson {LESSONS.findIndex((item) => item.id === lesson.id) + 1}</span><span className="rounded-full bg-surface/10 px-2 py-0.5 text-[10px] text-ink-3">{lesson.level}</span></div><p className="mt-1 break-words font-semibold text-ink">{lesson.title}</p><p className="mt-1 break-words text-xs leading-5 text-ink-2">{lesson.summary}</p><div className="mt-2 flex items-center gap-1 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" /> {lesson.duration}</div></div><ChevronRight className="mt-2 h-4 w-4 shrink-0 text-ink-3" />
             </div></button>)}{filtered.length === 0 && <p className="rounded-xl border border-dashed border-line/20 p-5 text-sm text-ink-3">No lessons match that search.</p>}</div>
         </div>
         <article className="min-w-0 overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.035]">
@@ -168,8 +205,10 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
           {selectedVideo?.video_url && <div className="border-b border-line/10 bg-black p-2"><video className="aspect-video w-full rounded-xl" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
           {!selectedVideo?.video_url && <div className="border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3">{isAdmin ? 'This lesson video will appear here automatically after the background publisher finishes rendering it.' : 'The teaching video for this lesson is being prepared. Please check back soon.'}</div>}
           <div className="space-y-4 p-4 sm:space-y-5 sm:p-6">
+            <LessonVisual lesson={selected} />
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">Learning objective</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
-            <div className="rounded-2xl border border-accent/15 bg-gradient-to-br from-accent/[0.07] to-transparent p-4"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Core lesson · {selected.category}</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.summary}</p></div>\n            <div className="space-y-3">{selected.steps.map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/30 text-xs font-semibold text-accent">{index + 1}</span><p className="pt-0.5 text-sm leading-6 text-ink-2">{step}</p></div>)}</div>
+            <div className="rounded-2xl border border-accent/15 bg-gradient-to-br from-accent/[0.07] to-transparent p-4"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Core lesson · {selected.category}</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.summary}</p></div>
+            <div className="space-y-3">{selected.steps.map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/30 text-xs font-semibold text-accent">{index + 1}</span><p className="min-w-0 break-words pt-0.5 text-sm leading-6 text-ink-2">{step}</p></div>)}</div>
             <div className="rounded-xl border border-line/10 bg-surface/[0.035] p-3 sm:p-4"><div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4 text-accent" /> Knowledge check</div><p className="mt-3 text-sm font-medium text-ink">{selected.quiz.question}</p><div className="mt-3 space-y-2">{selected.quiz.answers.map((option, index) => <button key={option} onClick={() => setAnswer(index)} className={'w-full rounded-lg border px-3 py-2.5 text-left text-sm ' + (answer === index ? (index === selected.quiz.correct ? 'border-emerald-400/50 bg-emerald-400/10 text-ink' : 'border-rose-400/50 bg-rose-400/10 text-ink') : 'border-line/10 text-ink-2 hover:border-accent/30')}>{option}</button>)}</div>{answer !== null && <p className={'mt-3 text-xs leading-5 ' + (answer === selected.quiz.correct ? 'text-emerald-400' : 'text-rose-400')}>{answer === selected.quiz.correct ? 'Correct. ' : 'Not quite. '}{selected.quiz.explanation}</p>}</div>
             <div className="flex flex-wrap gap-3"><button onClick={markComplete} disabled={completed.includes(selected.id) || answer !== selected.quiz.correct} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-4 w-4" /> {completed.includes(selected.id) ? 'Lesson completed' : 'Mark lesson complete'}</button></div>
             <div className="flex items-start gap-2 border-t border-line/10 pt-4 text-xs leading-5 text-ink-3"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" /> Trading involves risk. Lessons are educational and do not promise returns or replace independent judgement.</div>
