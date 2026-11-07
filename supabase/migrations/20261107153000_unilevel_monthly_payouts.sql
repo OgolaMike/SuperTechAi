@@ -286,3 +286,120 @@ end;
 $function$;
 revoke all on function public.finance_settle_membership(uuid,text,jsonb) from public, anon, authenticated;
 grant execute on function public.finance_settle_membership(uuid,text,jsonb) to service_role;
+
+
+-- Worker authentication is held in Supabase Vault, not in source control.
+do $vault$
+begin
+  if not exists(select 1 from vault.secrets where name='project_url') then
+    perform vault.create_secret('https://jtfsqhewotinvlrcadwq.supabase.co','project_url','Supabase project URL for scheduled payout worker');
+  end if;
+  if not exists(select 1 from vault.secrets where name='payout_worker_secret') then
+    perform vault.create_secret(encode(extensions.gen_random_bytes(32),'hex'),'payout_worker_secret','Shared secret for scheduled finance payout worker');
+  end if;
+end;
+$vault$;
+
+create or replace function public.finance_verify_payout_worker_secret(p_secret text)
+returns boolean
+language sql security definer set search_path = ''
+as $function$
+  select coalesce(
+    exists(select 1 from vault.decrypted_secrets
+      where name='payout_worker_secret' and decrypted_secret=p_secret),
+    false
+  );
+$function$;
+revoke all on function public.finance_verify_payout_worker_secret(text) from public, anon, authenticated;
+grant execute on function public.finance_verify_payout_worker_secret(text) to service_role;
+
+create or replace function public.finance_finalize_unilevel_auto_payout(p_payout_id uuid,p_tx_hash text)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $function$
+declare v_payout public.unilevel_auto_payouts%rowtype;
+begin
+  if coalesce(current_setting('request.jwt.claim.role',true),'') <> 'service_role' then
+    raise exception 'service_role_required' using errcode='42501';
+  end if;
+  if p_tx_hash is null or p_tx_hash !~ '^[a-fA-F0-9]{64}$' then raise exception 'invalid_transaction_hash'; end if;
+  select * into v_payout from public.unilevel_auto_payouts where id=p_payout_id for update;
+  if not found then raise exception 'unilevel_payout_not_found'; end if;
+  if v_payout.status='paid' then
+    if lower(v_payout.tx_hash)=lower(p_tx_hash) then
+      return jsonb_build_object('ok',true,'already_paid',true,'payout_id',p_payout_id);
+    end if;
+    raise exception 'payout_already_paid_with_different_hash';
+  end if;
+  if v_payout.status not in ('processing','broadcast_unknown') then raise exception 'payout_not_in_flight'; end if;
+  if v_payout.tx_hash is not null and lower(v_payout.tx_hash)<>lower(p_tx_hash) then
+    raise exception 'payout_transaction_hash_mismatch';
+  end if;
+  update public.unilevel_auto_payouts
+    set status='paid',tx_hash=lower(p_tx_hash),paid_at=now(),updated_at=now(),last_error=null
+    where id=p_payout_id;
+  insert into public.finance_ledger_entries(account_code,user_id,entry_type,amount,idempotency_key,metadata)
+  values
+    ('company:withdrawal_payable',v_payout.user_id,'unilevel_monthly_paid',-v_payout.net_amount,
+      'unilevel-month:'||v_payout.payout_month::text||':'||v_payout.user_id::text||':paid',
+      jsonb_build_object('payout_id',p_payout_id,'tx_hash',lower(p_tx_hash))),
+    ('company:treasury_outflow',v_payout.user_id,'unilevel_monthly_treasury_outflow',-v_payout.net_amount,
+      'unilevel-month:'||v_payout.payout_month::text||':'||v_payout.user_id::text||':treasury_outflow',
+      jsonb_build_object('payout_id',p_payout_id,'tx_hash',lower(p_tx_hash))),
+    ('company:operations_pending',v_payout.user_id,'unilevel_monthly_fee_collected',-v_payout.fee_amount,
+      'unilevel-month:'||v_payout.payout_month::text||':'||v_payout.user_id::text||':fee_collected',
+      jsonb_build_object('payout_id',p_payout_id)),
+    ('company:account',v_payout.user_id,'unilevel_monthly_company_fee_income',v_payout.fee_amount,
+      'unilevel-month:'||v_payout.payout_month::text||':'||v_payout.user_id::text||':company_fee_income',
+      jsonb_build_object('payout_id',p_payout_id,'source','15_percent_withdrawal_fee'));
+  insert into public.finance_audit_log(actor_user_id,event_type,entity_type,entity_id,details)
+  values(null,'unilevel_monthly_payout_paid','unilevel_auto_payout',p_payout_id::text,
+    jsonb_build_object('user_id',v_payout.user_id,'net_amount',v_payout.net_amount,'tx_hash',lower(p_tx_hash)));
+  return jsonb_build_object('ok',true,'payout_id',p_payout_id,'status','paid','tx_hash',lower(p_tx_hash));
+end;
+$function$;
+revoke all on function public.finance_finalize_unilevel_auto_payout(uuid,text) from public, anon, authenticated;
+grant execute on function public.finance_finalize_unilevel_auto_payout(uuid,text) to service_role;
+
+create or replace function public.finance_set_unilevel_payout_error(p_payout_id uuid,p_error text,p_broadcast_unknown boolean default false)
+returns void
+language plpgsql security definer set search_path = ''
+as $function$
+begin
+  if coalesce(current_setting('request.jwt.claim.role',true),'') <> 'service_role' then
+    raise exception 'service_role_required' using errcode='42501';
+  end if;
+  update public.unilevel_auto_payouts
+    set status=case when p_broadcast_unknown then 'broadcast_unknown' else 'failed' end,
+        last_error=left(coalesce(p_error,'Unknown payout worker error'),1000),
+        updated_at=now()
+    where id=p_payout_id and status<>'paid';
+end;
+$function$;
+revoke all on function public.finance_set_unilevel_payout_error(uuid,text,boolean) from public, anon, authenticated;
+grant execute on function public.finance_set_unilevel_payout_error(uuid,text,boolean) to service_role;
+
+-- Queue the monthly balances at 00:05 Nairobi time and run the transfer worker
+-- at 00:10. It retries queued/failed jobs on later days; broadcast_unknown jobs
+-- are never resent automatically.
+do $worker_schedule$
+declare v_job_id bigint;
+begin
+  if exists(select 1 from pg_extension where extname='pg_cron')
+     and exists(select 1 from pg_extension where extname='pg_net') then
+    select jobid into v_job_id from cron.job where jobname='unilevel-payout-worker' limit 1;
+    if v_job_id is not null then perform cron.unschedule(v_job_id); end if;
+    perform cron.schedule('unilevel-payout-worker','10 21 * * *',$job$
+      select net.http_post(
+        url => (select decrypted_secret from vault.decrypted_secrets where name='project_url') || '/functions/v1/finance',
+        headers => jsonb_build_object(
+          'Content-Type','application/json',
+          'x-payout-worker-secret',(select decrypted_secret from vault.decrypted_secrets where name='payout_worker_secret')
+        ),
+        body => '{"action":"process-unilevel-payouts"}'::jsonb,
+        timeout_milliseconds => 120000
+      );
+    $job$);
+  end if;
+end;
+$worker_schedule$;
