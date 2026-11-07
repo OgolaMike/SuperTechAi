@@ -1,0 +1,55 @@
+name: SuperTechAi Academy video publisher
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/academy_video_worker/**"
+      - ".github/workflows/academy-video-worker.yml"
+
+concurrency:
+  group: academy-video-publisher
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out Academy lesson scripts
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Cache Kokoro model files
+        uses: actions/cache@v4
+        with:
+          path: .cache/kokoro
+          key: kokoro-onnx-int8-v1
+
+      - name: Install system video tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install open-source voice renderer
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "kokoro-onnx==0.6.1" "soundfile>=0.12" "Pillow>=10" "requests>=2.31" "numpy>=2.0"
+
+      - name: Generate and publish missing Academy lessons
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          KOKORO_MODEL_DIR: .cache/kokoro
+        run: python scripts/academy_video_worker/generate_videos.py
