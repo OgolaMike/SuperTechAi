@@ -58,7 +58,7 @@ function HitBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; ind
       <span className="text-xs font-black tracking-wider">{isStop ? 'STOP' : hitLabel}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
-    {open && <HitDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.timeframe)} />}
+    {open && <HitDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.granularity)} />}
   </>;
 }
 
