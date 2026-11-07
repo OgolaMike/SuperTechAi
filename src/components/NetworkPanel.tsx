@@ -13,10 +13,12 @@ type NetworkMember = {
   display_name: string;
   membership_active: boolean;
   approved_at: string | null;
+  sponsor_account_code?: string | null;
 };
 type NetworkResponse = {
   profile: { referral_code: string; sponsor_user_id: string | null };
   members: NetworkMember[];
+  allMembers?: NetworkMember[] | null;
 };
 type TreeProps = {
   member: NetworkMember;
@@ -63,8 +65,9 @@ function MemberNode({ member, childrenBySponsor, visibleIds, expandedIds, onTogg
 }
 
 export function NetworkPanel() {
-  const { session } = useSession();
+  const { session, isAdmin } = useSession();
   const [members, setMembers] = useState<NetworkMember[]>([]);
+  const [allMembers, setAllMembers] = useState<NetworkMember[]>([]);
   const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +96,7 @@ export function NetworkPanel() {
       if (data?.error) throw new Error(data.error);
       const result = data as NetworkResponse;
       setMembers(result.members ?? []);
+      setAllMembers(result.allMembers ?? []);
       setReferralCode(result.profile?.referral_code ?? '');
       setExpandedIds(new Set((result.members ?? []).filter((member) => member.depth === 1).map((member) => member.user_id)));
     } catch (err) {
@@ -138,11 +142,12 @@ export function NetworkPanel() {
     return visible;
   }, [members, search]);
 
+  const directoryMembers = isAdmin && mode === 'members' ? allMembers : members;
   const filteredMembers = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return members;
-    return members.filter((member) => member.display_name.toLowerCase().includes(term) || member.referral_code.toLowerCase().includes(term));
-  }, [members, search]);
+    if (!term) return directoryMembers;
+    return directoryMembers.filter((member) => member.display_name.toLowerCase().includes(term) || member.referral_code.toLowerCase().includes(term));
+  }, [directoryMembers, search]);
 
   const referralLink = referralCode ? `${window.location.origin}/?ref=${referralCode}` : '';
   const copyLink = async () => {
@@ -196,7 +201,7 @@ export function NetworkPanel() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-1 rounded-xl border border-line/10 bg-surface/[0.03] p-1">
           <button type="button" onClick={() => setMode('structure')} className={`rounded-lg px-4 py-2 text-sm ${mode === 'structure' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}><NetworkIcon className="mr-2 inline h-4 w-4" />Structure</button>
-          <button type="button" onClick={() => setMode('members')} className={`rounded-lg px-4 py-2 text-sm ${mode === 'members' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}><Users className="mr-2 inline h-4 w-4" />All members</button>
+          <button type="button" onClick={() => setMode('members')} className={`rounded-lg px-4 py-2 text-sm ${mode === 'members' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}><Users className="mr-2 inline h-4 w-4" />{isAdmin ? 'Member directory' : 'All members'}</button>
         </div>
         <label className="relative block w-full sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" /><input value={search} onChange={(event) => { const value = event.target.value; setSearch(value); if (value.trim()) setExpandedIds(new Set(members.map((member) => member.user_id))); }} placeholder="Search by member or referral code" className="w-full rounded-xl border border-line/10 bg-surface/[0.04] py-3 pl-10 pr-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-accent/50" /></label>
       </div>
@@ -217,8 +222,16 @@ export function NetworkPanel() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.02]">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-line/10 px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-ink-3"><span>Member</span><span>Level</span><span>Access</span></div>
-          {filteredMembers.map((member) => <div key={member.user_id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-line/5 px-4 py-3 last:border-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-ink">{member.display_name}</p><p className="mt-0.5 text-[11px] text-ink-3">Code {member.referral_code} · Joined {formatLocalDateTime(member.created_at)}</p></div><span className="text-xs text-ink-2">L{member.depth}</span><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${member.membership_active ? 'bg-up/10 text-up' : 'bg-surface/[0.08] text-ink-3'}`}>{member.membership_active ? 'Active' : 'Pending'}</span></div>)}
+          {isAdmin && <div className="border-b border-line/10 bg-accent/[0.035] px-4 py-3 text-xs leading-relaxed text-ink-2">Administrator directory: all registered member profiles are shown. Sponsor relationships are taken from recorded referrals; unlinked profiles are never assigned a sponsor automatically.</div>}
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-line/10 px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-ink-3"><span>Member / Sponsor</span><span>{isAdmin ? 'Referral' : 'Level'}</span><span>Access</span></div>
+          {filteredMembers.map((member) => {
+            const sponsor = member.sponsor_account_code === 'company:account'
+              ? 'SuperTech AI company'
+              : member.sponsor_user_id
+                ? (allMembers.find((candidate) => candidate.user_id === member.sponsor_user_id)?.display_name ?? 'Connected sponsor')
+                : 'Not linked yet';
+            return <div key={member.user_id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-line/5 px-4 py-3 last:border-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-ink">{member.display_name}</p><p className="mt-0.5 truncate text-[11px] text-ink-3">{isAdmin ? `Sponsor: ${sponsor}` : `Code ${member.referral_code}`} · Joined {formatLocalDateTime(member.created_at)}</p></div><span className="text-xs text-ink-2">{isAdmin ? member.referral_code : `L${member.depth}`}</span><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${member.membership_active ? 'bg-up/10 text-up' : 'bg-surface/[0.08] text-ink-3'}`}>{member.membership_active ? 'Active' : 'Pending'}</span></div>;
+          })}
           {filteredMembers.length === 0 && <p className="p-8 text-center text-sm text-ink-3">No members match “{search}”.</p>}
         </div>
       )}
