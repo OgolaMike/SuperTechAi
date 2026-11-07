@@ -53,7 +53,7 @@ function HitBubble({ toast, index, onDismiss }: { toast: Toast; index: number; o
   return <>
     <button type="button" aria-label={`Open ${toast.message} details for ${toast.symbol}`} onClick={() => setOpen(true)}
       className={`signal-bubble pointer-events-auto absolute bottom-[-140px] flex flex-col items-center justify-center rounded-full border-2 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isStop ? 'border-down/80 bg-down/15 text-down shadow-down/40' : 'border-warn/80 bg-warn/15 text-warn shadow-warn/40'}`}
-      style={{ width: bubbleSize, height: bubbleSize, left: `calc(4% + ${(index % 5) * 18}%)` }}>
+      style={{ width: bubbleSize, height: bubbleSize, left: `calc(16% + ${(index % 5) * 17}%)` }}>
       {isStop ? <ShieldAlert className="h-6 w-6" /> : <Target className="h-6 w-6" />}
       <span className="text-xs font-black tracking-wider">{isStop ? 'STOP' : hitLabel}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
