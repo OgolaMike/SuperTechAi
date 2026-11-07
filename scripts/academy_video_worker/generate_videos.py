@@ -115,8 +115,11 @@ def main():
     download("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx", model)
     download("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin", voices)
     tts = Kokoro(str(model), str(voices))
-    existing = api_get("academy_videos", {"select": "lesson_id", "status": "eq.completed"})
-    completed = {row["lesson_id"] for row in existing}
+    existing = api_get("academy_videos", {"select": "id,lesson_id,status,created_at", "order": "created_at.desc"})
+    records = {}
+    for row in existing:
+        records.setdefault(row["lesson_id"], row)
+    completed = {lesson_id for lesson_id, row in records.items() if row["status"] == "completed"}
     admins = api_get("admin_users", {"select": "user_id", "limit": "1"})
     if not admins:
         raise RuntimeError("No Academy admin account was found for the publisher record.")
@@ -128,7 +131,26 @@ def main():
             print(f"[{index}/{len(LESSONS)}] Already published: {lesson_id}")
             continue
         output = WORK / f"{lesson_id}.mp4"
+        record = records.get(lesson_id)
+        record_id = record["id"] if record else None
         try:
+            if record_id:
+                queued = requests.patch(
+                    f"{SUPABASE_URL}/rest/v1/academy_videos?id=eq.{record_id}",
+                    headers={**HEADERS, "Content-Type": "application/json", "Prefer": "return=minimal"},
+                    json={"status": "processing", "failure_reason": None}, timeout=45,
+                )
+                queued.raise_for_status()
+            else:
+                queued = requests.post(
+                    f"{SUPABASE_URL}/rest/v1/academy_videos",
+                    headers={**HEADERS, "Content-Type": "application/json", "Prefer": "return=representation"},
+                    json={"lesson_id": lesson_id, "lesson_title": lesson["title"], "status": "processing", "created_by": publisher_id},
+                    timeout=45,
+                )
+                queued.raise_for_status()
+                record_id = queued.json()[0]["id"]
+                records[lesson_id] = {"id": record_id, "lesson_id": lesson_id, "status": "processing"}
             print(f"[{index}/{len(LESSONS)}] Generating: {lesson['title']}", flush=True)
             render_lesson(tts, lesson, output)
             if output.stat().st_size > 100 * 1024 * 1024:
@@ -140,17 +162,27 @@ def main():
                 data=output.read_bytes(), timeout=240,
             )
             upload.raise_for_status()
-            insert = requests.post(
-                f"{SUPABASE_URL}/rest/v1/academy_videos",
+            published = requests.patch(
+                f"{SUPABASE_URL}/rest/v1/academy_videos?id=eq.{record_id}",
                 headers={**HEADERS, "Content-Type": "application/json", "Prefer": "return=minimal"},
-                json={"lesson_id": lesson_id, "lesson_title": lesson["title"], "status": "completed", "video_url": object_path, "created_by": publisher_id},
+                json={"status": "completed", "video_url": object_path, "failure_reason": None},
                 timeout=45,
             )
-            insert.raise_for_status()
+            published.raise_for_status()
             completed.add(lesson_id)
+            records[lesson_id]["status"] = "completed"
             print(f"Published: {lesson_id} ({output.stat().st_size} bytes)", flush=True)
         except Exception as error:
             failures.append((lesson_id, str(error)))
+            if record_id:
+                try:
+                    requests.patch(
+                        f"{SUPABASE_URL}/rest/v1/academy_videos?id=eq.{record_id}",
+                        headers={**HEADERS, "Content-Type": "application/json", "Prefer": "return=minimal"},
+                        json={"status": "failed", "failure_reason": str(error)[:1000]}, timeout=45,
+                    ).raise_for_status()
+                except Exception as status_error:
+                    print(f"Could not save failed status for {lesson_id}: {status_error}", flush=True)
             print(f"FAILED: {lesson_id}: {error}", flush=True)
     print(f"Academy publisher finished: {len(completed)}/{len(LESSONS)} lessons published.", flush=True)
     if failures:
