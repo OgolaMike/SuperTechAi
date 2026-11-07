@@ -233,20 +233,27 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       // Super Signal scans the full Binance spot universe, not only dashboard selections.
       const allMarkets = binanceAssets;
       watchedRef.current = new Set([...watchedRef.current, ...allMarkets.map((asset) => asset.symbol)]);
-      const tasks = allMarkets.flatMap((asset) => LIVE_TIMEFRAMES.map((timeframe) => async () => {
-        const candles = await fetchBinanceCandles(asset.symbol, timeframe, timeframe.candleCount);
-        if (stopped) return;
-        candlesRef.current[asset.symbol] ??= {};
-        candlesRef.current[asset.symbol][timeframe.granularity] = candles;
-        const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
-        if (confirmedEpoch !== null) computedConfirmedRef.current[`${asset.symbol}:${timeframe.granularity}`] = confirmedEpoch;
-        recompute(asset.symbol, timeframe.granularity);
-      }));
-      await runTasksInBatches(tasks, 8);
+      const loadMarketTasks = (markets: Asset[]) => markets.flatMap((asset) =>
+        LIVE_TIMEFRAMES.map((timeframe) => async () => {
+          const candles = await fetchBinanceCandles(asset.symbol, timeframe, timeframe.candleCount);
+          if (stopped) return;
+          candlesRef.current[asset.symbol] ??= {};
+          candlesRef.current[asset.symbol][timeframe.granularity] = candles;
+          const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
+          if (confirmedEpoch !== null) computedConfirmedRef.current[`${asset.symbol}:${timeframe.granularity}`] = confirmedEpoch;
+          recompute(asset.symbol, timeframe.granularity);
+        }),
+      );
+      const selectedMarkets = allMarkets.filter((asset) => selectedRef.current.includes(asset.symbol));
+      const backgroundMarkets = allMarkets.filter((asset) => !selectedRef.current.includes(asset.symbol));
+      // Load selected Binance assets first so the rest of the dashboard becomes usable quickly.
+      await runTasksInBatches(loadMarketTasks(selectedMarkets), 8);
       if (stopped) return;
       binanceStream.start(allMarkets.map((asset) => asset.symbol), LIVE_TIMEFRAMES, (granularity, candle) => applyCandle(candle.symbol ?? '', granularity, candle));
       binanceLoaded = true;
       markLoaded();
+      // Continue filling the all-market Super Signal scan without blocking the dashboard.
+      void runTasksInBatches(loadMarketTasks(backgroundMarkets), 8);
     }).catch((error: Error) => {
       if (stopped) return;
       binanceLoaded = true;
