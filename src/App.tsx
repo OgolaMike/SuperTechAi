@@ -114,12 +114,8 @@ function App() {
     setView('dashboard');
     window.setTimeout(() => {
       const target = document.getElementById(`signal-chart-${encodeURIComponent(symbol)}-${encodeURIComponent(timeframe)}`);
-      if (!target) return;
-      const rect = target.getBoundingClientRect();
-      const absoluteTop = rect.top + window.scrollY;
-      const centeredTop = absoluteTop - (window.innerHeight - rect.height) / 2;
-      window.scrollTo({ top: Math.max(0, centeredTop), behavior: 'smooth' });
-    }, 180);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 350);
   };
 
   const toggleSounds = () => {
