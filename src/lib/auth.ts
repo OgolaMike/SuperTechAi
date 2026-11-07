@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase';
 
 function authRedirect(flow: 'confirmed' | 'recovery'): string {
-  const url = new URL(window.location.href);
-  url.search = '';
-  url.hash = '';
+  // Email links must always return to the SPA entry point. Reusing the current
+  // pathname can send users to a nested route that the hosting provider does
+  // not serve, making confirmation and recovery links appear to do nothing.
+  const url = new URL('/', window.location.origin);
   url.searchParams.set('auth', flow);
   return url.toString();
 }
