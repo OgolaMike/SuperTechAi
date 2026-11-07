@@ -16,6 +16,32 @@ type LessonForVideo = {
 
 type Props = { lesson: LessonForVideo; isAdmin: boolean };
 
+type KokoroAudio = { audio?: Float32Array; data?: Float32Array; sampling_rate?: number; samplingRate?: number; toBlob?: () => Blob };
+type KokoroRuntime = {
+  KokoroTTS: { from_pretrained: (model: string, options: { dtype: string; device: string }) => Promise<{ generate: (text: string, options: { voice: string }) => Promise<KokoroAudio> }> };
+};
+
+function audioToWav(audio: KokoroAudio): Blob {
+  if (audio.toBlob) return audio.toBlob();
+  const samples = audio.audio || audio.data;
+  const sampleRate = audio.sampling_rate || audio.samplingRate || 24000;
+  if (!samples || !samples.length) throw new Error('The local voice model returned no audio samples.');
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const write = (offset: number, value: string) => { for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i)); };
+  write(0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true); write(8, 'WAVE');
+  write(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true); write(36, 'data'); view.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i += 1) {
+    const sample = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, sample < 0 ? sample * 32768 : sample * 32767, true);
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+
+
 type Scene = { eyebrow: string; heading: string; body: string; weight: number };
 
 function buildScenes(lesson: LessonForVideo): Scene[] {
@@ -104,6 +130,9 @@ export function AcademyFreeVideoStudio({ lesson, isAdmin }: Props) {
   const micStreamRef = useRef<MediaStream | null>(null);
   const micChunksRef = useRef<BlobPart[]>([]);
   const [recording, setRecording] = useState(false);
+  const [voiceGenerating, setVoiceGenerating] = useState(false);
+  const [modelLoading, setModelLoading] = useState(false);
+  const [voiceMode, setVoiceMode] = useState<'microphone' | 'kokoro'>('microphone');
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
   const [voiceUrl, setVoiceUrl] = useState('');
   const [rendering, setRendering] = useState(false);
@@ -118,6 +147,31 @@ export function AcademyFreeVideoStudio({ lesson, isAdmin }: Props) {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
   }, [voiceUrl, videoUrl]);
+
+  const generateLocalVoice = async () => {
+    setModelLoading(true); setVoiceGenerating(true); setError(''); setMessage('');
+    try {
+      const moduleUrl = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm';
+      const runtime = await import(/* @vite-ignore */ moduleUrl) as KokoroRuntime;
+      const hasWebGPU = Boolean((navigator as Navigator & { gpu?: unknown }).gpu);
+      const tts = await runtime.KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
+        dtype: 'q8',
+        device: hasWebGPU ? 'webgpu' : 'wasm',
+      });
+      setModelLoading(false);
+      setMessage('The free Kokoro voice model is ready. Generating narration on this device…');
+      const generated = await tts.generate(lesson.narration, { voice: 'af_heart' });
+      const blob = audioToWav(generated);
+      setVoiceBlob(blob);
+      setVoiceUrl(URL.createObjectURL(blob));
+      setVoiceMode('kokoro');
+      setMessage('AI narration generated locally. No audio API was used. You can now render the lesson video.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not load or run the local voice model. Try microphone narration instead.');
+    } finally {
+      setModelLoading(false); setVoiceGenerating(false);
+    }
+  };
 
   const startNarration = async () => {
     setError(''); setMessage('');
@@ -278,7 +332,13 @@ export function AcademyFreeVideoStudio({ lesson, isAdmin }: Props) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-line/10 p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink"><Mic className="h-4 w-4 text-accent" /> 1. Record narration</div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink"><WandSparkles className="h-4 w-4 text-accent" /> 1. Generate free AI narration</div>
+          <p className="mt-2 text-xs leading-5 text-ink-3">Kokoro is an open-source voice model that runs on this device. The first use downloads model files (roughly a few hundred MB); later uses can reuse the browser cache. No paid API or subscription.</p>
+          <button onClick={generateLocalVoice} disabled={voiceGenerating || recording || rendering} className="mt-3 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{modelLoading ? 'Loading local model…' : voiceGenerating ? 'Creating AI narration…' : 'Generate AI voice locally'}</button>
+          {voiceMode === 'kokoro' && <span className="ml-2 text-xs text-emerald-500">Local AI voice ready</span>}
+        </div>
+        <div className="rounded-xl border border-line/10 p-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink"><Mic className="h-4 w-4 text-accent" /> 2. Or record your own voice</div>
           <p className="mt-2 text-xs leading-5 text-ink-3">Read the lesson script below in your own voice. The recording stays in this browser until you publish the finished video.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {!recording
