@@ -298,12 +298,11 @@ export function AcademyFreeVideoStudio({ lesson, isAdmin }: Props) {
         upsert: false,
       });
       if (uploadError) throw uploadError;
-      const { data: publicData } = supabase.storage.from('academy-videos').getPublicUrl(path);
       const { error: insertError } = await supabase.from('academy_videos').insert({
         lesson_id: lesson.id,
         lesson_title: lesson.title,
         status: 'completed',
-        video_url: publicData.publicUrl,
+        video_url: path,
         created_by: sessionData.session.user.id,
       });
       if (insertError) throw insertError;
