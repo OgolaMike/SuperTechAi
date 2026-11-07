@@ -134,7 +134,7 @@ function App() {
               <SignOutButton />
             </div>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <ViewNav view={view} isAdmin={isAdmin} onChange={setView} />
             <AssetSelector
               assets={assets}

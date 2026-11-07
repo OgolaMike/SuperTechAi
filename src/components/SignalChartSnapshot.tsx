@@ -222,7 +222,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-blue-500" /> Bullish candle</span>
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-rose-500" /> Bearish candle</span>
         </div>
-        <span className="min-w-0 truncate font-semibold tracking-[0.08em] text-amber-200/90" title={`${assetName} (${symbol})`}>{assetName} <span className="text-white/60">·</span> {symbol}</span>
+        <span className="min-w-0 break-words whitespace-normal font-semibold tracking-[0.08em] text-amber-200/90" title={`${assetName} (${symbol})`}>{assetName} <span className="text-white/60">·</span> {symbol}</span>
       </div>
     </section>
   );

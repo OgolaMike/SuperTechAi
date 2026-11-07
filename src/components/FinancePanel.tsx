@@ -241,10 +241,10 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
         </button>
       </div>
 
-      <div className="flex w-full gap-1 overflow-x-auto rounded-xl border border-line/10 bg-surface/[0.03] p-1">
-        <button onClick={() => setTab('wallet')} className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm ${tab === 'wallet' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}>My Earnings</button>
-        <button onClick={() => setTab('referrals')} className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm ${tab === 'referrals' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}>My Referrals</button>
-        {isAdmin && <button onClick={() => setTab('admin')} className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm ${tab === 'admin' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}>Financial Control Centre</button>}
+      <div className="flex w-full flex-wrap gap-1 rounded-xl border border-line/10 bg-surface/[0.03] p-1">
+        <button onClick={() => setTab('wallet')} className={`min-w-0 rounded-lg px-3 py-2 text-center text-sm break-words ${tab === 'wallet' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}>My Earnings</button>
+        <button onClick={() => setTab('referrals')} className={`min-w-0 rounded-lg px-3 py-2 text-center text-sm break-words ${tab === 'referrals' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}>My Referrals</button>
+        {isAdmin && <button onClick={() => setTab('admin')} className={`min-w-0 rounded-lg px-3 py-2 text-center text-sm break-words ${tab === 'admin' ? 'bg-surface/[0.12] text-ink' : 'text-ink-2'}`}>Financial Control Centre</button>}
       </div>
 
       {error && <div role="alert" className="rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">{error}</div>}
