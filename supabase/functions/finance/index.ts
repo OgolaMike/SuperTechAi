@@ -1,9 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { TronWeb } from "npm:tronweb@6.0.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-api-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-api-version, x-payout-worker-secret",
 };
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -96,16 +97,101 @@ async function verifyTrc20Transfer(address: string, txHash: string, createdAt: s
   };
 }
 
+
+async function processUnilevelPayouts() {
+  const privateKey = Deno.env.get("TRON_TREASURY_PRIVATE_KEY");
+  if (!privateKey) return reply({ error: "Treasury signer is not configured. Payouts remain safely queued." }, 503);
+  const tron = new TronWeb({ fullHost: TRON_API, privateKey });
+  const treasury = tron.address.fromPrivateKey(privateKey);
+  if (!isTronAddress(treasury)) return reply({ error: "Treasury signer produced an invalid address." }, 500);
+  const { data: settings, error: settingsError } = await db.from("finance_settings").select("treasury_address").eq("id", 1).single();
+  if (settingsError) throw settingsError;
+  if (treasury !== settings.treasury_address) return reply({ error: "Treasury signer does not match the configured receiving treasury address." }, 409);
+
+  const { data: pending, error: pendingError } = await db.from("unilevel_auto_payouts").select("*").in("status", ["queued", "failed"]).order("created_at", { ascending: true }).limit(10);
+  if (pendingError) throw pendingError;
+  const { data: inFlight, error: inFlightError } = await db.from("unilevel_auto_payouts").select("*").eq("status", "processing").not("tx_hash", "is", null).order("created_at", { ascending: true }).limit(10);
+  if (inFlightError) throw inFlightError;
+  const contract = await tron.contract().at(USDT_CONTRACT);
+  const results = [];
+
+  const confirmAndFinalize = async (job, txHash) => {
+    const info = await tron.trx.getTransactionInfo(txHash);
+    if (!info || !info.blockNumber) {
+      results.push({ payout_id: job.id, status: "awaiting_chain_confirmation", tx_hash: txHash });
+      return;
+    }
+    const chainResult = String(info.receipt?.result ?? "");
+    if (chainResult !== "SUCCESS") {
+      await db.rpc("finance_set_unilevel_payout_error", { p_payout_id: job.id, p_error: "TRON confirmed the transaction but the token transfer failed.", p_broadcast_unknown: false });
+      results.push({ payout_id: job.id, status: "chain_failed", tx_hash: txHash });
+      return;
+    }
+    const { error } = await db.rpc("finance_finalize_unilevel_auto_payout", { p_payout_id: job.id, p_tx_hash: txHash });
+    if (error) throw error;
+    results.push({ payout_id: job.id, status: "paid", tx_hash: txHash });
+  };
+
+  for (const job of inFlight ?? []) {
+    try { await confirmAndFinalize(job, String(job.tx_hash)); }
+    catch (error) { results.push({ payout_id: job.id, status: "confirmation_error", error: String(error) }); }
+  }
+
+  for (const job of pending ?? []) {
+    let broadcastAttempted = false;
+    try {
+      const { data: claimed, error: claimError } = await db.from("unilevel_auto_payouts")
+        .update({ status: "processing", attempts: Number(job.attempts ?? 0) + 1, updated_at: new Date().toISOString(), last_error: null })
+        .eq("id", job.id).in("status", ["queued", "failed"]).select("*").maybeSingle();
+      if (claimError) throw claimError;
+      if (!claimed) continue;
+      const amountSun = BigInt(Math.round(Number(claimed.net_amount) * 1000000));
+      const availableSun = BigInt((await contract.balanceOf(treasury).call()).toString());
+      if (availableSun < amountSun) {
+        await db.rpc("finance_set_unilevel_payout_error", { p_payout_id: claimed.id, p_error: "Treasury USDT balance is insufficient. Fund the treasury and retry.", p_broadcast_unknown: false });
+        results.push({ payout_id: claimed.id, status: "insufficient_treasury_balance" });
+        continue;
+      }
+      // After send() begins, a timeout may still mean the chain accepted the transfer.
+      // Such cases are never resent automatically.
+      broadcastAttempted = true;
+      const txHash = String(await contract.transfer(claimed.destination_address, amountSun.toString()).send({ feeLimit: 100000000 }));
+      if (!isTxHash(txHash)) {
+        await db.rpc("finance_set_unilevel_payout_error", { p_payout_id: claimed.id, p_error: "No valid transaction hash returned; manual chain reconciliation is required.", p_broadcast_unknown: true });
+        results.push({ payout_id: claimed.id, status: "broadcast_unknown" });
+        continue;
+      }
+      const { error: txSaveError } = await db.from("unilevel_auto_payouts").update({ tx_hash: txHash.toLowerCase(), updated_at: new Date().toISOString() }).eq("id", claimed.id).eq("status", "processing");
+      if (txSaveError) throw txSaveError;
+      await confirmAndFinalize(claimed, txHash.toLowerCase());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await db.rpc("finance_set_unilevel_payout_error", { p_payout_id: job.id, p_error: message, p_broadcast_unknown: broadcastAttempted });
+      results.push({ payout_id: job.id, status: broadcastAttempted ? "broadcast_unknown" : "failed", error: message });
+    }
+  }
+  return reply({ ok: true, processed: results.length, results });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   try {
-    const user = await getUser(req);
-    if (!user) return reply({ error: "Please sign in first." }, 401);
-
     const url = new URL(req.url);
     const method = req.method.toUpperCase();
     const body = method === "POST" ? await req.json().catch(() => ({})) : {};
     const action = String(body.action ?? url.searchParams.get("action") ?? "dashboard");
+
+    if (method === "POST" && action === "process-unilevel-payouts") {
+      const workerSecret = req.headers.get("x-payout-worker-secret") ?? "";
+      if (!workerSecret) return reply({ error: "Worker authentication required." }, 401);
+      const { data: authorized, error: authError } = await db.rpc("finance_verify_payout_worker_secret", { p_secret: workerSecret });
+      if (authError) throw authError;
+      if (authorized !== true) return reply({ error: "Worker authentication failed." }, 401);
+      return await processUnilevelPayouts();
+    }
+
+    const user = await getUser(req);
+    if (!user) return reply({ error: "Please sign in first." }, 401);
 
     if ((method === "GET" || method === "POST") && action === "dashboard") {
       const profile = await ensureProfile(user.id);
