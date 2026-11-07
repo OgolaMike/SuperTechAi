@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { AcademyScreenRecorder } from '@/components/AcademyScreenRecorder';
 import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video } from 'lucide-react';
 
 type Lesson = {
@@ -211,6 +212,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
           {selectedVideo?.video_url && <div className="hidden border-b border-line/10 bg-black p-2 lg:block"><video key={selectedVideo.id} className="aspect-video w-full rounded-xl" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
           {!selectedVideo?.video_url && <div className="hidden border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3 lg:block">{isAdmin ? "Admin video status: " : "Video status: "}{selectedVideo?.status === 'failed' ? 'This lesson needs a retry. The background publisher will attempt it again.' : selectedVideo?.status === 'processing' || selectedVideo?.status === 'pending' ? 'This lesson video is currently rendering in the background.' : 'This lesson is included in the free background video publishing queue.'}</div>}
           <div className="space-y-4 p-4 sm:space-y-5 sm:p-6">
+            {isAdmin && <AcademyScreenRecorder lessonId={selected.id} lessonTitle={selected.title} />}
             <LessonVisual lesson={selected} />
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">Learning objective</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
             <div className="rounded-2xl border border-accent/15 bg-gradient-to-br from-accent/[0.07] to-transparent p-4"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Core lesson · {selected.category}</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.summary}</p></div>
