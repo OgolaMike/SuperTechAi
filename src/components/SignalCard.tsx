@@ -93,7 +93,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           <EntryTime epoch={signal.signalEpoch} direction={signal.direction} />
           <CurrentPrice price={price} entry={signal.levels.entry} direction={signal.direction} digits={asset.digits} />
           <LevelList rows={buildRows(signal)} digits={asset.digits} />
-          <SignalChartSnapshot candles={tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${encodeURIComponent(tf.label)}`} />
+          <SignalChartSnapshot candles={tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} />
 
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
