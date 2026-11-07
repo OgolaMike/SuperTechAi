@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AcademyFreeVideoStudio } from '@/components/AcademyFreeVideoStudio';
-import { BookOpen, CheckCircle2, ChevronRight, Clock3, Copy, GraduationCap, PlayCircle, Search, ShieldCheck, Video, WandSparkles } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video, WandSparkles } from 'lucide-react';
 
 type Lesson = {
   id: string; title: string; category: string; level: string; duration: string; summary: string;
@@ -31,24 +31,6 @@ type AcademyVideo = {
 };
 
 const CATEGORIES = ['All lessons', 'Getting started', 'Trading intelligence', 'Crypto', 'Automation', 'Membership'];
-function makeBrief(lesson: Lesson) {
-  return [
-    'SUPERTECHAI ACADEMY — AI VIDEO PRODUCTION BRIEF',
-    'Lesson: ' + lesson.title,
-    'Audience: ' + lesson.level + ' SuperTechAi members',
-    'Target duration: ' + lesson.duration,
-    'Format: 16:9 landscape, 1080p, professional screen-led explainer.',
-    'Brand: premium dark navy fintech interface, electric cyan highlights, subtle gold details, crisp white captions.',
-    'Voice: warm, confident, clear English narrator; simple language; moderate pace.',
-    'Accuracy: demonstrate only the described feature; use fictional sample data; never invent live performance statistics or promise profits.',
-    '',
-    'VISUAL DIRECTION:', lesson.visualPrompt, '',
-    'NARRATION SCRIPT:', lesson.narration, '',
-    'ON-SCREEN LEARNING STEPS:', ...lesson.steps.map((step, index) => (index + 1) + '. ' + step),
-    '', 'ENDING: “SuperTechAi — Understand the tools. Make informed decisions. Always manage risk.”',
-  ].join('\n');
-}
-
 export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
   const [category, setCategory] = useState('All lessons');
   const [query, setQuery] = useState('');
@@ -57,7 +39,6 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
     try { return JSON.parse(localStorage.getItem('supertech-academy-completed') ?? '[]'); } catch { return []; }
   });
   const [answer, setAnswer] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
   const [studio, setStudio] = useState(false);
   const [videos, setVideos] = useState<AcademyVideo[]>([]);
   const [videoError, setVideoError] = useState('');
@@ -88,17 +69,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
     setCompleted(next);
     localStorage.setItem('supertech-academy-completed', JSON.stringify(next));
   };
-  const copyBrief = async () => {
-    const brief = makeBrief(selected);
-    try {
-      await navigator.clipboard.writeText(brief);
-    } catch {
-      const area = document.createElement('textarea');
-      area.value = brief; document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove();
-    }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2200);
-  };
+
 
   return (
     <main className="mt-8 space-y-6">
@@ -147,7 +118,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">What you will learn</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
             <div className="space-y-3">{selected.steps.map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/30 text-xs font-semibold text-accent">{index + 1}</span><p className="pt-0.5 text-sm leading-6 text-ink-2">{step}</p></div>)}</div>
             <div className="rounded-xl border border-line/10 bg-surface/[0.035] p-4"><div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4 text-accent" /> Knowledge check</div><p className="mt-3 text-sm font-medium text-ink">{selected.quiz.question}</p><div className="mt-3 space-y-2">{selected.quiz.answers.map((option, index) => <button key={option} onClick={() => setAnswer(index)} className={'w-full rounded-lg border px-3 py-2.5 text-left text-sm ' + (answer === index ? (index === selected.quiz.correct ? 'border-emerald-400/50 bg-emerald-400/10 text-ink' : 'border-rose-400/50 bg-rose-400/10 text-ink') : 'border-line/10 text-ink-2 hover:border-accent/30')}>{option}</button>)}</div>{answer !== null && <p className={'mt-3 text-xs leading-5 ' + (answer === selected.quiz.correct ? 'text-emerald-400' : 'text-rose-400')}>{answer === selected.quiz.correct ? 'Correct. ' : 'Not quite. '}{selected.quiz.explanation}</p>}</div>
-            <div className="flex flex-wrap gap-3"><button onClick={markComplete} disabled={completed.includes(selected.id) || answer !== selected.quiz.correct} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-4 w-4" /> {completed.includes(selected.id) ? 'Lesson completed' : 'Mark lesson complete'}</button><button onClick={copyBrief} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-4 py-2.5 text-sm font-semibold text-ink-2 hover:text-ink"><Copy className="h-4 w-4" /> Copy AI video brief</button></div>
+            <div className="flex flex-wrap gap-3"><button onClick={markComplete} disabled={completed.includes(selected.id) || answer !== selected.quiz.correct} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-4 w-4" /> {completed.includes(selected.id) ? 'Lesson completed' : 'Mark lesson complete'}</button></div>
             <div className="flex items-start gap-2 border-t border-line/10 pt-4 text-xs leading-5 text-ink-3"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" /> Trading involves risk. Lessons are educational and do not promise returns or replace independent judgement.</div>
           </div>
         </article>
