@@ -29,7 +29,7 @@ function SignalBubble({ toast, index, onDismiss }: { toast: Toast; index: number
   return <>
     <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => setOpen(true)}
       className={`signal-bubble pointer-events-auto absolute bottom-[-120px] flex -translate-x-1/2 flex-col items-center justify-center rounded-full border-2 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${buy ? 'border-up/80 bg-up/15 text-up shadow-up/40' : 'border-down/80 bg-down/15 text-down shadow-down/40'}`}
-      style={{ width: bubbleSize, height: bubbleSize, left: `calc(16% + ${(index % 5) * 17%)` }}>
+      style={{ width: bubbleSize, height: bubbleSize, left: `calc(16% + ${(index % 5) * 17}%)` }}>
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
       <span className="text-sm font-black tracking-wider">{toast.direction}</span>
       <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.timeframe}</span>
