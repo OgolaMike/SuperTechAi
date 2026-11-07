@@ -110,15 +110,18 @@ function App() {
     updateSelected([...selectedSymbols, symbol]);
   };
 
-  const openSignalChart = (symbol: string, granularity: number) => {
-    // Keep the exact asset in the dashboard before locating its exact timeframe chart.
-    setSelectedSymbols((current) => current.includes(symbol) ? current : [...current, symbol].slice(-10));
-    setView('dashboard');
+  const openSignalChart = (symbol: string, granularity: number, chartTargetId?: string) => {
+    if (chartTargetId) {
+      setView('super');
+    } else {
+      setSelectedSymbols((current) => current.includes(symbol) ? current : [...current, symbol].slice(-10));
+      setView('dashboard');
+    }
     window.setTimeout(() => {
-      const target = document.getElementById(`signal-chart-${encodeURIComponent(symbol)}-${granularity}`);
-      if (!target) return;
-      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    }, 500);
+      const targetId = chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
+      const target = document.getElementById(targetId);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 450);
   };
 
   const toggleSounds = () => {
