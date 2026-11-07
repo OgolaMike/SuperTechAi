@@ -76,12 +76,12 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
     return () => { active = false; };
   }, []);
 
+  const selected = LESSONS.find((lesson) => lesson.id === selectedId) ?? LESSONS[0];
   const selectedVideo = videos.find((video) => video.lesson_id === selected.id && video.status === 'completed' && video.video_url);
   const filtered = useMemo(() => LESSONS.filter((lesson) =>
     (category === 'All lessons' || lesson.category === category) &&
     (lesson.title.toLowerCase().includes(query.toLowerCase()) || lesson.summary.toLowerCase().includes(query.toLowerCase()))
   ), [category, query]);
-  const selected = LESSONS.find((lesson) => lesson.id === selectedId) ?? LESSONS[0];
   const progress = Math.round(completed.length / LESSONS.length * 100);
   const markComplete = () => {
     const next = completed.includes(selected.id) ? completed : [...completed, selected.id];
@@ -125,6 +125,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
         </div>
       </section>
 
+      {videoError && <p className="rounded-xl border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-400">{videoError}</p>}
       {studio && isAdmin && <AcademyFreeVideoStudio lesson={selected} isAdmin={isAdmin} />}
 
       <section className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
