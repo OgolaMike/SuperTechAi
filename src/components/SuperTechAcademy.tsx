@@ -84,22 +84,22 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
 
 
   return (
-    <main className="mt-8 space-y-6">
-      <section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 shadow-2xl sm:p-8">
+    <main className="mt-5 space-y-4 sm:mt-8 sm:space-y-6">
+      <section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 shadow-2xl sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="relative grid gap-7 lg:grid-cols-[1.4fr_0.6fr] lg:items-center">
+        <div className="relative grid gap-5 sm:gap-7 lg:grid-cols-[1.4fr_0.6fr] lg:items-center">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200"><GraduationCap className="h-4 w-4" /> SuperTechAi Academy</div>
-            <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-4xl">Learn the platform. Understand the intelligence.</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Short, practical lessons for your Dashboard, signals, crypto, automation, referrals and earnings.</p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button onClick={() => { setSelectedId('welcome'); setAnswer(null); }} className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-200"><PlayCircle className="h-4 w-4" /> Start learning</button>
+            <h1 className="max-w-2xl text-2xl font-bold leading-tight tracking-tight text-white sm:text-4xl">Learn the platform. Understand the intelligence.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:mt-3">Short, practical lessons for your Dashboard, signals, crypto, automation, referrals and earnings.</p>
+            <div className="mt-4 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
+              <button onClick={() => { setSelectedId('welcome'); setAnswer(null); }} className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 sm:px-5 sm:py-3 hover:bg-cyan-200"><PlayCircle className="h-4 w-4" /> Start learning</button>
             </div>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-5">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 sm:p-5">
             <div className="flex items-center justify-between text-sm text-slate-300"><span>Your learning progress</span><span className="font-semibold text-cyan-200">{progress}%</span></div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-emerald-300" style={{ width: progress + '%' }} /></div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-3">
               <div className="rounded-xl bg-black/20 p-3"><p className="text-2xl font-bold text-white">{completed.length}/{LESSONS.length}</p><p className="text-xs text-slate-400">Lessons completed</p></div>
               <div className="rounded-xl bg-black/20 p-3"><p className="text-2xl font-bold text-white">{LESSONS.length}</p><p className="text-xs text-slate-400">Lessons available</p></div>
             </div>
@@ -109,26 +109,26 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
 
       {videoError && <p className="rounded-xl border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-400">{videoError}</p>}
 
-      <section className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="space-y-4">
-          <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a lesson..." className="w-full rounded-xl border border-line/15 bg-surface/[0.04] py-3 pl-10 pr-3 text-sm text-ink outline-none focus:border-accent/60" /></div>
-          <div className="flex gap-2 overflow-x-auto pb-1">{CATEGORIES.map((item) => <button key={item} onClick={() => setCategory(item)} className={'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ' + (category === item ? 'border-accent/50 bg-accent/10 text-accent' : 'border-line/10 text-ink-2')}>{item}</button>)}</div>
-          <div className="space-y-2">{filtered.map((lesson) => <button key={lesson.id} onClick={() => { setSelectedId(lesson.id); setAnswer(null); }} className={'w-full rounded-2xl border p-4 text-left transition ' + (selected.id === lesson.id ? 'border-accent/50 bg-accent/[0.07]' : 'border-line/10 bg-surface/[0.025] hover:border-accent/30')}>
+      <section className="grid min-w-0 gap-4 sm:gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+        <div className="min-w-0 space-y-3 sm:space-y-4">
+          <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a lesson..." className="w-full rounded-xl border border-line/15 bg-surface/[0.04] py-2.5 pl-10 pr-3 text-sm sm:py-3 text-ink outline-none focus:border-accent/60" /></div>
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2 sm:gap-2">{CATEGORIES.map((item) => <button key={item} onClick={() => setCategory(item)} className={'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ' + (category === item ? 'border-accent/50 bg-accent/10 text-accent' : 'border-line/10 text-ink-2')}>{item}</button>)}</div>
+          <div className="space-y-2">{filtered.map((lesson) => <button key={lesson.id} onClick={() => { setSelectedId(lesson.id); setAnswer(null); }} className={'w-full rounded-2xl border p-3 text-left transition sm:p-4 ' + (selected.id === lesson.id ? 'border-accent/50 bg-accent/[0.07]' : 'border-line/10 bg-surface/[0.025] hover:border-accent/30')}>
             <div className="flex items-start gap-3"><div className={'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ' + (completed.includes(lesson.id) ? 'bg-emerald-400/10 text-emerald-400' : 'bg-accent/10 text-accent')}>{completed.includes(lesson.id) ? <CheckCircle2 className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}</div>
               <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-xs text-ink-3">Lesson {LESSONS.findIndex((item) => item.id === lesson.id) + 1}</span><span className="rounded-full bg-surface/10 px-2 py-0.5 text-[10px] text-ink-3">{lesson.level}</span></div><p className="mt-1 font-semibold text-ink">{lesson.title}</p><p className="mt-1 text-xs leading-5 text-ink-2">{lesson.summary}</p><div className="mt-2 flex items-center gap-1 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" /> {lesson.duration}</div></div><ChevronRight className="mt-2 h-4 w-4 shrink-0 text-ink-3" />
             </div></button>)}{filtered.length === 0 && <p className="rounded-xl border border-dashed border-line/20 p-5 text-sm text-ink-3">No lessons match that search.</p>}</div>
         </div>
         <article className="min-w-0 overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.035]">
-          <div className="relative flex min-h-48 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-7 text-center">
+          <div className="relative flex min-h-44 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 text-center sm:min-h-48 sm:p-7">
             <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 25% 20%, rgba(34,211,238,.4), transparent 35%), radial-gradient(circle at 80% 80%, rgba(251,191,36,.2), transparent 35%)' }} />
-            <div className="relative max-w-md"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200"><Video className="h-7 w-7" /></div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Academy lesson</p><h2 className="mt-2 text-2xl font-bold text-white">{selected.title}</h2><p className="mt-2 text-sm text-slate-300">{selected.duration} · {selected.level}</p><p className="mt-3 text-xs text-slate-400">{selectedVideo ? 'Published teaching video' : 'Guided lesson and teaching script'}</p></div>
+            <div className="relative max-w-md"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200"><Video className="h-7 w-7" /></div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Academy lesson</p><h2 className="mt-2 text-xl font-bold leading-tight text-white sm:text-2xl">{selected.title}</h2><p className="mt-2 text-sm text-slate-300">{selected.duration} · {selected.level}</p><p className="mt-3 text-xs text-slate-400">{selectedVideo ? 'Published teaching video' : 'Guided lesson and teaching script'}</p></div>
           </div>
           {selectedVideo?.video_url && <div className="border-b border-line/10 bg-black p-2"><video className="aspect-video w-full rounded-xl" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
           {!selectedVideo?.video_url && <div className="border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3">{isAdmin ? 'This lesson video will appear here automatically after the background publisher finishes rendering it.' : 'The teaching video for this lesson is being prepared. Please check back soon.'}</div>}
-          <div className="space-y-5 p-5 sm:p-6">
+          <div className="space-y-4 p-4 sm:space-y-5 sm:p-6">
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">What you will learn</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
             <div className="space-y-3">{selected.steps.map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/30 text-xs font-semibold text-accent">{index + 1}</span><p className="pt-0.5 text-sm leading-6 text-ink-2">{step}</p></div>)}</div>
-            <div className="rounded-xl border border-line/10 bg-surface/[0.035] p-4"><div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4 text-accent" /> Knowledge check</div><p className="mt-3 text-sm font-medium text-ink">{selected.quiz.question}</p><div className="mt-3 space-y-2">{selected.quiz.answers.map((option, index) => <button key={option} onClick={() => setAnswer(index)} className={'w-full rounded-lg border px-3 py-2.5 text-left text-sm ' + (answer === index ? (index === selected.quiz.correct ? 'border-emerald-400/50 bg-emerald-400/10 text-ink' : 'border-rose-400/50 bg-rose-400/10 text-ink') : 'border-line/10 text-ink-2 hover:border-accent/30')}>{option}</button>)}</div>{answer !== null && <p className={'mt-3 text-xs leading-5 ' + (answer === selected.quiz.correct ? 'text-emerald-400' : 'text-rose-400')}>{answer === selected.quiz.correct ? 'Correct. ' : 'Not quite. '}{selected.quiz.explanation}</p>}</div>
+            <div className="rounded-xl border border-line/10 bg-surface/[0.035] p-3 sm:p-4"><div className="flex items-center gap-2 text-sm font-semibold text-ink"><BookOpen className="h-4 w-4 text-accent" /> Knowledge check</div><p className="mt-3 text-sm font-medium text-ink">{selected.quiz.question}</p><div className="mt-3 space-y-2">{selected.quiz.answers.map((option, index) => <button key={option} onClick={() => setAnswer(index)} className={'w-full rounded-lg border px-3 py-2.5 text-left text-sm ' + (answer === index ? (index === selected.quiz.correct ? 'border-emerald-400/50 bg-emerald-400/10 text-ink' : 'border-rose-400/50 bg-rose-400/10 text-ink') : 'border-line/10 text-ink-2 hover:border-accent/30')}>{option}</button>)}</div>{answer !== null && <p className={'mt-3 text-xs leading-5 ' + (answer === selected.quiz.correct ? 'text-emerald-400' : 'text-rose-400')}>{answer === selected.quiz.correct ? 'Correct. ' : 'Not quite. '}{selected.quiz.explanation}</p>}</div>
             <div className="flex flex-wrap gap-3"><button onClick={markComplete} disabled={completed.includes(selected.id) || answer !== selected.quiz.correct} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-4 w-4" /> {completed.includes(selected.id) ? 'Lesson completed' : 'Mark lesson complete'}</button></div>
             <div className="flex items-start gap-2 border-t border-line/10 pt-4 text-xs leading-5 text-ink-3"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" /> Trading involves risk. Lessons are educational and do not promise returns or replace independent judgement.</div>
           </div>
