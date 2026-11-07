@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { AcademyFreeVideoStudio } from '@/components/AcademyFreeVideoStudio';
-import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video, WandSparkles } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video } from 'lucide-react';
 
 type Lesson = {
   id: string; title: string; category: string; level: string; duration: string; summary: string;
@@ -39,31 +38,35 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
     try { return JSON.parse(localStorage.getItem('supertech-academy-completed') ?? '[]'); } catch { return []; }
   });
   const [answer, setAnswer] = useState<number | null>(null);
-  const [studio, setStudio] = useState(false);
   const [videos, setVideos] = useState<AcademyVideo[]>([]);
   const [videoError, setVideoError] = useState('');
 
   useEffect(() => {
     let active = true;
-    supabase.from('academy_videos')
-      .select('id,lesson_id,lesson_title,status,video_url,thumbnail_url,created_at')
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .then(async ({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          setVideoError('Published Academy videos could not be loaded.');
-          return;
-        }
-        const withLinks = await Promise.all((data || []).map(async (video) => {
-          if (!video.video_url) return video;
-          const { data: signed, error: signedError } = await supabase.storage
-            .from('academy-videos').createSignedUrl(video.video_url, 60 * 60 * 24 * 7);
-          return { ...video, video_url: signedError ? null : signed?.signedUrl || null };
-        }));
-        if (active) setVideos(withLinks as AcademyVideo[]);
-      });
-    return () => { active = false; };
+    const loadPublishedVideos = async () => {
+      const { data, error } = await supabase.from('academy_videos')
+        .select('id,lesson_id,lesson_title,status,video_url,thumbnail_url,created_at')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false });
+      if (!active) return;
+      if (error) {
+        setVideoError('Published Academy videos could not be loaded.');
+        return;
+      }
+      const withLinks = await Promise.all((data || []).map(async (video) => {
+        if (!video.video_url) return video;
+        const { data: signed, error: signedError } = await supabase.storage
+          .from('academy-videos').createSignedUrl(video.video_url, 60 * 60 * 24 * 7);
+        return { ...video, video_url: signedError ? null : signed?.signedUrl || null };
+      }));
+      if (active) {
+        setVideos(withLinks as AcademyVideo[]);
+        setVideoError('');
+      }
+    };
+    void loadPublishedVideos();
+    const refreshId = window.setInterval(() => { void loadPublishedVideos(); }, 60_000);
+    return () => { active = false; window.clearInterval(refreshId); };
   }, []);
 
   const selected = LESSONS.find((lesson) => lesson.id === selectedId) ?? LESSONS[0];
@@ -91,7 +94,6 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Short, practical lessons for your Dashboard, signals, crypto, automation, referrals and earnings.</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <button onClick={() => { setSelectedId('welcome'); setAnswer(null); }} className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-200"><PlayCircle className="h-4 w-4" /> Start learning</button>
-              {isAdmin && <button onClick={() => setStudio(!studio)} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"><WandSparkles className="h-4 w-4" /> Free video studio</button>}
             </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-5">
@@ -106,7 +108,6 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
       </section>
 
       {videoError && <p className="rounded-xl border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-400">{videoError}</p>}
-      {studio && isAdmin && <AcademyFreeVideoStudio lesson={selected} isAdmin={isAdmin} />}
 
       <section className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="space-y-4">
@@ -123,6 +124,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
             <div className="relative max-w-md"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200"><Video className="h-7 w-7" /></div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Academy lesson</p><h2 className="mt-2 text-2xl font-bold text-white">{selected.title}</h2><p className="mt-2 text-sm text-slate-300">{selected.duration} · {selected.level}</p><p className="mt-3 text-xs text-slate-400">{selectedVideo ? 'Published teaching video' : 'Guided lesson and teaching script'}</p></div>
           </div>
           {selectedVideo?.video_url && <div className="border-b border-line/10 bg-black p-2"><video className="aspect-video w-full rounded-xl" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
+          {!selectedVideo?.video_url && <div className="border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3">{isAdmin ? 'This lesson video will appear here automatically after the background publisher finishes rendering it.' : 'The teaching video for this lesson is being prepared. Please check back soon.'}</div>}
           <div className="space-y-5 p-5 sm:p-6">
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">What you will learn</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
             <div className="space-y-3">{selected.steps.map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/30 text-xs font-semibold text-accent">{index + 1}</span><p className="pt-0.5 text-sm leading-6 text-ink-2">{step}</p></div>)}</div>
