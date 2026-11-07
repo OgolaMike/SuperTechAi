@@ -11,14 +11,22 @@ type Props = {
   loaded: boolean;
   price: number | undefined;
   aiModel: SignalLearningModel;
+  confluenceCount?: number;
 };
 
-export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
+export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount }: Props) {
   const signal = tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
   const isBuy = signal?.direction === 'BUY';
   const isSell = signal?.direction === 'SELL';
   const aiScore = signal ? getAiPatternScore(aiModel, tf.granularity, signal.direction, signal.levels) : null;
+  const gradeTone = confluenceCount === 8
+    ? 'border-up/60 bg-up/15 text-up shadow-[0_0_22px_rgba(34,197,94,0.18)]'
+    : confluenceCount !== undefined && confluenceCount >= 6
+      ? 'border-accent/50 bg-accent/10 text-accent'
+      : confluenceCount !== undefined && confluenceCount >= 4
+        ? 'border-warn/40 bg-warn/10 text-warn'
+        : 'border-line/20 bg-surface/[0.04] text-ink-2';
 
   return (
     <div className={`hud-panel flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-all duration-300 hover:bg-surface/[0.05] sm:p-5 ${
@@ -56,6 +64,16 @@ export function SignalCard({ asset, tf, loaded, price, aiModel }: Props) {
               <div className="text-sm text-ink-2">{directionExplanation(signal.direction)}</div>
             </div>
           </div>
+
+          {confluenceCount !== undefined && (
+            <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 px-4 py-3 ${gradeTone}`}>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-80">8-timeframe signal grade</div>
+                <div className="mt-0.5 text-xs opacity-80">{confluenceCount === 8 ? 'SUPER SIGNAL · All timeframes agree' : confluenceCount >= 6 ? 'Strong alignment' : confluenceCount >= 4 ? 'Moderate alignment' : 'Limited alignment'}</div>
+              </div>
+              <div className="text-3xl font-black tabular-nums">{confluenceCount}<span className="text-lg font-bold opacity-70">/8</span></div>
+            </div>
+          )}
 
           <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">AI pattern score</div>
