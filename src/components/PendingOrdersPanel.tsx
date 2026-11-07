@@ -70,7 +70,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 order intelligence</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          BUY LIMIT and SELL LIMIT setups for the assets currently selected above (up to 10). Alerts follow that same selection. Every order includes a live M15 chart snapshot with its entry, stop-loss, take-profit and current market levels.
+          BUY LIMIT and SELL LIMIT reversal and continuation setups for the assets currently selected above (up to 10). Triple tops and bottoms identify reversals; break-and-retest identifies continuation. Every M15 chart marks the pattern zone alongside SMA 60, Bollinger Bands, entry, stop-loss and a 1:2 target.
         </p>
       </div>
 
@@ -103,6 +103,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">{idea.assetName} ({idea.symbol}) · M15</p>
                   <h4 className={`mt-1 text-xl font-bold ${idea.direction === 'BUY' ? 'text-up' : 'text-down'}`}>{idea.type}</h4>
+                  <p className="mt-1 text-[11px] font-semibold tracking-wide text-ink-2">{idea.patternType} · RR 1:2</p>
                 </div>
                 <StatusPill status={idea.status} />
               </div>
@@ -145,6 +146,8 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                   digits={idea.digits}
                   direction={idea.direction}
                   symbol={idea.symbol}
+                  zone={idea.zone}
+                  patternType={idea.patternType}
                 />
               </div>
               <div className="mt-4">
