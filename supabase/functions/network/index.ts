@@ -47,7 +47,21 @@ Deno.serve(async (req: Request) => {
 
     const { data: members, error: networkError } = await db.rpc("finance_get_network", { p_root_user_id: userId });
     if (networkError) throw networkError;
-    return reply({ profile, members: members ?? [] });
+
+    const { data: adminRecord, error: adminError } = await db
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (adminError) throw adminError;
+
+    let allMembers = null;
+    if (adminRecord) {
+      const { data: directory, error: directoryError } = await db.rpc("finance_get_all_network_members");
+      if (directoryError) throw directoryError;
+      allMembers = directory ?? [];
+    }
+    return reply({ profile, members: members ?? [], allMembers });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("network function error", message);
