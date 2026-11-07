@@ -330,11 +330,37 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
             <p className="mt-2 text-xs text-ink-3">Referral attribution is locked when your first membership payment order is created.</p>
           </div>
           <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5 lg:col-span-2">
-            <h3 className="font-semibold text-ink">Referral rewards</h3>
+            <h3 className="font-semibold text-ink">How your referral rewards work</h3>
+            <p className="mt-1 text-sm text-ink-2">Rewards are calculated from each confirmed $300 membership. The qualifying sale is credited according to the applicable referral position and programme rules.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[['Direct referral','30%'],['Third referral onward','50%'],['Infinity pool','20%'],['Unilevel + Lucky pools','15%']].map(([label, value]) => <div key={label} className="rounded-xl bg-surface/[0.05] p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-xl font-semibold text-ink">{value}</p></div>)}
+              {[
+                ['Direct referral', '30%', '$90'],
+                ['Infinity share', '20%', '$60'],
+                ['Combined from 3rd direct', '50%', '$150'],
+                ['Unilevel', '5 levels × 2%', '$30 total'],
+              ].map(([label, rate, amount]) => <div key={label} className="rounded-xl bg-surface/[0.05] p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-xl font-semibold text-ink">{rate}</p><p className="mt-1 text-sm text-ink-2">{amount} per qualifying $300 sale</p></div>)}
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-ink-3">The third-and-later 50% direct rate replaces the 30% direct plus 20% Infinity allocation for that sale. Infinity, Unilevel and Lucky amounts are held in separate company pools pending the agreed qualification and distribution rules.</p>
+            <div className="mt-4 rounded-xl border border-line/10 p-4">
+              <h4 className="text-sm font-semibold text-ink">Infinity network progression</h4>
+              <p className="mt-1 text-sm text-ink-2">Infinity qualification begins from your 3rd confirmed direct referral. The network expands by doubling the positions at each level.</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                {[
+                  ['Level 1', '2 positions'], ['Level 2', '4 positions'],
+                  ['Level 3', '8 positions'], ['Level 4', '16 positions'],
+                  ['Level 5', '32 positions'], ['Level 6', '64 positions'],
+                  ['Level 7', '128 positions'], ['Level 8', '256 positions'],
+                ].map(([level, positions]) => <div key={level} className="rounded-lg bg-surface/[0.05] p-3"><p className="text-xs text-ink-3">{level}</p><p className="mt-1 font-semibold text-ink">{positions}</p></div>)}
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-ink-3">The position counts describe the expanding network, not separate $60 payments to every position. Only one eligible recipient is credited for a qualifying sale. From the 3rd confirmed direct referral onward, that recipient's 50% allocation is made up of 30% Direct ($90) plus 20% Infinity ($60), totalling $150—not 50% Direct plus another 20%.</p>
+            </div>
+            <div className="mt-4 rounded-xl border border-line/10 p-4">
+              <h4 className="text-sm font-semibold text-ink">Five-level Unilevel allocation</h4>
+              <div className="mt-3 grid grid-cols-5 gap-2 text-center">
+                {['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5'].map((level) => <div key={level} className="rounded-lg bg-surface/[0.05] p-2"><p className="text-[11px] text-ink-3">{level}</p><p className="mt-1 font-semibold text-ink">2%</p><p className="text-xs text-ink-2">$6</p></div>)}
+              </div>
+              <p className="mt-3 text-xs text-ink-3">The five level allocations add up to 10% ($30) of a $300 membership. Unilevel and Lucky allocations are currently recorded in their respective finance pools; this display explains the agreed allocation and does not imply that each level has a separate live payout ledger.</p>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-ink-3">The 5% Lucky allocation is $15 per qualifying membership. Rewards depend on confirmed payments and programme qualification rules. They are not guaranteed income.</p>
           </div>
         </div>
       )}
