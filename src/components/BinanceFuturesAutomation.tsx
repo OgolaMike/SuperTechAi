@@ -11,6 +11,7 @@ type Settings = {
 };
 type Order = { id: string; symbol: string; side: string; leverage: number; quantity: number; entry_price: number | null; stop_loss: number; take_profit: number; status: string; created_at: string };
 type Position = { id: string; symbol: string; side: string; quantity: number; entry_price: number; mark_price: number | null; leverage: number; unrealized_pnl: number | null; status: string };
+type SignalIntent = { id: string; symbol: string; side: string; timeframe_agreement: number; signal_epoch: number; entry_price: number; stop_loss: number; take_profit: number; status: string; created_at: string };
 
 async function callFutures(action: string, payload: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke('binance-futures', { body: { action, ...payload } });
@@ -25,6 +26,7 @@ export function BinanceFuturesAutomation() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [signalIntents, setSignalIntents] = useState<SignalIntent[]>([]);
   const [leverage, setLeverage] = useState('1');
   const [risk, setRisk] = useState('0.5');
   const [dailyLoss, setDailyLoss] = useState('2');
@@ -45,6 +47,7 @@ export function BinanceFuturesAutomation() {
       setSettings(next);
       setOrders((result.orders ?? []) as Order[]);
       setPositions((result.positions ?? []) as Position[]);
+      setSignalIntents((result.signalIntents ?? []) as SignalIntent[]);
       if (next) {
         setLeverage(String(next.leverage ?? 1));
         setRisk(String(next.risk_percent ?? 0.5));
@@ -163,9 +166,13 @@ export function BinanceFuturesAutomation() {
 
       <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm leading-6 text-ink-2">
         <div className="flex items-center gap-2 font-semibold text-ink"><ShieldAlert className="h-4 w-4 text-amber-500" />Execution safety</div>
-        This connection and settings panel are deployed. Live order placement is intentionally not active yet: the scanner-to-Futures execution gate, exchange precision checks, daily-loss lockout and protective stop/target reconciliation must pass before any real trade can be sent. Enabling the switches here does not bypass that server-side gate.
+        The scanner now routes eligible Binance 8/8 Super Signals into each member’s private Futures signal queue. This is not an exchange order: live execution remains locked until testnet validation, exchange precision checks, daily-loss lockout, duplicate-order protection and protective stop/target reconciliation are completed. Enabling the live switch cannot bypass this server-side lock.
       </div>
 
+      <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
+        <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-semibold text-ink">Qualified 8/8 Super Signals</h3><span className="rounded-full border border-accent/20 px-2.5 py-1 text-xs text-accent">{signalIntents.length} recent</span></div>
+        {signalIntents.length === 0 ? <p className="text-sm text-ink-3">No eligible 8/8 Binance Futures signals yet. Signals appear here only when automation is enabled, the emergency stop is off, and the pair is allowed.</p> : <div className="space-y-2">{signalIntents.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/10 bg-canvas/50 p-3"><div><p className="text-sm font-semibold text-ink">{s.symbol} · {s.side} · {s.timeframe_agreement}/8</p><p className="mt-1 text-xs text-ink-3">Entry {Number(s.entry_price).toPrecision(8)} · SL {Number(s.stop_loss).toPrecision(8)} · TP {Number(s.take_profit).toPrecision(8)}</p></div><span className="rounded-full border border-amber-400/20 px-2.5 py-1 text-xs text-amber-500">Signal ready · no order sent</span></div>)}</div>}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-4"><p className="text-xs uppercase tracking-wide text-ink-3">Open positions shown</p><p className="mt-1 text-2xl font-semibold text-ink">{positions.filter(p=>p.status==='open').length}</p><p className="text-xs text-ink-3">Strategy-tracked positions</p></div>
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-4"><p className="text-xs uppercase tracking-wide text-ink-3">Recent Futures orders</p><p className="mt-1 text-2xl font-semibold text-ink">{orders.length}</p><p className="text-xs text-ink-3">SuperTechAi order ledger</p></div>
