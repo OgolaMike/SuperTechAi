@@ -66,12 +66,12 @@ Deno.serve(async (req) => {
     const body: unknown = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const isToday = typeof body === "object" && body !== null && "period" in body && body.period === "today";
     if (isToday) {
-      const [tickerData, exchangeData] = await Promise.all([
-        getJson("/ticker/tradingDay?timezone=0"),
+      const [ticker24h, exchangeData] = await Promise.all([
+        getJson("/ticker/24hr"),
         getJson("/exchangeInfo"),
       ]);
-      if (!Array.isArray(tickerData) || !Array.isArray((exchangeData as { symbols?: unknown })?.symbols)) {
-        throw new Error("Market data source returned an invalid trading-day market list");
+      if (!Array.isArray(ticker24h) || !Array.isArray((exchangeData as { symbols?: unknown })?.symbols)) {
+        throw new Error("Market data source returned an invalid spot market list");
       }
       const tradable = new Set(
         (exchangeData as { symbols: ExchangeSymbol[] }).symbols
@@ -79,6 +79,15 @@ Deno.serve(async (req) => {
           .filter((item) => usdtBase(item.symbol) !== null)
           .map((item) => item.symbol),
       );
+      const liquidUniverse = ticker24h
+        .filter(isTicker24h)
+        .filter((ticker) => tradable.has(ticker.symbol))
+        .sort((a, b) => Number(b.quoteVolume) - Number(a.quoteVolume))
+        .slice(0, UNIVERSE_SIZE)
+        .map((ticker) => ticker.symbol);
+      if (liquidUniverse.length < 10) throw new Error("Not enough eligible USDT spot pairs were found");
+      const tickerData = await getJson("/ticker/tradingDay?symbols=" + encodeURIComponent(JSON.stringify(liquidUniverse)) + "&timeZone=0&type=FULL");
+      if (!Array.isArray(tickerData)) throw new Error("Binance returned an invalid current trading-day response");
       const liveRows = tickerData
         .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
         .filter((item) => typeof item.symbol === "string" && tradable.has(item.symbol))
