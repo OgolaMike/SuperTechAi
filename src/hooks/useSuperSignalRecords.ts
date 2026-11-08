@@ -14,6 +14,8 @@ export type SuperSignalRecord = {
   tp1: number;
   tp2: number;
   tp3: number;
+  band_mean: number;
+  band_deviation: number;
   daily_bias: string;
   reads: SuperSignal['reads'];
   explanation: string;
@@ -26,7 +28,7 @@ export type SuperSignalRecord = {
   created_at: string;
 };
 
-const COLUMNS = 'signal_key,symbol,asset_name,digits,direction,signal_epoch,entry,stop_loss,tp1,tp2,tp3,daily_bias,reads,explanation,status,tp1_hit_epoch,tp2_hit_epoch,tp3_hit_epoch,sl_hit_epoch,closed,created_at';
+const COLUMNS = 'signal_key,symbol,asset_name,digits,direction,signal_epoch,entry,stop_loss,tp1,tp2,tp3,band_mean,band_deviation,daily_bias,reads,explanation,status,tp1_hit_epoch,tp2_hit_epoch,tp3_hit_epoch,sl_hit_epoch,closed,created_at';
 
 function toRow(signal: SuperSignal) {
   return {
@@ -41,6 +43,8 @@ function toRow(signal: SuperSignal) {
     tp1: signal.levels.tp1,
     tp2: signal.levels.tp2,
     tp3: signal.levels.tp3,
+    band_mean: signal.levels.mean,
+    band_deviation: signal.levels.deviation,
     daily_bias: signal.dailyBias,
     reads: signal.reads,
     explanation: signal.explanation,
