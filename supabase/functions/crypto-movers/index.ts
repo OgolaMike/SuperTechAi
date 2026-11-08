@@ -10,6 +10,7 @@ const BINANCE_BASE = "https://data-api.binance.vision/api/v3";
 const UNIVERSE_SIZE = 100;
 const CONCURRENCY = 10;
 const DAY_MS = 86_400_000;
+const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 const EXCLUDED_BASES = new Set(["USDC", "USDT", "BUSD", "TUSD", "FDUSD", "DAI", "USDP", "EUR", "GBP", "AEUR", "PAXG"]);
 const LEVERAGED_SUFFIX = /(UP|DOWN|BULL|BEAR)$/;
 
@@ -18,7 +19,6 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 });
 
 type Ticker24h = { symbol: string; quoteVolume: string };
-type ExchangeSymbol = { symbol: string; baseAsset: string; quoteAsset: string; status: string; isSpotTradingAllowed?: boolean };
 
 function isTicker24h(value: unknown): value is Ticker24h {
   return typeof value === "object" && value !== null
@@ -45,6 +45,16 @@ function utcDayStart(daysAgo: number): number {
   return now.getTime() - daysAgo * DAY_MS;
 }
 
+function eatDayStart(now = Date.now()): number {
+  const eatNow = new Date(now + EAT_OFFSET_MS);
+  eatNow.setUTCHours(0, 0, 0, 0);
+  return eatNow.getTime() - EAT_OFFSET_MS;
+}
+
+function eatDate(timestamp: number): string {
+  return new Date(timestamp + EAT_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 function usdtBase(symbol: string): string | null {
   if (!symbol.endsWith("USDT")) return null;
   const base = symbol.slice(0, -4);
@@ -60,51 +70,58 @@ async function mapInBatches<T, R>(items: T[], size: number, task: (item: T) => P
   return results;
 }
 
+async function getTopUniverse(): Promise<Ticker24h[]> {
+  const tickerData = await getJson("/ticker/24hr");
+  if (!Array.isArray(tickerData)) throw new Error("Market data source returned an invalid ticker list");
+  return tickerData.filter(isTicker24h)
+    .filter((ticker) => usdtBase(ticker.symbol) !== null)
+    .sort((a, b) => Number(b.quoteVolume) - Number(a.quoteVolume))
+    .slice(0, UNIVERSE_SIZE);
+}
+
+async function currentEatMovers(): Promise<Response> {
+  const dayStart = eatDayStart();
+  const tradeDate = eatDate(dayStart);
+  const universe = await getTopUniverse();
+
+  const movers = await mapInBatches(universe, CONCURRENCY, async (ticker) => {
+    const rows = await getJson(`/klines?symbol=${ticker.symbol}&interval=1d&timeZone=3&startTime=${dayStart}&limit=1`);
+    const candle = Array.isArray(rows) ? rows[0] : null;
+    if (!Array.isArray(candle) || Number(candle[0]) !== dayStart) return null;
+    const open = Number(candle[1]);
+    const high = Number(candle[2]);
+    const low = Number(candle[3]);
+    const close = Number(candle[4]);
+    const quoteVolume = Number(candle[7]);
+    if (!(open > 0) || !(close > 0) || !Number.isFinite(quoteVolume)) return null;
+    return {
+      symbol: ticker.symbol,
+      base: usdtBase(ticker.symbol) as string,
+      open,
+      high,
+      low,
+      close,
+      quoteVolume,
+      changePct: ((close - open) / open) * 100,
+    };
+  });
+
+  const valid = movers
+    .filter((mover): mover is NonNullable<typeof mover> => mover !== null)
+    .sort((a, b) => b.quoteVolume - a.quoteVolume)
+    .map((mover, index) => ({ ...mover, volumeRank: index + 1 }));
+
+  if (valid.length < 10) throw new Error(`Binance returned only ${valid.length} current EAT-day assets`);
+  return jsonResponse({ tradeDate, updatedAt: new Date().toISOString(), movers: valid });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
   try {
     const body: unknown = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const isToday = typeof body === "object" && body !== null && "period" in body && body.period === "today";
-    if (isToday) {
-      const [ticker24h, exchangeData] = await Promise.all([
-        getJson("/ticker/24hr"),
-        getJson("/exchangeInfo"),
-      ]);
-      if (!Array.isArray(ticker24h) || !Array.isArray((exchangeData as { symbols?: unknown })?.symbols)) {
-        throw new Error("Market data source returned an invalid spot market list");
-      }
-      const tradable = new Set(
-        (exchangeData as { symbols: ExchangeSymbol[] }).symbols
-          .filter((item) => item.status === "TRADING" && item.quoteAsset === "USDT" && item.isSpotTradingAllowed !== false)
-          .filter((item) => usdtBase(item.symbol) !== null)
-          .map((item) => item.symbol),
-      );
-      const liquidUniverse = ticker24h
-        .filter(isTicker24h)
-        .filter((ticker) => tradable.has(ticker.symbol))
-        .sort((a, b) => Number(b.quoteVolume) - Number(a.quoteVolume))
-        .slice(0, UNIVERSE_SIZE)
-        .map((ticker) => ticker.symbol);
-      if (liquidUniverse.length < 10) throw new Error("Not enough eligible USDT spot pairs were found");
-      const tickerData = await getJson("/ticker/tradingDay?symbols=" + encodeURIComponent(JSON.stringify(liquidUniverse)) + "&timeZone=3&type=FULL");
-      if (!Array.isArray(tickerData)) throw new Error("Binance returned an invalid current trading-day response");
-      const liveRows = tickerData
-        .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
-        .filter((item) => typeof item.symbol === "string" && tradable.has(item.symbol))
-        .map((item) => {
-          const symbol = String(item.symbol);
-          const open = Number(item.openPrice);
-          const close = Number(item.lastPrice);
-          const changePct = Number(item.priceChangePercent);
-          const quoteVolume = Number(item.quoteVolume);
-          return { symbol, base: usdtBase(symbol)!, open, close, changePct, quoteVolume };
-        })
-        .filter((item) => item.open > 0 && item.close > 0 && Number.isFinite(item.changePct) && Number.isFinite(item.quoteVolume))
-        .sort((a, b) => b.quoteVolume - a.quoteVolume)
-        .map((item, index) => ({ ...item, volumeRank: index + 1 }));
-      if (liveRows.length < 10) return jsonResponse({ error: "Not enough current-day market data was returned" }, 502);
-      return jsonResponse({ period: "today", tradeDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi" }).format(new Date()), updatedAt: new Date().toISOString(), movers: liveRows });
-    }
+    const isTodayRequest = typeof body === "object" && body !== null && "period" in body && body.period === "today";
+    if (isTodayRequest) return await currentEatMovers();
+
     const requestedDate = typeof body === "object" && body !== null && "date" in body
       ? body.date
       : undefined;
@@ -115,25 +132,7 @@ Deno.serve(async (req) => {
     if (dayStart >= utcDayStart(0)) return jsonResponse({ error: "Only completed UTC days can be stored" }, 400);
     const tradeDate = new Date(dayStart).toISOString().slice(0, 10);
 
-    const [tickerData, exchangeData] = await Promise.all([
-      getJson("/ticker/24hr"),
-      getJson("/exchangeInfo"),
-    ]);
-    if (!Array.isArray(tickerData) || !Array.isArray((exchangeData as { symbols?: unknown })?.symbols)) {
-      throw new Error("Market data source returned an invalid spot market list");
-    }
-    const tradableSymbols = new Set(
-      (exchangeData as { symbols: ExchangeSymbol[] }).symbols
-        .filter((item) => item.status === "TRADING" && item.quoteAsset === "USDT" && item.isSpotTradingAllowed !== false)
-        .filter((item) => usdtBase(item.symbol) !== null)
-        .map((item) => item.symbol),
-    );
-    const tickers = tickerData.filter(isTicker24h);
-    const universe = tickers
-      .filter((ticker) => tradableSymbols.has(ticker.symbol))
-      .sort((a, b) => Number(b.quoteVolume) - Number(a.quoteVolume))
-      .slice(0, UNIVERSE_SIZE);
-
+    const universe = await getTopUniverse();
     const candles = await mapInBatches(universe, CONCURRENCY, async (ticker) => {
       const rows = await getJson(`/klines?symbol=${ticker.symbol}&interval=1d&startTime=${dayStart}&limit=1`);
       const candle = Array.isArray(rows) ? rows[0] : null;
