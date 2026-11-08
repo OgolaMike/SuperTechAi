@@ -60,6 +60,8 @@ Deno.serve(async (req) => {
           notify_limit_orders: prefs.limitOrders !== false,
           notify_pending_orders: prefs.pendingOrders !== false,
           notify_super_signals: prefs.superSignals !== false,
+          notify_income: prefs.income !== false,
+          notify_business: prefs.business !== false,
           symbols: parseSymbols(prefs.symbols),
           user_agent: req.headers.get("user-agent")?.slice(0, 300) ?? null,
           failure_count: 0,
