@@ -11,6 +11,8 @@ const CATEGORIES: { key: BoolPrefKey; label: string; description: string }[] = [
   { key: 'limitOrders', label: 'New limit-order signals', description: 'M15/M5/M1 confluence limit-entry opportunities.' },
   { key: 'pendingOrders', label: 'Pending-order alerts', description: 'New confirmed M15 BB(60, 2.5) reversal setups for your selected assets.' },
   { key: 'superSignals', label: 'Super Signals', description: 'In-app popups, sound and device notifications when all eight timeframes agree.' },
+  { key: 'income', label: 'Income alerts', description: 'New referral commissions and other earnings credited to your SuperTech AI account.' },
+  { key: 'business', label: 'Business alerts', description: 'New people joining through your referral link and referred memberships becoming active.' },
 ];
 
 const STATUS_TEXT: Record<PushStatus, string> = {
@@ -83,7 +85,7 @@ export function NotificationSettings({ assets }: Props) {
             <div className="flex flex-col gap-3 rounded-2xl border border-line/10 bg-surface/[0.035] px-4 py-3 shadow-sm transition-all duration-200 hover:border-accent/30 hover:bg-surface/[0.06]">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-ink">Assets that send alerts</span>
-                <span className="text-xs text-ink-2">This device receives trading alerts only for the assets selected in the top selector.</span>
+                <span className="text-xs text-ink-2">Trading alerts follow your selected assets. Income and business alerts are account-based and are not filtered by asset selection.</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {assets.map((asset) => (
