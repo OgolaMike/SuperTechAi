@@ -107,14 +107,13 @@ function latestAlignmentEpoch(state: TfState, expected: Bias): number | null {
     const variance = Math.max(0, rollingSquares / SMA_PERIOD - meanOffset * meanOffset);
     const bias = biasOfValues(candles[index].close, mean, Math.sqrt(variance));
 
-    if (bias === expected && previousBias !== expected) {
+    if (bias === expected && previousBias !== expected && previousBias !== 'No data') {
       latestEntryEpoch = candles[index].epoch + state.granularity;
     }
     previousBias = bias;
   }
 
-  return latestEntryEpoch;
-}
+  // If the transition predates available history, treat it as older than every observed transition.\n  return latestEntryEpoch ?? 0;\n}
 
 function describeAge(seconds: number): string {
   if (seconds < 60) return 'just now';
@@ -160,10 +159,10 @@ function evaluateSymbol(
   if (confirmations.some((item) => item.epoch == null)) return null;
 
   const latestConfirmation = confirmations.reduce((latest, item) =>
-    (item.epoch ?? 0) > (latest.epoch ?? 0) ? item : latest,
+    item.epoch > latest.epoch ? item : latest,
   );
   const confirmationTimeframe = latestConfirmation.label;
-  const confirmationEpoch = latestConfirmation.epoch!;
+  const confirmationEpoch = latestConfirmation.epoch;
   const gradePercent = CONFIRMATION_GRADES[confirmationTimeframe] ?? 65;
 
   const classification: Classification = 'Strong alignment';
