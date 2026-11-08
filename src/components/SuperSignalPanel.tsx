@@ -8,6 +8,7 @@ import type { TfState } from '@/lib/sma';
 import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
 
 type Props = {
+  selectedSignalKey?: string;
   signals: SuperSignal[];
   records: SuperSignalRecord[];
   recordsLoading: boolean;
@@ -52,6 +53,7 @@ function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
 }
 
 export function SuperSignalPanel({
+  selectedSignalKey,
   signals, records, recordsLoading, recordsError, onRefreshRecords,
   prices, loaded, aiModel, states,
 }: Props) {
@@ -65,6 +67,12 @@ export function SuperSignalPanel({
     }
     return [...byKey.values()].sort((a, b) => b.signal_epoch - a.signal_epoch);
   }, [records, signals]);
+
+  useEffect(() => {
+    if (selectedSignalKey && allRecords.some((record) => record.signal_key === selectedSignalKey)) {
+      setSelectedKey(selectedSignalKey);
+    }
+  }, [selectedSignalKey, allRecords]);
 
   useEffect(() => {
     if (!allRecords.length) {
@@ -220,7 +228,7 @@ function SuperSignalDetails({ record, price, candles, aiModel }: {
         <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'All eight timeframes confirmed the same direction at the time this signal fired.'}</p>
       </div>
 
-      {candles.length > 0 && <SignalChartSnapshot candles={candles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${record.symbol}`} />}
+      {candles.length > 0 && <SignalChartSnapshot candles={candles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />}
     </article>
   );
 }
