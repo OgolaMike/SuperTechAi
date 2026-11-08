@@ -17,7 +17,6 @@ import { PendingOrdersPanel } from '@/components/PendingOrdersPanel';
 import { SignOutButton } from '@/components/SignOutButton';
 import { HeaderBrand, StatusBar, TrendIcons } from '@/components/StatusBar';
 import { SuperSignalPanel } from '@/components/SuperSignalPanel';
-import { ReversalContextPanel } from '@/components/ReversalContextPanel';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toasts } from '@/components/Toasts';
 import { ViewNav, type View } from '@/components/ViewNav';
