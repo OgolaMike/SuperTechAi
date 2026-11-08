@@ -83,7 +83,7 @@ export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: P
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>
-      <div ref={sliderRef} onScroll={updateSliderControls} className="super-signal-slider flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x">
+      <div ref={sliderRef} onScroll={updateSliderControls} className="super-signal-slider flex w-full min-w-0 snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-auto">
       {signals.map((signal) => (
         <SuperSignalCard
           key={`${signal.symbol}-${signal.signalEpoch}`}
@@ -121,7 +121,7 @@ function SuperSignalCard({
   return (
     <article
       data-super-signal-card
-      className={`hud-panel flex min-w-[92%] max-w-[92%] snap-start flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-colors duration-300 sm:min-w-[48%] sm:max-w-[48%] sm:p-5 ${
+      className={`hud-panel flex w-full min-w-full max-w-full snap-start snap-always flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-colors duration-300 sm:min-w-full sm:max-w-full sm:p-5 ${
         isBuy ? 'border-up/25 hover:border-up/50' : 'border-down/25 hover:border-down/50'
       }`}
     >
