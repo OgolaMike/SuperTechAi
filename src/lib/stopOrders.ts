@@ -29,6 +29,9 @@ export type M15StopIdea = {
   takeProfit: number;
   currentPrice: number;
   aiScore: number | null;
+  timeframeAnalysis: PendingTimeframeReading[];
+  timeframeAligned: number;
+  timeframeAvailable: number;
   signalEpoch: number;
   entryHitEpoch: number | null;
   stopLossHitEpoch: number | null;
@@ -84,7 +87,7 @@ function getBollingerTradeLevels(direction: Direction, entry: number, band: Band
 }
 
 function buildTimeframeAnalysis(states: Record<number, TfState> | undefined, direction: Direction): PendingTimeframeReading[] {
-  return TIMEFRAMES.map((timeframe) => {
+  return TIMEFRAMES.map((timeframe): PendingTimeframeReading => {
     const state = states?.[timeframe.granularity];
     if (!state || state.candles.length < BB_PERIOD || state.lastClose == null
       || state.currentSma == null || state.stdDev == null) {
@@ -144,7 +147,7 @@ function makeIdea(
   asset: Asset, direction: Direction, patternType: PendingPatternType, zone: PendingZone,
   entry: number, stopLoss: number, takeProfit: number, currentPrice: number,
   signalEpoch: number, candles: TfState['candles'], bands: Array<BandPoint | null>,
-  aiModel: SignalLearningModel, nowEpoch: number,
+  aiModel: SignalLearningModel, nowEpoch: number, timeframeStates?: Record<number, TfState>,
 ): M15StopIdea | null {
   if (![entry, stopLoss, takeProfit].every((value) => Number.isFinite(value) && value > 0)) return null;
   const reward = direction === 'BUY' ? takeProfit - entry : entry - takeProfit;
@@ -157,12 +160,16 @@ function makeIdea(
     tp1: takeProfit, tp2: takeProfit, tp3: takeProfit,
   };
   const outcome = evaluateOrder(direction, entry, stopLoss, takeProfit, candles, signalEpoch, nowEpoch);
+  const timeframeAnalysis = buildTimeframeAnalysis(timeframeStates, direction);
   const type = getOrderType(direction);
   return {
     id: `${asset.symbol}|${patternType}|${signalEpoch}`,
     symbol: asset.symbol, assetName: asset.fullName, digits: asset.digits,
     type, direction, patternType, zone, entry, stopLoss, takeProfit, currentPrice,
     aiScore: getAiPatternScore(aiModel, M15, direction, levels),
+    timeframeAnalysis,
+    timeframeAligned: timeframeAnalysis.filter((reading) => reading.aligned === true).length,
+    timeframeAvailable: timeframeAnalysis.filter((reading) => reading.aligned !== null).length,
     signalEpoch, ...outcome,
   };
 }
