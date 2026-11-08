@@ -80,7 +80,7 @@ export function useSuperSignalRecords(signals: SuperSignal[], loaded: boolean) {
         setError(null);
         setLoading(false);
       })
-      .catch((cause: Error) => {
+      .then(undefined, (cause: Error) => {
         if (!cancelled) {
           setError(cause.message || 'Could not load Super Signal history');
           setLoading(false);
