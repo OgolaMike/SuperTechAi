@@ -96,8 +96,8 @@ export function NotificationSettings({ assets }: Props) {
               </div>
               <span className="text-xs text-ink-3">
                 {alertSymbols.length === 0
-                  ? 'No assets selected, so this device will not receive alerts.'
-                  : `Pending-order alerts enabled for ${alertSymbols.length} selected assets.`}
+                  ? 'No assets selected; trading alerts are paused. Income and business alerts are unaffected.'
+                  : `Trading alerts enabled for ${alertSymbols.length} selected assets.`}
               </span>
             </div>
           )}
