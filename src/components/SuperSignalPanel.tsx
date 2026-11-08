@@ -138,7 +138,7 @@ export function SuperSignalPanel({
                     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black tracking-wider ${record.direction === 'BUY' ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>{record.direction}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-accent">8/8 CONFIRMED</span><span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent}%</span>\n                    <span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent}%</span>
+                    <span className="text-[11px] font-semibold text-accent">8/8 CONFIRMED</span><span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent == null ? '—' : `${record.grade_percent}%`}</span>\n                    <span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent}%</span>
                     <OutcomeBadge status={record.status} closed={record.closed} />
                   </div>
                   <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" />{formatDateTime(record.signal_epoch)}</div>
@@ -200,7 +200,7 @@ function SuperSignalDetails({ record, price, candles, aiModel }: {
       </div>
 
       <div>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-bold uppercase tracking-wider text-ink-3">Eight-timeframe confirmation</div><span className="rounded-lg border border-up/25 bg-up/10 px-3 py-1.5 text-sm font-black text-up">{record.grade_percent}% · {record.confirmation_timeframe} completed alignment</span></div>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-bold uppercase tracking-wider text-ink-3">Eight-timeframe confirmation</div><span className="rounded-lg border border-up/25 bg-up/10 px-3 py-1.5 text-sm font-black text-up">{record.grade_percent == null ? 'Grade unavailable for this older record' : `${record.grade_percent}% · ${record.confirmation_timeframe} completed alignment`}</span></div>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
           {TIMEFRAMES.map((timeframe) => {
             const read = record.reads.find((item) => item.label === timeframe);
@@ -214,7 +214,7 @@ function SuperSignalDetails({ record, price, candles, aiModel }: {
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Metric label="8/8 confirmation grade" value={`${record.grade_percent}%`} />
+        <Metric label="8/8 confirmation grade" value={record.grade_percent == null ? "Not recorded" : `${record.grade_percent}%`} />
         <Metric label="Entry price" value={formatPrice(record.entry, record.digits)} />
         <Metric label="Current price" value={price == null ? 'Unavailable' : formatPrice(price, record.digits)} />
         <Metric label="AI pattern score" value={score == null ? 'Learning' : `${score}/100`} />
