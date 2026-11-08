@@ -19,6 +19,9 @@ export type SuperSignalRecord = {
   daily_bias: string;
   reads: SuperSignal['reads'];
   explanation: string;
+  grade_percent: number;
+  confirmation_timeframe: string;
+  confirmation_epoch: number;
   status: 'Open' | 'TP1' | 'TP2' | 'TP3' | 'Stopped' | 'Reversed';
   tp1_hit_epoch: number | null;
   tp2_hit_epoch: number | null;
@@ -28,7 +31,7 @@ export type SuperSignalRecord = {
   created_at: string;
 };
 
-const COLUMNS = 'signal_key,symbol,asset_name,digits,direction,signal_epoch,entry,stop_loss,tp1,tp2,tp3,band_mean,band_deviation,daily_bias,reads,explanation,status,tp1_hit_epoch,tp2_hit_epoch,tp3_hit_epoch,sl_hit_epoch,closed,created_at';
+const COLUMNS = 'signal_key,symbol,asset_name,digits,direction,signal_epoch,entry,stop_loss,tp1,tp2,tp3,band_mean,band_deviation,daily_bias,reads,explanation,grade_percent,confirmation_timeframe,confirmation_epoch,status,tp1_hit_epoch,tp2_hit_epoch,tp3_hit_epoch,sl_hit_epoch,closed,created_at';
 
 function toRow(signal: SuperSignal) {
   return {
@@ -48,6 +51,9 @@ function toRow(signal: SuperSignal) {
     daily_bias: signal.dailyBias,
     reads: signal.reads,
     explanation: signal.explanation,
+    grade_percent: signal.gradePercent,
+    confirmation_timeframe: signal.confirmationTimeframe,
+    confirmation_epoch: signal.confirmationEpoch,
   };
 }
 
