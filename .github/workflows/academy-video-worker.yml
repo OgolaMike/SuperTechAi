@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/academy_video_worker/**"
+      - "public/academy-demo.html"
       - ".github/workflows/academy-video-worker.yml"
   workflow_dispatch:
   schedule:
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - "scripts/academy_video_worker/**"
+      - "public/academy-demo.html"
       - ".github/workflows/academy-video-worker.yml"
 
 concurrency:
@@ -28,6 +30,17 @@ jobs:
     steps:
       - name: Check out Academy lesson scripts
         uses: actions/checkout@v4
+
+      - name: Set up Node for the Academy demo build
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Build SuperTechAi demo assets
+        run: |
+          npm ci
+          npm run build
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -52,7 +65,10 @@ jobs:
       - name: Install open-source voice renderer
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "kokoro-onnx==0.6.1" "soundfile>=0.12" "Pillow>=10" "requests>=2.31" "numpy>=2.0"
+          python -m pip install "kokoro-onnx==0.6.1" "soundfile>=0.12" "Pillow>=10" "requests>=2.31" "numpy>=2.0" "playwright>=1.49"
+
+      - name: Install headless Chromium for screen recording
+        run: python -m playwright install --with-deps chromium
 
       - name: Check background publisher credentials
         id: publisher_credentials
