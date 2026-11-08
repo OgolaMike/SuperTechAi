@@ -10,7 +10,7 @@ const CATEGORIES: { key: BoolPrefKey; label: string; description: string }[] = [
   { key: 'stops', label: 'Stop-loss hits', description: 'A stop-loss reached on a confirmed candle close.' },
   { key: 'limitOrders', label: 'New limit-order signals', description: 'M15/M5/M1 confluence limit-entry opportunities.' },
   { key: 'pendingOrders', label: 'Pending-order alerts', description: 'New confirmed M15 BB(60, 2.5) reversal setups for your selected assets.' },
-  { key: 'superSignals', label: 'Super Signals', description: 'Dedicated alerts when all eight timeframes agree on one opportunity.' },
+  { key: 'superSignals', label: 'Super Signals', description: 'In-app popups, sound and device notifications when all eight timeframes agree.' },
 ];
 
 const STATUS_TEXT: Record<PushStatus, string> = {
