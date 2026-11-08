@@ -113,7 +113,8 @@ function latestAlignmentEpoch(state: TfState, expected: Bias): number | null {
     previousBias = bias;
   }
 
-  // If the transition predates available history, treat it as older than every observed transition.\n  return latestEntryEpoch ?? 0;\n}
+  // If the transition predates available history, treat it as older than every observed transition.
+  return latestEntryEpoch ?? 0;\n}
 
 function describeAge(seconds: number): string {
   if (seconds < 60) return 'just now';
