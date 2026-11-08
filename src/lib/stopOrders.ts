@@ -1,5 +1,5 @@
 import { getAiPatternScore, type SignalLearningModel } from './aiLearning';
-import type { Asset, TfState } from './sma';
+import { TIMEFRAMES, type Asset, type TfState } from './sma';
 import type { Direction } from './signals';
 
 export type StopOrderStatus =
@@ -7,6 +7,13 @@ export type StopOrderStatus =
 
 export type PendingPatternType = 'TRIPLE BOTTOM' | 'TRIPLE TOP' | 'BREAK & RETEST';
 export type PendingZone = { startEpoch: number; endEpoch: number; low: number; high: number };
+export type PendingTimeframeReading = {
+  label: string;
+  bias: 'BUY' | 'SELL' | 'NEUTRAL' | 'BUILDING';
+  momentum: 'RISING' | 'FALLING' | 'FLAT' | '—';
+  bandPosition: 'UPPER' | 'MIDDLE' | 'LOWER' | '—';
+  aligned: boolean | null;
+};
 
 export type M15StopIdea = {
   id: string;
@@ -74,6 +81,26 @@ function getBollingerTradeLevels(direction: Direction, entry: number, band: Band
   const risk = reward / 2;
   const stopLoss = direction === 'BUY' ? entry - risk : entry + risk;
   return { stopLoss, takeProfit };
+}
+
+function buildTimeframeAnalysis(states: Record<number, TfState> | undefined, direction: Direction): PendingTimeframeReading[] {
+  return TIMEFRAMES.map((timeframe) => {
+    const state = states?.[timeframe.granularity];
+    if (!state || state.candles.length < BB_PERIOD || state.lastClose == null
+      || state.currentSma == null || state.stdDev == null) {
+      return { label: timeframe.label, bias: 'BUILDING', momentum: '—', bandPosition: '—', aligned: null };
+    }
+    const close = state.lastClose;
+    const bias = close > state.currentSma ? 'BUY' : close < state.currentSma ? 'SELL' : 'NEUTRAL';
+    const recent = state.candles.slice(-6);
+    const first = recent[0]?.close ?? close;
+    const delta = close - first;
+    const momentum = delta > 0 ? 'RISING' : delta < 0 ? 'FALLING' : 'FLAT';
+    const upper = state.currentSma + BB_DEVIATION * state.stdDev;
+    const lower = state.currentSma - BB_DEVIATION * state.stdDev;
+    const bandPosition = close >= upper ? 'UPPER' : close <= lower ? 'LOWER' : 'MIDDLE';
+    return { label: timeframe.label, bias, momentum, bandPosition, aligned: bias === direction };
+  });
 }
 
 function getOrderType(direction: Direction): M15StopIdea['type'] {
@@ -189,7 +216,7 @@ export function buildM15StopOrderIdeas(
         const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'BUY', 'TRIPLE BOTTOM', {
           startEpoch: bottomGroup[0].epoch, endEpoch: last.epoch, low: zoneLow - tolerance * 0.15, high: zoneHigh + tolerance * 0.15,
-        }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch);
+        }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
       }
     }
