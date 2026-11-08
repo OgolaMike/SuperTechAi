@@ -98,6 +98,7 @@ export function usePushSettings() {
   const savePrefs = async (next: PushPrefs) => {
     setPrefs(next);
     localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event('supertech-push-prefs-changed'));
     if (status !== 'on') return;
     setError(null);
     try {
