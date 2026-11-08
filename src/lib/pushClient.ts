@@ -85,9 +85,9 @@ export async function disablePush(): Promise<void> {
   const subscription = await getActiveSubscription();
   if (!subscription) return;
   const endpoint = subscription.endpoint;
-  await subscription.unsubscribe();
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
   if (!accessToken) throw new Error('Please sign in to manage alerts.');
   await postPushAction({ action: 'unsubscribe', endpoint }, accessToken);
+  await subscription.unsubscribe();
 }
