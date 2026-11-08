@@ -23,6 +23,13 @@ function isValidEndpoint(value: unknown): value is string {
   return typeof value === "string" && value.startsWith("https://") && value.length <= MAX_ENDPOINT_LENGTH;
 }
 
+async function getUserId(req: Request): Promise<string | null> {
+  const token = req.headers.get('Authorization')?.replace(/^Bearer\\s+/i, '');
+  if (!token) return null;
+  const { data, error } = await db.auth.getUser(token);
+  return error ? null : data.user?.id ?? null;
+}
+
 function parseSymbols(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   return value
@@ -44,6 +51,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     if (body?.action === "subscribe") {
+      const userId = await getUserId(req);
+      if (!userId) return jsonResponse({ error: 'Please sign in to enable personal alerts.' }, 401);
       const sub = body.subscription;
       const prefs = body.prefs ?? {};
       if (!isValidEndpoint(sub?.endpoint) || typeof sub?.keys?.p256dh !== "string" || typeof sub?.keys?.auth !== "string") {
@@ -52,6 +61,7 @@ Deno.serve(async (req) => {
       const { error } = await db.from("push_subscriptions").upsert(
         {
           endpoint: sub.endpoint,
+          user_id: userId,
           p256dh: sub.keys.p256dh,
           auth: sub.keys.auth,
           notify_signals: prefs.signals !== false,
@@ -74,8 +84,10 @@ Deno.serve(async (req) => {
     }
 
     if (body?.action === "unsubscribe") {
+      const userId = await getUserId(req);
+      if (!userId) return jsonResponse({ error: 'Please sign in to manage personal alerts.' }, 401);
       if (!isValidEndpoint(body.endpoint)) return jsonResponse({ error: "Invalid subscription" }, 400);
-      const { error } = await db.from("push_subscriptions").delete().eq("endpoint", body.endpoint);
+      const { error } = await db.from("push_subscriptions").delete().eq("endpoint", body.endpoint).eq('user_id', userId);
       if (error) throw error;
       return jsonResponse({ ok: true });
     }
