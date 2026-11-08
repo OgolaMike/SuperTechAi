@@ -26,6 +26,7 @@ const TIMEFRAMES = [
 type Timeframe = (typeof TIMEFRAMES)[number];
 
 const AUTOMATION_TIMEFRAMES = TIMEFRAMES.filter((frame) => [60, 300, 900].includes(frame.granularity));
+const SUPER_SIGNAL_FRESH_PRIMARY_SECONDS = 8 * 900;
 
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
   return Math.floor(nowEpoch / granularity) * granularity - granularity;
@@ -245,6 +246,47 @@ async function processTimeframe(
   return { rowsWritten: changedRows.length, lastEpoch: lastConfirmedEpoch, signals };
 }
 
+function evaluateSuperSignal(
+  symbol: SymbolInfo,
+  candlesByFrame: Map<number, Candle[]>,
+  nowEpoch: number,
+): { direction: "BUY" | "SELL"; signalEpoch: number; entry: number; stopLoss: number; tp1: number; tp2: number; tp3: number } | null {
+  const expectedFrames = TIMEFRAMES;
+  const biases: string[] = [];
+  let primary: ReturnType<typeof computeSignals>["signals"][number] | null = null;
+
+  for (const frame of expectedFrames) {
+    const candles = (candlesByFrame.get(frame.granularity) ?? [])
+      .filter((candle) => candle.epoch + frame.granularity <= nowEpoch)
+      .sort((a, b) => a.epoch - b.epoch);
+    if (candles.length < 60) return null;
+    const latest = candles[candles.length - 1];
+    if (nowEpoch - (latest.epoch + frame.granularity) > 2 * frame.granularity) return null;
+    const window = candles.slice(-60).map((candle) => candle.close);
+    const mean = window.reduce((sum, value) => sum + value, 0) / 60;
+    const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
+    const deviation = Math.sqrt(variance);
+    const gap = latest.close - mean;
+    biases.push(gap > deviation * 0.1 ? "BUY" : gap < -deviation * 0.1 ? "SELL" : "NEUTRAL");
+    if (frame.granularity === 900) {
+      const computed = computeSignals(candles, frame.granularity, nowEpoch).signals;
+      primary = computed[computed.length - 1] ?? null;
+    }
+  }
+
+  if (!primary || primary.outcome.closed || nowEpoch - primary.signalEpoch > SUPER_SIGNAL_FRESH_PRIMARY_SECONDS) return null;
+  if (!biases.every((bias) => bias === primary!.direction)) return null;
+  return {
+    direction: primary.direction,
+    signalEpoch: primary.signalEpoch,
+    entry: primary.levels.entry,
+    stopLoss: primary.levels.stopLoss,
+    tp1: primary.levels.tp1,
+    tp2: primary.levels.tp2,
+    tp3: primary.levels.tp3,
+  };
+}
+
 async function runScan(): Promise<Record<string, unknown>> {
   const started = Date.now();
   const nowEpoch = Math.floor(started / 1000);
@@ -276,6 +318,9 @@ async function runScan(): Promise<Record<string, unknown>> {
     }
     const symbols = [...derivSymbols, ...binanceSymbols];
     const marks = await loadMarks();
+    const { data: pushRows, error: pushRowsError } = await db.from("push_subscriptions").select("symbols");
+    if (pushRowsError) throw new Error(`Could not load alert asset preferences: ${pushRowsError.message}`);
+    const subscribedSymbols = new Set((pushRows ?? []).flatMap((row) => Array.isArray(row.symbols) ? row.symbols : []));
     // Rotate the starting symbol each minute so a time-limited run never always skips the same assets.
     const offset = symbols.length ? Math.floor(started / 60000) % symbols.length : 0;
     const ordered = [...symbols.slice(offset), ...symbols.slice(0, offset)];
@@ -437,6 +482,38 @@ async function runScan(): Promise<Record<string, unknown>> {
           }
         } catch (error) {
           lastError = `${symbol.symbol} ${timeframe.label}: ${messageOf(error)}`;
+        }
+      }
+
+      // Super Signal push events are generated server-side for subscribed assets only.
+      // The same 8-frame freshness, SMA(60) bias and live M15 signal rules used by the app apply.
+      if (subscribedSymbols.has(symbol.symbol) && Date.now() - started <= TIME_BUDGET_MS) {
+        try {
+          for (const frame of TIMEFRAMES) {
+            if (!candleCache.has(frame.granularity)) {
+              await loadTimeframeCandles(feed, symbol, frame, nowEpoch, candleCache);
+              fetchedCount += 1;
+            }
+          }
+          const superSignal = evaluateSuperSignal(symbol, candleCache, nowEpoch);
+          if (superSignal) {
+            const signalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
+            const { error: superEventError } = await db.from("push_events").upsert([{
+              event_key: `${signalKey}|super_signal`,
+              signal_key: signalKey,
+              kind: "super_signal",
+              payload: {
+                label: "SUPER SIGNAL", symbol: symbol.symbol, assetName: symbol.name, timeframe: "8/8",
+                direction: superSignal.direction, digits: symbol.digits, signalEpoch: superSignal.signalEpoch,
+                entry: superSignal.entry, stopLoss: superSignal.stopLoss,
+                tp1: superSignal.tp1, tp2: superSignal.tp2, tp3: superSignal.tp3,
+                price: superSignal.entry, eventEpoch: nowEpoch, timeframeAgreement: 8,
+              },
+            }], { onConflict: "event_key", ignoreDuplicates: true });
+            if (superEventError) throw new Error("Could not queue Super Signal push event: " + superEventError.message);
+          }
+        } catch (error) {
+          lastError = `Super Signal push ${symbol.symbol}: ${messageOf(error)}`;
         }
       }
 
