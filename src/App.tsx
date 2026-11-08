@@ -62,6 +62,7 @@ function App() {
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
   const [view, setView] = useState<View>('dashboard');
+  const [selectedSuperSignalKey, setSelectedSuperSignalKey] = useState('');
   const [now, setNow] = useState<number>(currentEpoch);
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
@@ -78,7 +79,7 @@ function App() {
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
   const { toasts, dismiss } = useSignalAlerts(views, loaded, soundsEnabled);
-  useSuperSignalAlerts(superSignals, loaded, soundsEnabled);
+  const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded, soundsEnabled);
   const superSignalHistory = useSuperSignalRecords(superSignals, loaded);
   const sync = useSignalRecordSync(views, loaded);
 
@@ -112,8 +113,9 @@ function App() {
     updateSelected([...selectedSymbols, symbol]);
   };
 
-  const openSignalChart = (symbol: string, granularity: number, chartTargetId?: string) => {
+  const openSignalChart = (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => {
     if (chartTargetId) {
+      if (selectedSignalKey) setSelectedSuperSignalKey(selectedSignalKey);
       setView('super');
     } else {
       setSelectedSymbols((current) => current.includes(symbol) ? current : [...current, symbol].slice(-10));
@@ -194,8 +196,7 @@ function App() {
               <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
               <p className="max-w-2xl text-sm text-ink-2">We wait for all eight timeframes to point in the same direction before announcing a Super Signal.</p>
             </div>
-            <ReversalContextPanel assets={assets.filter((asset) => selectedSymbols.includes(asset.symbol))} states={states} nowEpoch={now} />
-            <SuperSignalPanel signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
+            <SuperSignalPanel selectedSignalKey={selectedSuperSignalKey} signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
           </section>
         )}
 
@@ -228,7 +229,7 @@ function App() {
         </footer>
       </div>
 
-      <Toasts toasts={toasts} onDismiss={dismiss} onOpenChart={openSignalChart} />
+      <Toasts toasts={[...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); }} onOpenChart={openSignalChart} />
     </div>
   );
 }
