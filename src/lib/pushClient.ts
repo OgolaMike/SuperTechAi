@@ -22,7 +22,7 @@ function urlBase64ToBytes(base64: string): BufferSource {
 
 async function fetchPublicKey(): Promise<string> {
   const response = await fetch(PUSH_URL, {
-    headers: { Authorization: `Bearer ${accessToken ?? ANON_KEY}`, apikey: ANON_KEY },
+    headers: { Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY },
   });
   if (!response.ok) throw new Error(`Push setup is not ready (status ${response.status})`);
   const body = await response.json();
@@ -34,7 +34,7 @@ async function postPushAction(payload: Record<string, unknown>, accessToken?: st
   const response = await fetch(PUSH_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${ANON_KEY}`,
+      Authorization: `Bearer ${accessToken ?? ANON_KEY}`,
       apikey: ANON_KEY,
       'Content-Type': 'application/json',
     },
