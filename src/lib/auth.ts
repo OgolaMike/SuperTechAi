@@ -1,22 +1,20 @@
 import { supabase } from '@/lib/supabase';
 
 function authRedirect(flow: 'confirmed' | 'recovery'): string {
-  // Email links must always return to the SPA entry point. Reusing the current
-  // pathname can send users to a nested route that the hosting provider does
-  // not serve, making confirmation and recovery links appear to do nothing.
+  // Always return to the SPA entry point so email actions work on the live app.
   const url = new URL('/', window.location.origin);
   url.searchParams.set('auth', flow);
   return url.toString();
 }
 
 export async function signIn(email: string, password: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw error;
 }
 
 export async function signUp(email: string, password: string, payoutTronAddress: string): Promise<boolean> {
   const { data, error } = await supabase.auth.signUp({
-    email,
+    email: email.trim(),
     password,
     options: { emailRedirectTo: authRedirect('confirmed'), data: { payout_tron_address: payoutTronAddress } },
   });
@@ -27,20 +25,23 @@ export async function signUp(email: string, password: string, payoutTronAddress:
 export async function resendSignupConfirmation(email: string): Promise<void> {
   const { error } = await supabase.auth.resend({
     type: 'signup',
-    email,
+    email: email.trim(),
     options: { emailRedirectTo: authRedirect('confirmed') },
   });
   if (error) throw error;
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     redirectTo: authRedirect('recovery'),
   });
   if (error) throw error;
 }
 
 export async function updatePassword(password: string): Promise<void> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!sessionData.session) throw new Error('AUTH_RECOVERY_SESSION_MISSING');
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw error;
 }
@@ -60,11 +61,14 @@ export function clearAuthRedirect(): void {
 export function friendlyAuthError(error: unknown): string {
   const e = error as { message?: string; code?: string };
   const message = error instanceof Error ? error.message : e?.message ?? '';
+  if (message === 'AUTH_RECOVERY_SESSION_MISSING' || /auth session missing|session_not_found/i.test(message)) {
+    return 'This password-reset link did not open a valid SuperTechAi recovery session. Return to sign in, choose Forgot password, and request a fresh link. Open the newest email on the same device and browser where you will set the new password.';
+  }
   if (e?.code === 'email_not_confirmed' || /email not confirmed/i.test(message)) {
-    return 'Your email address is not confirmed yet. Resend the confirmation email below, then open its link to activate your SuperTech AI account.';
+    return 'Your email address is not confirmed yet. Resend the SuperTechAi confirmation email, then open its link to activate your account.';
   }
   if (/rate.?limit|too many requests|email.*limit/i.test(message)) {
-    return 'SuperTech AI could not send this email because the project has reached its email-sending limit. Please do not keep retrying. The administrator must finish configuring the dedicated email provider, then request a fresh confirmation or recovery email.';
+    return 'SuperTechAi could not send this email because the project has reached its email-sending limit. Please do not keep retrying. The administrator must configure the dedicated email provider, then request a fresh confirmation or recovery email.';
   }
   if (/invalid login credentials/i.test(message)) return 'The email or password is incorrect.';
   if (/already registered/i.test(message)) return 'An account with this email already exists. Try signing in instead.';
@@ -72,7 +76,7 @@ export function friendlyAuthError(error: unknown): string {
     return 'No connection to the authentication server. Check your internet connection and try again.';
   }
   if (/otp_expired|expired|invalid.*token/i.test(message)) {
-    return 'This link has expired or is no longer valid. Return to sign in and request a fresh email link.';
+    return 'This link has expired or is no longer valid. Return to sign in and request a fresh SuperTechAi email link.';
   }
   return message || 'Something went wrong. Please try again.';
 }
