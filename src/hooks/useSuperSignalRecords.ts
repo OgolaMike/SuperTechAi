@@ -61,6 +61,11 @@ export function useSuperSignalRecords(signals: SuperSignal[], loaded: boolean) {
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
   useEffect(() => {
+    const timer = window.setInterval(() => refresh(), 30000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     supabase
