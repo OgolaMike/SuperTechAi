@@ -69,10 +69,10 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
   return (
     <section className="mt-8 min-w-0 w-full space-y-6 overflow-x-hidden">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market M15 order intelligence</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market multi-timeframe order intelligence</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          BUY LIMIT and SELL LIMIT reversal and continuation setups for the assets currently selected above (up to 10). Triple tops and bottoms identify reversals; break-and-retest identifies continuation. Every M15 chart marks the pattern zone alongside SMA 60, Bollinger Bands, entry, stop-loss and a 1:2 target.
+          BUY LIMIT and SELL LIMIT setups scan M15 patterns and check direction, momentum and Bollinger position across all eight timeframes (M1 to D1). Triple tops and bottoms identify reversals; break-and-retest identifies continuation. Targets use the next Bollinger line, with stop-loss set to maintain 1:2 reward-to-risk.
         </p>
       </div>
 
@@ -138,6 +138,35 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                   ? <Price label="M15 AI score" value={idea.aiScore} digits={0} />
                   : <div className="rounded-xl border border-line/25 bg-surface/[0.02] p-3"><p className="text-xs text-ink-3">M15 AI score</p><p className="mt-1 text-sm font-medium text-ink-2">Learning</p></div>}
               </div>
+              <div className="mt-4 rounded-xl border border-line/25 bg-surface/[0.025] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">Multi-timeframe confirmation</p>
+                    <p className="mt-1 text-sm font-semibold text-ink">{
+                      (idea.timeframeAnalysis ?? []).filter((reading) => reading.aligned === true).length
+                    } / 8 timeframes support {idea.direction}</p>
+                  </div>
+                  <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">D1 → M1</span>
+                </div>
+                <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-8">
+                  {(idea.timeframeAnalysis ?? []).map((reading) => (
+                    <div key={reading.label} className={`min-w-0 rounded-lg border p-2 text-center ${
+                      reading.aligned === true ? 'border-up/35 bg-up/10'
+                        : reading.aligned === false ? 'border-down/25 bg-down/5'
+                        : 'border-line/20 bg-surface/[0.02]'
+                    }`}>
+                      <p className="text-[10px] font-bold text-ink">{reading.label}</p>
+                      <p className={`mt-1 text-[10px] font-semibold ${
+                        reading.aligned === true ? 'text-up'
+                          : reading.aligned === false ? 'text-down' : 'text-ink-3'
+                      }`}>{reading.bias === 'BUILDING' ? 'WAIT' : reading.bias}</p>
+                      <p className="mt-1 text-[9px] text-ink-3">{reading.momentum}</p>
+                      <p className="mt-0.5 text-[9px] text-ink-3">{reading.bandPosition}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-[10px] leading-relaxed text-ink-3">Each timeframe uses confirmed candles, SMA 60 and Bollinger Bands. Green supports this order direction; red points against it; WAIT means more history is needed. This is a confluence check, not an automatic trade veto.</p>
+              </div>
               <div className="mt-4">
                 <PendingOrderChart
                   candles={states[idea.symbol]?.[900]?.candles ?? []}
@@ -170,7 +199,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
 
       <div className="flex min-w-0 items-start gap-2 rounded-xl border border-warn/25 bg-warn/5 p-3 text-xs leading-relaxed text-ink-2 sm:p-4">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-warn" />
-        <p className="min-w-0 break-words">These are trade suggestions for the member to place manually; they are not submitted to a broker by this screen. “TRADE EXECUTED” means the market price reached the planned entry level in the tracked M15 candles, not that a broker confirmed a fill. Signals use confirmed M15 candle structure; the chart displays the latest 60 M15 candles and the order levels. Tracked outcomes are saved on this device.</p>
+        <p className="min-w-0 break-words">These are trade suggestions for the member to place manually; they are not submitted to a broker by this screen. “TRADE EXECUTED” means the market price reached the planned entry level in the tracked M15 candles, not that a broker confirmed a fill. Setups are triggered by confirmed M15 candle structure and are cross-checked against all eight confirmed timeframes. The chart displays the latest 60 M15 candles and the order levels. Tracked outcomes are saved on this device.</p>
       </div>
     </section>
   );

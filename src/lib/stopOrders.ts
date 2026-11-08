@@ -1,5 +1,5 @@
 import { getAiPatternScore, type SignalLearningModel } from './aiLearning';
-import type { Asset, TfState } from './sma';
+import { TIMEFRAMES, type Asset, type TfState } from './sma';
 import type { Direction } from './signals';
 
 export type StopOrderStatus =
@@ -7,6 +7,13 @@ export type StopOrderStatus =
 
 export type PendingPatternType = 'TRIPLE BOTTOM' | 'TRIPLE TOP' | 'BREAK & RETEST';
 export type PendingZone = { startEpoch: number; endEpoch: number; low: number; high: number };
+export type PendingTimeframeReading = {
+  label: string;
+  bias: 'BUY' | 'SELL' | 'NEUTRAL' | 'BUILDING';
+  momentum: 'RISING' | 'FALLING' | 'FLAT' | '—';
+  bandPosition: 'UPPER' | 'MIDDLE' | 'LOWER' | '—';
+  aligned: boolean | null;
+};
 
 export type M15StopIdea = {
   id: string;
@@ -22,6 +29,9 @@ export type M15StopIdea = {
   takeProfit: number;
   currentPrice: number;
   aiScore: number | null;
+  timeframeAnalysis: PendingTimeframeReading[];
+  timeframeAligned: number;
+  timeframeAvailable: number;
   signalEpoch: number;
   entryHitEpoch: number | null;
   stopLossHitEpoch: number | null;
@@ -61,6 +71,39 @@ function findPivots(candles: TfState['candles'], kind: 'high' | 'low', from: num
     }
   }
   return pivots;
+}
+
+function getBollingerTradeLevels(direction: Direction, entry: number, band: BandPoint) {
+  // Target the next Bollinger line in the trade direction: middle first,
+  // then the outer band when the entry is already beyond the middle line.
+  const takeProfit = direction === 'BUY'
+    ? (entry < band.mean ? band.mean : band.high)
+    : (entry > band.mean ? band.mean : band.low);
+  const reward = direction === 'BUY' ? takeProfit - entry : entry - takeProfit;
+  if (!(reward > 0) || !Number.isFinite(reward)) return null;
+  const risk = reward / 2;
+  const stopLoss = direction === 'BUY' ? entry - risk : entry + risk;
+  return { stopLoss, takeProfit };
+}
+
+function buildTimeframeAnalysis(states: Record<number, TfState> | undefined, direction: Direction): PendingTimeframeReading[] {
+  return [...TIMEFRAMES].reverse().map((timeframe): PendingTimeframeReading => {
+    const state = states?.[timeframe.granularity];
+    if (!state || state.candles.length < BB_PERIOD || state.lastClose == null
+      || state.currentSma == null || state.stdDev == null) {
+      return { label: timeframe.label, bias: 'BUILDING', momentum: '—', bandPosition: '—', aligned: null };
+    }
+    const close = state.lastClose;
+    const bias = close > state.currentSma ? 'BUY' : close < state.currentSma ? 'SELL' : 'NEUTRAL';
+    const recent = state.candles.slice(-6);
+    const first = recent[0]?.close ?? close;
+    const delta = close - first;
+    const momentum = delta > 0 ? 'RISING' : delta < 0 ? 'FALLING' : 'FLAT';
+    const upper = state.currentSma + BB_DEVIATION * state.stdDev;
+    const lower = state.currentSma - BB_DEVIATION * state.stdDev;
+    const bandPosition = close >= upper ? 'UPPER' : close <= lower ? 'LOWER' : 'MIDDLE';
+    return { label: timeframe.label, bias, momentum, bandPosition, aligned: bias === direction };
+  });
 }
 
 function getOrderType(direction: Direction): M15StopIdea['type'] {
@@ -104,7 +147,7 @@ function makeIdea(
   asset: Asset, direction: Direction, patternType: PendingPatternType, zone: PendingZone,
   entry: number, stopLoss: number, takeProfit: number, currentPrice: number,
   signalEpoch: number, candles: TfState['candles'], bands: Array<BandPoint | null>,
-  aiModel: SignalLearningModel, nowEpoch: number,
+  aiModel: SignalLearningModel, nowEpoch: number, timeframeStates?: Record<number, TfState>,
 ): M15StopIdea | null {
   if (![entry, stopLoss, takeProfit].every((value) => Number.isFinite(value) && value > 0)) return null;
   const reward = direction === 'BUY' ? takeProfit - entry : entry - takeProfit;
@@ -117,12 +160,16 @@ function makeIdea(
     tp1: takeProfit, tp2: takeProfit, tp3: takeProfit,
   };
   const outcome = evaluateOrder(direction, entry, stopLoss, takeProfit, candles, signalEpoch, nowEpoch);
+  const timeframeAnalysis = buildTimeframeAnalysis(timeframeStates, direction);
   const type = getOrderType(direction);
   return {
     id: `${asset.symbol}|${patternType}|${signalEpoch}`,
     symbol: asset.symbol, assetName: asset.fullName, digits: asset.digits,
     type, direction, patternType, zone, entry, stopLoss, takeProfit, currentPrice,
     aiScore: getAiPatternScore(aiModel, M15, direction, levels),
+    timeframeAnalysis,
+    timeframeAligned: timeframeAnalysis.filter((reading) => reading.aligned === true).length,
+    timeframeAvailable: timeframeAnalysis.filter((reading) => reading.aligned !== null).length,
     signalEpoch, ...outcome,
   };
 }
@@ -171,12 +218,14 @@ export function buildM15StopOrderIdeas(
       const confirmed = last.close > neckline && currentPrice > lastBand.mean;
       const entry = (zoneLow + zoneHigh) / 2;
       if (clustered && confirmed && entry < currentPrice) {
-        const stopLoss = zoneLow - tolerance * 0.5;
-        const takeProfit = entry + (entry - stopLoss) * 2;
+        const levels = getBollingerTradeLevels('BUY', entry, lastBand);
+        if (levels) {
+        const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'BUY', 'TRIPLE BOTTOM', {
           startEpoch: bottomGroup[0].epoch, endEpoch: last.epoch, low: zoneLow - tolerance * 0.15, high: zoneHigh + tolerance * 0.15,
-        }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch);
+        }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
+        }
       }
     }
 
@@ -192,12 +241,14 @@ export function buildM15StopOrderIdeas(
       const confirmed = last.close < neckline && currentPrice < lastBand.mean;
       const entry = (zoneLow + zoneHigh) / 2;
       if (clustered && confirmed && entry > currentPrice) {
-        const stopLoss = zoneHigh + tolerance * 0.5;
-        const takeProfit = entry - (stopLoss - entry) * 2;
+        const levels = getBollingerTradeLevels('SELL', entry, lastBand);
+        if (levels) {
+        const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'SELL', 'TRIPLE TOP', {
           startEpoch: topGroup[0].epoch, endEpoch: last.epoch, low: zoneLow - tolerance * 0.15, high: zoneHigh + tolerance * 0.15,
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch);
         if (idea) ideas.push(idea);
+        }
       }
     }
 
@@ -214,13 +265,15 @@ export function buildM15StopOrderIdeas(
         candles[lastIndex - 1].low >= resistance - retestTolerance;
       if (breakBuy && retestBuy && last.close > resistance && currentPrice > lastBand.mean) {
         const entry = resistance;
-        const stopLoss = resistance - retestTolerance;
-        const takeProfit = entry + (entry - stopLoss) * 2;
+        const levels = getBollingerTradeLevels('BUY', entry, lastBand);
+        if (levels) {
+        const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'BUY', 'BREAK & RETEST', {
           startEpoch: candles[lastIndex - 2].epoch, endEpoch: last.epoch,
           low: resistance - retestTolerance, high: resistance + retestTolerance,
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch);
         if (idea) ideas.push(idea);
+        }
       }
 
       const breakSell = candles[lastIndex - 2].close < support - retestTolerance * 0.15;
@@ -228,13 +281,15 @@ export function buildM15StopOrderIdeas(
         candles[lastIndex - 1].high <= support + retestTolerance;
       if (breakSell && retestSell && last.close < support && currentPrice < lastBand.mean) {
         const entry = support;
-        const stopLoss = support + retestTolerance;
-        const takeProfit = entry - (stopLoss - entry) * 2;
+        const levels = getBollingerTradeLevels('SELL', entry, lastBand);
+        if (levels) {
+        const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'SELL', 'BREAK & RETEST', {
           startEpoch: candles[lastIndex - 2].epoch, endEpoch: last.epoch,
           low: support - retestTolerance, high: support + retestTolerance,
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch);
         if (idea) ideas.push(idea);
+        }
       }
     }
   }
