@@ -34,7 +34,27 @@
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
+  height: auto;
+}
+
+html {
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 body {
@@ -444,4 +464,16 @@ nav[aria-label="Sections"] button[aria-current="page"] {
 .signal-bubble:active { transform: scale(.96); }
 @media (prefers-reduced-motion: reduce) {
   .signal-bubble { animation-duration: 15s; }
+}
+
+
+/* Keep the document as the single vertical scroll surface, including long signal feeds. */
+html, body, #root { overscroll-behavior-y: auto; }
+body, #root { touch-action: pan-y pinch-zoom; }
+.view-transition { min-height: 1px; overflow: visible; touch-action: pan-y pinch-zoom; }
+.view-transition :where(section, article, div) { overscroll-behavior-y: auto; }
+@media (max-width: 768px) {
+  html, body { scroll-behavior: auto; }
+  .view-transition .hud-panel { touch-action: pan-y pinch-zoom; }
+  .super-signal-slider { touch-action: pan-x pan-y pinch-zoom; }
 }
