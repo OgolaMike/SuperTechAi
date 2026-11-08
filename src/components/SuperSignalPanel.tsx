@@ -167,7 +167,7 @@ function SuperSignalDetails({ record, price, candles, aiModel }: {
   ];
   const score = getAiPatternScore(aiModel, 900, record.direction, {
     entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3,
-    mean: record.entry, deviation: 0,
+    mean: record.band_mean, deviation: record.band_deviation,
   });
 
   return (
@@ -220,7 +220,7 @@ function SuperSignalDetails({ record, price, candles, aiModel }: {
         <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'All eight timeframes confirmed the same direction at the time this signal fired.'}</p>
       </div>
 
-      {candles.length > 0 && <SignalChartSnapshot candles={candles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.entry, deviation: 0 }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${record.symbol}`} />}
+      {candles.length > 0 && <SignalChartSnapshot candles={candles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${record.symbol}`} />}
     </article>
   );
 }
