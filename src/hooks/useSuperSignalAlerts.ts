@@ -38,7 +38,7 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
         assetName: signal.name,
         timeframe: 'SUPER SIGNAL',
         granularity: 900,
-        chartTargetId: `super-signal-chart-${signal.symbol}`,
+        chartTargetId: `super-signal-chart-${encodeURIComponent(signal.symbol)}-${signal.signalEpoch}-${signal.direction}`,
         digits: signal.digits,
         message,
         price: signal.levels.entry,
