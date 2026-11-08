@@ -4,7 +4,7 @@ import type { Toast } from '@/hooks/useSignalAlerts';
 import { formatPrice, formatDateTime } from '@/lib/sma';
 
 export const TOAST_DURATION_MS = 15000;
-type Props = { toasts: Toast[]; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number, chartTargetId?: string) => void };
+type Props = { toasts: Toast[]; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => void };
 
 export function Toasts({ toasts, onDismiss, onOpenChart }: Props) {
   const signals = toasts.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal');
@@ -17,7 +17,7 @@ export function Toasts({ toasts, onDismiss, onOpenChart }: Props) {
   </>;
 }
 
-function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; index: number; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number, chartTargetId?: string) => void }) {
+function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; index: number; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => void }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => onDismiss(toast.id), TOAST_DURATION_MS);
@@ -35,7 +35,7 @@ function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; 
       <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.timeframe}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
-    {open && <SignalDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId)} />}
+    {open && <SignalDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId, toast.id.startsWith('super:') ? toast.id.slice(6) : undefined)} />}
   </>;
 }
 
