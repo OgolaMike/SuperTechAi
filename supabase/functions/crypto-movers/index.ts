@@ -92,7 +92,6 @@ Deno.serve(async (req) => {
         })
         .filter((item) => item.open > 0 && item.close > 0 && Number.isFinite(item.changePct) && Number.isFinite(item.quoteVolume))
         .sort((a, b) => b.quoteVolume - a.quoteVolume)
-        .slice(0, UNIVERSE_SIZE)
         .map((item, index) => ({ ...item, volumeRank: index + 1 }));
       if (liveRows.length < 10) return jsonResponse({ error: "Not enough current-day market data was returned" }, 502);
       return jsonResponse({ period: "today", tradeDate: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString(), movers: liveRows });
