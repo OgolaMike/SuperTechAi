@@ -108,7 +108,7 @@ export function useSuperSignalRecords(signals: SuperSignal[], loaded: boolean) {
         if (writeError) throw writeError;
         refresh();
       })
-      .catch((cause: Error) => {
+      .then(undefined, (cause: Error) => {
         if (!cancelled) setError(cause.message || 'Could not save Super Signal history');
         fresh.forEach((signal) => seen.current.delete(`${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`));
       });
