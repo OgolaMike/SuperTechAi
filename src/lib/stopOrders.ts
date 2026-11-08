@@ -226,6 +226,7 @@ export function buildM15StopOrderIdeas(
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
         }
+        }
       }
     }
 
@@ -242,12 +243,13 @@ export function buildM15StopOrderIdeas(
       const entry = (zoneLow + zoneHigh) / 2;
       if (clustered && confirmed && entry > currentPrice) {
         const levels = getBollingerTradeLevels('SELL', entry, lastBand);
-        if (!levels) continue;
+        if (levels) {
         const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'SELL', 'TRIPLE TOP', {
           startEpoch: topGroup[0].epoch, endEpoch: last.epoch, low: zoneLow - tolerance * 0.15, high: zoneHigh + tolerance * 0.15,
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch);
         if (idea) ideas.push(idea);
+        }
       }
     }
 
@@ -265,13 +267,14 @@ export function buildM15StopOrderIdeas(
       if (breakBuy && retestBuy && last.close > resistance && currentPrice > lastBand.mean) {
         const entry = resistance;
         const levels = getBollingerTradeLevels('BUY', entry, lastBand);
-        if (!levels) continue;
+        if (levels) {
         const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'BUY', 'BREAK & RETEST', {
           startEpoch: candles[lastIndex - 2].epoch, endEpoch: last.epoch,
           low: resistance - retestTolerance, high: resistance + retestTolerance,
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch);
         if (idea) ideas.push(idea);
+        }
       }
 
       const breakSell = candles[lastIndex - 2].close < support - retestTolerance * 0.15;
@@ -280,13 +283,14 @@ export function buildM15StopOrderIdeas(
       if (breakSell && retestSell && last.close < support && currentPrice < lastBand.mean) {
         const entry = support;
         const levels = getBollingerTradeLevels('SELL', entry, lastBand);
-        if (!levels) continue;
+        if (levels) {
         const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'SELL', 'BREAK & RETEST', {
           startEpoch: candles[lastIndex - 2].epoch, endEpoch: last.epoch,
           low: support - retestTolerance, high: support + retestTolerance,
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch);
         if (idea) ideas.push(idea);
+        }
       }
     }
   }
