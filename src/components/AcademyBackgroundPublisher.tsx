@@ -276,10 +276,10 @@ export function AcademyBackgroundPublisher({ lessons, isAdmin }: { lessons: Less
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300"><Sparkles className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Autonomous Academy studio</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Illustrated lesson studio</p>
           <p className="mt-1 text-sm font-semibold text-ink">{running ? 'Creating narrated tutorials in the background' : 'Background publishing status'}</p>
-          <p className="mt-1 text-xs text-ink-3">{message || 'The studio checks which lessons still need a video.'}</p>
-          <p className="mt-1 text-[11px] text-ink-3">No recording or microphone is needed. It builds an illustrative on-screen walkthrough from each lesson and generates the voice locally. Keep this Academy tab open until publishing finishes.</p>
+          <p className="mt-1 text-xs text-ink-3">{message || 'Creates narrated teaching videos with illustrative visuals. Use the exact screen recorder above for real SuperTechAi walkthroughs.'}</p>
+          <p className="mt-1 text-[11px] text-ink-3">Illustrated explainer only — it does not show the exact live app screen. Use the screen recorder above to capture real buttons, charts and pages.</p>
           {current && running && <p className="mt-1 text-xs text-cyan-400">Now creating: {current}</p>}
           {total > 0 && <p className="mt-1 text-xs text-ink-3">{completed} lessons ready · {Math.max(0, total - (completed - (lessons.length - total)))} remaining in this run</p>}
         </div>
