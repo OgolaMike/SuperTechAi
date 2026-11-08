@@ -226,7 +226,6 @@ export function buildM15StopOrderIdeas(
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
         }
-        }
       }
     }
 
