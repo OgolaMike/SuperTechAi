@@ -145,6 +145,7 @@ export function AcademyScreenRecorder({ lessonId, lessonTitle }: Props) {
     setError('');
     setMessage('');
     let path = '';
+    const uploadedPaths: string[] = [];
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
@@ -156,6 +157,7 @@ export function AcademyScreenRecorder({ lessonId, lessonTitle }: Props) {
         upsert: false,
       });
       if (uploadError) throw uploadError;
+      uploadedPaths.push(path);
       const screenshotRecords: Array<{ path: string; captured_at: string }> = [];
       for (let index = 0; index < screenshots.length; index += 1) {
         const shot = screenshots[index];
@@ -166,6 +168,7 @@ export function AcademyScreenRecorder({ lessonId, lessonTitle }: Props) {
           upsert: false,
         });
         if (screenshotUploadError) throw screenshotUploadError;
+        uploadedPaths.push(screenshotPath);
         screenshotRecords.push({ path: screenshotPath, captured_at: shot.capturedAt });
       }
       const { error: insertError } = await supabase.from('academy_videos').insert({
@@ -177,11 +180,12 @@ export function AcademyScreenRecorder({ lessonId, lessonTitle }: Props) {
         created_by: sessionData.session.user.id,
       });
       if (insertError) {
-        await supabase.storage.from('academy-videos').remove([path, ...screenshotRecords.map((shot) => shot.path)]);
+        await supabase.storage.from('academy-videos').remove(uploadedPaths);
         throw insertError;
       }
       setMessage('Published. Members can watch the real screen video and open the exact screenshots captured during the lesson.');
     } catch (cause) {
+      if (uploadedPaths.length) await supabase.storage.from('academy-videos').remove(uploadedPaths);
       setError(cause instanceof Error ? cause.message : 'Could not publish the screen recording.');
     } finally {
       setUploading(false);
