@@ -170,7 +170,7 @@ def main():
             render_lesson(tts, lesson, output, browser)
             if output.stat().st_size > 100 * 1024 * 1024:
                 raise RuntimeError("Video exceeds the Academy 100 MB upload limit.")
-            object_path = f"lessons/{lesson_id}-screen-v1.mp4"
+            object_path = f"lessons/{lesson_id}-illustrated-v1.mp4"
             upload = requests.post(
                 f"{SUPABASE_URL}/storage/v1/object/academy-videos/{object_path}",
                 headers={**HEADERS, "Content-Type": "video/mp4", "x-upsert": "true"},
