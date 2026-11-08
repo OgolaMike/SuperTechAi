@@ -24,7 +24,7 @@ function isValidEndpoint(value: unknown): value is string {
 }
 
 async function getUserId(req: Request): Promise<string | null> {
-  const token = req.headers.get('Authorization')?.replace(/^Bearer\\s+/i, '');
+  const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
   const { data, error } = await db.auth.getUser(token);
   return error ? null : data.user?.id ?? null;
