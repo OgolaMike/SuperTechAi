@@ -247,7 +247,6 @@ async function processTimeframe(
 }
 
 function evaluateSuperSignal(
-  symbol: SymbolInfo,
   candlesByFrame: Map<number, Candle[]>,
   nowEpoch: number,
 ): { direction: "BUY" | "SELL"; signalEpoch: number; entry: number; stopLoss: number; tp1: number; tp2: number; tp3: number } | null {
@@ -321,6 +320,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     const { data: pushRows, error: pushRowsError } = await db.from("push_subscriptions").select("symbols");
     if (pushRowsError) throw new Error(`Could not load alert asset preferences: ${pushRowsError.message}`);
     const subscribedSymbols = new Set((pushRows ?? []).flatMap((row) => Array.isArray(row.symbols) ? row.symbols : []));
+    const hasUnfilteredPushSubscription = (pushRows ?? []).some((row) => row.symbols == null);
     // Rotate the starting symbol each minute so a time-limited run never always skips the same assets.
     const offset = symbols.length ? Math.floor(started / 60000) % symbols.length : 0;
     const ordered = [...symbols.slice(offset), ...symbols.slice(0, offset)];
@@ -487,7 +487,7 @@ async function runScan(): Promise<Record<string, unknown>> {
 
       // Super Signal push events are generated server-side for subscribed assets only.
       // The same 8-frame freshness, SMA(60) bias and live M15 signal rules used by the app apply.
-      if (subscribedSymbols.has(symbol.symbol) && Date.now() - started <= TIME_BUDGET_MS) {
+      if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
         try {
           for (const frame of TIMEFRAMES) {
             if (!candleCache.has(frame.granularity)) {
@@ -495,7 +495,7 @@ async function runScan(): Promise<Record<string, unknown>> {
               fetchedCount += 1;
             }
           }
-          const superSignal = evaluateSuperSignal(symbol, candleCache, nowEpoch);
+          const superSignal = evaluateSuperSignal(candleCache, nowEpoch);
           if (superSignal) {
             const signalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
             const { error: superEventError } = await db.from("push_events").upsert([{
