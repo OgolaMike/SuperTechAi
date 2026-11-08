@@ -4,6 +4,7 @@ export type VapidConfig = { publicKey: string; jwk: JsonWebKey };
 
 export type PushSubscriptionRow = {
   endpoint: string;
+  user_id: string | null;
   p256dh: string;
   auth: string;
   notify_signals: boolean;
@@ -23,6 +24,7 @@ export type PushEventRow = {
   signal_key: string;
   kind: "signal" | "target" | "stop" | "limit_order" | "pending_order" | "super_signal" | "income" | "business";
   payload: EventPayload;
+  recipient_user_id?: string | null;
 };
 
 export type EventPayload = {
@@ -149,6 +151,7 @@ export async function loadVapid(db: SupabaseClient): Promise<VapidConfig> {
 }
 
 function wantsEvent(sub: PushSubscriptionRow, event: PushEventRow): boolean {
+  if (event.recipient_user_id && event.recipient_user_id !== sub.user_id) return false;
   if (event.kind === 'income') return sub.notify_income;
   if (event.kind === 'business') return sub.notify_business;
   if (sub.symbols && !sub.symbols.includes(event.payload.symbol)) return false;
@@ -226,7 +229,7 @@ export async function dispatchPending(
 ): Promise<{ sent: number; failed: number; removed: number }> {
   const { data: events, error } = await db
     .from("push_events")
-    .select("event_key, signal_key, kind, payload")
+    .select("event_key, signal_key, kind, payload, recipient_user_id")
     .is("dispatched_at", null)
     .order("created_at", { ascending: true })
     .limit(200);
@@ -236,7 +239,7 @@ export async function dispatchPending(
 
   const { data: subs, error: subsError } = await db
     .from("push_subscriptions")
-    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, notify_pending_orders, notify_super_signals, notify_income, notify_business, symbols, failure_count");
+    .select("endpoint, user_id, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, notify_pending_orders, notify_super_signals, notify_income, notify_business, symbols, failure_count");
   if (subsError) throw new Error(`Could not read subscriptions: ${subsError.message}`);
   const subscriptions = (subs ?? []) as PushSubscriptionRow[];
 
