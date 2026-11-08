@@ -72,7 +72,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">All-market multi-timeframe order intelligence</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          BUY LIMIT and SELL LIMIT setups scan M15 patterns and check direction, momentum and Bollinger position across all eight timeframes (M1 to D1). Triple tops and bottoms identify reversals; break-and-retest identifies continuation. Targets use the next Bollinger line, with stop-loss set to maintain 1:2 reward-to-risk.
+          BUY LIMIT and SELL LIMIT setups scan M15 price patterns and confirm direction, momentum and Bollinger position across all eight timeframes (M1 to D1). Triple-bottom and triple-top zones mark the identified price areas; break-and-retest marks continuation zones. Take-profit uses the next Bollinger Band in the trade direction, with stop-loss calculated for a 1:2 reward-to-risk ratio.
         </p>
       </div>
 
@@ -185,7 +185,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                 <LevelList digits={idea.digits} rows={[
                   { label: 'Entry', hint: 'Pending entry level', value: idea.entry, hitEpoch: idea.entryHitEpoch, tone: 'text-entry' },
                   { label: 'Stop-loss', hint: 'Protective stop level', value: idea.stopLoss, hitEpoch: idea.stopLossHitEpoch, tone: 'text-down' },
-                  { label: 'Target', hint: 'Take-profit level', value: idea.takeProfit, hitEpoch: idea.takeProfitHitEpoch, tone: 'text-up' },
+                  { label: 'Take Profit', hint: 'Bollinger Band target', value: idea.takeProfit, hitEpoch: idea.takeProfitHitEpoch, tone: 'text-up' },
                 ]} />
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line/25 pt-3 text-xs text-ink-3">
