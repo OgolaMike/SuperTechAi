@@ -139,7 +139,7 @@ function makeIdea(
   if (![entry, stopLoss, takeProfit].every((value) => Number.isFinite(value) && value > 0)) return null;
   const reward = direction === 'BUY' ? takeProfit - entry : entry - takeProfit;
   const risk = direction === 'BUY' ? entry - stopLoss : stopLoss - entry;
-  // Keep levels defined by the detected pattern instead of forcing a fixed RR.
+  // Stop-loss distance is derived from the Bollinger target at a 1:2 risk/reward ratio.
   if (!(reward > 0 && risk > 0) || !Number.isFinite(reward) || !Number.isFinite(risk)) return null;
   const band = bands[Math.min(candles.length - 1, Math.max(0, candles.findIndex((c) => c.epoch === signalEpoch)))] ?? bands[bands.length - 1];
   if (!band) return null;
@@ -184,7 +184,7 @@ export function buildM15StopOrderIdeas(
     const tolerance = lastBand.deviation * 0.45;
     const minGap = 3;
 
-    // Reversal: three distinct band-side swing rejections clustered into one zone.
+    // Three distinct band-side rejections clustered into a clearly marked price zone.
     const lows = findPivots(candles, 'low', from).filter((p) => {
       const band = bands[p.index];
       return band && p.price <= band.low + (band.deviation * 0.45);
@@ -208,8 +208,9 @@ export function buildM15StopOrderIdeas(
       if (clustered && confirmed && entry < currentPrice) {
         const zone = { startEpoch: bottomGroup[0].epoch, endEpoch: last.epoch,
           low: zoneLow - tolerance * 0.15, high: zoneHigh + tolerance * 0.15 };
-        const stopLoss = zone.low;
-        const takeProfit = neckline;
+        const takeProfit = lastBand.high;
+        const riskDistance = (takeProfit - entry) / 2;
+        const stopLoss = entry - riskDistance;
         const idea = makeIdea(asset, 'BUY', 'TRIPLE BOTTOM', zone,
           entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
@@ -230,8 +231,9 @@ export function buildM15StopOrderIdeas(
       if (clustered && confirmed && entry > currentPrice) {
         const zone = { startEpoch: topGroup[0].epoch, endEpoch: last.epoch,
           low: zoneLow - tolerance * 0.15, high: zoneHigh + tolerance * 0.15 };
-        const stopLoss = zone.high;
-        const takeProfit = neckline;
+        const takeProfit = lastBand.low;
+        const riskDistance = (entry - takeProfit) / 2;
+        const stopLoss = entry + riskDistance;
         const idea = makeIdea(asset, 'SELL', 'TRIPLE TOP', zone,
           entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
@@ -253,8 +255,9 @@ export function buildM15StopOrderIdeas(
         const entry = resistance;
         const zone = { startEpoch: candles[lastIndex - 2].epoch, endEpoch: last.epoch,
           low: resistance - retestTolerance, high: resistance + retestTolerance };
-        const stopLoss = zone.low;
-        const takeProfit = Math.max(...candles.slice(lastIndex - 2, lastIndex + 1).map((candle) => candle.high));
+        const takeProfit = lastBand.high;
+        const riskDistance = (takeProfit - entry) / 2;
+        const stopLoss = entry - riskDistance;
         const idea = makeIdea(asset, 'BUY', 'BREAK & RETEST', zone,
           entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
@@ -267,8 +270,9 @@ export function buildM15StopOrderIdeas(
         const entry = support;
         const zone = { startEpoch: candles[lastIndex - 2].epoch, endEpoch: last.epoch,
           low: support - retestTolerance, high: support + retestTolerance };
-        const stopLoss = zone.high;
-        const takeProfit = Math.min(...candles.slice(lastIndex - 2, lastIndex + 1).map((candle) => candle.low));
+        const takeProfit = lastBand.low;
+        const riskDistance = (entry - takeProfit) / 2;
+        const stopLoss = entry + riskDistance;
         const idea = makeIdea(asset, 'SELL', 'BREAK & RETEST', zone,
           entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
