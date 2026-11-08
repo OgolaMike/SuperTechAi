@@ -11,6 +11,7 @@ export type PushSubscriptionRow = {
   notify_stops: boolean;
   notify_limit_orders: boolean;
   notify_pending_orders: boolean;
+  notify_super_signals: boolean;
   symbols: string[] | null;
   failure_count: number;
 };
@@ -18,7 +19,7 @@ export type PushSubscriptionRow = {
 export type PushEventRow = {
   event_key: string;
   signal_key: string;
-  kind: "signal" | "target" | "stop" | "limit_order" | "pending_order";
+  kind: "signal" | "target" | "stop" | "limit_order" | "pending_order" | "super_signal";
   payload: EventPayload;
 };
 
@@ -144,6 +145,7 @@ export async function loadVapid(db: SupabaseClient): Promise<VapidConfig> {
 
 function wantsEvent(sub: PushSubscriptionRow, event: PushEventRow): boolean {
   if (sub.symbols && !sub.symbols.includes(event.payload.symbol)) return false;
+  if (event.kind === "super_signal") return sub.notify_super_signals;
   if (event.kind === "signal") return sub.notify_signals;
   if (event.kind === "target") return sub.notify_targets;
   if (event.kind === "stop") return sub.notify_stops;
@@ -160,7 +162,10 @@ function buildMessage(event: PushEventRow): string {
   const price = (value: number) => value.toFixed(p.digits);
   let title: string;
   let body: string;
-  if (event.kind === "signal") {
+  if (event.kind === "super_signal") {
+    title = `SUPER SIGNAL ${p.direction} · ${p.assetName}`;
+    body = `All eight timeframes agree · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)} · ${formatTime(p.signalEpoch)}`;
+  } else if (event.kind === "signal") {
     title = `${p.direction} ${p.assetName} · ${p.timeframe}`;
     body = `Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)}\nSignal ${formatTime(p.signalEpoch)}`;
   } else if (event.kind === "target") {
@@ -221,7 +226,7 @@ export async function dispatchPending(
 
   const { data: subs, error: subsError } = await db
     .from("push_subscriptions")
-    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, notify_pending_orders, symbols, failure_count");
+    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, notify_pending_orders, notify_super_signals, symbols, failure_count");
   if (subsError) throw new Error(`Could not read subscriptions: ${subsError.message}`);
   const subscriptions = (subs ?? []) as PushSubscriptionRow[];
 
