@@ -7,14 +7,6 @@ on:
       - "public/academy-demo.html"
       - ".github/workflows/academy-video-worker.yml"
   workflow_dispatch:
-  schedule:
-    - cron: "0 3 * * *"
-  push:
-    branches: [main]
-    paths:
-      - "scripts/academy_video_worker/**"
-      - "public/academy-demo.html"
-      - ".github/workflows/academy-video-worker.yml"
 
 concurrency:
   group: academy-video-publisher
