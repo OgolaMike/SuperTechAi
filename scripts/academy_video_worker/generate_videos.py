@@ -125,11 +125,11 @@ def main():
     download("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx", model)
     download("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin", voices)
     tts = Kokoro(str(model), str(voices))
-    existing = api_get("academy_videos", {"select": "id,lesson_id,status,created_at", "order": "created_at.desc"})
+    existing = api_get("academy_videos", {"select": "id,lesson_id,status,video_url,created_at", "order": "created_at.desc"})
     records = {}
     for row in existing:
         records.setdefault(row["lesson_id"], row)
-    completed = {lesson_id for lesson_id, row in records.items() if row["status"] == "completed"}
+    completed = {lesson_id for lesson_id, row in records.items() if row["status"] == "completed" and isinstance(row.get("video_url"), str) and "-screen-v1.mp4" in row["video_url"]}
     admins = api_get("admin_users", {"select": "user_id", "limit": "1"})
     if not admins:
         raise RuntimeError("No Academy admin account was found for the publisher record.")
@@ -170,7 +170,7 @@ def main():
             render_lesson(tts, lesson, output, browser)
             if output.stat().st_size > 100 * 1024 * 1024:
                 raise RuntimeError("Video exceeds the Academy 100 MB upload limit.")
-            object_path = f"lessons/{lesson_id}-kokoro.mp4"
+            object_path = f"lessons/{lesson_id}-screen-v1.mp4"
             upload = requests.post(
                 f"{SUPABASE_URL}/storage/v1/object/academy-videos/{object_path}",
                 headers={**HEADERS, "Content-Type": "video/mp4", "x-upsert": "true"},
