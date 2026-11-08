@@ -119,7 +119,7 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
           <span className="w-8 text-right tabular-nums">{spacing}px</span>
         </label>
       </div>
-      <div className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain touch-pan-x">
+      <div className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain touch-auto">
         <svg viewBox={`0 0 ${width} ${HEIGHT}`} role="img" aria-label="Scrollable candlestick chart with SMA 60, Bollinger Bands, pattern zone, order levels and market price" style={{ width: `${width}px`, maxWidth: 'none', height: 'auto' }} className="block">
           <defs><linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#60a5fa" stopOpacity="0.16" /><stop offset="100%" stopColor="#60a5fa" stopOpacity="0.02" /></linearGradient></defs>
           {[0, 1, 2, 3].map((step) => {
