@@ -87,7 +87,7 @@ function getBollingerTradeLevels(direction: Direction, entry: number, band: Band
 }
 
 function buildTimeframeAnalysis(states: Record<number, TfState> | undefined, direction: Direction): PendingTimeframeReading[] {
-  return TIMEFRAMES.map((timeframe): PendingTimeframeReading => {
+  return [...TIMEFRAMES].reverse().map((timeframe): PendingTimeframeReading => {
     const state = states?.[timeframe.granularity];
     if (!state || state.candles.length < BB_PERIOD || state.lastClose == null
       || state.currentSma == null || state.stdDev == null) {
@@ -219,12 +219,13 @@ export function buildM15StopOrderIdeas(
       const entry = (zoneLow + zoneHigh) / 2;
       if (clustered && confirmed && entry < currentPrice) {
         const levels = getBollingerTradeLevels('BUY', entry, lastBand);
-        if (!levels) continue;
+        if (levels) {
         const { stopLoss, takeProfit } = levels;
         const idea = makeIdea(asset, 'BUY', 'TRIPLE BOTTOM', {
           startEpoch: bottomGroup[0].epoch, endEpoch: last.epoch, low: zoneLow - tolerance * 0.15, high: zoneHigh + tolerance * 0.15,
         }, entry, stopLoss, takeProfit, currentPrice, last.epoch, candles, bands, aiModel, nowEpoch, statesBySymbol[asset.symbol]);
         if (idea) ideas.push(idea);
+        }
       }
     }
 
