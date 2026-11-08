@@ -66,18 +66,18 @@ function BubbleAssetName({ name, size, id }: { name: string; size: number; id: s
   const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '');
   const pathId = `asset-smile-${safeId}`;
   const label = name.toUpperCase().trim();
-  const fontSize = label.length > 22 ? 5.5 : label.length > 17 ? 6.2 : label.length > 12 ? 7.2 : 8.2;
-  const textWidth = Math.min(108, Math.max(42, label.length * fontSize * 0.62));
+  const fontSize = (label.length > 22 ? 5.5 : label.length > 17 ? 6.2 : label.length > 12 ? 7.2 : 8.2) * 3;
+  const textWidth = Math.min(112, Math.max(42, label.length * fontSize * 0.62));
   return (
     <svg
       aria-label={name}
       role="img"
-      viewBox="0 0 120 32"
+      viewBox="0 0 120 36"
       width={Math.max(76, size - 26)}
-      height="25"
+      height="32"
       className="pointer-events-none block shrink-0 overflow-hidden"
     >
-      <defs><path id={pathId} d="M 4 5 Q 60 30 116 5" /></defs>
+      <defs><path id={pathId} d="M 4 5 Q 60 34 116 5" /></defs>
       <text
         fill="currentColor"
         fontSize={fontSize}
