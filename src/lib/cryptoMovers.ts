@@ -41,6 +41,32 @@ async function readSnapshot(): Promise<MoverRow[]> {
   return (Array.isArray(data) ? data : []) as MoverRow[];
 }
 
+export async function fetchCurrentDayCryptoMovers(): Promise<{ movers: CryptoMover[]; updatedAt: string }> {
+  const { data, error } = await supabase.functions.invoke('crypto-movers', {
+    method: 'POST',
+    body: { period: 'today' },
+  });
+  if (error) throw new Error(error.message);
+  if (!data || typeof data !== 'object' || !Array.isArray(data.movers)) {
+    throw new Error(data && typeof data === 'object' && 'error' in data ? String(data.error) : 'Current-day crypto data is unavailable.');
+  }
+  const movers = data.movers.filter((row: unknown): row is Record<string, unknown> =>
+    typeof row === 'object' && row !== null && typeof row.symbol === 'string' && typeof row.base === 'string'
+      && Number.isFinite(Number(row.changePct)) && Number.isFinite(Number(row.close)),
+  ).map((row: Record<string, unknown>) => ({
+    tradeDate: String(data.tradeDate ?? new Date().toISOString().slice(0, 10)),
+    symbol: String(row.symbol),
+    base: String(row.base),
+    open: Number(row.open),
+    close: Number(row.close),
+    changePct: Number(row.changePct),
+    quoteVolume: Number(row.quoteVolume ?? 0),
+    volumeRank: Number(row.volumeRank ?? 0),
+  })) as CryptoMover[];
+  if (movers.length < 10) throw new Error('Current-day market data returned too few valid assets.');
+  return { movers, updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString() };
+}
+
 export async function fetchCryptoMovers(): Promise<CryptoMover[]> {
   let rows = await readSnapshot();
   const savedDates = new Set(rows.map((row) => row.trade_date));

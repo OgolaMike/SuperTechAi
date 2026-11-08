@@ -64,6 +64,47 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
   try {
     const body: unknown = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+    const isToday = typeof body === "object" && body !== null && "period" in body && body.period === "today";
+    if (isToday) {
+      const [ticker24h, exchangeData] = await Promise.all([
+        getJson("/ticker/24hr"),
+        getJson("/exchangeInfo"),
+      ]);
+      if (!Array.isArray(ticker24h) || !Array.isArray((exchangeData as { symbols?: unknown })?.symbols)) {
+        throw new Error("Market data source returned an invalid spot market list");
+      }
+      const tradable = new Set(
+        (exchangeData as { symbols: ExchangeSymbol[] }).symbols
+          .filter((item) => item.status === "TRADING" && item.quoteAsset === "USDT" && item.isSpotTradingAllowed !== false)
+          .filter((item) => usdtBase(item.symbol) !== null)
+          .map((item) => item.symbol),
+      );
+      const liquidUniverse = ticker24h
+        .filter(isTicker24h)
+        .filter((ticker) => tradable.has(ticker.symbol))
+        .sort((a, b) => Number(b.quoteVolume) - Number(a.quoteVolume))
+        .slice(0, UNIVERSE_SIZE)
+        .map((ticker) => ticker.symbol);
+      if (liquidUniverse.length < 10) throw new Error("Not enough eligible USDT spot pairs were found");
+      const tickerData = await getJson("/ticker/tradingDay?symbols=" + encodeURIComponent(JSON.stringify(liquidUniverse)) + "&timeZone=3&type=FULL");
+      if (!Array.isArray(tickerData)) throw new Error("Binance returned an invalid current trading-day response");
+      const liveRows = tickerData
+        .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+        .filter((item) => typeof item.symbol === "string" && tradable.has(item.symbol))
+        .map((item) => {
+          const symbol = String(item.symbol);
+          const open = Number(item.openPrice);
+          const close = Number(item.lastPrice);
+          const changePct = Number(item.priceChangePercent);
+          const quoteVolume = Number(item.quoteVolume);
+          return { symbol, base: usdtBase(symbol)!, open, close, changePct, quoteVolume };
+        })
+        .filter((item) => item.open > 0 && item.close > 0 && Number.isFinite(item.changePct) && Number.isFinite(item.quoteVolume))
+        .sort((a, b) => b.quoteVolume - a.quoteVolume)
+        .map((item, index) => ({ ...item, volumeRank: index + 1 }));
+      if (liveRows.length < 10) return jsonResponse({ error: "Not enough current-day market data was returned" }, 502);
+      return jsonResponse({ period: "today", tradeDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi" }).format(new Date()), updatedAt: new Date().toISOString(), movers: liveRows });
+    }
     const requestedDate = typeof body === "object" && body !== null && "date" in body
       ? body.date
       : undefined;

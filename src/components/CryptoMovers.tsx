@@ -5,6 +5,7 @@ import type { SignalLearningModel } from '@/lib/aiLearning';
 import { Coins, Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import {
   fetchCryptoMovers,
+  fetchCurrentDayCryptoMovers,
   formatChange,
   formatCompactUsd,
   formatUsd,
@@ -19,6 +20,7 @@ type LoadState = { movers: CryptoMover[]; error: string | null; loading: boolean
 
 export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props) {
   const [load, setLoad] = useState<LoadState>({ movers: [], error: null, loading: true });
+  const [today, setToday] = useState<LoadState & { updatedAt: string | null }>({ movers: [], error: null, loading: true, updatedAt: null });
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
@@ -38,6 +40,21 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
     };
   }, [reloadKey]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const refreshToday = async () => {
+      try {
+        const result = await fetchCurrentDayCryptoMovers();
+        if (!cancelled) setToday({ movers: result.movers, error: null, loading: false, updatedAt: result.updatedAt });
+      } catch (err) {
+        if (!cancelled) setToday((previous) => ({ ...previous, error: err instanceof Error ? err.message : "Current-day data is temporarily unavailable.", loading: false }));
+      }
+    };
+    void refreshToday();
+    const timer = window.setInterval(refreshToday, 60_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [reloadKey]);
+
   const dates = useMemo(() => [...new Set(load.movers.map((mover) => mover.tradeDate))], [load.movers]);
   const activeDate = selectedDate && dates.includes(selectedDate) ? selectedDate : dates[0] ?? null;
   const dayMovers = useMemo(
@@ -53,21 +70,23 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
     [dayMovers],
   );
 
-  const selectedMover = dayMovers.find((mover) => mover.symbol === selectedSymbol) ?? gainers[0] ?? losers[0] ?? null;
+  const todayGainers = useMemo(() => [...today.movers].sort((a, b) => b.changePct - a.changePct).slice(0, LEADERBOARD_SIZE), [today.movers]);
+  const todayLosers = useMemo(() => [...today.movers].sort((a, b) => a.changePct - b.changePct).slice(0, LEADERBOARD_SIZE), [today.movers]);
+  const selectedMover = today.movers.find((mover) => mover.symbol === selectedSymbol) ?? dayMovers.find((mover) => mover.symbol === selectedSymbol) ?? todayGainers[0] ?? todayLosers[0] ?? gainers[0] ?? losers[0] ?? null;
 
   useEffect(() => {
     if (!selectedMover) { setSelectedSymbol(null); return; }
-    if (!dayMovers.some((mover) => mover.symbol === selectedSymbol)) setSelectedSymbol(selectedMover.symbol);
-  }, [selectedMover, selectedSymbol, dayMovers]);
+    if (![...dayMovers, ...today.movers].some((mover) => mover.symbol === selectedSymbol)) setSelectedSymbol(selectedMover.symbol);
+  }, [selectedMover, selectedSymbol, dayMovers, today.movers]);
 
   return (
     <section className="mt-8 flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Crypto watch list</p>
-          <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">7-day crypto market history</h2>
+          <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">Crypto market movers</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            Explore daily top gainers, top losers and the full watchlist across the last 7 completed market days. Binance daily candles retain their UTC market-day boundaries; all SuperTech AI clock times use your device's local timezone. Select any mover to open its live chart, technical analysis and confirmed signals. Add it to your 10 monitored assets to include it in full dashboard, Super Signal, pending-order and configured alert monitoring.
+            See live current EAT-day gainers and losers, then explore the last 7 completed market days. Current-day rankings refresh automatically every 60 seconds. Historical daily candles retain UTC market-day boundaries for historical snapshots. Select any mover to open its live chart and analysis.
           </p>
         </div>
         <button
@@ -78,6 +97,29 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
         >
           <RefreshCw className={`h-4 w-4 ${load.loading ? 'animate-spin' : ''}`} />
         </button>
+      </div>
+
+      <div className="rounded-2xl border border-accent/25 bg-accent/[0.04] p-4 sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Live market day · EAT</p>
+            <h3 className="mt-1 text-lg font-semibold text-ink">Today's gainers and losers</h3>
+            <p className="mt-1 text-xs text-ink-3">Rankings use Binance's current Kenya trading-day change, not the previous rolling 24 hours.</p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-ink-3">
+            <span className={today.loading ? "h-2 w-2 animate-pulse rounded-full bg-accent" : "h-2 w-2 rounded-full bg-up"} />
+            {today.loading && today.movers.length === 0 ? "Loading live rankings…" : today.updatedAt ? "Updated " + new Date(today.updatedAt).toLocaleTimeString() : "Waiting for update"}
+          </div>
+        </div>
+        {today.error && <p className="mb-3 text-xs text-down">Live rankings could not refresh: {today.error}. Showing the last successful update where available.</p>}
+        {today.movers.length > 0 ? (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Leaderboard title="Today's top gainers" tone="up" movers={todayGainers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} />
+            <Leaderboard title="Today's top losers" tone="down" movers={todayLosers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} />
+          </div>
+        ) : (
+          <div className="rounded-xl border border-line/10 p-5 text-sm text-ink-2">{today.loading ? "Connecting to Binance market data…" : "Current-day rankings are temporarily unavailable."}</div>
+        )}
       </div>
 
       {load.error && (
