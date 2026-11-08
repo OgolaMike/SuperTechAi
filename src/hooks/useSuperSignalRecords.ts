@@ -19,9 +19,9 @@ export type SuperSignalRecord = {
   daily_bias: string;
   reads: SuperSignal['reads'];
   explanation: string;
-  grade_percent: number;
-  confirmation_timeframe: string;
-  confirmation_epoch: number;
+  grade_percent: number | null;
+  confirmation_timeframe: string | null;
+  confirmation_epoch: number | null;
   status: 'Open' | 'TP1' | 'TP2' | 'TP3' | 'Stopped' | 'Reversed';
   tp1_hit_epoch: number | null;
   tp2_hit_epoch: number | null;
