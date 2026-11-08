@@ -83,7 +83,7 @@ export function NotificationSettings({ assets }: Props) {
             <div className="flex flex-col gap-3 rounded-2xl border border-line/10 bg-surface/[0.035] px-4 py-3 shadow-sm transition-all duration-200 hover:border-accent/30 hover:bg-surface/[0.06]">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-ink">Assets that send alerts</span>
-                <span className="text-xs text-ink-2">This device receives pending-order alerts only for the assets selected in the top selector.</span>
+                <span className="text-xs text-ink-2">This device receives trading alerts only for the assets selected in the top selector.</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {assets.map((asset) => (
