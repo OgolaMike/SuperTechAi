@@ -133,7 +133,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         </div>
       </div>
 
-      <div ref={chartViewportRef} className="w-full overflow-x-auto overscroll-x-contain touch-pan-x">
+      <div ref={chartViewportRef} className="w-full overflow-x-auto overscroll-x-contain touch-auto">
         <svg viewBox={`0 0 ${svgWidth} ${HEIGHT}`} role="img" aria-label="Candlestick chart with directional market cloud, upper and lower volatility bands, moving average, entry, stop-loss and take-profit levels" style={{ width: zoom === 1 ? '100%' : `${svgWidth}px`, minWidth: zoom === 1 ? '720px' : undefined, maxWidth: 'none', height: 'auto', display: 'block' }}>
           <defs>
             <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
