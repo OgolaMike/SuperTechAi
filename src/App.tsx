@@ -24,6 +24,7 @@ import { ViewNav, type View } from '@/components/ViewNav';
 import { useDerivSignals } from '@/hooks/useDerivSignals';
 import { useSignalAlerts } from '@/hooks/useSignalAlerts';
 import { useSuperSignalAlerts } from '@/hooks/useSuperSignalAlerts';
+import { useSuperSignalRecords } from '@/hooks/useSuperSignalRecords';
 import { usePendingOrderAlerts } from '@/hooks/usePendingOrderAlerts';
 import { useSignalRecordSync } from '@/hooks/useSignalRecordSync';
 import { useTheme } from '@/hooks/useTheme';
@@ -77,7 +78,8 @@ function App() {
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
   const { toasts, dismiss } = useSignalAlerts(views, loaded, soundsEnabled);
-  const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded, soundsEnabled);
+  useSuperSignalAlerts(superSignals, loaded, soundsEnabled);
+  const superSignalHistory = useSuperSignalRecords(superSignals, loaded);
   const sync = useSignalRecordSync(views, loaded);
 
   useEffect(() => {
@@ -193,7 +195,7 @@ function App() {
               <p className="max-w-2xl text-sm text-ink-2">We wait for all eight timeframes to point in the same direction before announcing a Super Signal.</p>
             </div>
             <ReversalContextPanel assets={assets.filter((asset) => selectedSymbols.includes(asset.symbol))} states={states} nowEpoch={now} />
-            <SuperSignalPanel signals={superSignals} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
+            <SuperSignalPanel signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
           </section>
         )}
 
@@ -226,7 +228,7 @@ function App() {
         </footer>
       </div>
 
-      <Toasts toasts={[...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); }} onOpenChart={openSignalChart} />
+      <Toasts toasts={toasts} onDismiss={dismiss} onOpenChart={openSignalChart} />
     </div>
   );
 }
