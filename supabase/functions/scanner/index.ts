@@ -221,7 +221,7 @@ async function processTimeframe(
   candles: Candle[],
   nowEpoch: number,
   previousMark: number | undefined,
-): Promise<{ rowsWritten: number; lastEpoch: number | null }> {
+): Promise<{ rowsWritten: number; lastEpoch: number | null; signals: Signal[] }> {
   const { signals, lastConfirmedEpoch } = computeSignals(candles, timeframe.granularity, nowEpoch);
   const rows = signals.map((signal) => toRow(symbol, timeframe, signal));
   const existing = await loadExisting(rows.map((row) => row.signal_key));
@@ -242,7 +242,7 @@ async function processTimeframe(
     }
   }
 
-  return { rowsWritten: changedRows.length, lastEpoch: lastConfirmedEpoch };
+  return { rowsWritten: changedRows.length, lastEpoch: lastConfirmedEpoch, signals };
 }
 
 async function runScan(): Promise<Record<string, unknown>> {
@@ -379,7 +379,7 @@ async function runScan(): Promise<Record<string, unknown>> {
           // Create review-only backend LIMIT proposals when a fresh M15 signal appears.
           if (timeframe.granularity === 900 && result.lastEpoch !== null &&
               (previousMark === undefined || result.lastEpoch > previousMark)) {
-            const m15Signals = computeSignals(candles, 900, nowEpoch).signals;
+            const m15Signals = result.signals;
             const latestSignal = m15Signals[m15Signals.length - 1];
             const isFreshSignal = latestSignal && !latestSignal.outcome.closed &&
               nowEpoch - (latestSignal.signalEpoch + 900) <= 2 * 900 &&
