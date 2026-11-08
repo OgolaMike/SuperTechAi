@@ -29,9 +29,9 @@ export function AcademyScreenRecorder({ lessonId, lessonTitle }: Props) {
 
   useEffect(() => () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    screenshots.forEach((shot) => URL.revokeObjectURL(shot.url));
-  }, [previewUrl, screenshots]);
+    screenVideoRef.current?.pause();
+    screenVideoRef.current = null;
+  }, []);
 
   const startRecording = async () => {
     setError('');
