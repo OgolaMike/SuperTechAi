@@ -129,7 +129,7 @@ def main():
     records = {}
     for row in existing:
         records.setdefault(row["lesson_id"], row)
-    completed = {lesson_id for lesson_id, row in records.items() if row["status"] == "completed" and isinstance(row.get("video_url"), str) and "-screen-v1.mp4" in row["video_url"]}
+    completed = {lesson_id for lesson_id, row in records.items() if row["status"] == "completed" and isinstance(row.get("video_url"), str) and "-illustrated-v1.mp4" in row["video_url"]}
     admins = api_get("admin_users", {"select": "user_id", "limit": "1"})
     if not admins:
         raise RuntimeError("No Academy admin account was found for the publisher record.")
