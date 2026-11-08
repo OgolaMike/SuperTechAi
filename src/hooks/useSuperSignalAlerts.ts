@@ -33,8 +33,13 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
   }, []);
 
   useEffect(() => {
-    if (!loaded || !superSignalsEnabled) return;
+    if (!loaded) return;
     const currentKeys = new Set(signals.map((signal) => `${signal.symbol}|${signal.direction}|${signal.signalEpoch}`));
+    if (!superSignalsEnabled) {
+      currentKeys.forEach((key) => seenRef.current.add(key));
+      seededRef.current = true;
+      return;
+    }
     if (!seededRef.current) {
       currentKeys.forEach((key) => seenRef.current.add(key));
       seededRef.current = true;
