@@ -1,192 +1,239 @@
-import { ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Info, Loader2, Sparkles } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { EntryTime, LevelList, CurrentPrice, directionExplanation } from '@/components/SignalParts';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowDownRight, ArrowUpRight, Check, Clock3, Info, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { formatDateTime, formatPrice } from '@/lib/sma';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
-import type { Classification, SuperSignal } from '@/lib/intelligence';
+import type { SuperSignal } from '@/lib/intelligence';
+import type { SuperSignalRecord } from '@/hooks/useSuperSignalRecords';
 import type { TfState } from '@/lib/sma';
 import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
 
 type Props = {
   signals: SuperSignal[];
+  records: SuperSignalRecord[];
+  recordsLoading: boolean;
+  recordsError: string | null;
+  onRefreshRecords: () => void;
   prices: Record<string, number>;
   loaded: boolean;
   aiModel: SignalLearningModel;
   states: Record<string, Record<number, TfState>>;
 };
 
-const STRENGTH_STYLE: Record<Classification, string> = {
-  'Strong alignment': 'border-up/30 bg-up/10 text-up',
-  'Moderate alignment': 'border-accent/30 bg-accent/10 text-accent',
-  'Early signal': 'border-warn/30 bg-warn/10 text-warn',
-  'Counter-trend': 'border-down/30 bg-down/10 text-down',
-};
+const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'H8', 'D1'];
 
-const STRENGTH_LABEL: Record<Classification, string> = {
-  'Strong alignment': 'All 8 agree',
-  'Moderate alignment': 'Good',
-  'Early signal': 'Early',
-  'Counter-trend': 'Mixed',
-};
+function signalKey(signal: Pick<SuperSignal, 'symbol' | 'direction' | 'signalEpoch'>) {
+  return `${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`;
+}
 
-export function SuperSignalPanel({ signals, prices, loaded, aiModel, states }: Props) {
-  const sliderRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-  const updateSliderControls = useCallback(() => {
-    const slider = sliderRef.current;
-    if (!slider) return;
-    setCanScrollLeft(slider.scrollLeft > 4);
-    setCanScrollRight(slider.scrollLeft + slider.clientWidth < slider.scrollWidth - 4);
-  }, []);
-  useEffect(() => {
-    updateSliderControls();
-    window.addEventListener('resize', updateSliderControls);
-    return () => window.removeEventListener('resize', updateSliderControls);
-  }, [loaded, signals.length, updateSliderControls]);
-  const scrollSlider = (direction: -1 | 1) => {
-    const slider = sliderRef.current;
-    if (!slider) return;
-    const card = slider.querySelector<HTMLElement>('[data-super-signal-card]');
-    slider.scrollBy({ left: direction * (card ? card.offsetWidth + 16 : slider.clientWidth * 0.85), behavior: 'smooth' });
+function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
+  return {
+    signal_key: signalKey(signal),
+    symbol: signal.symbol,
+    asset_name: signal.name,
+    digits: signal.digits,
+    direction: signal.direction,
+    signal_epoch: signal.signalEpoch,
+    entry: signal.levels.entry,
+    stop_loss: signal.levels.stopLoss,
+    tp1: signal.levels.tp1,
+    tp2: signal.levels.tp2,
+    tp3: signal.levels.tp3,
+    daily_bias: signal.dailyBias,
+    reads: signal.reads,
+    explanation: signal.explanation,
+    status: 'Open',
+    tp1_hit_epoch: null,
+    tp2_hit_epoch: null,
+    tp3_hit_epoch: null,
+    sl_hit_epoch: null,
+    closed: false,
+    created_at: new Date(signal.signalEpoch * 1000).toISOString(),
   };
-  if (!loaded) {
-    return (
-      <div className="flex items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] p-6 text-sm text-ink-2">
-        <Loader2 className="h-4 w-4 animate-spin text-accent" />
-        Checking the market…
-      </div>
-    );
-  }
+}
 
-  if (signals.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] px-6 py-12 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-accent/30 bg-accent/10">
-          <Sparkles className="h-5 w-5 text-accent" />
-        </div>
-        <h3 className="text-lg font-semibold text-ink">No Super Signal right now</h3>
-        <p className="max-w-md text-sm leading-relaxed text-ink-2">
-          We only show a Super Signal when all 8 timeframes (M1, M5, M15, M30, H1, H4, H8 and D1) point up together or down together. If they disagree, we wait.
-        </p>
-      </div>
-    );
+export function SuperSignalPanel({
+  signals, records, recordsLoading, recordsError, onRefreshRecords,
+  prices, loaded, aiModel, states,
+}: Props) {
+  const [selectedKey, setSelectedKey] = useState('');
+
+  const allRecords = useMemo(() => {
+    const byKey = new Map(records.map((record) => [record.signal_key, record]));
+    for (const signal of signals) {
+      const live = fromLiveSignal(signal);
+      if (!byKey.has(live.signal_key)) byKey.set(live.signal_key, live);
+    }
+    return [...byKey.values()].sort((a, b) => b.signal_epoch - a.signal_epoch);
+  }, [records, signals]);
+
+  useEffect(() => {
+    if (!allRecords.length) {
+      setSelectedKey('');
+      return;
+    }
+    if (!allRecords.some((record) => record.signal_key === selectedKey)) {
+      setSelectedKey(allRecords[0].signal_key);
+    }
+  }, [allRecords, selectedKey]);
+
+  const selected = allRecords.find((record) => record.signal_key === selectedKey) ?? allRecords[0];
+
+  if (!loaded && recordsLoading) {
+    return <div className="flex items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] p-6 text-sm text-ink-2"><Loader2 className="h-4 w-4 animate-spin text-accent" />Checking the market and loading saved Super Signals…</div>;
   }
 
   return (
-    <div className="space-y-3">
-      <div className="mb-2 flex items-center justify-end gap-2">
-        <span className="mr-auto text-xs font-medium uppercase tracking-[0.16em] text-ink-3">Signal carousel</span>
-        <button type="button" onClick={() => scrollSlider(-1)} disabled={!canScrollLeft} aria-label="Previous Super Signal" className="slider-arrow">
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <button type="button" onClick={() => scrollSlider(1)} disabled={!canScrollRight} aria-label="Next Super Signal" className="slider-arrow">
-          <ArrowRight className="h-4 w-4" />
-        </button>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">Super Signal history</div>
+          <p className="mt-1 text-sm text-ink-2">Select one signal to inspect its entry, eight-timeframe confirmation and recorded result.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-line/15 bg-surface/[0.04] px-3 py-1.5 text-xs font-semibold text-ink-2">{allRecords.length} saved</span>
+          <button type="button" onClick={onRefreshRecords} aria-label="Refresh Super Signal history" className="flex h-9 w-9 items-center justify-center rounded-xl border border-line/10 bg-surface/[0.03] text-ink-2 hover:text-ink">
+            <RefreshCw className={`h-4 w-4 ${recordsLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
-      <div ref={sliderRef} onScroll={updateSliderControls} className="super-signal-slider flex w-full min-w-0 snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 touch-auto">
-      {signals.map((signal) => (
-        <SuperSignalCard
-          key={`${signal.symbol}-${signal.signalEpoch}`}
-          signal={signal}
-          price={prices[signal.symbol]}
-          aiModel={aiModel}
-          candles={states[signal.symbol]?.[900]?.candles ?? []}
-        />
-      ))}
-      </div>
-      <p className="flex items-start gap-2 text-sm text-ink-3">
-        <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
-        These are market alerts, not automatic trades. Always check the price and risk before acting.
-      </p>
+
+      {recordsError && <div className="rounded-xl border border-down/30 bg-down/10 px-4 py-3 text-sm text-down">History could not sync: {recordsError}</div>}
+
+      {allRecords.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] px-6 py-12 text-center">
+          <Sparkles className="h-6 w-6 text-accent" />
+          <h3 className="text-lg font-semibold text-ink">No Super Signal recorded yet</h3>
+          <p className="max-w-md text-sm text-ink-2">When all eight timeframes agree, the signal will be added here and kept for outcome tracking.</p>
+        </div>
+      ) : (
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(250px,0.78fr)_minmax(0,1.7fr)]">
+          <div className="min-w-0 space-y-2">
+            <div className="max-h-[620px] space-y-2 overflow-y-auto overscroll-y-contain pr-1">
+              {allRecords.map((record) => (
+                <button
+                  key={record.signal_key}
+                  type="button"
+                  onClick={() => setSelectedKey(record.signal_key)}
+                  aria-pressed={selected?.signal_key === record.signal_key}
+                  className={`w-full min-w-0 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${selected?.signal_key === record.signal_key ? 'border-accent/50 bg-accent/10 shadow-[0_0_18px_rgba(212,175,55,0.08)]' : 'border-line/10 bg-surface/[0.025] hover:border-line/25 hover:bg-surface/[0.05]'}`}
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="break-words text-sm font-bold text-ink">{record.asset_name}</div>
+                      <div className="mt-0.5 truncate text-xs text-ink-3">{record.symbol}</div>
+                    </div>
+                    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black tracking-wider ${record.direction === 'BUY' ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>{record.direction}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-accent">8/8 CONFIRMED</span>
+                    <OutcomeBadge status={record.status} closed={record.closed} />
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" />{formatDateTime(record.signal_epoch)}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {selected && (
+            <SuperSignalDetails
+              record={selected}
+              price={prices[selected.symbol]}
+              candles={states[selected.symbol]?.[900]?.candles ?? []}
+              aiModel={aiModel}
+            />
+          )}
+        </div>
+      )}
+
+      <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3"><Info className="mt-0.5 h-4 w-4 shrink-0" />Super Signals remain in this history after the live alert disappears. Profit and stop outcomes update from the matching recorded M15 signal.</p>
     </div>
   );
 }
 
-function SuperSignalCard({
-  signal,
-  price,
-  aiModel,
-  candles,
-}: {
-  signal: SuperSignal;
+function SuperSignalDetails({ record, price, candles, aiModel }: {
+  record: SuperSignalRecord;
+  price?: number;
   candles: import('@/lib/deriv').Candle[];
-  price: number | undefined;
   aiModel: SignalLearningModel;
 }) {
-  const isBuy = signal.direction === 'BUY';
+  const isBuy = record.direction === 'BUY';
   const DirectionIcon = isBuy ? ArrowUpRight : ArrowDownRight;
-  const { levels } = signal;
-  const aiScore = getAiPatternScore(aiModel, 900, signal.direction, levels);
+  const levels = [
+    { label: 'Entry', value: record.entry, tone: 'text-ink', hit: null },
+    { label: 'Stop-loss', value: record.stop_loss, tone: 'text-down', hit: record.sl_hit_epoch },
+    { label: 'Take-profit 1', value: record.tp1, tone: 'text-up', hit: record.tp1_hit_epoch },
+    { label: 'Take-profit 2', value: record.tp2, tone: 'text-up', hit: record.tp2_hit_epoch },
+    { label: 'Take-profit 3', value: record.tp3, tone: 'text-up', hit: record.tp3_hit_epoch },
+  ];
+  const score = getAiPatternScore(aiModel, 900, record.direction, {
+    entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3,
+    mean: record.entry, deviation: 0,
+  });
 
   return (
-    <article
-      data-super-signal-card
-      className={`hud-panel flex w-full min-w-full max-w-full snap-start snap-always flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-colors duration-300 sm:min-w-full sm:max-w-full sm:p-5 ${
-        isBuy ? 'border-up/25 hover:border-up/50' : 'border-down/25 hover:border-down/50'
-      }`}
-    >
-      <header className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <article className="min-w-0 space-y-4 rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="break-words text-xl font-semibold text-ink">{signal.name}</h3>
-          <p className="mt-0.5 text-sm text-ink-3">{signal.symbol}</p>
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 8/8</div>
+          <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
+          <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
         </div>
-        <span
-          className={`inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold tracking-wide sm:flex-shrink-0 sm:text-base sm:tracking-wider ${
-            isBuy ? 'border-up/40 bg-up/10 text-up' : 'border-down/40 bg-down/10 text-down'
-          }`}
-        >
-          <DirectionIcon className="h-4 w-4" />
-          {signal.direction === 'BUY' ? 'BUY — UP' : 'SELL — DOWN'}
-        </span>
+        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-black ${isBuy ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'}`}><DirectionIcon className="h-4 w-4" />{record.direction}</span>
       </header>
 
-      <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-up/60 bg-up/10 px-4 py-3 text-up shadow-[0_0_22px_rgba(34,197,94,0.16)]"><div><div className="text-[10px] font-bold uppercase tracking-[0.18em]">8-timeframe signal grade</div><div className="text-xs font-semibold">SUPER SIGNAL · All timeframes agree</div></div><div className="text-3xl font-black tabular-nums">8<span className="text-lg opacity-70">/8</span></div></div>
-
-      <p className="text-sm leading-relaxed text-ink-2">{directionExplanation(signal.direction)}</p>
-
-      <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">AI pattern score</div>
-        {aiScore === null ? (
-          <p className="mt-1 text-sm text-ink-2">AI is still learning from completed signals. No score yet.</p>
-        ) : (
-          <>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-accent">{aiScore}/100</span>
-              <span className="text-xs text-ink-3">match with past results</span>
-            </div>
-            <p className="mt-1 text-xs text-ink-3">This is a pattern score, not a promise of profit.</p>
-          </>
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/[0.06] p-3">
+        <div><div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Signal fired</div><div className="mt-1 text-sm font-semibold text-ink">{formatDateTime(record.signal_epoch)}</div></div>
+        <div className="text-right"><div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Recorded outcome</div><div className="mt-1"><OutcomeBadge status={record.status} closed={record.closed} /></div></div>
       </div>
 
-      <EntryTime epoch={signal.signalEpoch} direction={signal.direction} />
-      <CurrentPrice price={price} entry={levels.entry} direction={signal.direction} digits={signal.digits} />
-
-      <LevelList
-        digits={signal.digits}
-        rows={[
-          { label: 'Suggested entry', hint: 'Price where the signal started.', value: levels.entry, hitEpoch: null, tone: 'text-ink' },
-          { label: 'Stop-loss', hint: 'Exit here to limit the loss.', value: levels.stopLoss, hitEpoch: null, tone: 'text-down' },
-          { label: 'Take-profit 1', hint: 'First profit level.', value: levels.tp1, hitEpoch: null, tone: 'text-up' },
-          { label: 'Take-profit 2', hint: 'Second profit level.', value: levels.tp2, hitEpoch: null, tone: 'text-up' },
-          { label: 'Take-profit 3', hint: 'Final profit level.', value: levels.tp3, hitEpoch: null, tone: 'text-up' },
-        ]}
-      />
-
-      <SignalChartSnapshot candles={candles} levels={levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe="M15" digits={signal.digits} assetName={signal.name} symbol={signal.symbol} anchorId={`super-signal-chart-${signal.symbol}`} />
-
-      <div className="flex flex-col items-start gap-3 rounded-xl border border-line/10 bg-surface/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4">
-        <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">Why this signal?</div>
-          <p className="mt-1 text-sm leading-relaxed text-ink-2">
-            All 8 timeframes agree. This means the short and long charts are pointing in the same direction.
-          </p>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-up">8/8 · SUPER SIGNAL CONFIRMED</p>
+      <div>
+        <div className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-3">Eight-timeframe confirmation</div>
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+          {TIMEFRAMES.map((timeframe) => {
+            const read = record.reads.find((item) => item.label === timeframe);
+            const agrees = read?.agrees === true;
+            return <div key={timeframe} className={`rounded-lg border px-1.5 py-2 text-center ${agrees ? 'border-up/25 bg-up/10 text-up' : 'border-line/10 bg-surface/[0.03] text-ink-3'}`}>
+              <div className="text-[10px] font-bold">{timeframe}</div>
+              <div className="mt-1 flex justify-center">{agrees ? <Check className="h-3.5 w-3.5" /> : <span className="text-[10px]">—</span>}</div>
+            </div>;
+          })}
         </div>
-        <span className={`max-w-full rounded-full border px-3 py-1 text-xs font-semibold sm:flex-shrink-0 sm:text-sm ${STRENGTH_STYLE[signal.classification]}`}>
-          {STRENGTH_LABEL[signal.classification]}
-        </span>
       </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <Metric label="Entry price" value={formatPrice(record.entry, record.digits)} />
+        <Metric label="Current price" value={price == null ? 'Unavailable' : formatPrice(price, record.digits)} />
+        <Metric label="AI pattern score" value={score == null ? 'Learning' : `${score}/100`} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {levels.map((level) => (
+          <div key={level.label} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.025] p-3">
+            <div className="min-w-0"><div className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">{level.label}</div><div className={`mt-1 break-all font-mono text-sm font-bold tabular-nums ${level.tone}`}>{formatPrice(level.value, record.digits)}</div></div>
+            <div className="shrink-0 text-right text-[10px] text-ink-3">{level.hit ? <span className={level.tone}>Hit {formatDateTime(level.hit)}</span> : 'Not hit'}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-line/10 bg-surface/[0.025] p-3">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">What confirmed it</div>
+        <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'All eight timeframes confirmed the same direction at the time this signal fired.'}</p>
+      </div>
+
+      {candles.length > 0 && <SignalChartSnapshot candles={candles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.entry, deviation: 0 }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${record.symbol}`} />}
     </article>
   );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0 rounded-xl border border-line/10 bg-surface/[0.025] p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">{label}</div><div className="mt-1 break-words font-mono text-sm font-bold text-ink">{value}</div></div>;
+}
+
+function OutcomeBadge({ status, closed }: { status: SuperSignalRecord['status']; closed: boolean }) {
+  const tone = status === 'TP1' || status === 'TP2' || status === 'TP3'
+    ? 'border-up/25 bg-up/10 text-up'
+    : status === 'Stopped' ? 'border-down/25 bg-down/10 text-down'
+    : 'border-accent/25 bg-accent/10 text-accent';
+  const label = status === 'Open' ? 'Open' : status === 'Stopped' ? 'Stop hit' : status === 'Reversed' ? 'Reversed' : `${status} hit`;
+  return <span className={`inline-flex w-fit rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${tone}`}>{closed ? `Closed · ${label}` : label}</span>;
 }
