@@ -86,14 +86,25 @@ function latestAlignmentEpoch(state: TfState, expected: Bias): number | null {
 
   let previousBias: Bias = 'No data';
   let latestEntryEpoch: number | null = null;
+  const baseline = candles[0].close;
+  let rollingSum = 0;
+  let rollingSquares = 0;
 
-  for (let index = SMA_PERIOD - 1; index < candles.length; index += 1) {
-    const window = candles.slice(index - SMA_PERIOD + 1, index + 1);
-    const mean = window.reduce((sum, candle) => sum + candle.close, 0) / SMA_PERIOD;
-    const variance = window.reduce(
-      (sum, candle) => sum + Math.pow(candle.close - mean, 2),
-      0,
-    ) / SMA_PERIOD;
+  for (let index = 0; index < candles.length; index += 1) {
+    const value = candles[index].close - baseline;
+    rollingSum += value;
+    rollingSquares += value * value;
+
+    if (index >= SMA_PERIOD) {
+      const removed = candles[index - SMA_PERIOD].close - baseline;
+      rollingSum -= removed;
+      rollingSquares -= removed * removed;
+    }
+    if (index < SMA_PERIOD - 1) continue;
+
+    const meanOffset = rollingSum / SMA_PERIOD;
+    const mean = baseline + meanOffset;
+    const variance = Math.max(0, rollingSquares / SMA_PERIOD - meanOffset * meanOffset);
     const bias = biasOfValues(candles[index].close, mean, Math.sqrt(variance));
 
     if (bias === expected && previousBias !== expected) {
