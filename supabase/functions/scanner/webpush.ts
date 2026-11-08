@@ -12,6 +12,8 @@ export type PushSubscriptionRow = {
   notify_limit_orders: boolean;
   notify_pending_orders: boolean;
   notify_super_signals: boolean;
+  notify_income: boolean;
+  notify_business: boolean;
   symbols: string[] | null;
   failure_count: number;
 };
@@ -19,7 +21,7 @@ export type PushSubscriptionRow = {
 export type PushEventRow = {
   event_key: string;
   signal_key: string;
-  kind: "signal" | "target" | "stop" | "limit_order" | "pending_order" | "super_signal";
+  kind: "signal" | "target" | "stop" | "limit_order" | "pending_order" | "super_signal" | "income" | "business";
   payload: EventPayload;
 };
 
@@ -41,6 +43,9 @@ export type EventPayload = {
   strengthScore?: number;
   momentumScore?: number;
   timeframeAgreement?: number;
+  title?: string;
+  message?: string;
+  eventType?: string;
 };
 
 const encoder = new TextEncoder();
@@ -144,6 +149,8 @@ export async function loadVapid(db: SupabaseClient): Promise<VapidConfig> {
 }
 
 function wantsEvent(sub: PushSubscriptionRow, event: PushEventRow): boolean {
+  if (event.kind === 'income') return sub.notify_income;
+  if (event.kind === 'business') return sub.notify_business;
   if (sub.symbols && !sub.symbols.includes(event.payload.symbol)) return false;
   if (event.kind === "super_signal") return sub.notify_super_signals;
   if (event.kind === "signal") return sub.notify_signals;
@@ -162,7 +169,10 @@ function buildMessage(event: PushEventRow): string {
   const price = (value: number) => value.toFixed(p.digits);
   let title: string;
   let body: string;
-  if (event.kind === "super_signal") {
+  if (event.kind === "income" || event.kind === "business") {
+    title = p.title ?? (event.kind === "income" ? "Income update · SuperTech AI" : "Business update · SuperTech AI");
+    body = p.message ?? (event.kind === "income" ? "A new earning has been credited to your account." : "There is new activity in your referral business.");
+  } else if (event.kind === "super_signal") {
     title = `SUPER SIGNAL ${p.direction} · ${p.assetName}`;
     body = `All eight timeframes agree · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)} · ${formatTime(p.signalEpoch)}`;
   } else if (event.kind === "signal") {
@@ -226,7 +236,7 @@ export async function dispatchPending(
 
   const { data: subs, error: subsError } = await db
     .from("push_subscriptions")
-    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, notify_pending_orders, notify_super_signals, symbols, failure_count");
+    .select("endpoint, p256dh, auth, notify_signals, notify_targets, notify_stops, notify_limit_orders, notify_pending_orders, notify_super_signals, notify_income, notify_business, symbols, failure_count");
   if (subsError) throw new Error(`Could not read subscriptions: ${subsError.message}`);
   const subscriptions = (subs ?? []) as PushSubscriptionRow[];
 
