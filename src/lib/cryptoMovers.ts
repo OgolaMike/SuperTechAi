@@ -50,21 +50,28 @@ export async function fetchCurrentDayCryptoMovers(): Promise<{ movers: CryptoMov
   if (!data || typeof data !== 'object' || !Array.isArray(data.movers)) {
     throw new Error(data && typeof data === 'object' && 'error' in data ? String(data.error) : 'Current-day crypto data is unavailable.');
   }
-  const movers = data.movers.filter((row: unknown): row is Record<string, unknown> =>
-    typeof row === 'object' && row !== null && typeof row.symbol === 'string' && typeof row.base === 'string'
-      && Number.isFinite(Number(row.changePct)) && Number.isFinite(Number(row.close)),
-  ).map((row: Record<string, unknown>) => ({
-    tradeDate: String(data.tradeDate ?? new Date().toISOString().slice(0, 10)),
-    symbol: String(row.symbol),
-    base: String(row.base),
-    open: Number(row.open),
-    close: Number(row.close),
-    changePct: Number(row.changePct),
-    quoteVolume: Number(row.quoteVolume ?? 0),
-    volumeRank: Number(row.volumeRank ?? 0),
-  })) as CryptoMover[];
+  const payload = data as Record<string, unknown>;
+  const rawMovers: unknown[] = Array.isArray(payload.movers) ? payload.movers : [];
+  const movers = rawMovers.flatMap((value): CryptoMover[] => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return [];
+    const row = value as Record<string, unknown>;
+    const changePct = Number(row.changePct);
+    const close = Number(row.close);
+    if (typeof row.symbol !== 'string' || typeof row.base !== 'string'
+      || !Number.isFinite(changePct) || !Number.isFinite(close)) return [];
+    return [{
+      tradeDate: String(payload.tradeDate ?? new Date().toISOString().slice(0, 10)),
+      symbol: row.symbol,
+      base: row.base,
+      open: Number(row.open ?? 0),
+      close,
+      changePct,
+      quoteVolume: Number(row.quoteVolume ?? 0),
+      volumeRank: Number(row.volumeRank ?? 0),
+    }];
+  });
   if (movers.length < 10) throw new Error('Current-day market data returned too few valid assets.');
-  return { movers, updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString() };
+  return { movers, updatedAt: typeof payload.updatedAt === 'string' ? payload.updatedAt : new Date().toISOString() };
 }
 
 export async function fetchCryptoMovers(): Promise<CryptoMover[]> {

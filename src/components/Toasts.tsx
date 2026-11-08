@@ -40,7 +40,7 @@ function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; 
 }
 
 
-function HitBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; index: number; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number) => void }) {
+function HitBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; index: number; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number, chartTargetId?: string) => void }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => onDismiss(toast.id), TOAST_DURATION_MS);
