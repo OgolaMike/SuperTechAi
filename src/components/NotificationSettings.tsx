@@ -10,6 +10,7 @@ const CATEGORIES: { key: BoolPrefKey; label: string; description: string }[] = [
   { key: 'stops', label: 'Stop-loss hits', description: 'A stop-loss reached on a confirmed candle close.' },
   { key: 'limitOrders', label: 'New limit-order signals', description: 'M15/M5/M1 confluence limit-entry opportunities.' },
   { key: 'pendingOrders', label: 'Pending-order alerts', description: 'New confirmed M15 BB(60, 2.5) reversal setups for your selected assets.' },
+  { key: 'superSignals', label: 'Super Signals', description: 'Dedicated alerts when all eight timeframes agree on one opportunity.' },
 ];
 
 const STATUS_TEXT: Record<PushStatus, string> = {
@@ -79,7 +80,7 @@ export function NotificationSettings({ assets }: Props) {
           ) : null}
 
           {isOn && assets.length > 0 && (
-            <div className="flex flex-col gap-3 rounded-xl border border-line/10 bg-surface/[0.02] px-4 py-3">
+            <div className="flex flex-col gap-3 rounded-2xl border border-line/10 bg-surface/[0.035] px-4 py-3 shadow-sm transition-all duration-200 hover:border-accent/30 hover:bg-surface/[0.06]">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-ink">Assets that send alerts</span>
                 <span className="text-xs text-ink-2">This device receives pending-order alerts only for the assets selected in the top selector.</span>
@@ -105,7 +106,7 @@ export function NotificationSettings({ assets }: Props) {
                 type="button"
                 onClick={disable}
                 disabled={busy}
-                className="inline-flex items-center gap-2 rounded-xl border border-line/10 bg-surface/[0.05] px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface/[0.09] disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-line/20 bg-surface/[0.06] px-5 py-2.5 text-sm font-semibold text-ink shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-down/40 hover:bg-down/10 hover:text-down active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                 Turn off on this device
@@ -115,7 +116,7 @@ export function NotificationSettings({ assets }: Props) {
                 type="button"
                 onClick={enable}
                 disabled={busy || status === 'blocked'}
-                className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-transform duration-200 hover:scale-[1.02] disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-accent/40 bg-gradient-to-r from-accent to-up px-5 py-2.5 text-sm font-bold text-canvas shadow-[0_6px_22px_rgba(34,197,94,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_9px_28px_rgba(34,197,94,0.25)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 Allow notifications
@@ -162,13 +163,13 @@ function ToggleRow({
         aria-labelledby={`${label}-label`}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200 disabled:opacity-60 ${
-          checked ? 'bg-accent' : 'bg-line/20'
+        className={`relative h-7 w-12 flex-shrink-0 rounded-full border border-white/10 shadow-inner transition-all duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-60 ${
+          checked ? 'bg-gradient-to-r from-accent to-up shadow-[0_0_14px_rgba(34,197,94,0.22)]' : 'bg-line/25'
         }`}
       >
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-            checked ? 'translate-x-[22px]' : 'translate-x-0.5'
+          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md ring-1 ring-black/10 transition-transform duration-300 ease-out ${
+            checked ? 'translate-x-[20px]' : 'translate-x-0'
           }`}
         />
       </button>
