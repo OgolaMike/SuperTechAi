@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
         .slice(0, UNIVERSE_SIZE)
         .map((ticker) => ticker.symbol);
       if (liquidUniverse.length < 10) throw new Error("Not enough eligible USDT spot pairs were found");
-      const tickerData = await getJson("/ticker/tradingDay?symbols=" + encodeURIComponent(JSON.stringify(liquidUniverse)) + "&timeZone=0&type=FULL");
+      const tickerData = await getJson("/ticker/tradingDay?symbols=" + encodeURIComponent(JSON.stringify(liquidUniverse)) + "&timeZone=3&type=FULL");
       if (!Array.isArray(tickerData)) throw new Error("Binance returned an invalid current trading-day response");
       const liveRows = tickerData
         .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
         .sort((a, b) => b.quoteVolume - a.quoteVolume)
         .map((item, index) => ({ ...item, volumeRank: index + 1 }));
       if (liveRows.length < 10) return jsonResponse({ error: "Not enough current-day market data was returned" }, 502);
-      return jsonResponse({ period: "today", tradeDate: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString(), movers: liveRows });
+      return jsonResponse({ period: "today", tradeDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi" }).format(new Date()), updatedAt: new Date().toISOString(), movers: liveRows });
     }
     const requestedDate = typeof body === "object" && body !== null && "date" in body
       ? body.date
