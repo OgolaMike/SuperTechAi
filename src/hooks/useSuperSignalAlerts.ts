@@ -6,6 +6,14 @@ import { showSignalNotification } from '@/lib/deviceNotify';
 
 export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, soundsEnabled: boolean) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const superSignalsEnabled = (() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('supertech-push-prefs') ?? 'null');
+      return saved?.superSignals !== false;
+    } catch {
+      return true;
+    }
+  })();
   const seenRef = useRef<Set<string>>(new Set());
   const seededRef = useRef(false);
 
@@ -14,7 +22,7 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !superSignalsEnabled) return;
     const currentKeys = new Set(signals.map((signal) => `${signal.symbol}|${signal.direction}|${signal.signalEpoch}`));
     if (!seededRef.current) {
       currentKeys.forEach((key) => seenRef.current.add(key));
@@ -54,7 +62,7 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
       ).catch(() => undefined);
     }
     if (created.length) setToasts((current) => [...created, ...current].slice(0, 4));
-  }, [signals, loaded, soundsEnabled]);
+  }, [signals, loaded, soundsEnabled, superSignalsEnabled]);
 
   return { toasts, dismiss };
 }
