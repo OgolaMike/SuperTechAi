@@ -6,14 +6,25 @@ import { showSignalNotification } from '@/lib/deviceNotify';
 
 export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, soundsEnabled: boolean) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const superSignalsEnabled = (() => {
+  const [superSignalsEnabled, setSuperSignalsEnabled] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('supertech-push-prefs') ?? 'null');
-      return saved?.superSignals !== false;
+      return JSON.parse(localStorage.getItem('supertech-push-prefs') ?? 'null')?.superSignals !== false;
     } catch {
       return true;
     }
-  })();
+  });
+
+  useEffect(() => {
+    const syncPreference = () => {
+      try {
+        setSuperSignalsEnabled(JSON.parse(localStorage.getItem('supertech-push-prefs') ?? 'null')?.superSignals !== false);
+      } catch {
+        setSuperSignalsEnabled(true);
+      }
+    };
+    window.addEventListener('supertech-push-prefs-changed', syncPreference);
+    return () => window.removeEventListener('supertech-push-prefs-changed', syncPreference);
+  }, []);
   const seenRef = useRef<Set<string>>(new Set());
   const seededRef = useRef(false);
 
