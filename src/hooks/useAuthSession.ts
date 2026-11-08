@@ -34,48 +34,70 @@ export function useAuthSession(): AuthState {
 
   useEffect(() => {
     let active = true;
-    let recovery = new URLSearchParams(location.search).get('auth') === 'recovery';
-    const emailConfirmed = new URLSearchParams(location.search).get('auth') === 'confirmed';
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    let recovery = params.get('auth') === 'recovery' || hashParams.get('type') === 'recovery';
+    const confirmationRequested = params.get('auth') === 'confirmed';
 
     const apply = async (session: Session | null, isRecovery = recovery) => {
       recovery = isRecovery;
       if (!session) {
         if (active) setState({
-          ready: true, session: null, isAdmin: false, isApproved: false,
-          accessError: false, isPasswordRecovery: isRecovery, isEmailConfirmed: emailConfirmed,
+          ready: true,
+          session: null,
+          isAdmin: false,
+          isApproved: false,
+          accessError: false,
+          isPasswordRecovery: isRecovery,
+          isEmailConfirmed: false,
         });
         return;
       }
       try {
         const access = await checkAccess(session.user.id);
         if (active) setState({
-          ready: true, session, ...access, accessError: false,
-          isPasswordRecovery: isRecovery, isEmailConfirmed: emailConfirmed,
+          ready: true,
+          session,
+          ...access,
+          accessError: false,
+          isPasswordRecovery: isRecovery,
+          isEmailConfirmed: confirmationRequested && Boolean(session.user.email_confirmed_at),
         });
       } catch {
         if (active) setState(s => ({
-          ...s, ready: true, session, accessError: true,
-          isPasswordRecovery: isRecovery, isEmailConfirmed: emailConfirmed,
+          ...s,
+          ready: true,
+          session,
+          accessError: true,
+          isPasswordRecovery: isRecovery,
+          isEmailConfirmed: confirmationRequested && Boolean(session.user.email_confirmed_at),
         }));
       }
     };
 
-    supabase.auth.getSession().then(({ data, error }) => {
+    void supabase.auth.getSession().then(({ data, error }) => {
       if (error) {
-        if (active) setState(s => ({ ...s, ready: true, accessError: true, isEmailConfirmed: emailConfirmed }));
+        if (active) setState(s => ({ ...s, ready: true, accessError: true }));
         return;
       }
       void apply(data.session, recovery);
     });
 
+    // Supabase warns against making Supabase queries inside this callback.
+    // Defer membership checks until after the auth callback has returned, or
+    // the auth lock can block the very session transition needed for login.
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') void apply(session, true);
-      else if (event === 'SIGNED_OUT') void apply(null, false);
-      else void apply(session, recovery);
+      if (event === 'PASSWORD_RECOVERY') recovery = true;
+      if (event === 'SIGNED_OUT') recovery = false;
+      window.setTimeout(() => {
+        if (active) void apply(session, recovery);
+      }, 0);
     });
 
     const retry = () => {
-      if (navigator.onLine) void supabase.auth.getSession().then(({ data }) => apply(data.session, recovery));
+      if (navigator.onLine) {
+        void supabase.auth.getSession().then(({ data }) => apply(data.session, recovery));
+      }
     };
     window.addEventListener('online', retry);
     return () => {
