@@ -39,6 +39,8 @@ function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
     tp1: signal.levels.tp1,
     tp2: signal.levels.tp2,
     tp3: signal.levels.tp3,
+    band_mean: signal.levels.mean,
+    band_deviation: signal.levels.deviation,
     daily_bias: signal.dailyBias,
     reads: signal.reads,
     explanation: signal.explanation,
