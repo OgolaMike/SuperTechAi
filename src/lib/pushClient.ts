@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase';
+
 export type BoolPrefKey = 'signals' | 'targets' | 'stops' | 'limitOrders' | 'pendingOrders' | 'superSignals' | 'income' | 'business';
 
 export type PushPrefs = Record<BoolPrefKey, boolean> & {
@@ -20,7 +22,7 @@ function urlBase64ToBytes(base64: string): BufferSource {
 
 async function fetchPublicKey(): Promise<string> {
   const response = await fetch(PUSH_URL, {
-    headers: { Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY },
+    headers: { Authorization: `Bearer ${accessToken ?? ANON_KEY}`, apikey: ANON_KEY },
   });
   if (!response.ok) throw new Error(`Push setup is not ready (status ${response.status})`);
   const body = await response.json();
@@ -28,7 +30,7 @@ async function fetchPublicKey(): Promise<string> {
   return body.publicKey;
 }
 
-async function postPushAction(payload: Record<string, unknown>): Promise<void> {
+async function postPushAction(payload: Record<string, unknown>, accessToken?: string): Promise<void> {
   const response = await fetch(PUSH_URL, {
     method: 'POST',
     headers: {
@@ -47,13 +49,16 @@ export async function getActiveSubscription(): Promise<PushSubscription | null> 
 }
 
 async function saveSubscription(subscription: PushSubscription, prefs: PushPrefs): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error('Please sign in to enable personal alerts.');
   const json = subscription.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) throw new Error('Browser returned an incomplete subscription');
   await postPushAction({
     action: 'subscribe',
     subscription: { endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } },
     prefs,
-  });
+  }, accessToken);
 }
 
 // Creates or reuses the browser subscription, then stores it on the server. Must be called from a user click.
@@ -81,5 +86,8 @@ export async function disablePush(): Promise<void> {
   if (!subscription) return;
   const endpoint = subscription.endpoint;
   await subscription.unsubscribe();
-  await postPushAction({ action: 'unsubscribe', endpoint });
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error('Please sign in to manage alerts.');
+  await postPushAction({ action: 'unsubscribe', endpoint }, accessToken);
 }
