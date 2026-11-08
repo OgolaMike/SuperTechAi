@@ -25,6 +25,8 @@ function loadPrefs(): PushPrefs {
         limitOrders: saved.limitOrders !== false,
         pendingOrders: saved.pendingOrders !== false,
         superSignals: saved.superSignals !== false,
+        income: saved.income !== false,
+        business: saved.business !== false,
         symbols: Array.isArray(saved.symbols)
           ? saved.symbols.filter((item: unknown): item is string => typeof item === 'string')
           : null,
