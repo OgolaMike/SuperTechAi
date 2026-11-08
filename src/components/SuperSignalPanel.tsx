@@ -44,6 +44,9 @@ function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
     daily_bias: signal.dailyBias,
     reads: signal.reads,
     explanation: signal.explanation,
+    grade_percent: signal.gradePercent,
+    confirmation_timeframe: signal.confirmationTimeframe,
+    confirmation_epoch: signal.confirmationEpoch,
     status: 'Open',
     tp1_hit_epoch: null,
     tp2_hit_epoch: null,
@@ -135,7 +138,7 @@ export function SuperSignalPanel({
                     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black tracking-wider ${record.direction === 'BUY' ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>{record.direction}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-accent">8/8 CONFIRMED</span>
+                    <span className="text-[11px] font-semibold text-accent">8/8 CONFIRMED</span>\n                    <span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent}%</span>
                     <OutcomeBadge status={record.status} closed={record.closed} />
                   </div>
                   <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" />{formatDateTime(record.signal_epoch)}</div>
