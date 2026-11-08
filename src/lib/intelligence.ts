@@ -28,11 +28,26 @@ export type SuperSignal = {
   reads: TimeframeRead[];
   explanation: string;
   signalEpoch: number;
+  gradePercent: number;
+  confirmationTimeframe: string;
+  confirmationEpoch: number;
 };
 
 const PRIMARY_LABEL = 'M15';
 const FRESH_PRIMARY_CANDLES = 8;
 const NEUTRAL_BAND = 0.1;
+const SMA_PERIOD = 60;
+
+const CONFIRMATION_GRADES: Record<string, number> = {
+  M1: 65,
+  M5: 70,
+  M15: 75,
+  M30: 80,
+  H1: 85,
+  H4: 90,
+  H8: 95,
+  D1: 100,
+};
 
 const CLASSIFICATION_RANK: Record<Classification, number> = {
   'Strong alignment': 0,
@@ -41,19 +56,53 @@ const CLASSIFICATION_RANK: Record<Classification, number> = {
   'Counter-trend': 3,
 };
 
+function biasOfValues(close: number, mean: number, deviation: number): Bias {
+  const gap = close - mean;
+  const neutralBand = deviation * NEUTRAL_BAND;
+  if (gap > neutralBand) return 'Bullish';
+  if (gap < -neutralBand) return 'Bearish';
+  return 'Neutral';
+}
+
 function biasOf(state: TfState): Bias {
   if (state.lastClose == null || state.currentSma == null || state.stdDev == null) {
     return 'No data';
   }
-  const gap = state.lastClose - state.currentSma;
-  const band = state.stdDev * NEUTRAL_BAND;
-  if (gap > band) return 'Bullish';
-  if (gap < -band) return 'Bearish';
-  return 'Neutral';
+  return biasOfValues(state.lastClose, state.currentSma, state.stdDev);
 }
 
 function expectedBias(direction: Direction): Bias {
   return direction === 'BUY' ? 'Bullish' : 'Bearish';
+}
+
+/**
+ * Finds the most recent confirmed candle on which this timeframe entered
+ * the required direction. This measures when it joined alignment, rather
+ * than treating the newest small-timeframe candle as a fresh confirmation.
+ */
+function latestAlignmentEpoch(state: TfState, expected: Bias): number | null {
+  const candles = state.candles;
+  if (candles.length < SMA_PERIOD) return null;
+
+  let previousBias: Bias = 'No data';
+  let latestEntryEpoch: number | null = null;
+
+  for (let index = SMA_PERIOD - 1; index < candles.length; index += 1) {
+    const window = candles.slice(index - SMA_PERIOD + 1, index + 1);
+    const mean = window.reduce((sum, candle) => sum + candle.close, 0) / SMA_PERIOD;
+    const variance = window.reduce(
+      (sum, candle) => sum + Math.pow(candle.close - mean, 2),
+      0,
+    ) / SMA_PERIOD;
+    const bias = biasOfValues(candles[index].close, mean, Math.sqrt(variance));
+
+    if (bias === expected && previousBias !== expected) {
+      latestEntryEpoch = candles[index].epoch + state.granularity;
+    }
+    previousBias = bias;
+  }
+
+  return latestEntryEpoch;
 }
 
 function describeAge(seconds: number): string {
@@ -88,11 +137,30 @@ function evaluateSymbol(
   // Super Signals are only published on complete, fresh 8/8 confluence.
   if (!allTimeframesAgree) return null;
 
+  const confirmations = TIMEFRAMES.map((timeframe) => {
+    const state = states[timeframe.granularity];
+    return {
+      label: timeframe.label,
+      epoch: state ? latestAlignmentEpoch(state, expected) : null,
+    };
+  });
+
+  // A missing transition history is not allowed to invent a stronger grade.
+  if (confirmations.some((item) => item.epoch == null)) return null;
+
+  const latestConfirmation = confirmations.reduce((latest, item) =>
+    (item.epoch ?? 0) > (latest.epoch ?? 0) ? item : latest,
+  );
+  const confirmationTimeframe = latestConfirmation.label;
+  const confirmationEpoch = latestConfirmation.epoch!;
+  const gradePercent = CONFIRMATION_GRADES[confirmationTimeframe] ?? 65;
+
   const classification: Classification = 'Strong alignment';
   const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
   const explanation = [
     `Price crossed ${direction === 'BUY' ? 'above' : 'below'} its recent average on the 15-minute chart ${describeAge(nowEpoch - signal.signalEpoch)}.`,
     `All ${TIMEFRAMES.length} timeframes confirm this direction.`,
+    `${confirmationTimeframe} was the latest timeframe to join alignment, giving this Super Signal a ${gradePercent}% confirmation grade.`,
   ].join(' ');
 
   return {
@@ -113,6 +181,9 @@ function evaluateSymbol(
     })),
     explanation,
     signalEpoch: signal.signalEpoch,
+    gradePercent,
+    confirmationTimeframe,
+    confirmationEpoch,
   };
 }
 
@@ -131,6 +202,7 @@ export function buildSuperSignals(
   return signals.sort(
     (a, b) =>
       CLASSIFICATION_RANK[a.classification] - CLASSIFICATION_RANK[b.classification] ||
+      b.gradePercent - a.gradePercent ||
       b.signalEpoch - a.signalEpoch,
   );
 }
