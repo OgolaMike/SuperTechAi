@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { AcademyBackgroundPublisher } from '@/components/AcademyBackgroundPublisher';
 import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video } from 'lucide-react';
 
 type Lesson = {
@@ -210,10 +209,9 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
             <div className="relative max-w-md"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200"><Video className="h-7 w-7" /></div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Academy lesson</p><h2 className="mt-2 text-xl font-bold leading-tight text-white sm:text-2xl">{selected.title}</h2><p className="mt-2 text-sm text-slate-300">{selected.duration} · {selected.level}</p><p className="mt-3 text-xs text-slate-400">{selectedVideo ? 'Published teaching video' : 'Guided lesson and teaching script'}</p></div>
           </div>
           {selectedVideo?.video_url && <div className="hidden border-b border-line/10 bg-black p-2 lg:block"><video key={selectedVideo.id} className="aspect-video w-full rounded-xl" controls playsInline preload="metadata" poster={selectedVideo.thumbnail_url || undefined} src={selectedVideo.video_url}>Your browser does not support video playback.</video></div>}
-          {!selectedVideo?.video_url && <div className="hidden border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3 lg:block">{isAdmin ? "Admin video status: " : "Video status: "}{selectedVideo?.status === 'failed' ? 'This lesson needs a retry. The background publisher will attempt it again.' : selectedVideo?.status === 'processing' || selectedVideo?.status === 'pending' ? 'This lesson video is currently rendering in the background.' : 'This lesson is included in the free background video publishing queue.'}</div>}
+          {!selectedVideo?.video_url && <div className="hidden border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3 lg:block">{isAdmin ? "Admin video status: " : "Video status: "}{selectedVideo?.status === 'failed' ? 'This lesson needs attention. The backend publisher will retry it automatically.' : selectedVideo?.status === 'processing' || selectedVideo?.status === 'pending' ? 'This lesson video is being rendered by the backend. You can leave this page.' : 'This lesson is scheduled for backend video publishing. No browser recording is required.'}</div>}
           <div className="space-y-4 p-4 sm:space-y-5 sm:p-6">
-            {isAdmin && <AcademyBackgroundPublisher lessons={LESSONS} isAdmin={isAdmin} />}
-            <LessonVisual lesson={selected} />
+              <LessonVisual lesson={selected} />
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">Learning objective</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
             <div className="rounded-2xl border border-accent/15 bg-gradient-to-br from-accent/[0.07] to-transparent p-4"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Core lesson · {selected.category}</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.summary}</p></div>
             <div className="space-y-3">{selected.steps.map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/30 text-xs font-semibold text-accent">{index + 1}</span><p className="min-w-0 break-words pt-0.5 text-sm leading-6 text-ink-2">{step}</p></div>)}</div>
