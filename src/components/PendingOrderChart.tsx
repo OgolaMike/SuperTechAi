@@ -39,7 +39,31 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
   const [scrollPosition, setScrollPosition] = useState(100);
   const [showSma, setShowSma] = useState(true);
   const [showBands, setShowBands] = useState(true);
-  const history = useMemo(() => candles.slice(-240), [candles]);
+  // Update an in-progress M15 candle from the latest shared live market price.
+  const history = useMemo(() => {
+    const base = candles.slice(-240);
+    if (!base.length || !Number.isFinite(currentPrice) || currentPrice <= 0) return base;
+    const liveEpoch = Math.floor(Date.now() / 900) * 900;
+    const last = base[base.length - 1];
+    if (last.epoch === liveEpoch) {
+      return [...base.slice(0, -1), {
+        ...last,
+        high: Math.max(last.high, currentPrice),
+        low: Math.min(last.low, currentPrice),
+        close: currentPrice,
+      }];
+    }
+    if (last.epoch < liveEpoch) {
+      return [...base, {
+        epoch: liveEpoch,
+        open: last.close,
+        high: Math.max(last.close, currentPrice),
+        low: Math.min(last.close, currentPrice),
+        close: currentPrice,
+      }].slice(-240);
+    }
+    return base;
+  }, [candles, currentPrice]);
   const indicators = useMemo(() => calculateBands(history), [history]);
 
   if (history.length < 2) {
@@ -67,14 +91,14 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
   const bodyW = Math.max(2, Math.min(spacing * 0.72, 18));
   const zoneStartIndex = data.findIndex((candle) => candle.epoch >= zone.startEpoch);
-  const zoneEndIndex = data.findIndex((candle) => candle.epoch >= zone.endEpoch);
-  const zoneX1 = zoneStartIndex >= 0 ? x(zoneStartIndex) : PAD.left;
-  const zoneX2 = zoneEndIndex >= 0 ? x(zoneEndIndex) : width - PAD.right;
-  const zoneRectX = Math.min(zoneX1, zoneX2);
-  const zoneRectWidth = Math.max(bodyW * 2, Math.abs(zoneX2 - zoneX1));
+  const zoneRectX = zone.startEpoch <= data[0].epoch
+    ? PAD.left
+    : zoneStartIndex >= 0 ? x(zoneStartIndex) : x(data.length - 1);
+  // Project the full price zone to the live edge of the chart.
+  const zoneRectWidth = Math.max(bodyW * 2, width - PAD.right - zoneRectX);
   const zoneRectY = y(zone.high);
   const zoneRectHeight = Math.max(3, y(zone.low) - zoneRectY);
-  const zoneColor = patternType === 'TRIPLE BOTTOM' ? '#facc15' : patternType === 'TRIPLE TOP' ? '#fb7185' : '#38bdf8';
+  const zoneColor = direction === 'BUY' ? '#22c55e' : '#f43f5e';
   const pathFor = (key: 'mean' | 'upper' | 'lower') => stats
     .map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '')
     .filter(Boolean).join(' ');
@@ -85,19 +109,19 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
     return `${reverseIndex === 0 || !stats[index + 1] ? 'M' : 'L'} ${x(index)} ${y(item.lower)}`;
   }).filter(Boolean).join(' ');
   const orderLines = [
-    { label: 'ENTRY', value: entry, color: '#60a5fa', dash: '4 3' },
-    { label: 'STOP LOSS', value: stopLoss, color: '#fb7185', dash: '4 3' },
-    { label: 'TAKE PROFIT', value: takeProfit, color: '#4ade80', dash: '4 3' },
-    { label: 'MARKET', value: currentPrice, color: '#facc15', dash: '2 3' },
+    { label: 'ENTRY', value: entry, color: '#60a5fa' },
+    { label: 'STOP LOSS', value: stopLoss, color: '#fb7185' },
+    { label: 'TAKE PROFIT', value: takeProfit, color: '#4ade80' },
+    { label: 'MARKET', value: currentPrice, color: '#facc15' },
   ];
 
   return (
-    <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-line/15 bg-[#0b1220] text-white" aria-label={`Interactive M15 pending order chart for ${symbol}`}>
+    <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-line/15 bg-[#0b1220] text-white" aria-label={`Live M15 pending order chart for ${symbol}, showing the market approach to a solid ${direction} entry zone`}>
       <div className="flex flex-col gap-3 border-b border-white/10 px-3 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${direction === 'BUY' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-            <span className="text-xs font-semibold tracking-wide text-white">M15 ORDER SNAPSHOT</span>
+            <span className="text-xs font-semibold tracking-wide text-white">M15 LIVE MARKET CHART</span>
             <span className={`max-w-full break-words rounded px-2 py-1 text-[10px] font-bold ${direction === 'BUY' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-rose-400/15 text-rose-300'}`}>{direction} · {symbol}</span>
           </div>
           <span className="max-w-full break-words text-[10px] tabular-nums text-slate-400">{data.length} candles shown · {history.length} loaded</span>
@@ -128,14 +152,14 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
             return <g key={step}><line x1={PAD.left} x2={width - PAD.right} y1={gy} y2={gy} stroke="#94a3b8" strokeOpacity="0.16" strokeDasharray="3 5" /><text x={width - PAD.right + 7} y={gy + 3} fill="#94a3b8" fontSize="10">{formatPrice(price, digits)}</text></g>;
           })}
           <g>
-            <rect x={zoneRectX} y={zoneRectY} width={zoneRectWidth} height={zoneRectHeight} fill={zoneColor} fillOpacity="0.13" stroke={zoneColor} strokeWidth="2" rx="2" strokeDasharray={patternType === 'BREAK & RETEST' ? '5 3' : undefined} />
-            <text x={zoneRectX + 5} y={Math.max(PAD.top + 10, zoneRectY - 5)} fill={zoneColor} fontSize="10" fontWeight="700">{patternType} ZONE</text>
+            <rect x={zoneRectX} y={zoneRectY} width={zoneRectWidth} height={zoneRectHeight} fill={zoneColor} fillOpacity="0.14" stroke={zoneColor} strokeWidth="2.5" strokeDasharray="none" rx="3" />
+            <text x={zoneRectX + 7} y={Math.max(PAD.top + 12, zoneRectY - 6)} fill={zoneColor} fontSize="10" fontWeight="800">{direction} ENTRY ZONE · {patternType}</text>
           </g>
           {showBands && upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
           {showBands && <><path d={upperPath} fill="none" stroke="#f87171" strokeWidth="1.8" /><path d={lowerPath} fill="none" stroke="#60a5fa" strokeWidth="1.8" /></>}
           {showSma && <path d={pathFor('mean')} fill="none" stroke="#facc15" strokeWidth="2.2" />}
           {orderLines.map((line) => <g key={line.label}>
-            <line x1={PAD.left} x2={width - PAD.right} y1={y(line.value)} y2={y(line.value)} stroke={line.color} strokeWidth="1.5" strokeDasharray={line.dash} />
+            <line x1={PAD.left} x2={width - PAD.right} y1={y(line.value)} y2={y(line.value)} stroke={line.color} strokeWidth={line.label === 'MARKET' ? 1.8 : 1.4} strokeOpacity={line.label === 'MARKET' ? 1 : 0.78} />
             <text x={PAD.left + 4} y={Math.max(PAD.top + 10, y(line.value) - 4)} fill={line.color} fontSize="9" fontWeight="700">{line.label}</text>
           </g>)}
           {data.map((candle, index) => {
