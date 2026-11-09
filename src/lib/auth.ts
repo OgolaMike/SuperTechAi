@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 function authRedirect(flow: 'confirmed' | 'recovery'): string {
   // Always return to the SPA entry point so email actions work on the live app.
-  const url = new URL('/', window.location.origin);
+  const url = new URL('/', 'https://deriv-sma-signal-das-04us.bolt.host');
   url.searchParams.set('auth', flow);
   return url.toString();
 }
