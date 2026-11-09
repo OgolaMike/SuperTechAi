@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { SuperTechAcademy } from '@/components/SuperTechAcademy';
 import { AdminPanel } from '@/components/AdminPanel';
+import { GovernancePanel } from '@/components/GovernancePanel';
 import { FinancePanel } from '@/components/FinancePanel';
 import { NetworkPanel } from '@/components/NetworkPanel';
 import { AssetSelector } from '@/components/AssetSelector';
@@ -217,6 +218,7 @@ function App() {
         {view === 'earnings' && <FinancePanel initialTab="wallet" />}
         {view === 'finance' && isAdmin && <FinancePanel initialTab="admin" />}
         {view === 'admin' && isAdmin && <AdminPanel />}
+        {view === 'governance' && isAdmin && <GovernancePanel />}
         </div>
 
         <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
