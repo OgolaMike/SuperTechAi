@@ -3,8 +3,13 @@ name: SuperTechAi Academy video publisher
 on:
   workflow_dispatch:
     inputs:
+      test_lesson_id:
+        description: Publish only this one lesson for a safe test (default: welcome)
+        required: false
+        default: welcome
+        type: string
       force_refresh:
-        description: Regenerate every lesson, including those that already have real screenshots
+        description: Regenerate the selected lesson even if it already has real screenshots
         required: false
         default: false
         type: boolean
@@ -26,6 +31,7 @@ jobs:
       ACADEMY_DEMO_EMAIL: ${{ secrets.ACADEMY_DEMO_EMAIL }}
       ACADEMY_DEMO_PASSWORD: ${{ secrets.ACADEMY_DEMO_PASSWORD }}
       ACADEMY_FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.force_refresh == true }}
+      ACADEMY_TEST_LESSON_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.test_lesson_id || '' }}
     steps:
       - name: Check out SuperTechAi
         uses: actions/checkout@v6
