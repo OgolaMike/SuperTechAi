@@ -108,7 +108,8 @@ function latestAlignmentEpoch(state: TfState, expected: Bias): number | null {
     const bias = biasOfValues(candles[index].close, mean, Math.sqrt(variance));
 
     if (bias === expected && previousBias !== expected && previousBias !== 'No data') {
-      latestEntryEpoch = candles[index].epoch + state.granularity;
+      const candleEpoch = candles[index].epoch;
+      if (candleEpoch != null) latestEntryEpoch = candleEpoch + state.granularity;
     }
     previousBias = bias;
   }
@@ -160,7 +161,10 @@ function evaluateSymbol(
   // A missing transition history is not allowed to invent a stronger grade.
   if (confirmations.some((item) => item.epoch == null)) return null;
 
-  const latestConfirmation = confirmations.reduce((latest, item) =>
+  const validConfirmations = confirmations.filter(
+    (item): item is { label: string; epoch: number } => item.epoch !== null,
+  );
+  const latestConfirmation = validConfirmations.reduce((latest, item) =>
     item.epoch > latest.epoch ? item : latest,
   );
   const confirmationTimeframe = latestConfirmation.label;
