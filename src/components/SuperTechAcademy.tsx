@@ -230,7 +230,7 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
                   <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Automated Academy publishing</p>
                     <p className="mt-1 text-sm font-semibold text-ink">Real SuperTechAi screen walkthroughs</p>
-                    <p className="mt-1 text-xs leading-5 text-ink-3">The Academy video pipeline is being moved to a secure backend worker. It will use the restricted demo account to capture the actual app screens, add narration and publish the finished lesson with its screenshots. No manual screen recording is required.</p>
+                    <p className="mt-1 text-xs leading-5 text-ink-3">The secure backend worker is prepared. Once its encrypted demo-account credentials are configured, it will sign in as the restricted demo member, capture the actual app screens, add narration and publish the finished lesson with its screenshots. No manual screen recording is required.</p>
                     <p className="mt-2 text-[11px] text-ink-3">Existing lessons remain available while the real-screen video pipeline is being connected.</p>
                   </div>
                 </div>
