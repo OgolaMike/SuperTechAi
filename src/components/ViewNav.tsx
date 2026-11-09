@@ -1,9 +1,10 @@
-import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark, Bitcoin, Network, GraduationCap, Activity } from 'lucide-react';
+import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark, Bitcoin, Network, GraduationCap, Activity, Gavel } from 'lucide-react';
 
-export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'binance-futures' | 'network' | 'academy';
+export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'binance-futures' | 'network' | 'academy' | 'governance';
 
 const VIEWS: { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'governance', label: 'Owners Centre', icon: Gavel, adminOnly: true },
   { id: 'academy', label: 'Academy', icon: GraduationCap },
   { id: 'records', label: 'Signals', icon: Database },
   { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
