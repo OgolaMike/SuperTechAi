@@ -227,6 +227,7 @@ export function AcademyScreenRecorder({ lessonId, lessonTitle }: Props) {
               <button type="button" onClick={captureScreenshot} className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-2.5 text-xs font-semibold text-cyan-200"><Monitor className="h-4 w-4" /> Capture screenshot</button>
               <button type="button" onClick={stopRecording} className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-xs font-semibold text-white"><Square className="h-4 w-4" /> Stop recording</button>
             </>
+        }
         {videoBlob && !recording && <button type="button" onClick={publishRecording} disabled={uploading} className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2.5 text-xs font-semibold text-emerald-400 disabled:opacity-50"><Upload className="h-4 w-4" /> {uploading ? 'Publishing…' : 'Publish tutorial'}</button>}
       </div>
 

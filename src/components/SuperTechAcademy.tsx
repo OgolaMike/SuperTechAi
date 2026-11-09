@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { AcademyBackgroundPublisher } from '@/components/AcademyBackgroundPublisher';
-import { AcademyScreenRecorder } from '@/components/AcademyScreenRecorder';
 import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video } from 'lucide-react';
 
 type Lesson = {
@@ -223,10 +221,21 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
           </div>}
           {!selectedVideo?.video_url && <div className="hidden border-b border-line/10 bg-surface/[0.025] px-5 py-4 text-sm text-ink-3 lg:block">{isAdmin ? "Admin video status: " : "Video status: "}{selectedVideo?.status === 'failed' ? 'This lesson needs a retry. The background publisher will attempt it again.' : selectedVideo?.status === 'processing' || selectedVideo?.status === 'pending' ? 'This lesson video is being rendered by the backend. You can leave this page.' : 'This lesson is included in the free background video publishing queue.'}</div>}
           <div className="space-y-4 p-4 sm:space-y-5 sm:p-6">
-            {isAdmin && <>
-              <AcademyScreenRecorder lessonId={selected.id} lessonTitle={selected.title} />
-              <AcademyBackgroundPublisher lessons={LESSONS} isAdmin={isAdmin} />
-            </>}
+            {isAdmin && (
+              <section className="rounded-2xl border border-cyan-300/20 bg-surface/[0.035] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300">
+                    <Video className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Automated Academy publishing</p>
+                    <p className="mt-1 text-sm font-semibold text-ink">Real SuperTechAi screen walkthroughs</p>
+                    <p className="mt-1 text-xs leading-5 text-ink-3">The secure backend worker is prepared. Once its encrypted demo-account credentials are configured, it will sign in as the restricted demo member, capture the actual app screens, add narration and publish the finished lesson with its screenshots. No manual screen recording is required.</p>
+                    <p className="mt-2 text-[11px] text-ink-3">Existing lessons remain available while the real-screen video pipeline is being connected.</p>
+                  </div>
+                </div>
+              </section>
+            )}
             <LessonVisual lesson={selected} />
             <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">Learning objective</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.objective}</p></div>
             <div className="rounded-2xl border border-accent/15 bg-gradient-to-br from-accent/[0.07] to-transparent p-4"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Core lesson · {selected.category}</p><p className="mt-2 text-sm leading-6 text-ink-2">{selected.summary}</p></div>
