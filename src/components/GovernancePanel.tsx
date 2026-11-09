@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { CheckCircle2, CircleAlert, FileText, MessageSquare, Megaphone, Plus, RefreshCw, ShieldCheck, Vote } from 'lucide-react';
 import { useSession } from '@/lib/sessionContext';
 import { supabase } from '@/lib/supabase';
@@ -60,7 +60,7 @@ export function GovernancePanel() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const createProposal = async (event: React.FormEvent) => {
+  const createProposal = async (event: FormEvent) => {
     event.preventDefault(); setError(''); setNotice('');
     const { error: saveError } = await supabase.from('governance_proposals').insert({
       title: title.trim(), description: description.trim(), category, created_by: userId,
