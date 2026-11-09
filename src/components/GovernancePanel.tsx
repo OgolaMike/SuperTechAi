@@ -100,24 +100,26 @@ export function GovernancePanel() {
   };
 
   const acknowledge = async (id: string) => {
-    const { error: readError } = await supabase.from('governance_announcement_reads').upsert(
-      { announcement_id: id, user_id: userId }, { onConflict: 'announcement_id,user_id' },
-    );
-    if (readError) setError(readError.message); else setNotice('Announcement acknowledged.');
+    const { data: existing, error: lookupError } = await supabase.from('governance_announcement_reads').select('announcement_id').eq('announcement_id', id).eq('user_id', userId).maybeSingle();
+    if (lookupError) { setError(lookupError.message); return; }
+    if (!existing) {
+      const { error: readError } = await supabase.from('governance_announcement_reads').insert({ announcement_id: id, user_id: userId });
+      if (readError) { setError(readError.message); return; }
+    }
+    setNotice('Announcement acknowledged.');
   };
 
   const closeProposal = async (proposal: Proposal) => {
     const yes = votes.filter(v => v.proposal_id === proposal.id && v.choice === 'yes').length;
     const no = votes.filter(v => v.proposal_id === proposal.id && v.choice === 'no').length;
-    const nextStatus = yes > no ? 'approved' : 'rejected';
-    const { error: closeError } = await supabase.from('governance_proposals').update({ status: nextStatus }).eq('id', proposal.id);
+    const abstain = count(proposal.id, 'abstain');
+    const { error: closeError } = await supabase.from('governance_proposals').update({ status: 'closed' }).eq('id', proposal.id);
     if (closeError) setError(closeError.message);
-    else { setNotice(`Voting closed. Recorded outcome: ${nextStatus.toUpperCase()} (subject to the company's governing rules).`); await load(); }
+    else { setNotice(`Voting closed. Recorded tally — YES: ${yes}, NO: ${no}, ABSTAIN: ${abstain}. This is a recorded tally, not an automatic legal resolution.`); await load(); }
   };
 
   const count = (id: string, choice: VoteRow['choice']) => votes.filter(v => v.proposal_id === id && v.choice === choice).length;
   const myVote = (id: string) => votes.find(v => v.proposal_id === id && v.voter_id === userId)?.choice;
-  const relatedComments = discussions.filter(d => d.proposal_id === activeProposal);
   const fmt = (value: string) => new Date(value).toLocaleString();
 
   if (loading && !proposals.length && !owners.length) return <div className={panel + ' mt-8 text-sm text-ink-2'}>Loading governance records…</div>;
@@ -176,7 +178,7 @@ export function GovernancePanel() {
       {!discussions.some(d => d.proposal_id === (activeProposal || null)) && <div className={panel + ' text-sm text-ink-3'}>No discussion entries yet.</div>}
     </div>}
 
-    {tab === 'audit' && <div className="grid gap-2">{audit.map(row => <article key={row.id} className={panel + ' flex flex-wrap items-start justify-between gap-2'}><div><p className="text-sm font-semibold text-ink">{row.action.toUpperCase()} · {row.entity_type.replaceAll('_',' ')}</p><p className="mt-1 text-xs text-ink-3">Record: {row.entity_id || '—'} · Actor: {row.actor_id || 'system'}</p></div><span className="text-xs text-ink-3">{fmt(row.created_at)}</span></article>)}{!audit.length && <div className={panel + ' text-sm text-ink-3'}>No governance actions recorded yet.</div>}</div>}
+    {tab === 'audit' && <div className="grid gap-2">{audit.map(row => <article key={row.id} className={panel + ' flex flex-wrap items-start justify-between gap-2'}><div><p className="text-sm font-semibold text-ink">{row.action.toUpperCase()} · {row.entity_type.replace(/_/g,' ')}</p><p className="mt-1 text-xs text-ink-3">Record: {row.entity_id || '—'} · Actor: {row.actor_id || 'system'}</p></div><span className="text-xs text-ink-3">{fmt(row.created_at)}</span></article>)}{!audit.length && <div className={panel + ' text-sm text-ink-3'}>No governance actions recorded yet.</div>}</div>}
     <div className="flex items-start gap-2 rounded-xl border border-warn/20 bg-warn/5 p-3 text-xs leading-5 text-ink-2"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warn" />Votes are recorded against each owner's signed-in account. The displayed tally is an administrative record; final approval must follow the company's existing legal documents, quorum and decision rules.</div>
   </section>;
 }
