@@ -149,7 +149,11 @@ async function generateLessonVideo(lesson: LessonForRender, tts: { generate: (te
   const audioContext = new AudioContext();
   await audioContext.resume();
   const audioBuffer = audioContext.createBuffer(1, samples.length, sampleRate);
-  audioBuffer.copyToChannel(samples, 0);
+  // Kokoro may return Float32Array backed by SharedArrayBuffer or another ArrayBufferLike.
+  // Copy into a fresh, standard ArrayBuffer-backed array for the Web Audio API typings.
+  const compatibleSamples = new Float32Array(samples.length);
+  compatibleSamples.set(samples);
+  audioBuffer.copyToChannel(compatibleSamples, 0);
   const source = audioContext.createBufferSource();
   source.buffer = audioBuffer;
   const destination = audioContext.createMediaStreamDestination();
