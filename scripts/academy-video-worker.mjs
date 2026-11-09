@@ -10,6 +10,7 @@ const APP_URL = 'https://deriv-sma-signal-das-04us.bolt.host/';
 const DEMO_EMAIL = (process.env.ACADEMY_DEMO_EMAIL || '').trim().toLowerCase();
 const DEMO_PASSWORD = process.env.ACADEMY_DEMO_PASSWORD || '';
 const EXPECTED_DEMO_EMAIL = 'supertechai.254@gmail.com';
+const TEST_LESSON_ID = (process.env.ACADEMY_TEST_LESSON_ID || '').trim();
 const OUTPUT_DIR = path.resolve('academy-worker-output');
 const FONT_BOLD = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
 
@@ -296,15 +297,26 @@ async function main() {
     for (const row of rows) if (!latest.has(row.lesson_id)) latest.set(row.lesson_id, row);
 
     const lessons = await readLessons();
+    if (TEST_LESSON_ID && !lessons.some((lesson) => lesson.id === TEST_LESSON_ID)) {
+      throw new Error('The requested test lesson ID does not exist: ' + TEST_LESSON_ID);
+    }
+    const candidateLessons = TEST_LESSON_ID
+      ? lessons.filter((lesson) => lesson.id === TEST_LESSON_ID)
+      : lessons;
     const force = process.env.ACADEMY_FORCE_REFRESH === 'true';
-    const queue = lessons.filter((lesson) => {
+    const queue = candidateLessons.filter((lesson) => {
       if (force) return true;
       const row = latest.get(lesson.id);
       return !row || row.status !== 'completed' || !row.video_url || !Array.isArray(row.screenshots) || row.screenshots.length === 0;
     });
     report.total_lessons = lessons.length;
+    report.test_lesson_id = TEST_LESSON_ID || null;
+    report.candidate_count = candidateLessons.length;
     report.queued = queue.length;
     report.skipped = lessons.filter((lesson) => !queue.some((item) => item.id === lesson.id)).map((lesson) => lesson.id);
+    if (TEST_LESSON_ID && queue.length > 1) {
+      throw new Error('Safety check failed: a single-lesson test cannot queue more than one lesson.');
+    }
     if (!queue.length) {
       await fs.writeFile('academy-worker-report.json', JSON.stringify(report, null, 2));
       console.log('All Academy lessons already have real screenshots and videos.');
