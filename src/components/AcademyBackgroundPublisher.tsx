@@ -239,7 +239,6 @@ async function generateLessonVideo(lesson: LessonForRender, tts: { generate: (te
   const audioParts: Float32Array[] = [];
   let sampleRate = 24000;
   let sampleCount = 0;
-  const silenceSamples = Math.round(sampleRate * 0.22);
   for (let index = 0; index < narrationChunks.length; index += 1) {
     const part = await tts.generate(narrationChunks[index], { voice: 'af_heart' });
     const samples = part.audio || part.data;
@@ -279,7 +278,7 @@ async function generateLessonVideo(lesson: LessonForRender, tts: { generate: (te
   let running = 0;
   scenes.forEach((scene) => { running += scene.weight / totalWeight; sceneEnds.push(running); });
   const chunks: BlobPart[] = [];
-  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 900000 });
+  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 500000 });
   const finished = new Promise<Blob>((resolve, reject) => {
     recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
     recorder.onerror = () => reject(new Error('Browser video encoding failed.'));
@@ -338,9 +337,9 @@ export function AcademyBackgroundPublisher({ lessons, isAdmin }: { lessons: Less
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         if (!sessionData.session) throw new Error('Sign in again to publish Academy lessons.');
-        const { data: existing, error: listError } = await supabase.from('academy_videos').select('lesson_id,status');
+        const { data: existing, error: listError } = await supabase.from('academy_videos').select('lesson_id,status,video_url');
         if (listError) throw listError;
-        const unavailable = new Set((existing || []).filter((row) => row.status !== 'failed').map((row) => row.lesson_id));
+        const unavailable = new Set((existing || []).filter((row) => row.status !== 'failed' && String(row.video_url || '').includes('-complete-v2-')).map((row) => row.lesson_id));
         const queue = lessons.filter((lesson) => !unavailable.has(lesson.id));
         setTotal(queue.length);
         setCompleted(lessons.length - queue.length);
@@ -359,7 +358,7 @@ export function AcademyBackgroundPublisher({ lessons, isAdmin }: { lessons: Less
           setCurrent(lesson.title);
           setMessage('Creating narrated screen walkthrough: ' + lesson.title);
           const videoBlob = await generateLessonVideo(lesson, tts);
-          const path = 'lessons/' + lesson.id + '-auto-' + Date.now() + '.webm';
+          const path = 'lessons/' + lesson.id + '-complete-v2-' + Date.now() + '.webm';
           const { error: uploadError } = await supabase.storage.from('academy-videos').upload(path, videoBlob, {
             contentType: 'video/webm', cacheControl: '3600', upsert: false,
           });
