@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import ts from 'typescript';
 import { chromium } from 'playwright';
 import { KokoroTTS } from 'kokoro-js';
+import { createClient } from '@supabase/supabase-js';
 
 const APP_URL = 'https://deriv-sma-signal-das-04us.bolt.host/';
 const DEMO_EMAIL = (process.env.ACADEMY_DEMO_EMAIL || '').trim().toLowerCase();
@@ -193,24 +194,66 @@ async function renderVideo(lesson, scenes, tts, dir) {
   return finalPath;
 }
 
-async function publishLesson(accessToken, anonKey, lesson, screenshotFiles, videoPath, runTag) {
-  const form = new FormData();
-  form.set('lesson_id', lesson.id);
-  form.set('lesson_title', lesson.title);
-  form.set('provider_session_id', 'github-actions-' + runTag + '-' + lesson.id);
-  form.set('screenshots_meta', JSON.stringify(screenshotFiles.map((item) => ({ caption: item.caption }))));
-  form.set('video', new Blob([await fs.readFile(videoPath)], { type: 'video/mp4' }), 'lesson.mp4');
-  for (let i = 0; i < screenshotFiles.length; i += 1) {
-    form.set('screenshot_' + i, new Blob([await fs.readFile(screenshotFiles[i].localPath)], { type: 'image/png' }), 'screen-' + (i + 1) + '.png');
-  }
+async function invokeAcademyFunction(accessToken, anonKey, body) {
   const response = await fetch('https://jtfsqhewotinvlrcadwq.supabase.co/functions/v1/academy-videos', {
     method: 'POST',
-    headers: { Authorization: 'Bearer ' + accessToken, apikey: anonKey },
-    body: form,
+    headers: { Authorization: 'Bearer ' + accessToken, apikey: anonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || ('Academy publish endpoint returned ' + response.status));
+  if (!response.ok) throw new Error(payload.error || ('Academy publishing endpoint returned ' + response.status));
   return payload;
+}
+
+async function publishLesson(accessToken, anonKey, storageClient, lesson, screenshotFiles, videoPath, runTag) {
+  const providerSessionId = 'github-actions-' + runTag + '-' + lesson.id;
+  const prepared = await invokeAcademyFunction(accessToken, anonKey, {
+    action: 'prepare',
+    lessonId: lesson.id,
+    lessonTitle: lesson.title,
+    providerSessionId,
+    screenshots: screenshotFiles.map((item) => ({ caption: item.caption })),
+  });
+  const uploadedPaths = [];
+  try {
+    const videoBytes = await fs.readFile(videoPath);
+    if (videoBytes.length > 45 * 1024 * 1024) throw new Error('The rendered MP4 is larger than the 45 MB Academy upload limit.');
+    const videoUpload = await storageClient.storage.from('academy-videos').uploadToSignedUrl(
+      prepared.video.path,
+      prepared.video.token,
+      new Blob([videoBytes], { type: 'video/mp4' }),
+      { contentType: 'video/mp4', cacheControl: '31536000' },
+    );
+    if (videoUpload.error) throw videoUpload.error;
+    uploadedPaths.push(prepared.video.path);
+
+    for (let index = 0; index < screenshotFiles.length; index += 1) {
+      const imageBytes = await fs.readFile(screenshotFiles[index].localPath);
+      const target = prepared.screenshots[index];
+      const imageUpload = await storageClient.storage.from('academy-videos').uploadToSignedUrl(
+        target.path,
+        target.token,
+        new Blob([imageBytes], { type: 'image/png' }),
+        { contentType: 'image/png', cacheControl: '31536000' },
+      );
+      if (imageUpload.error) throw imageUpload.error;
+      uploadedPaths.push(target.path);
+    }
+
+    return await invokeAcademyFunction(accessToken, anonKey, {
+      action: 'complete',
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      providerSessionId,
+      videoPath: prepared.video.path,
+      screenshots: prepared.screenshots.map((item) => ({ path: item.path, caption: item.caption })),
+    });
+  } catch (error) {
+    if (uploadedPaths.length) {
+      await invokeAcademyFunction(accessToken, anonKey, { action: 'cancel', paths: uploadedPaths }).catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 async function main() {
@@ -218,8 +261,10 @@ async function main() {
     throw new Error('Add the approved demo account email and password as GitHub Actions secrets before running this worker.');
   }
   const config = await fs.readFile('src/lib/supabase.ts', 'utf8');
+  const supabaseUrl = config.match(/const supabaseUrl = '([^']+)'/)?.[1];
   const anonKey = config.match(/const supabaseAnonKey = '([^']+)'/)?.[1];
-  if (!anonKey) throw new Error('Could not read the public Supabase key from the app configuration.');
+  if (!supabaseUrl || !anonKey) throw new Error('Could not read the SuperTechAi Supabase configuration.');
+  const storageClient = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
@@ -276,7 +321,7 @@ async function main() {
         const scenes = makeScenes(lesson);
         const screenshots = await captureScreenshots(page, lesson, scenes, dir);
         const videoPath = await renderVideo(lesson, scenes, tts, dir);
-        await publishLesson(accessToken, anonKey, lesson, screenshots, videoPath, runTag);
+        await publishLesson(accessToken, anonKey, storageClient, lesson, screenshots, videoPath, runTag);
         report.completed.push(lesson.id);
         console.log('Published ' + lesson.id + ' with ' + screenshots.length + ' real screen screenshots.');
       } catch (error) {
