@@ -23,8 +23,17 @@ type AccountBalance = { asset: string; free: number; locked: number };
 
 async function callBinance(action: string, payload: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke('binance-spot', { body: { action, ...payload } });
-  if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error ?? 'Binance Spot request failed.');
+  if (error) {
+    const response = (error as { context?: Response }).context;
+    if (response && typeof response.text === 'function') {
+      const raw = await response.clone().text().catch(() => '');
+      let detail: { error?: string; message?: string } | null = null;
+      try { detail = JSON.parse(raw); } catch { /* Keep the HTTP response as the fallback. */ }
+      throw new Error(detail?.error ?? detail?.message ?? (raw && raw.length < 240 ? raw : '') ?? error.message ?? `Binance Spot request failed (${response.status}).`);
+    }
+    throw new Error(error.message || 'Binance Spot request failed. Check the connection and try again.');
+  }
+  if (!data?.ok) throw new Error(data?.error ?? data?.message ?? 'Binance Spot request failed.');
   return data;
 }
 
