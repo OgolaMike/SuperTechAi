@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } from "./deriv.ts";
-import { fetchBinanceCandles, loadBinanceSymbols } from "./binance.ts";
+import { fetchBinanceCandles, loadBinanceSymbols, fetchBinanceFuturesCandles, loadBinanceFuturesSymbols } from "./binance.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
 import { buildBackendLimitIntent } from "./pendingIntents.ts";
 import { reconcileBinanceSpotOrders, submitBinanceSpotLimitIntents } from "./binanceSpotAutomation.ts";
@@ -42,12 +42,14 @@ async function loadTimeframeCandles(
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
 
-  if (symbol.exchange !== "BINANCE" && !feed) {
+  if (symbol.exchange !== "BINANCE" && symbol.exchange !== "BINANCE_FUTURES" && !feed) {
     throw new Error("Deriv feed is unavailable for this market");
   }
-  const candles = symbol.exchange === "BINANCE"
-    ? await fetchBinanceCandles(symbol.symbol, timeframe.granularity, timeframe.candleCount)
-    : await fetchCandles(feed!, symbol.symbol, timeframe.granularity, timeframe.candleCount);
+  const candles = symbol.exchange === "BINANCE_FUTURES"
+    ? await fetchBinanceFuturesCandles(symbol.symbol, timeframe.granularity, timeframe.candleCount)
+    : symbol.exchange === "BINANCE"
+      ? await fetchBinanceCandles(symbol.symbol, timeframe.granularity, timeframe.candleCount)
+      : await fetchCandles(feed!, symbol.symbol, timeframe.granularity, timeframe.candleCount);
   cache.set(timeframe.granularity, candles);
   return candles;
 }
@@ -315,7 +317,6 @@ async function runScan(): Promise<Record<string, unknown>> {
     } catch (error) {
       binanceLoadError = `Binance asset discovery: ${messageOf(error)}`;
     }
-    const symbols = [...derivSymbols, ...binanceSymbols];
     const marks = await loadMarks();
     const { data: pushRows, error: pushRowsError } = await db.from("push_subscriptions").select("symbols");
     if (pushRowsError) throw new Error(`Could not load alert asset preferences: ${pushRowsError.message}`);
@@ -331,11 +332,26 @@ async function runScan(): Promise<Record<string, unknown>> {
     const futuresAutomationAllowsAll = (futuresAutomationRows ?? []).some((row) =>
       !Array.isArray(row.allowed_symbols) || row.allowed_symbols.length === 0
     );
+    let binanceFuturesSymbols: SymbolInfo[] = [];
+    let futuresLoadError: string | null = null;
+    if ((futuresAutomationRows ?? []).length > 0) {
+      try {
+        binanceFuturesSymbols = await loadBinanceFuturesSymbols();
+      } catch (error) {
+        futuresLoadError = `Binance USD-M Futures discovery: ${messageOf(error)}`;
+      }
+    }
     const futuresAutomationSymbols = new Set(
       futuresAutomationAllowsAll
-        ? binanceSymbols.map((symbol) => symbol.symbol)
+        ? binanceFuturesSymbols.map((symbol) => symbol.symbol)
         : (futuresAutomationRows ?? []).flatMap((row) => row.allowed_symbols ?? [])
     );
+    const futuresSymbolsForScan = binanceFuturesSymbols.filter((symbol) =>
+      futuresAutomationSymbols.has(symbol.symbol)
+    );
+    // Futures contracts use the dedicated USD-M catalogue and Futures klines,
+    // never the Spot top-100 market list.
+    const symbols = [...derivSymbols, ...binanceSymbols, ...futuresSymbolsForScan];
     // Rotate the starting symbol each minute so a time-limited run never always skips the same assets.
     const offset = symbols.length ? Math.floor(started / 60000) % symbols.length : 0;
     const ordered = [...symbols.slice(offset), ...symbols.slice(0, offset)];
@@ -343,7 +359,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     let fetchedCount = 0;
     let rowsWritten = 0;
     let scannedSymbols = 0;
-    let lastError: string | null = [derivLoadError, binanceLoadError].filter(Boolean).join('; ') || null;
+    let lastError: string | null = [derivLoadError, binanceLoadError, futuresLoadError].filter(Boolean).join('; ') || null;
     try {
       await reconcileBinanceSpotOrders(db);
     } catch (error) {
@@ -514,7 +530,7 @@ async function runScan(): Promise<Record<string, unknown>> {
           if (superSignal) {
             // Binance Futures receives only fresh, confirmed 8/8 Super Signals.
             // This creates a member-specific signal intent; it does not place an exchange order.
-            if (symbol.exchange === "BINANCE") {
+            if (symbol.exchange === "BINANCE_FUTURES") {
               const { data: futuresAccounts, error: futuresAccountsError } = await db
                 .from("binance_futures_settings")
                 .select("user_id, leverage, risk_percent, max_daily_loss_pct, max_open_positions, allowed_symbols, auto_trade_enabled, live_execution_enabled, emergency_stop, connection_status")
