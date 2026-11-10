@@ -6,7 +6,7 @@ export type PushPrefs = Record<BoolPrefKey, boolean> & {
   symbols: string[] | null;
 };
 
-export const DEFAULT_PUSH_PREFS: PushPrefs = { signals: true, targets: true, stops: true, limitOrders: true, pendingOrders: true, superSignals: true, income: true, business: true, symbols: null };
+export const DEFAULT_PUSH_PREFS: PushPrefs = { signals: false, targets: false, stops: false, limitOrders: false, pendingOrders: false, superSignals: false, income: false, business: false, symbols: [] };
 
 const PUSH_URL = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/push`;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
