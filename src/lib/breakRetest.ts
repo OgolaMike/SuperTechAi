@@ -78,9 +78,6 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: nu
     const confirmation = candles[confirmationIndex];
     // Place the suggested entry below the BUY candle / above the SELL candle.
     const entry = direction === 'BUY' ? confirmation.low : confirmation.high;
-    const targets = pivots(candles, direction === 'BUY' ? 'high' : 'low', Math.max(2, confirmationIndex - 100), confirmationIndex)
-      .filter(pv => direction === 'BUY' ? pv.price > entry : pv.price < entry)
-      .sort((a, b) => direction === 'BUY' ? a.price - b.price : b.price - a.price);
     const zoneLow = level.price - tolerance;
     const zoneHigh = level.price + tolerance;
     // Place the stop beyond the complete retest zone, with a volatility-aware safety buffer.
@@ -94,7 +91,7 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: nu
     // Fixed 5R target is calculated only after the structural stop has been established.
     const target = direction === 'BUY' ? entry + risk * 5 : entry - risk * 5;
     return {
-      direction, zoneLow, zoneHigh, entry, stopLoss, target, riskReward: 5, breakEpoch: candles[breakIndex].epoch,
+      direction, zoneLow, zoneHigh, entry, stopLoss, target, riskReward: 5 as const, breakEpoch: candles[breakIndex].epoch,
       retestEpoch: candles[retestIndex].epoch,
       confirmationEpoch: candles[confirmationIndex].epoch,
       confirmationPrice: direction === 'BUY' ? confirmation.low : confirmation.high,

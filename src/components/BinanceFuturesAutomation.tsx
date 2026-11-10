@@ -21,7 +21,11 @@ async function callFutures(action: string, payload: Record<string, unknown> = {}
       const raw = await response.clone().text().catch(() => '');
       let detail: { error?: string; message?: string } | null = null;
       try { detail = JSON.parse(raw); } catch { /* Keep the HTTP response as the fallback. */ }
-      throw new Error(detail?.error ?? detail?.message ?? (raw && raw.length < 240 ? raw : '') || error.message || `Binance Futures request failed (${response.status}).`);
+      const reason = detail?.error ?? detail?.message ?? ((raw && raw.length < 240 ? raw : '') || error.message || `Binance Futures request failed (${response.status}).`);
+      if (/invalid api-key, ip, or permissions/i.test(reason)) {
+        throw new Error('Binance rejected this API key. Check that the key and secret are correct, USDⓈ-M Futures permission is enabled, and the key was created after Futures was activated. If IP restrictions are enabled, whitelist the SuperTech server egress IPs; recent connection logs have shown 35.180.109.45 and 15.237.127.167. Never enable withdrawals.');
+      }
+      throw new Error(reason);
     }
     throw new Error(error.message || 'Binance Futures request failed. Check the connection and try again.');
   }
@@ -142,7 +146,6 @@ export function BinanceFuturesAutomation() {
             <label className="block text-xs font-medium text-ink-2">API Secret<input type="password" value={apiSecret} onChange={e => setApiSecret(e.target.value)} autoComplete="new-password" className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent" placeholder="Paste API secret" /></label>
             <button type="button" disabled={busy || !apiKey.trim() || !apiSecret.trim()} onClick={() => void connect()} className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Connecting…' : 'Connect USDT-M Futures'}</button>
             {!apiKey.trim() || !apiSecret.trim() ? <p className="text-xs text-ink-3">Enter both your API key and API secret to enable connection.</p> : null}
-            {(message || error) && <div role="status" aria-live="polite" className={`rounded-xl border p-3 text-sm ${error ? 'border-rose-500/20 bg-rose-500/5 text-rose-500' : 'border-up/20 bg-up/5 text-up'}`}>{error || message}</div>}
             <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-ink-2">Use a dedicated Binance API key with Futures trading permission only. Keep withdrawals disabled, restrict access by IP where possible, and never share the key in chat.</div>
           </div> : <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl border border-line/10 bg-canvas/50 p-3"><div><p className="text-sm font-semibold text-ink">Key ending ••••{settings?.api_key_last4}</p><p className="mt-1 text-xs text-ink-3">Encrypted on the server</p></div><ShieldCheck className="h-5 w-5 text-up" /></div>
@@ -151,6 +154,7 @@ export function BinanceFuturesAutomation() {
               <button disabled={busy} onClick={() => void disconnect()} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-3 py-2 text-sm text-ink disabled:opacity-50"><Unplug className="h-4 w-4" />Disconnect</button>
             </div>
           </div>}
+          {(message || error) && <div role="status" aria-live="polite" className={`mt-3 rounded-xl border p-3 text-sm ${error ? 'border-rose-500/20 bg-rose-500/5 text-rose-500' : 'border-up/20 bg-up/5 text-up'}`}>{error || message}</div>}
         </div>
 
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">

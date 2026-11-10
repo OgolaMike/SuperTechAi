@@ -93,13 +93,17 @@ Deno.serve(async (req) => {
       if (currentError) throw currentError;
       if (!current || current.connection_status !== "connected") return json({ error: "connect_binance_account_first" }, 409);
       const maxOpen = Number(body.maxOpenPositions);
+      const symbols = Array.isArray(body.allowedSymbols) ? [...new Set(body.allowedSymbols.map((v: unknown) => String(v).toUpperCase()).filter((v: string) => /^[A-Z0-9]{4,20}$/.test(v)))].slice(0, 100) : [];
       if (!Number.isInteger(maxOpen) || maxOpen < 1 || maxOpen > 20) return json({ error: "invalid_spot_risk_limits" }, 400);
       const emergency = body.emergencyStop !== false;
+      if (body.autoTradeEnabled === true && body.liveExecutionEnabled === true && !emergency && symbols.length === 0) {
+        return json({ error: "select_at_least_one_binance_spot_symbol" }, 400);
+      }
       const { error } = await admin.from("binance_spot_settings").update({
         auto_trade_enabled: body.autoTradeEnabled === true && !emergency,
         live_execution_enabled: body.liveExecutionEnabled === true && !emergency,
         emergency_stop: emergency, max_open_positions: maxOpen,
-        allowed_symbols: [], updated_at: new Date().toISOString()
+        allowed_symbols: symbols, updated_at: new Date().toISOString()
       }).eq("user_id", userId);
       if (error) throw error;
       return json({ ok: true, message: "Binance Spot settings saved." });
@@ -113,6 +117,10 @@ Deno.serve(async (req) => {
     return json({ error: "unsupported_action" }, 400);
   } catch (error) {
     const message = error instanceof Error ? error.message : "binance_spot_error";
-    return json({ error: message.slice(0, 180) }, 400);
+    const rejected = /invalid api-key, ip, or permissions/i.test(message);
+    const userMessage = rejected
+      ? "Binance rejected this API key. Verify the API key and secret, enable Spot trading permission, and check API Management IP restrictions. Recent SuperTech server logs show outbound IPs 35.180.109.45 and 15.237.127.167; confirm the active egress IP before allowlisting. Keep withdrawals disabled."
+      : message.slice(0, 180);
+    return json({ code: rejected ? "binance_api_key_ip_or_permission_rejected" : "binance_spot_error", error: userMessage, message: userMessage }, 400);
   }
 });
