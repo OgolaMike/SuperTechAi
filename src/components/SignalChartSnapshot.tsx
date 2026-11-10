@@ -22,6 +22,8 @@ const PERIOD = 60;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.5;
+// Keep a small projection area after the newest live candle, like TradingView.
+const RIGHT_CANDLE_SPACE = 7;
 
 function rolling(values: number[], index: number) {
   if (index < PERIOD - 1) return null;
@@ -77,9 +79,10 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const plotW = (WIDTH - PAD.left - PAD.right) * zoom;
   const svgWidth = PAD.left + plotW + PAD.right;
   const plotH = HEIGHT - PAD.top - PAD.bottom;
-  const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * plotW;
+  const candleSlots = Math.max(data.length - 1, 1) + RIGHT_CANDLE_SPACE;
+  const x = (index: number) => PAD.left + (index / candleSlots) * plotW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
-  const candleSpacing = plotW / Math.max(data.length - 1, 1);
+  const candleSpacing = plotW / candleSlots;
   const bodyW = Math.max(5, Math.min(42, candleSpacing * 0.68));
 
   const linePath = (key: 'mean' | 'upper' | 'lower') => stats
