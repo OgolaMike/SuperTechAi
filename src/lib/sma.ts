@@ -12,15 +12,47 @@ export type Timeframe = {
 const CHART_HISTORY_CANDLES = 1440;
 
 export const TIMEFRAMES: Timeframe[] = [
-  { granularity: 60, label: 'M1', role: 'Entry momentum', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 300, label: 'M5', role: 'Momentum', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 10800, label: 'H3', role: 'Major structure confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 28800, label: 'H8', role: 'Higher-timeframe trend', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 86400, label: 'D1', role: 'Highest timeframe · daily bias', candleCount: CHART_HISTORY_CANDLES },
 ];
+
+
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([900, 1800, 3600]);
+
+// Build higher timeframes from hourly candles where a source interval is unavailable.
+// Completed buckets require every hourly candle; the current bucket may remain partial/live.
+export function aggregateHourlyCandles(hourly: Candle[], targetGranularity: number, nowEpoch = Math.floor(Date.now() / 1000)): Candle[] {
+  const hoursPerCandle = targetGranularity / 3600;
+  if (!Number.isInteger(hoursPerCandle) || hoursPerCandle < 2) return [];
+  const buckets = new Map<number, Candle[]>();
+  for (const candle of hourly) {
+    const bucketEpoch = Math.floor(candle.epoch / targetGranularity) * targetGranularity;
+    const bucket = buckets.get(bucketEpoch) ?? [];
+    bucket.push(candle);
+    buckets.set(bucketEpoch, bucket);
+  }
+  const currentBucket = Math.floor(nowEpoch / targetGranularity) * targetGranularity;
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).flatMap(([epoch, items]) => {
+    const ordered = items.sort((a, b) => a.epoch - b.epoch);
+    const isCurrent = epoch === currentBucket;
+    if (!isCurrent && ordered.length !== hoursPerCandle) return [];
+    if (ordered.length === 0) return [];
+    return [{
+      epoch,
+      open: ordered[0].open,
+      high: Math.max(...ordered.map((item) => item.high)),
+      low: Math.min(...ordered.map((item) => item.low)),
+      close: ordered[ordered.length - 1].close,
+      symbol: ordered[0].symbol,
+    }];
+  });
+}
 
 export type Asset = {
   symbol: string;
