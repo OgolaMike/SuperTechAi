@@ -22,7 +22,7 @@ export function useBreakRetestAlerts(assets: Asset[], states: Record<string, Rec
       id: `break-retest:${item.key}`, tag: `break-retest:${item.key}`, kind: 'break-retest',
       tone: item.direction, direction: item.direction, symbol: item.symbol, assetName: item.assetName,
       timeframe: item.timeframe, granularity: item.granularity, chartTargetId: `break-retest:${item.key}`,
-      digits: 5, message: `Break and retest confirmed: rejection followed by ${item.direction === 'BUY' ? 'a higher high' : 'a lower low'}.`,
+      digits: 5, message: item.direction === 'BUY' ? 'BUY below the confirmation candle.' : 'SELL above the confirmation candle.',
       price: item.entry,
       levels: { entry: item.entry, stopLoss: item.stopLoss, tp1: item.target, tp2: item.target, tp3: item.target, mean: (item.zoneLow + item.zoneHigh) / 2, deviation: Math.abs(item.zoneHigh - item.zoneLow) / 2 },
       at: item.confirmationEpoch,
