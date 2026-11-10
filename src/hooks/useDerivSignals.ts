@@ -13,7 +13,6 @@ import {
   type Timeframe,
 } from '@/lib/sma';
 
-const LIVE_TIMEFRAMES = TIMEFRAMES;
 const NATIVE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => NATIVE_TIMEFRAME_GRANULARITIES.has(timeframe.granularity));
 const SYNTHETIC_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => !NATIVE_TIMEFRAME_GRANULARITIES.has(timeframe.granularity));
 const M15_GRANULARITY = 900;
