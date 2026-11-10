@@ -120,6 +120,7 @@ function App() {
 
   const openSignalChart = (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => {
     if (chartTargetId?.startsWith('break-retest:')) {
+      setSelectedBreakRetestKey(chartTargetId.slice('break-retest:'.length));
       setView('break-retest');
     } else if (chartTargetId) {
       if (selectedSignalKey) setSelectedSuperSignalKey(selectedSignalKey);
