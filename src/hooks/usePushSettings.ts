@@ -112,7 +112,7 @@ export function usePushSettings() {
 
   const updatePref = (key: BoolPrefKey, value: boolean) => savePrefs({ ...prefs, [key]: value });
 
-  const updateSymbols = (symbols: string[]) => savePrefs({ ...prefs, symbols });
+  const updateSymbols = (symbols: string[] | null) => savePrefs({ ...prefs, symbols });
 
   return { status, prefs, error, enable, disable, updatePref, updateSymbols };
 }
