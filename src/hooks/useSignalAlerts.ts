@@ -4,7 +4,7 @@ import { showSignalNotification } from '@/lib/deviceNotify';
 import { formatPrice } from '@/lib/sma';
 import type { Direction, SignalLevels, SignalView } from '@/lib/signals';
 
-export type ToastKind = 'signal' | 'reversal' | 'hit';
+export type ToastKind = 'signal' | 'reversal' | 'hit' | 'break-retest';
 
 export type Toast = {
   id: string;
