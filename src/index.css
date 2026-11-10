@@ -449,18 +449,23 @@ nav[aria-label="Sections"] button[aria-current="page"] {
 }
 
 
-/* Notification bubbles stay in place until the user dismisses them. */
-@keyframes supertech-bubble-enter {
-  from { opacity: 0; transform: translate(-50%, 8px) scale(.96); }
-  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+/* Notification bubbles float from below the viewport to above it, then clear automatically. */
+@keyframes supertech-bubble-float-up {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(.94); }
+  7% { opacity: 1; transform: translate(-50%, -7vh) scale(1); }
+  82% { opacity: 1; transform: translate(-50%, -88vh) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -118vh) scale(.96); }
 }
 .signal-bubble {
-  animation: supertech-bubble-enter 220ms ease-out both;
+  animation: supertech-bubble-float-up 12s linear both;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  will-change: transform, opacity;
 }
 .signal-bubble:active { filter: brightness(1.12); }
-@media (prefers-reduced-motion: reduce) { .signal-bubble { animation: none; }}
+@media (prefers-reduced-motion: reduce) {
+  .signal-bubble { animation-duration: 1ms; }
+}
 
 
 /* Keep the document as the single vertical scroll surface, including long signal feeds. */
