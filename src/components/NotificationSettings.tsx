@@ -27,7 +27,7 @@ const STATUS_TEXT: Record<PushStatus, string> = {
 type Props = { assets: Asset[] };
 
 export function NotificationSettings({ assets }: Props) {
-  const { status, prefs, error, enable, disable, updatePref, updateSymbols } = usePushSettings();
+  const { status, prefs, error, enable, disable, updatePref, updateAllPrefs, updateSymbols } = usePushSettings();
   const [draftSymbols, setDraftSymbols] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const isOn = status === 'on';
@@ -71,7 +71,16 @@ export function NotificationSettings({ assets }: Props) {
       {status !== 'unsupported' && status !== 'checking' && (
         <div className="mt-6 flex flex-col gap-4">
           {isOn && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-ink-2">Choose exactly which alerts you want to receive.</span>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => updateAllPrefs(true)} disabled={busy || CATEGORIES.every((item) => prefs[item.key])}
+                    className="rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-50">Select all</button>
+                  <button type="button" onClick={() => updateAllPrefs(false)} disabled={busy || CATEGORIES.every((item) => !prefs[item.key])}
+                    className="rounded-lg border border-line/20 px-3 py-1.5 text-xs font-semibold text-ink-2 disabled:opacity-50">Unselect all</button>
+                </div>
+              </div>
               {CATEGORIES.map((item) => (
                 <ToggleRow key={item.key} label={item.label} description={item.description}
                   checked={prefs[item.key]} disabled={busy} onChange={(value) => updatePref(item.key, value)} />
@@ -115,6 +124,14 @@ export function NotificationSettings({ assets }: Props) {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setDraftSymbols(allSymbols)} disabled={busy || draftSymbols.length === allSymbols.length}
+                  className="rounded-xl border border-line/20 bg-surface/[0.05] px-3 py-2 text-xs font-semibold text-ink disabled:opacity-50">
+                  Select all assets
+                </button>
+                <button type="button" onClick={() => setDraftSymbols([])} disabled={busy || draftSymbols.length === 0}
+                  className="rounded-xl border border-line/20 bg-surface/[0.05] px-3 py-2 text-xs font-semibold text-ink disabled:opacity-50">
+                  Unselect all assets
+                </button>
                 <button type="button" onClick={applyAssetFilter} disabled={busy || !hasDraftChanges}
                   className="inline-flex items-center gap-2 rounded-xl border border-accent/40 bg-gradient-to-r from-accent to-up px-4 py-2.5 text-sm font-bold text-canvas transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">
                   <BellOff className="h-4 w-4" /> Mute all except selected
