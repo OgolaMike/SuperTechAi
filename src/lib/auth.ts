@@ -13,8 +13,6 @@ export function getResendCooldownSeconds(email: string): number {
 }
 
 function reserveResendCooldown(email: string): void {
-  const remaining = getResendCooldownSeconds(email);
-  if (remaining > 0) throw new Error(`Please wait ${remaining} seconds before requesting another confirmation email.`);
   try {
     localStorage.setItem(RESEND_STORAGE_PREFIX + email.trim().toLowerCase(), String(Date.now()));
   } catch {
@@ -45,13 +43,22 @@ export async function signUp(email: string, password: string, payoutTronAddress:
 
 export async function resendSignupConfirmation(email: string): Promise<void> {
   const normalizedEmail = email.trim();
-  reserveResendCooldown(normalizedEmail);
+  const remaining = getResendCooldownSeconds(normalizedEmail);
+  if (remaining > 0) {
+    throw new Error(`Please wait ${remaining} seconds before requesting another confirmation email.`);
+  }
+
   const { error } = await supabase.auth.resend({
     type: 'signup',
     email: normalizedEmail,
     options: { emailRedirectTo: authRedirect('confirmed') },
   });
   if (error) throw error;
+
+  // Start the browser cooldown only after Supabase accepts the resend request.
+  // Failed provider deliveries must remain retryable; the server is still the
+  // authority for its own rate limits and delivery errors.
+  reserveResendCooldown(normalizedEmail);
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
@@ -90,8 +97,8 @@ export function friendlyAuthError(error: unknown): string {
   if (e?.code === 'email_not_confirmed' || /email not confirmed/i.test(message)) {
     return 'Your email address is not confirmed yet. Resend the SuperTechAi confirmation email, then open its link to activate your account.';
   }
-  if (/rate.?limit|too many requests|email.*limit/i.test(message)) {
-    return 'SuperTechAi could not send this email because the project has reached its email-sending limit. Please wait before trying again. If this continues, the administrator must check the configured email provider and its delivery limits.';
+  if (/over_email_send_rate_limit|rate.?limit|too many requests|email.*limit/i.test(message)) {
+    return 'SuperTechAi is temporarily limiting confirmation emails. Wait a little before trying again. If the email still does not arrive, the administrator must check the email provider delivery status.';
   }
   if (/invalid login credentials/i.test(message)) return 'The email or password is incorrect.';
   if (/already registered/i.test(message)) return 'An account with this email already exists. Try signing in instead.';
@@ -100,6 +107,9 @@ export function friendlyAuthError(error: unknown): string {
   }
   if (/otp_expired|expired|invalid.*token/i.test(message)) {
     return 'This link has expired or is no longer valid. Return to sign in and request a fresh SuperTechAi email link.';
+  }
+  if (/550|5\.7\.1|unsolicited|blocked|rejected/i.test(message)) {
+    return 'The email provider rejected this confirmation email. Your account is safe. Please try again later or contact SuperTech AI support while the sender delivery settings are corrected.';
   }
   return message || 'Something went wrong. Please try again.';
 }
