@@ -9,7 +9,8 @@ type Props = {
   assets: Asset[];
   states: Record<string, Record<number, TfState>>;
   prices: Record<string, number>;
-};
+  selectedSetupKey?: string;
+}
 
 function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   setup: BreakRetestSetup;
