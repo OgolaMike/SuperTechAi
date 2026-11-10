@@ -1,6 +1,8 @@
 import type { Candle, SymbolInfo } from './deriv.ts';
 
-const REST_BASE = 'https://fapi.binance.com/fapi/v1';
+const REST_BASE = 'https://data-api.binance.vision/api/v3';
+const EXCLUDED_BASES = new Set(['USDC','USDT','BUSD','TUSD','FDUSD','DAI','USDP','EUR','GBP','AEUR','PAXG']);
+const LEVERAGED_SUFFIX = /(UP|DOWN|BULL|BEAR)$/;
 const INTERVALS: Record<number, string> = {
   60: '1m', 300: '5m', 900: '15m', 1800: '30m',
   3600: '1h', 14400: '4h', 28800: '8h', 86400: '1d',
@@ -9,7 +11,7 @@ const INTERVALS: Record<number, string> = {
 type Ticker = { symbol: string; quoteVolume: string };
 type ExchangeSymbol = {
   symbol: string; baseAsset: string; quoteAsset: string; status: string;
-  contractType?: string; filters?: Array<{ filterType?: string; tickSize?: string }>;
+  isSpotTradingAllowed?: boolean; filters?: Array<{ filterType?: string; tickSize?: string }>;
 };
 
 function digitsFromTickSize(value?: string): number {
@@ -30,18 +32,19 @@ export async function loadBinanceSymbols(): Promise<SymbolInfo[]> {
     getJson('/exchangeInfo'),
   ]);
   if (!Array.isArray(tickers) || !Array.isArray((exchangeInfo as { symbols?: unknown })?.symbols)) {
-    throw new Error('Binance returned an invalid USD-M Futures market list');
+    throw new Error('Binance returned an invalid spot market list');
   }
   const tradable = new Map<string, ExchangeSymbol>();
   for (const item of (exchangeInfo as { symbols: ExchangeSymbol[] }).symbols) {
-    if (item.status === 'TRADING' && item.contractType === 'PERPETUAL' && item.quoteAsset === 'USDT' &&
-        item.baseAsset.length >= 2) {
+    if (item.status === 'TRADING' && item.quoteAsset === 'USDT' && item.isSpotTradingAllowed !== false &&
+        item.baseAsset.length >= 2 && !EXCLUDED_BASES.has(item.baseAsset) && !LEVERAGED_SUFFIX.test(item.baseAsset)) {
       tradable.set(item.symbol, item);
     }
   }
   return (tickers as Ticker[])
     .filter((ticker) => tradable.has(ticker.symbol) && Number.isFinite(Number(ticker.quoteVolume)))
     .sort((a, b) => Number(b.quoteVolume) - Number(a.quoteVolume))
+    .slice(0, 100)
     .map((ticker) => {
       const item = tradable.get(ticker.symbol)!;
       const tickSize = item.filters?.find((filter) => filter.filterType === 'PRICE_FILTER')?.tickSize;
