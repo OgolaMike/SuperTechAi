@@ -23,14 +23,14 @@ export function useBreakRetestAlerts(assets: Asset[], states: Record<string, Rec
       timeframe: item.timeframe, granularity: item.granularity, chartTargetId: `break-retest:${item.key}`,
       digits: 5, message: `Break and retest confirmed: rejection followed by ${item.direction === 'BUY' ? 'a higher high' : 'a lower low'}.`,
       price: item.entry,
-      levels: { entry: item.entry, stopLoss: item.direction === 'BUY' ? item.zoneLow : item.zoneHigh, tp1: item.target, tp2: item.target, tp3: item.target, mean: (item.zoneLow + item.zoneHigh) / 2, deviation: Math.abs(item.zoneHigh - item.zoneLow) / 2 },
+      levels: { entry: item.entry, stopLoss: item.stopLoss, tp1: item.target, tp2: item.target, tp3: item.target, mean: (item.zoneLow + item.zoneHigh) / 2, deviation: Math.abs(item.zoneHigh - item.zoneLow) / 2 },
       at: item.confirmationEpoch,
     }));
     setToasts(current => [...created, ...current].slice(0, 4));
     for (const toast of created) {
       if (soundsEnabled) playAlertTone(toast.direction);
       void showSignalNotification(toast.tag, `BREAK & RETEST ${toast.direction}: ${toast.assetName} · ${toast.timeframe}`,
-        `${toast.message} Market entry ${toast.price}. Previous swing target ${toast.levels.tp1}.`).catch(() => undefined);
+        `${toast.message} Market entry ${toast.price}. 5R target ${toast.levels.tp1}; stop loss ${toast.levels.stopLoss}, placed outside the retest zone.`).catch(() => undefined);
     }
   }, [assets, states, loaded, soundsEnabled]);
   return { toasts, dismiss };
