@@ -3,7 +3,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const cors = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization,apikey,content-type","Access-Control-Allow-Methods":"POST,OPTIONS"};
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const enc=new TextEncoder();
-const b64=(v:Uint8Array)=>btoa(String.fromCharCode(...v));
+type PositionRow = { symbol?: string; positionAmt?: string | number };
+type AssetRow = { asset?: string; availableBalance?: string | number; walletBalance?: string | number };
+type IncomeRow = { income?: string | number };
+type ExchangeFilter = { filterType?: string; stepSize?: string; maxQty?: string; minQty?: string; tickSize?: string; notional?: string; minNotional?: string };
+type ExchangeSymbol = { symbol?: string; status?: string; filters?: ExchangeFilter[] };
+type ExchangeInfo = { symbols?: ExchangeSymbol[] };
+type BinanceOrderResult = { orderId?: string | number; avgPrice?: string | number; algoId?: string | number };
 async function aesKey(){const s=Deno.env.get("BINANCE_CREDENTIALS_ENCRYPTION_KEY");if(!s||s.length<32)throw Error("binance_encryption_key_not_configured");const d=await crypto.subtle.digest("SHA-256",enc.encode(s));return crypto.subtle.importKey("raw",d,"AES-GCM",false,["decrypt"]);}
 async function decrypt(v:string){const a=Uint8Array.from(atob(v),c=>c.charCodeAt(0));return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:a.slice(0,12)},await aesKey(),a.slice(12)));}
 async function sign(secret:string,q:string){const k=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const s=await crypto.subtle.sign("HMAC",k,enc.encode(q));return [...new Uint8Array(s)].map(x=>x.toString(16).padStart(2,"0")).join("");}
@@ -44,23 +50,23 @@ Deno.serve(async req=>{
       fetch("https://fapi.binance.com/fapi/v1/exchangeInfo").then(r=>r.json())
      ]);
      if(account.canTrade!==true||mode.dualSidePosition===true)throw Error("account_not_ready_or_hedge_mode");
-     const active=(positions??[]).filter((x:any)=>Math.abs(Number(x.positionAmt))>0);
+     const active=((positions??[]) as PositionRow[]).filter((x)=>Math.abs(Number(x.positionAmt))>0);
      if(active.length>=Number(cfg.max_open_positions)){skipped++;continue;}
-     if(active.some((x:any)=>x.symbol===it.symbol)){skipped++;continue;}
-     const usdt=(account.assets??[]).find((x:any)=>x.asset==="USDT");
+     if(active.some((x)=>x.symbol===it.symbol)){skipped++;continue;}
+     const usdt=((account.assets??[]) as AssetRow[]).find((x)=>x.asset==="USDT");
      const available=Number(usdt?.availableBalance??0),wallet=Number(usdt?.walletBalance??0);
      if(!(available>0&&wallet>0))throw Error("insufficient_usdt_margin");
      const utcStart=new Date();utcStart.setUTCHours(0,0,0,0);
      const income=await binance(key,secret,"/fapi/v1/income","GET",{incomeType:"REALIZED_PNL",startTime:String(utcStart.getTime()),limit:"1000"});
-     const realizedToday=Array.isArray(income)?income.reduce((sum:number,row:any)=>sum+Number(row.income??0),0):0;
+     const realizedToday=Array.isArray(income)?(income as IncomeRow[]).reduce((sum,row)=>sum+Number(row.income??0),0):0;
      const dailyLossLimit=wallet*Number(cfg.max_daily_loss_pct)/100;
      if(!Number.isFinite(realizedToday)||realizedToday<=-dailyLossLimit){skipped++;continue;}
-     const symbolInfo=(exchangeInfo.symbols??[]).find((x:any)=>x.symbol===it.symbol&&x.status==="TRADING");
+     const symbolInfo=((exchangeInfo as ExchangeInfo).symbols??[]).find((x)=>x.symbol===it.symbol&&x.status==="TRADING");
      if(!symbolInfo)throw Error("symbol_not_trading");
      const filters=symbolInfo.filters??[];
-     const lot=filters.find((x:any)=>x.filterType==="LOT_SIZE");
-     const priceFilter=filters.find((x:any)=>x.filterType==="PRICE_FILTER");
-     const notionalFilter=filters.find((x:any)=>x.filterType==="MIN_NOTIONAL"||x.filterType==="NOTIONAL");
+     const lot=filters.find((x)=>x.filterType==="LOT_SIZE");
+     const priceFilter=filters.find((x)=>x.filterType==="PRICE_FILTER");
+     const notionalFilter=filters.find((x)=>x.filterType==="MIN_NOTIONAL"||x.filterType==="NOTIONAL");
      if(!lot||!priceFilter)throw Error("symbol_filters_missing");
      const tick=Number(priceFilter.tickSize),step=Number(lot.stepSize),minQty=Number(lot.minQty),minNotional=Number(notionalFilter?.notional??notionalFilter?.minNotional??5);
      const side=it.side==="BUY"?"BUY":it.side==="SELL"?"SELL":null;
@@ -79,7 +85,7 @@ Deno.serve(async req=>{
      const {error:ins}=await db.from("binance_futures_orders").insert({user_id:cfg.user_id,signal_key:it.signal_key,symbol:it.symbol,side,leverage:Number(cfg.leverage),quantity:qty,entry_price:entry,stop_loss:sl,take_profit:tp,risk_usdt:qty*riskDistance,client_order_id:clientId,status:"queued",request_payload:{source:"8of8_super_signal",risk_budget_usdt:riskBudget}});
      if(ins){if(ins.code==="23505"){skipped++;continue;}throw ins;}
      await binance(key,secret,"/fapi/v1/leverage","POST",{symbol:it.symbol,leverage:String(cfg.leverage)});
-     let entryOrder:any;
+     let entryOrder:BinanceOrderResult;
      try{entryOrder=await binance(key,secret,"/fapi/v1/order","POST",{symbol:it.symbol,side,type:"MARKET",quantity:fmt(qty),newClientOrderId:clientId});}
      catch(e){const m=e instanceof Error?e.message:"order_submission_failed";await db.from("binance_futures_orders").update({status:m==="binance_network_outcome_uncertain"?"uncertain":"rejected",last_error_code:m.slice(0,120)}).eq("user_id",cfg.user_id).eq("signal_key",it.signal_key);if(m==="binance_network_outcome_uncertain")break;throw e;}
      await db.from("binance_futures_orders").update({status:"submitted",exchange_order_id:String(entryOrder.orderId??""),result_payload:entryOrder}).eq("user_id",cfg.user_id).eq("signal_key",it.signal_key);
@@ -88,14 +94,14 @@ Deno.serve(async req=>{
       const stop=await binance(key,secret,"/fapi/v1/algoOrder","POST",{algoType:"CONDITIONAL",symbol:it.symbol,side:opposite,type:"STOP_MARKET",triggerPrice:fmt(floorStep(sl,tick)),closePosition:"true",workingType:"MARK_PRICE"});
       const target=await binance(key,secret,"/fapi/v1/algoOrder","POST",{algoType:"CONDITIONAL",symbol:it.symbol,side:opposite,type:"TAKE_PROFIT_MARKET",triggerPrice:fmt(floorStep(tp,tick)),closePosition:"true",workingType:"MARK_PRICE"});
       const openAlgo=await binance(key,secret,"/fapi/v1/openAlgoOrders","GET",{symbol:it.symbol});
-      const algos=Array.isArray(openAlgo)?openAlgo:(openAlgo.orders??[]);
-      const protectedOk=algos.some((x:any)=>String(x.algoId)===String(stop.algoId))&&algos.some((x:any)=>String(x.algoId)===String(target.algoId));
+      const algos: BinanceOrderResult[]=Array.isArray(openAlgo)?openAlgo as BinanceOrderResult[]:Array.isArray(openAlgo.orders)?openAlgo.orders as BinanceOrderResult[]:[];
+      const protectedOk=algos.some((x)=>String(x.algoId)===String(stop.algoId))&&algos.some((x)=>String(x.algoId)===String(target.algoId));
       if(!protectedOk)throw Error("protective_orders_not_confirmed");
       await db.from("binance_futures_orders").update({status:"protected",stop_order_id:String(stop.algoId),take_profit_order_id:String(target.algoId),result_payload:{entry:entryOrder,stop,target,verified:true}}).eq("user_id",cfg.user_id).eq("signal_key",it.signal_key);
       await db.from("binance_futures_positions").insert({user_id:cfg.user_id,symbol:it.symbol,side:side==="BUY"?"LONG":"SHORT",quantity:qty,entry_price:Number(entryOrder.avgPrice||entry),mark_price:Number(entryOrder.avgPrice||entry),leverage:Number(cfg.leverage),unrealized_pnl:0,stop_loss:sl,take_profit:tp,source_signal_key:it.signal_key,status:"open",opened_at:new Date().toISOString(),updated_at:new Date().toISOString()});
       await db.from("binance_futures_signal_intents").update({status:"dismissed",payload:{...(it.payload??{}),execution_state:"protected_order_live"}}).eq("id",it.id).eq("user_id",cfg.user_id);
       submitted++;
-     }catch(protectionError){
+     }catch{
       // Immediately attempt to flatten any entry that could not be protected.
       try{await binance(key,secret,"/fapi/v1/order","POST",{symbol:it.symbol,side:opposite,type:"MARKET",quantity:fmt(qty),reduceOnly:"true"});await db.from("binance_futures_orders").update({status:"rejected",last_error_code:"protection_failed_position_flattened"}).eq("user_id",cfg.user_id).eq("signal_key",it.signal_key);}
       catch{await db.from("binance_futures_orders").update({status:"uncertain",last_error_code:"CRITICAL_protection_failed_flatten_unconfirmed"}).eq("user_id",cfg.user_id).eq("signal_key",it.signal_key);}
