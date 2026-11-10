@@ -25,7 +25,7 @@ function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; 
   return <>
     <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => setOpen(true)}
       className={`signal-bubble pointer-events-auto absolute flex -translate-x-1/2 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-full border-2 px-3 py-3 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${buy ? 'border-up/80 bg-up/15 text-up shadow-up/40' : 'border-down/80 bg-down/15 text-down shadow-down/40'}`}
-      style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: `calc(16px + ${Math.floor(index / 2) * 112}px)` }}>
+      style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: '-150px', animationDelay: `${index * 850}ms` }} onAnimationEnd={() => onDismiss(toast.id)}>
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
       <span className="text-sm font-black tracking-wider">{toast.direction}</span>
       <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.kind === 'break-retest' ? 'BREAK & RETEST' : toast.timeframe}</span>
@@ -45,7 +45,7 @@ function HitBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; ind
   return <>
     <button type="button" aria-label={`Open ${toast.message} details for ${toast.symbol}`} onClick={() => setOpen(true)}
       className={`signal-bubble pointer-events-auto absolute flex -translate-x-1/2 flex-col items-center justify-center gap-1 overflow-hidden rounded-full border-2 px-3 py-3 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isStop ? 'border-down/80 bg-down/15 text-down shadow-down/40' : 'border-warn/80 bg-warn/15 text-warn shadow-warn/40'}`}
-      style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: `calc(16px + ${Math.floor(index / 2) * 112}px)` }}>
+      style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: '-150px', animationDelay: `${index * 850}ms` }}>
       {isStop ? <ShieldAlert className="h-6 w-6" /> : <Target className="h-6 w-6" />}
       <span className="text-xs font-black tracking-wider">{isStop ? 'STOP' : hitLabel}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
