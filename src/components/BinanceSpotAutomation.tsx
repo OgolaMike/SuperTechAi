@@ -29,7 +29,11 @@ async function callBinance(action: string, payload: Record<string, unknown> = {}
       const raw = await response.clone().text().catch(() => '');
       let detail: { error?: string; message?: string } | null = null;
       try { detail = JSON.parse(raw); } catch { /* Keep the HTTP response as the fallback. */ }
-      throw new Error(detail?.error ?? detail?.message ?? (raw && raw.length < 240 ? raw : '') || error.message || `Binance Spot request failed (${response.status}).`);
+      const reason = detail?.error ?? detail?.message ?? ((raw && raw.length < 240 ? raw : '') || error.message || `Binance Spot request failed (${response.status}).`);
+      if (/invalid api-key, ip, or permissions/i.test(reason)) {
+        throw new Error('Binance rejected this API key. Check that the key and secret are correct and Spot trading permission is enabled. If IP restrictions are enabled, whitelist the SuperTech server egress IPs; recent connection logs have shown 35.180.109.45 and 15.237.127.167. Never enable withdrawals.');
+      }
+      throw new Error(reason);
     }
     throw new Error(error.message || 'Binance Spot request failed. Check the connection and try again.');
   }
@@ -157,7 +161,6 @@ export function BinanceSpotAutomation() {
                 {busy ? 'Connecting…' : 'Connect Binance Spot'}
               </button>
               {!apiKey.trim() || !apiSecret.trim() ? <p className="text-xs text-ink-3">Enter both your API key and API secret to enable connection.</p> : null}
-              {(message || error) && <div role="status" aria-live="polite" className={`rounded-xl border p-3 text-sm ${error ? 'border-rose-500/20 bg-rose-500/5 text-rose-500' : 'border-up/20 bg-up/5 text-up'}`}>{error || message}</div>}
               <div className="rounded-xl border border-accent/20 bg-accent/5 p-3 text-xs leading-5 text-ink-2">
                 Before connecting the first account, the administrator must add <strong>BINANCE_CREDENTIALS_ENCRYPTION_KEY</strong> to Supabase Edge Function Secrets. Use a unique random value of at least 32 characters; never commit it to the repository.
               </div>
@@ -178,6 +181,7 @@ export function BinanceSpotAutomation() {
               {balances.length > 0 && <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-3">Available balances</p><div className="grid grid-cols-2 gap-2">{balances.slice(0, 8).map((b) => <div key={b.asset} className="rounded-lg border border-line/10 bg-canvas/50 p-2"><p className="text-xs text-ink-3">{b.asset}</p><p className="mt-1 text-sm font-semibold text-ink">{b.free.toLocaleString(undefined, { maximumFractionDigits: 6 })}</p></div>)}</div></div>}
             </div>
           )}
+          {(message || error) && <div role="status" aria-live="polite" className={`mt-3 rounded-xl border p-3 text-sm ${error ? 'border-rose-500/20 bg-rose-500/5 text-rose-500' : 'border-up/20 bg-up/5 text-up'}`}>{error || message}</div>}
         </div>
 
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
