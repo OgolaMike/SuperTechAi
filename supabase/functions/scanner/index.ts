@@ -321,6 +321,21 @@ async function runScan(): Promise<Record<string, unknown>> {
     if (pushRowsError) throw new Error(`Could not load alert asset preferences: ${pushRowsError.message}`);
     const subscribedSymbols = new Set((pushRows ?? []).flatMap((row) => Array.isArray(row.symbols) ? row.symbols : []));
     const hasUnfilteredPushSubscription = (pushRows ?? []).some((row) => row.symbols == null);
+    const { data: futuresAutomationRows, error: futuresAutomationError } = await db
+      .from("binance_futures_settings")
+      .select("allowed_symbols")
+      .eq("connection_status", "connected")
+      .eq("auto_trade_enabled", true)
+      .eq("emergency_stop", false);
+    if (futuresAutomationError) throw new Error("Could not load Futures automation pairs: " + futuresAutomationError.message);
+    const futuresAutomationAllowsAll = (futuresAutomationRows ?? []).some((row) =>
+      !Array.isArray(row.allowed_symbols) || row.allowed_symbols.length === 0
+    );
+    const futuresAutomationSymbols = new Set(
+      futuresAutomationAllowsAll
+        ? binanceSymbols.map((symbol) => symbol.symbol)
+        : (futuresAutomationRows ?? []).flatMap((row) => row.allowed_symbols ?? [])
+    );
     // Rotate the starting symbol each minute so a time-limited run never always skips the same assets.
     const offset = symbols.length ? Math.floor(started / 60000) % symbols.length : 0;
     const ordered = [...symbols.slice(offset), ...symbols.slice(0, offset)];
@@ -487,7 +502,7 @@ async function runScan(): Promise<Record<string, unknown>> {
 
       // Super Signal push events are generated server-side for subscribed assets only.
       // The same 8-frame freshness, SMA(60) bias and live M15 signal rules used by the app apply.
-      if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
+      if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol) || futuresAutomationSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
         try {
           for (const frame of TIMEFRAMES) {
             if (!candleCache.has(frame.granularity)) {
@@ -497,6 +512,68 @@ async function runScan(): Promise<Record<string, unknown>> {
           }
           const superSignal = evaluateSuperSignal(candleCache, nowEpoch);
           if (superSignal) {
+            // Binance Futures receives only fresh, confirmed 8/8 Super Signals.
+            // This creates a member-specific signal intent; it does not place an exchange order.
+            if (symbol.exchange === "BINANCE") {
+              const { data: futuresAccounts, error: futuresAccountsError } = await db
+                .from("binance_futures_settings")
+                .select("user_id, leverage, risk_percent, max_daily_loss_pct, max_open_positions, allowed_symbols, auto_trade_enabled, live_execution_enabled, emergency_stop, connection_status")
+                .eq("connection_status", "connected")
+                .eq("auto_trade_enabled", true)
+                .eq("emergency_stop", false);
+              if (futuresAccountsError) throw new Error("Could not load Futures member settings: " + futuresAccountsError.message);
+              const eligible = (futuresAccounts ?? []).filter((account) =>
+                !Array.isArray(account.allowed_symbols) ||
+                account.allowed_symbols.length === 0 ||
+                account.allowed_symbols.includes(symbol.symbol)
+              );
+              if (eligible.length) {
+                const futuresSignalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
+                const intentRows = eligible.map((account) => ({
+                  user_id: account.user_id,
+                  signal_key: futuresSignalKey,
+                  symbol: symbol.symbol,
+                  side: superSignal.direction,
+                  timeframe_agreement: 8,
+                  signal_epoch: superSignal.signalEpoch,
+                  entry_price: superSignal.entry,
+                  stop_loss: superSignal.stopLoss,
+                  take_profit: superSignal.tp3,
+                  status: "signal_ready",
+                  payload: {
+                    leverage_preference: account.leverage,
+                    risk_percent: account.risk_percent,
+                    max_daily_loss_pct: account.max_daily_loss_pct,
+                    max_open_positions: account.max_open_positions,
+                    live_execution_requested: account.live_execution_enabled === true,
+                    execution_state: "signal_only_live_execution_not_armed",
+                    timeframe_agreement: 8,
+                    source: "scanner_super_signal"
+                  }
+                }));
+                const { error: intentError } = await db.from("binance_futures_signal_intents")
+                  .upsert(intentRows, { onConflict: "user_id,signal_key", ignoreDuplicates: true });
+                if (intentError) throw new Error("Could not save Futures Super Signal intents: " + intentError.message);
+                // Execute only server-side, after this scanner pass has persisted eligible 8/8 intents.
+                // The executor independently checks member opt-in, risk limits, freshness and protection.
+                const executorResponse = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/binance-futures-executor", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({ action: "execute_pending" })
+                });
+                if (!executorResponse.ok) {
+                  const executorError = await executorResponse.text();
+                  throw new Error("Futures executor returned " + executorResponse.status + ": " + executorError.slice(0, 180));
+                }
+                const executorResult = await executorResponse.json();
+                if (executorResult?.failed > 0) {
+                  console.error("Futures executor reported failures", executorResult);
+                }
+              }
+            }
             const signalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
             const { error: superEventError } = await db.from("push_events").upsert([{
               event_key: `${signalKey}|super_signal`,
