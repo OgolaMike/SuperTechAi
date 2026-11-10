@@ -19,6 +19,7 @@ type Props = {
 const HEIGHT = 280;
 const PAD = { top: 18, right: 104, bottom: 22, left: 12 };
 const INDICATOR_PERIOD = 60;
+const RIGHT_CANDLE_SPACE = 6;
 
 function calculateBands(candles: Candle[]) {
   const closes = candles.map((candle) => candle.close);
@@ -87,9 +88,10 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
   const plotW = Math.max(600, data.length * spacing);
   const width = PAD.left + plotW + PAD.right;
   const plotH = HEIGHT - PAD.top - PAD.bottom;
-  const x = (index: number) => PAD.left + (index / Math.max(data.length - 1, 1)) * plotW;
+  const candleSlots = Math.max(data.length - 1, 1) + RIGHT_CANDLE_SPACE;
+  const x = (index: number) => PAD.left + (index / candleSlots) * plotW;
   const y = (price: number) => PAD.top + ((max - price) / range) * plotH;
-  const bodyW = Math.max(2, Math.min(spacing * 0.72, 18));
+  const bodyW = Math.max(2, Math.min((plotW / candleSlots) * 0.72, 18));
   const zoneStartIndex = data.findIndex((candle) => candle.epoch >= zone.startEpoch);
   const zoneRectX = zone.startEpoch <= data[0].epoch
     ? PAD.left
