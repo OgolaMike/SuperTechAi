@@ -29,7 +29,7 @@ async function callBinance(action: string, payload: Record<string, unknown> = {}
       const raw = await response.clone().text().catch(() => '');
       let detail: { error?: string; message?: string } | null = null;
       try { detail = JSON.parse(raw); } catch { /* Keep the HTTP response as the fallback. */ }
-      throw new Error(detail?.error ?? detail?.message ?? (raw && raw.length < 240 ? raw : '') ?? error.message ?? `Binance Spot request failed (${response.status}).`);
+      throw new Error(detail?.error ?? detail?.message ?? (raw && raw.length < 240 ? raw : '') || error.message || `Binance Spot request failed (${response.status}).`);
     }
     throw new Error(error.message || 'Binance Spot request failed. Check the connection and try again.');
   }
