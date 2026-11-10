@@ -315,92 +315,23 @@ async function generateLessonVideo(lesson: LessonForRender, tts: { generate: (te
   }
 }
 
-export function AcademyBackgroundPublisher({ lessons, isAdmin }: { lessons: LessonForRender[]; isAdmin: boolean }) {
-  const startedRef = useRef(false);
-  const cancelledRef = useRef(false);
-  const [running, setRunning] = useState(false);
-  const [completed, setCompleted] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [current, setCurrent] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!isAdmin || startedRef.current) return;
-    startedRef.current = true;
-    cancelledRef.current = false;
-    let alive = true;
-
-    const runQueue = async () => {
-      setRunning(true); setError('');
-      try {
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        if (!sessionData.session) throw new Error('Sign in again to publish Academy lessons.');
-        const { data: existing, error: listError } = await supabase.from('academy_videos').select('lesson_id,status,video_url');
-        if (listError) throw listError;
-        const unavailable = new Set((existing || []).filter((row) => row.status !== 'failed' && String(row.video_url || '').includes('-complete-v2-')).map((row) => row.lesson_id));
-        const queue = lessons.filter((lesson) => !unavailable.has(lesson.id));
-        setTotal(queue.length);
-        setCompleted(lessons.length - queue.length);
-        if (!queue.length) { setMessage('All Academy lessons already have a video or an active publishing job.'); return; }
-
-        setMessage('Loading the free Kokoro voice model on this device. Videos will publish automatically while this Academy tab remains open.');
-        const moduleUrl = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm';
-        const runtime = await import(/* @vite-ignore */ moduleUrl) as KokoroRuntime;
-        const hasWebGPU = Boolean((navigator as Navigator & { gpu?: unknown }).gpu);
-        const tts = await runtime.KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
-          dtype: 'q8', device: hasWebGPU ? 'webgpu' : 'wasm',
-        });
-
-        for (const lesson of queue) {
-          if (!alive || cancelledRef.current) break;
-          setCurrent(lesson.title);
-          setMessage('Creating narrated screen walkthrough: ' + lesson.title);
-          const videoBlob = await generateLessonVideo(lesson, tts);
-          const path = 'lessons/' + lesson.id + '-complete-v2-' + Date.now() + '.webm';
-          const { error: uploadError } = await supabase.storage.from('academy-videos').upload(path, videoBlob, {
-            contentType: 'video/webm', cacheControl: '3600', upsert: false,
-          });
-          if (uploadError) throw uploadError;
-          const { error: insertError } = await supabase.from('academy_videos').insert({
-            lesson_id: lesson.id, lesson_title: lesson.title, status: 'completed',
-            video_url: path, created_by: sessionData.session.user.id,
-          });
-          if (insertError) {
-            await supabase.storage.from('academy-videos').remove([path]);
-            throw insertError;
-          }
-          setCompleted((value) => value + 1);
-        }
-        if (alive && !cancelledRef.current) setMessage('Background publishing complete. New narrated tutorials are now available in the Academy.');
-      } catch (cause) {
-        if (alive) setError(cause instanceof Error ? cause.message : 'Academy background publishing failed.');
-      } finally {
-        if (alive) setRunning(false);
-      }
-    };
-    void runQueue();
-    return () => { alive = false; cancelledRef.current = true; };
-  }, [isAdmin, lessons]);
-
+export function AcademyBackgroundPublisher({ isAdmin }: { lessons: LessonForRender[]; isAdmin: boolean }) {
+  // Video rendering and publishing are handled by the backend GitHub Actions worker.
+  // Never start a second browser-bound publishing queue when an administrator opens Academy.
   if (!isAdmin) return null;
   return (
     <section className="rounded-2xl border border-cyan-300/20 bg-surface/[0.035] p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300"><Sparkles className="h-5 w-5" /></span>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300">
+          <Sparkles className="h-5 w-5" />
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Illustrated lesson studio</p>
-          <p className="mt-1 text-sm font-semibold text-ink">{running ? 'Creating narrated tutorials in the background' : 'Background publishing status'}</p>
-          <p className="mt-1 text-xs text-ink-3">{message || 'Creates narrated teaching videos with illustrative visuals. Use the exact screen recorder above for real SuperTechAi walkthroughs.'}</p>
-          <p className="mt-1 text-[11px] text-ink-3">Illustrated explainer only — it does not show the exact live app screen. Use the screen recorder above to capture real buttons, charts and pages.</p>
-          {current && running && <p className="mt-1 text-xs text-cyan-400">Now creating: {current}</p>}
-          {total > 0 && <p className="mt-1 text-xs text-ink-3">{completed} lessons ready · {Math.max(0, total - (completed - (lessons.length - total)))} remaining in this run</p>}
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Academy publishing</p>
+          <p className="mt-1 text-sm font-semibold text-ink">Backend publishing only</p>
+          <p className="mt-1 text-xs text-ink-3">Videos are rendered by the automated publishing worker. Opening this page will not start a browser-based rendering job.</p>
         </div>
-        {running ? <span className="inline-flex items-center gap-1 rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300"><Video className="h-3.5 w-3.5" /> Rendering</span> : <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-400"><PlayCircle className="h-3.5 w-3.5" /> Ready</span>}
+        <span className="rounded-full border border-cyan-300/20 px-3 py-1 text-xs font-semibold text-cyan-300">Backend</span>
       </div>
-      {running && <button type="button" onClick={() => { cancelledRef.current = true; setMessage('The current video will finish before the queue pauses.'); }} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-line/15 px-3 py-2 text-xs text-ink-2"><PauseCircle className="h-4 w-4" /> Pause queue</button>}
-      {error && <p role="alert" className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-400">{error}</p>}
     </section>
   );
 }
