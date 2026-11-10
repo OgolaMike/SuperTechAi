@@ -12,7 +12,9 @@ export type BreakRetestSetup = {
   zoneLow: number;
   zoneHigh: number;
   entry: number;
+  stopLoss: number;
   target: number;
+  riskReward: 5;
   breakEpoch: number;
   retestEpoch: number;
   confirmationEpoch: number;
@@ -68,11 +70,17 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL') {
     const targets = pivots(candles, direction === 'BUY' ? 'high' : 'low', Math.max(2, confirmationIndex - 100), confirmationIndex)
       .filter(pv => direction === 'BUY' ? pv.price > entry : pv.price < entry)
       .sort((a, b) => direction === 'BUY' ? a.price - b.price : b.price - a.price);
-    const target = targets[0]?.price;
-    if (target == null) continue;
+    const zoneLow = level.price - tolerance;
+    const zoneHigh = level.price + tolerance;
+    // Place the stop beyond the complete retest zone, with a volatility-aware safety buffer.
+    const stopBuffer = Math.max(tolerance * 0.25, avgRange * 0.05);
+    const stopLoss = direction === 'BUY' ? zoneLow - stopBuffer : zoneHigh + stopBuffer;
+    const risk = Math.abs(entry - stopLoss);
+    if (!Number.isFinite(risk) || risk <= 0) continue;
+    // Fixed 5R target is calculated only after the structural stop has been established.
+    const target = direction === 'BUY' ? entry + risk * 5 : entry - risk * 5;
     return {
-      direction, zoneLow: level.price - tolerance, zoneHigh: level.price + tolerance,
-      entry, target, breakEpoch: candles[breakIndex].epoch,
+      direction, zoneLow, zoneHigh, entry, stopLoss, target, riskReward: 5, breakEpoch: candles[breakIndex].epoch,
       retestEpoch: candles[retestIndex].epoch,
       confirmationEpoch: candles[confirmationIndex].epoch,
       confirmationPrice: direction === 'BUY' ? rejection.high : rejection.low,
