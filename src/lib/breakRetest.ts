@@ -37,8 +37,13 @@ function pivots(candles: Candle[], side: 'high' | 'low', start: number, end: num
   return result;
 }
 
-function findSetup(candles: Candle[], direction: 'BUY' | 'SELL') {
-  if (candles.length < 35) return null;
+function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: number) {
+  // A setup is confirmed only from fully closed candles. The currently forming
+  // live candle remains visible on the chart but cannot trigger an early entry.
+  const now = Math.floor(Date.now() / 1000);
+  const closedCandles = candles.filter(c => c.epoch + granularity <= now);
+  if (closedCandles.length < 35) return null;
+  candles = closedCandles;
   const from = Math.max(2, candles.length - 100);
   const side = direction === 'BUY' ? 'high' : 'low';
   const levels = pivots(candles, side, from, candles.length - 3);
@@ -53,9 +58,10 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL') {
     let rejectionIndex = -1;
     for (let i = breakIndex + 1; i < candles.length - 2; i++) {
       const c = candles[i];
-      const touched = direction === 'BUY'
-        ? c.low <= level.price + tolerance && c.low >= level.price - tolerance * 2
-        : c.high >= level.price - tolerance && c.high <= level.price + tolerance * 2;
+      // The breakout and retest must overlap this exact same marked zone.
+      const zoneLow = level.price - tolerance;
+      const zoneHigh = level.price + tolerance;
+      const touched = c.low <= zoneHigh && c.high >= zoneLow;
       if (!touched) continue;
       const rejected = direction === 'BUY'
         ? c.close > level.price && c.close > c.open
@@ -64,9 +70,14 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL') {
     }
     if (retestIndex < 0 || rejectionIndex >= candles.length - 1) continue;
     const rejection = candles[rejectionIndex];
-    const confirmationIndex = candles.findIndex((c, i) => i > rejectionIndex && (direction === 'BUY' ? c.high > rejection.high : c.low < rejection.low));
-    if (confirmationIndex < 0 || confirmationIndex < candles.length - 3) continue;
-    const entry = candles[confirmationIndex].close;
+    // Require the confirmation candle to CLOSE beyond the rejection candle,
+    // not merely wick through it. No extra pivot / second higher-high filter.
+    const confirmationIndex = candles.findIndex((c, i) => i > rejectionIndex
+      && (direction === 'BUY' ? c.close > rejection.high : c.close < rejection.low));
+    if (confirmationIndex < 0 || confirmationIndex < candles.length - 2) continue;
+    const confirmation = candles[confirmationIndex];
+    // Place the suggested entry below the BUY candle / above the SELL candle.
+    const entry = direction === 'BUY' ? confirmation.low : confirmation.high;
     const targets = pivots(candles, direction === 'BUY' ? 'high' : 'low', Math.max(2, confirmationIndex - 100), confirmationIndex)
       .filter(pv => direction === 'BUY' ? pv.price > entry : pv.price < entry)
       .sort((a, b) => direction === 'BUY' ? a.price - b.price : b.price - a.price);
@@ -83,7 +94,7 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL') {
       direction, zoneLow, zoneHigh, entry, stopLoss, target, riskReward: 5, breakEpoch: candles[breakIndex].epoch,
       retestEpoch: candles[retestIndex].epoch,
       confirmationEpoch: candles[confirmationIndex].epoch,
-      confirmationPrice: direction === 'BUY' ? rejection.high : rejection.low,
+      confirmationPrice: direction === 'BUY' ? confirmation.low : confirmation.high,
     };
   }
   return null;
@@ -101,7 +112,7 @@ export function buildBreakRetestSetups(
     for (const state of Object.values(byTimeframe)) {
       const candles = state.candles;
       for (const direction of ['BUY', 'SELL'] as const) {
-        const setup = findSetup(candles, direction);
+        const setup = findSetup(candles, direction, state.granularity);
         if (!setup) continue;
         setups.push({
           key: `${symbol}|${state.granularity}|${setup.direction}|${setup.confirmationEpoch}`,
