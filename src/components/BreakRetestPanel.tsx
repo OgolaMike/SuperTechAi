@@ -63,7 +63,11 @@ export function BreakRetestPanel({ assets, states, prices, selectedSetupKey }: P
   const [expanded, setExpanded] = useState<BreakRetestSetup | null>(null);
   const setups = useMemo(() => buildBreakRetestSetups(assets, states), [assets, states]);
   const visible = setups.filter(item => direction === 'ALL' || item.direction === direction);
-  useEffect(() => {\n    if (!selectedSetupKey) return;\n    const match = setups.find(item => item.key === selectedSetupKey);\n    if (match) setExpanded(match);\n  }, [selectedSetupKey, setups]);
+  useEffect(() => {
+    if (!selectedSetupKey) return;
+    const match = setups.find(item => item.key === selectedSetupKey);
+    if (match) setExpanded(match);
+  }, [selectedSetupKey, setups]);
   const timeframes = new Set(Object.values(states).flatMap(byTf => Object.values(byTf).filter(s => s.candles.length > 0).map(s => s.granularity))).size;
   const assetCount = new Set(Object.keys(states)).size;
   const candlesFor = (item: BreakRetestSetup) => states[item.symbol]?.[item.granularity]?.candles ?? [];
