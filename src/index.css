@@ -449,22 +449,18 @@ nav[aria-label="Sections"] button[aria-current="page"] {
 }
 
 
-/* Minimal signal bubbles rise through the screen and complete their journey in 15 seconds. */
-@keyframes supertech-signal-bubble-rise {
-  0% { transform: translate3d(0, 0, 0) scale(.72); opacity: 0; }
-  7% { transform: translate3d(0, -4vh, 0) scale(1); opacity: 1; }
-  82% { opacity: 1; }
-  100% { transform: translate3d(0, -115vh, 0) scale(.82); opacity: 0; }
+/* Notification bubbles stay in place until the user dismisses them. */
+@keyframes supertech-bubble-enter {
+  from { opacity: 0; transform: translate(-50%, 8px) scale(.96); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 .signal-bubble {
-  animation: supertech-signal-bubble-rise 15s linear both;
-  will-change: transform, opacity;
+  animation: supertech-bubble-enter 220ms ease-out both;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.signal-bubble:active { transform: scale(.96); }
-@media (prefers-reduced-motion: reduce) {
-  .signal-bubble { animation-duration: 15s; }
-}
+.signal-bubble:active { filter: brightness(1.12); }
+@media (prefers-reduced-motion: reduce) { .signal-bubble { animation: none; }}
 
 
 /* Keep the document as the single vertical scroll surface, including long signal feeds. */
@@ -500,4 +496,15 @@ body, #root { touch-action: pan-y pinch-zoom; }
   .level-dial-hit.level-dial-down {
     animation: none !important;
   }
+}
+
+
+/* Phone readability and compact layouts for narrow screens. */
+@media (max-width: 640px) {
+  body { font-size: 1rem; line-height: 1.5; }
+  #root :where(button, a, input, select, textarea) { min-width: 0; }
+  #root :where(h1, h2, h3, h4, p, span, label, small, strong) { max-width: 100%; }
+  nav[aria-label="Sections"] button { flex: 0 1 auto; padding-inline: .65rem; font-size: .8125rem; line-height: 1.25rem; }
+  nav[aria-label="Sections"] button span { white-space: normal; text-align: center; }
+  .signal-bubble { max-width: min(132px, 38vw); max-height: min(132px, 38vw); padding: .5rem; }
 }
