@@ -1,6 +1,6 @@
-import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark, Bitcoin, Network, GraduationCap, Activity, Gavel } from 'lucide-react';
+import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark, Bitcoin, Network, GraduationCap, Activity, Gavel, Repeat2 } from 'lucide-react';
 
-export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'binance-futures' | 'network' | 'academy' | 'governance';
+export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'binance-futures' | 'network' | 'academy' | 'governance' | 'break-retest';
 
 const VIEWS: { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -13,6 +13,7 @@ const VIEWS: { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?
   { id: 'binance-futures', label: 'Binance Futures', icon: Activity },
   { id: 'crypto', label: 'Crypto', icon: Coins },
   { id: 'super', label: 'Super Signal', icon: Sparkles },
+  { id: 'break-retest', label: 'Break & Retest', icon: Repeat2 },
   { id: 'alerts', label: 'Alerts', icon: Bell },
   { id: 'network', label: 'Network', icon: Network },
   { id: 'referrals', label: 'My Referrals', icon: UserRoundPlus },
