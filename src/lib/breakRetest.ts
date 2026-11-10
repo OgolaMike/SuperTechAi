@@ -87,7 +87,10 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: nu
     const stopBuffer = Math.max(tolerance * 0.25, avgRange * 0.05);
     const stopLoss = direction === 'BUY' ? zoneLow - stopBuffer : zoneHigh + stopBuffer;
     const risk = Math.abs(entry - stopLoss);
-    if (!Number.isFinite(risk) || risk <= 0) continue;
+    // Reject any setup where a deep confirmation wick would put entry beyond its stop.
+    if (!Number.isFinite(risk) || risk <= 0
+      || (direction === 'BUY' && entry <= stopLoss)
+      || (direction === 'SELL' && entry >= stopLoss)) continue;
     // Fixed 5R target is calculated only after the structural stop has been established.
     const target = direction === 'BUY' ? entry + risk * 5 : entry - risk * 5;
     return {
