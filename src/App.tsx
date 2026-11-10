@@ -26,6 +26,7 @@ import { ViewNav, type View } from '@/components/ViewNav';
 import { useDerivSignals } from '@/hooks/useDerivSignals';
 import { useSignalAlerts } from '@/hooks/useSignalAlerts';
 import { useSuperSignalAlerts } from '@/hooks/useSuperSignalAlerts';
+import { useBreakRetestAlerts } from '@/hooks/useBreakRetestAlerts';
 import { useSuperSignalRecords } from '@/hooks/useSuperSignalRecords';
 import { usePendingOrderAlerts } from '@/hooks/usePendingOrderAlerts';
 import { useSignalRecordSync } from '@/hooks/useSignalRecordSync';
@@ -81,6 +82,7 @@ function App() {
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
   const { toasts, dismiss } = useSignalAlerts(views, loaded, soundsEnabled);
+  const { toasts: breakRetestToasts, dismiss: dismissBreakRetestToast } = useBreakRetestAlerts(assets, states, loaded, soundsEnabled);
   const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded, soundsEnabled);
   const superSignalHistory = useSuperSignalRecords(superSignals, loaded);
   const sync = useSignalRecordSync(views, loaded);
@@ -116,7 +118,9 @@ function App() {
   };
 
   const openSignalChart = (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => {
-    if (chartTargetId) {
+    if (chartTargetId?.startsWith('break-retest:')) {
+      setView('break-retest');
+    } else if (chartTargetId) {
       if (selectedSignalKey) setSelectedSuperSignalKey(selectedSignalKey);
       setView('super');
     } else {
@@ -235,7 +239,7 @@ function App() {
         </footer>
       </div>
 
-      <Toasts toasts={[...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); }} onOpenChart={openSignalChart} />
+      <Toasts toasts={[...breakRetestToasts, ...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); dismissBreakRetestToast(id); }} onOpenChart={openSignalChart} />
     </div>
   );
 }
