@@ -1,6 +1,11 @@
 name: SuperTechAi Academy video publisher
 
 on:
+  push:
+    paths:
+      - 'scripts/academy-video-worker.mjs'
+      - 'src/components/AcademyBackgroundPublisher.tsx'
+      - '.github/workflows/academy-video-publisher.yml'
   workflow_dispatch:
     inputs:
       test_lesson_id:
@@ -30,8 +35,8 @@ jobs:
     env:
       ACADEMY_DEMO_EMAIL: ${{ secrets.ACADEMY_DEMO_EMAIL }}
       ACADEMY_DEMO_PASSWORD: ${{ secrets.ACADEMY_DEMO_PASSWORD }}
-      ACADEMY_FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.force_refresh == true }}
-      ACADEMY_TEST_LESSON_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.test_lesson_id || '' }}
+      ACADEMY_FORCE_REFRESH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_refresh == true) }}
+      ACADEMY_TEST_LESSON_ID: ${{ github.event_name == 'push' && 'welcome' || (github.event_name == 'workflow_dispatch' && inputs.test_lesson_id || '') }}
     steps:
       - name: Check out SuperTechAi
         uses: actions/checkout@v6
