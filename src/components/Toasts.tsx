@@ -32,7 +32,7 @@ function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; 
       style={{ width: bubbleSize, height: bubbleSize, left: `calc(16% + ${(index % 5) * 17}%)` }}>
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
       <span className="text-sm font-black tracking-wider">{toast.direction}</span>
-      <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.kind === 'break-retest' ? 'BREAK & RETEST' : toast.timeframe}</span><span className="text-[9px] font-semibold opacity-80">{toast.timeframe}</span>
+      <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.kind === 'break-retest' ? 'BREAK & RETEST' : toast.timeframe}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
     {open && <SignalDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId, toast.id.startsWith('super:') ? toast.id.slice(6) : undefined)} />}
@@ -121,11 +121,17 @@ function SignalDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toas
       <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">{toast.kind === 'break-retest' ? 'Break & Retest alert' : 'Signal details'}</p><h2 className={`mt-1 text-2xl font-black ${buy ? 'text-up' : 'text-down'}`}>{toast.direction} · {toast.timeframe}</h2><p className="text-sm text-ink-2">{toast.assetName} ({toast.symbol})</p></div><button type="button" onClick={onClose} aria-label="Close details" className="rounded-full p-2 text-ink-2 hover:bg-surface/10"><X className="h-5 w-5" /></button></div>
       <p className="mt-3 text-xs text-ink-3">{toast.message}</p>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <Detail label="Entry" value={formatPrice(toast.levels.entry, toast.digits)} />
-        <Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" />
-        <Detail label="Take-profit 1" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" />
-        <Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" />
-        <Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" />
+        <Detail label="Market entry" value={formatPrice(toast.levels.entry, toast.digits)} />
+        {toast.kind === 'break-retest' ? <>
+          <Detail label="Retest-zone invalidation" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" />
+          <Detail label="Previous swing target" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" />
+          <Detail label="Confirmation" value={toast.direction === 'BUY' ? 'Higher high' : 'Lower low'} />
+        </> : <>
+          <Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" />
+          <Detail label="Take-profit 1" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" />
+          <Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" />
+          <Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" />
+        </>}
         <Detail label="Signal time" value={formatDateTime(toast.at)} />
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2">
