@@ -94,7 +94,7 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: nu
     // Fixed 5R target is calculated only after the structural stop has been established.
     const target = direction === 'BUY' ? entry + risk * 5 : entry - risk * 5;
     return {
-      direction, zoneLow, zoneHigh, entry, stopLoss, target, riskReward: 5, breakEpoch: candles[breakIndex].epoch,
+      direction, zoneLow, zoneHigh, entry, stopLoss, target, riskReward: 5 as const, breakEpoch: candles[breakIndex].epoch,
       retestEpoch: candles[retestIndex].epoch,
       confirmationEpoch: candles[confirmationIndex].epoch,
       confirmationPrice: direction === 'BUY' ? confirmation.low : confirmation.high,
