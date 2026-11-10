@@ -128,7 +128,7 @@ function App() {
       setView('dashboard');
     }
     window.setTimeout(() => {
-      const targetId = chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
+      const targetId = chartTargetId?.startsWith('break-retest:') ? 'break-retest-panel' : chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
       const target = document.getElementById(targetId);
       target?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }, 450);
