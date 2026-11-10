@@ -15,8 +15,15 @@ type SignalIntent = { id: string; symbol: string; side: string; timeframe_agreem
 
 async function callFutures(action: string, payload: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke('binance-futures', { body: { action, ...payload } });
-  if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error ?? 'Binance Futures request failed.');
+  if (error) {
+    const response = (error as { context?: Response }).context;
+    if (response && typeof response.json === 'function') {
+      const detail = await response.clone().json().catch(() => null);
+      throw new Error(detail?.error ?? detail?.message ?? error.message ?? 'Binance Futures request failed.');
+    }
+    throw error;
+  }
+  if (!data?.ok) throw new Error(data?.error ?? data?.message ?? 'Binance Futures request failed.');
   return data;
 }
 
@@ -31,7 +38,6 @@ export function BinanceFuturesAutomation() {
   const [risk, setRisk] = useState('0.5');
   const [dailyLoss, setDailyLoss] = useState('2');
   const [maxOpen, setMaxOpen] = useState('3');
-  const [symbols, setSymbols] = useState('');
   const [autoTrade, setAutoTrade] = useState(false);
   const [liveExecution, setLiveExecution] = useState(false);
   const [emergencyStop, setEmergencyStop] = useState(true);
@@ -53,7 +59,6 @@ export function BinanceFuturesAutomation() {
         setRisk(String(next.risk_percent ?? 0.5));
         setDailyLoss(String(next.max_daily_loss_pct ?? 2));
         setMaxOpen(String(next.max_open_positions ?? 3));
-        setSymbols((next.allowed_symbols ?? []).join(', '));
         setAutoTrade(Boolean(next.auto_trade_enabled));
         setLiveExecution(Boolean(next.live_execution_enabled));
         setEmergencyStop(next.emergency_stop !== false);
@@ -91,10 +96,9 @@ export function BinanceFuturesAutomation() {
   const saveSettings = async () => {
     setBusy(true); setError(''); setMessage('');
     try {
-      const allowedSymbols = [...new Set(symbols.split(',').map(s => s.trim().toUpperCase()).filter(Boolean))];
       await callFutures('settings', {
         leverage: Number(leverage), riskPercent: Number(risk), maxDailyLossPct: Number(dailyLoss),
-        maxOpenPositions: Number(maxOpen), allowedSymbols, autoTradeEnabled: autoTrade,
+        maxOpenPositions: Number(maxOpen), allowedSymbols: [], autoTradeEnabled: autoTrade,
         liveExecutionEnabled: liveExecution, emergencyStop,
       });
       setMessage('Futures controls saved. Live order execution is not yet armed by the signal engine.');
@@ -155,7 +159,7 @@ export function BinanceFuturesAutomation() {
             <label className="text-xs font-medium text-ink-2">Daily loss limit<select value={dailyLoss} onChange={e => setDailyLoss(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink">{['1','1.5','2','3','4','5'].map(v=><option key={v} value={v}>{v}%</option>)}</select></label>
             <label className="text-xs font-medium text-ink-2">Maximum open positions<input type="number" min="1" max="10" value={maxOpen} onChange={e => setMaxOpen(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" /></label>
           </div>
-          <label className="mt-3 block text-xs font-medium text-ink-2">Allowed Futures pairs (comma-separated)<input value={symbols} onChange={e => setSymbols(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" placeholder="BTCUSDT, ETHUSDT, SOLUSDT" /></label>
+          <div className="mt-3 rounded-xl border border-up/20 bg-up/5 p-3"><p className="text-sm font-semibold text-ink">Automatic Super Signal pair selection</p><p className="mt-1 text-xs leading-5 text-ink-2">No manual pair list is needed. The executor considers every eligible 8/8 Super Signal and checks that the pair is actively tradable on Binance USDT-M Futures before any order.</p></div>
           <div className="mt-4 space-y-3 rounded-xl border border-line/10 bg-canvas/50 p-3">
             <label className="flex items-center justify-between gap-3 text-sm text-ink"><span>Enable Super Signal automation</span><input type="checkbox" checked={autoTrade} onChange={e => setAutoTrade(e.target.checked)} /></label>
             <label className="flex items-center justify-between gap-3 text-sm text-ink"><span>Authorize live Futures orders</span><input type="checkbox" checked={liveExecution} onChange={e => setLiveExecution(e.target.checked)} /></label>
@@ -173,7 +177,7 @@ export function BinanceFuturesAutomation() {
 
       <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
         <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-semibold text-ink">Qualified 8/8 Super Signals</h3><span className="rounded-full border border-accent/20 px-2.5 py-1 text-xs text-accent">{signalIntents.length} recent</span></div>
-        {signalIntents.length === 0 ? <p className="text-sm text-ink-3">No eligible 8/8 Binance Futures signals yet. Signals appear here only when automation is enabled, the emergency stop is off, and the pair is allowed.</p> : <div className="space-y-2">{signalIntents.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/10 bg-canvas/50 p-3"><div><p className="text-sm font-semibold text-ink">{s.symbol} · {s.side} · {s.timeframe_agreement}/8</p><p className="mt-1 text-xs text-ink-3">Entry {Number(s.entry_price).toPrecision(8)} · SL {Number(s.stop_loss).toPrecision(8)} · TP {Number(s.take_profit).toPrecision(8)}</p></div><span className="rounded-full border border-amber-400/20 px-2.5 py-1 text-xs text-amber-500">Signal ready · no order sent</span></div>)}</div>}
+        {signalIntents.length === 0 ? <p className="text-sm text-ink-3">No eligible 8/8 Binance Futures signals yet. Signals appear here when they meet the 8/8 gate and Binance Futures eligibility checks.</p> : <div className="space-y-2">{signalIntents.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/10 bg-canvas/50 p-3"><div><p className="text-sm font-semibold text-ink">{s.symbol} · {s.side} · {s.timeframe_agreement}/8</p><p className="mt-1 text-xs text-ink-3">Entry {Number(s.entry_price).toPrecision(8)} · SL {Number(s.stop_loss).toPrecision(8)} · TP {Number(s.take_profit).toPrecision(8)}</p></div><span className="rounded-full border border-amber-400/20 px-2.5 py-1 text-xs text-amber-500">Signal ready · no order sent</span></div>)}</div>}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-4"><p className="text-xs uppercase tracking-wide text-ink-3">Open positions shown</p><p className="mt-1 text-2xl font-semibold text-ink">{positions.filter(p=>p.status==='open').length}</p><p className="text-xs text-ink-3">Strategy-tracked positions</p></div>
