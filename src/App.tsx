@@ -83,7 +83,7 @@ function App() {
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
   const { toasts, dismiss } = useSignalAlerts(views, loaded, soundsEnabled);
-  const { toasts: breakRetestToasts, dismiss: dismissBreakRetestToast } = useBreakRetestAlerts(assets, states, loaded, soundsEnabled);
+  const { toasts: breakRetestToasts, dismiss: dismissBreakRetestToast } = useBreakRetestAlerts(assets, states, prices, loaded, soundsEnabled);
   const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded, soundsEnabled);
   const superSignalHistory = useSuperSignalRecords(superSignals, loaded);
   const sync = useSignalRecordSync(views, loaded);
