@@ -131,9 +131,40 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
         const aggregated = aggregateHourlyCandles(hourlyCandles, timeframe.granularity);
         candlesRef.current[symbol] ??= {};
         candlesRef.current[symbol][timeframe.granularity] = aggregated;
+        pendingChartUpdatesRef.current[symbol] ??= {};
+        pendingChartUpdatesRef.current[symbol][timeframe.granularity] = aggregated;
         const confirmedEpoch = latestConfirmedEpoch(aggregated, timeframe.granularity, Math.floor(Date.now() / 1000));
-        if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${timeframe.granularity}`] = confirmedEpoch;
-        recompute(symbol, timeframe.granularity);
+        const computeKey = `${symbol}:${timeframe.granularity}`;
+        if (confirmedEpoch !== null && computedConfirmedRef.current[computeKey] !== confirmedEpoch) {
+          computedConfirmedRef.current[computeKey] = confirmedEpoch;
+          recompute(symbol, timeframe.granularity);
+        }
+      }
+      if (!chartFlushTimerRef.current) {
+        chartFlushTimerRef.current = setTimeout(() => {
+          const updates = pendingChartUpdatesRef.current;
+          pendingChartUpdatesRef.current = {};
+          chartFlushTimerRef.current = null;
+          setStates((previous) => {
+            let changed = false;
+            const next = { ...previous };
+            for (const [assetSymbol, timeframeUpdates] of Object.entries(updates)) {
+              const existingAsset = next[assetSymbol];
+              if (!existingAsset) continue;
+              let nextAsset = existingAsset;
+              for (const [rawGranularity, chartCandles] of Object.entries(timeframeUpdates)) {
+                const granularityKey = Number(rawGranularity);
+                const existingState = nextAsset[granularityKey];
+                if (!existingState || existingState.chartCandles === chartCandles) continue;
+                if (nextAsset === existingAsset) nextAsset = { ...existingAsset };
+                nextAsset[granularityKey] = { ...existingState, chartCandles };
+                changed = true;
+              }
+              if (nextAsset !== existingAsset) next[assetSymbol] = nextAsset;
+            }
+            return changed ? next : previous;
+          });
+        }, 250);
       }
     };
 
@@ -235,6 +266,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                     const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
                     if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${timeframe.granularity}`] = confirmedEpoch;
                     recompute(symbol, timeframe.granularity);
+                    if (timeframe.granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, candles);
                   }),
               ),
             );
