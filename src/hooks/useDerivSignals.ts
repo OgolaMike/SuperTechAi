@@ -3,6 +3,8 @@ import { DerivClient, type Candle, type ConnectionStatus, type DerivSymbol } fro
 import { BinanceStream, fetchBinanceCandles, loadBinanceAssets } from '@/lib/binance';
 import {
   TIMEFRAMES,
+  NATIVE_TIMEFRAME_GRANULARITIES,
+  aggregateHourlyCandles,
   computeTfState,
   emptyTfState,
   mergeCandle,
@@ -12,7 +14,10 @@ import {
 } from '@/lib/sma';
 
 const LIVE_TIMEFRAMES = TIMEFRAMES;
+const NATIVE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => NATIVE_TIMEFRAME_GRANULARITIES.has(timeframe.granularity));
+const SYNTHETIC_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => !NATIVE_TIMEFRAME_GRANULARITIES.has(timeframe.granularity));
 const M15_GRANULARITY = 900;
+const HOURLY_GRANULARITY = 3600;
 const ALL_ASSET_M15_HISTORY = 200;
 
 export type TimeframeStates = Record<number, TfState>;
@@ -121,6 +126,17 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     setPrices({});
     setLoaded(false);
 
+    const hydrateSyntheticFromHourly = (symbol: string, hourlyCandles: Candle[]) => {
+      for (const timeframe of SYNTHETIC_TIMEFRAMES) {
+        const aggregated = aggregateHourlyCandles(hourlyCandles, timeframe.granularity);
+        candlesRef.current[symbol] ??= {};
+        candlesRef.current[symbol][timeframe.granularity] = aggregated;
+        const confirmedEpoch = latestConfirmedEpoch(aggregated, timeframe.granularity, Math.floor(Date.now() / 1000));
+        if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${timeframe.granularity}`] = confirmedEpoch;
+        recompute(symbol, timeframe.granularity);
+      }
+    };
+
     const applyCandle = (symbol: string, granularity: number, candle: Candle) => {
       if (!symbol || !watchedRef.current.has(symbol)) return;
       pendingLastTickRef.current = candle.epoch;
@@ -138,6 +154,9 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       candlesRef.current[symbol] ??= {};
       const nextCandles = mergeCandle(candlesRef.current[symbol][granularity] ?? [], candle);
       candlesRef.current[symbol][granularity] = nextCandles;
+      if (granularity === HOURLY_GRANULARITY) {
+        hydrateSyntheticFromHourly(symbol, nextCandles);
+      }
       // Keep chart candles live independently from closed-candle signal calculations.
       pendingChartUpdatesRef.current[symbol] ??= {};
       pendingChartUpdatesRef.current[symbol][granularity] = nextCandles;
@@ -207,7 +226,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                 }),
             );
             const selectedHigherTimeframeTasks = currentAssets.flatMap((symbol) =>
-              LIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== M15_GRANULARITY).map((timeframe) => () =>
+              NATIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== M15_GRANULARITY).map((timeframe) => () =>
                 client
                   .subscribeCandles(symbol, timeframe.granularity, timeframe.candleCount)
                   .then((candles) => {
@@ -222,7 +241,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
             const selectedSet = new Set(currentAssets);
             const backgroundMarketTasks = allSymbols
               .filter((symbol) => !selectedSet.has(symbol))
-              .flatMap((symbol) => LIVE_TIMEFRAMES.map((timeframe) => () => {
+              .flatMap((symbol) => NATIVE_TIMEFRAMES.map((timeframe) => () => {
                 const granularity = timeframe.granularity;
                 const historyCount = granularity === M15_GRANULARITY ? ALL_ASSET_M15_HISTORY : timeframe.candleCount;
                 return client.subscribeCandles(symbol, granularity, historyCount).then((candles) => {
@@ -231,6 +250,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                   const confirmedEpoch = latestConfirmedEpoch(candles, granularity, Math.floor(Date.now() / 1000));
                   if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${granularity}`] = confirmedEpoch;
                   recompute(symbol, granularity);
+                  if (granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, candles);
                 });
               }));
 
@@ -269,7 +289,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       const allMarkets = binanceAssets;
       watchedRef.current = new Set([...watchedRef.current, ...allMarkets.map((asset) => asset.symbol)]);
       const loadMarketTasks = (markets: Asset[]) => markets.flatMap((asset) =>
-        LIVE_TIMEFRAMES.map((timeframe) => async () => {
+        NATIVE_TIMEFRAMES.map((timeframe) => async () => {
           const candles = await fetchBinanceCandles(asset.symbol, timeframe, timeframe.candleCount);
           if (stopped) return;
           candlesRef.current[asset.symbol] ??= {};
@@ -277,6 +297,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
           const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
           if (confirmedEpoch !== null) computedConfirmedRef.current[`${asset.symbol}:${timeframe.granularity}`] = confirmedEpoch;
           recompute(asset.symbol, timeframe.granularity);
+          if (timeframe.granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(asset.symbol, candles);
         }),
       );
       const selectedMarkets = allMarkets.filter((asset) => selectedRef.current.includes(asset.symbol));
@@ -284,7 +305,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       // Load selected Binance assets first so the rest of the dashboard becomes usable quickly.
       await runTasksInBatches(loadMarketTasks(selectedMarkets), 8);
       if (stopped) return;
-      binanceStream.start(allMarkets.map((asset) => asset.symbol), LIVE_TIMEFRAMES, (granularity, candle) => applyCandle(candle.symbol ?? '', granularity, candle));
+      binanceStream.start(allMarkets.map((asset) => asset.symbol), NATIVE_TIMEFRAMES, (granularity, candle) => applyCandle(candle.symbol ?? '', granularity, candle));
       binanceLoaded = true;
       markLoaded();
       // Continue filling the all-market Super Signal scan without blocking the dashboard.
