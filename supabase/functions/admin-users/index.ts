@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
           email: user.email ?? "",
           createdAt: user.created_at,
           lastSignInAt: user.last_sign_in_at ?? null,
+          emailConfirmed: Boolean(user.email_confirmed_at),
+          confirmationSentAt: user.confirmation_sent_at ?? null,
           isAdmin: adminIds.has(user.id),
           isApproved: memberIds.has(user.id),
         })),
@@ -58,6 +60,26 @@ Deno.serve(async (req) => {
 
     if (req.method === "POST") {
       const body = await req.json();
+
+      if (body?.action === "resend-confirmation") {
+        if (typeof body?.userId !== "string") return jsonResponse({ error: "Invalid member account" }, 400);
+        const { data: targetData, error: targetError } = await db.auth.admin.getUserById(body.userId);
+        if (targetError || !targetData.user) return jsonResponse({ error: "Member account not found" }, 404);
+        if (targetData.user.email_confirmed_at) return jsonResponse({ error: "This member's email is already verified" }, 409);
+        if (!targetData.user.email) return jsonResponse({ error: "This member account has no email address" }, 400);
+
+        const { error: resendError } = await db.auth.resend({
+          type: "signup",
+          email: targetData.user.email,
+          options: { emailRedirectTo: "https://deriv-sma-signal-das-04us.bolt.host/?auth=confirmed" },
+        });
+        if (resendError) {
+          const status = /rate.?limit|too many requests/i.test(resendError.message) ? 429 : 400;
+          return jsonResponse({ error: resendError.message || "Confirmation email could not be sent" }, status);
+        }
+        return jsonResponse({ ok: true, message: "Confirmation email request accepted" });
+      }
+
       const hasAdmin = typeof body?.admin === "boolean";
       const hasApproved = typeof body?.approved === "boolean";
       if (typeof body?.userId !== "string" || (!hasAdmin && !hasApproved)) {
@@ -97,7 +119,7 @@ Deno.serve(async (req) => {
     }
 
     return jsonResponse({ error: "Method not allowed" }, 405);
-  } catch {
-    return jsonResponse({ error: "Request failed" }, 500);
+  } catch (error) {
+    return jsonResponse({ error: error instanceof Error ? error.message : "Request failed" }, 500);
   }
 });
