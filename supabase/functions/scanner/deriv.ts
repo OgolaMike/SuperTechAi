@@ -1,4 +1,4 @@
-export type SymbolInfo = { symbol: string; name: string; digits: number; exchange?: 'DERIV' | 'BINANCE' };
+export type SymbolInfo = { symbol: string; name: string; digits: number; exchange?: 'DERIV' | 'BINANCE' | 'BINANCE_FUTURES' };
 export type Candle = { epoch: number; open?: number; high?: number; low?: number; close: number };
 
 const DERIV_WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
