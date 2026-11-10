@@ -152,6 +152,19 @@ export function useSignalAlerts(
       const fields = outcomeFields(view);
       const signature = JSON.stringify(fields);
       const previousSignature = seen.get(view.key);
+
+      // Keep M1 calculations and history current, but mute all M1 member-facing
+      // signal/reversal/target/stop alerts, sounds, and push notifications.
+      if (view.granularity === 60) {
+        seen.set(view.key, signature);
+        const key = seriesKey(view);
+        const current = latest.get(key);
+        if (!current || view.signal.signalEpoch > current.signal.signalEpoch) {
+          latest.set(key, view);
+        }
+        continue;
+      }
+
       if (previousSignature === signature) continue;
 
       if (previousSignature === undefined) {
