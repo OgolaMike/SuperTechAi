@@ -7,7 +7,7 @@ export const TOAST_DURATION_MS = 15000;
 type Props = { toasts: Toast[]; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => void };
 
 export function Toasts({ toasts, onDismiss, onOpenChart }: Props) {
-  const signals = toasts.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal');
+  const signals = toasts.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal' || toast.kind === 'break-retest');
   const hits = toasts.filter((toast) => toast.kind === 'hit');
   return <>
     <div aria-live="polite" className="pointer-events-none fixed inset-0 z-[70] overflow-hidden">
@@ -32,7 +32,7 @@ function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; 
       style={{ width: bubbleSize, height: bubbleSize, left: `calc(16% + ${(index % 5) * 17}%)` }}>
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
       <span className="text-sm font-black tracking-wider">{toast.direction}</span>
-      <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.timeframe}</span>
+      <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.kind === 'break-retest' ? 'BREAK & RETEST' : toast.timeframe}</span><span className="text-[9px] font-semibold opacity-80">{toast.timeframe}</span>
       <BubbleAssetName name={displayName} size={bubbleSize} id={toast.id} />
     </button>
     {open && <SignalDetails toast={toast} onClose={() => setOpen(false)} onDismiss={() => onDismiss(toast.id)} onOpenChart={() => onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId, toast.id.startsWith('super:') ? toast.id.slice(6) : undefined)} />}
@@ -104,10 +104,7 @@ function HitDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toast; 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <Detail label="Hit price" value={formatPrice(toast.price, toast.digits)} tone={toast.tone === 'STOP' ? 'text-down' : 'text-up'} />
         <Detail label="Entry" value={formatPrice(toast.levels.entry, toast.digits)} />
-        <Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" />
-        <Detail label="Take-profit 1" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" />
-        <Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" />
-        <Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" />
+        {toast.kind === 'break-retest' ? <><Detail label="Retest boundary" value={formatPrice(toast.levels.stopLoss, toast.digits)} /><Detail label="Previous swing target" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" /></> : <><Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" /><Detail label="Take-profit 1" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" /><Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" /><Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" /></>}
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2">
         <button type="button" onClick={() => { onDismiss(); onClose(); }} className="min-w-0 rounded-xl border border-line/25 bg-surface/10 px-3 py-3 text-sm font-bold text-ink">Close</button>
@@ -121,7 +118,7 @@ function SignalDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toas
   const buy = toast.direction === 'BUY';
   return <div className="pointer-events-auto fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm" onClick={onClose}>
     <section role="dialog" aria-modal="true" aria-label="Signal details" onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-3xl border border-line/30 bg-canvas p-5 shadow-2xl">
-      <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Signal details</p><h2 className={`mt-1 text-2xl font-black ${buy ? 'text-up' : 'text-down'}`}>{toast.direction} · {toast.timeframe}</h2><p className="text-sm text-ink-2">{toast.assetName} ({toast.symbol})</p></div><button type="button" onClick={onClose} aria-label="Close details" className="rounded-full p-2 text-ink-2 hover:bg-surface/10"><X className="h-5 w-5" /></button></div>
+      <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">{toast.kind === 'break-retest' ? 'Break & Retest alert' : 'Signal details'}</p><h2 className={`mt-1 text-2xl font-black ${buy ? 'text-up' : 'text-down'}`}>{toast.direction} · {toast.timeframe}</h2><p className="text-sm text-ink-2">{toast.assetName} ({toast.symbol})</p></div><button type="button" onClick={onClose} aria-label="Close details" className="rounded-full p-2 text-ink-2 hover:bg-surface/10"><X className="h-5 w-5" /></button></div>
       <p className="mt-3 text-xs text-ink-3">{toast.message}</p>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <Detail label="Entry" value={formatPrice(toast.levels.entry, toast.digits)} />
