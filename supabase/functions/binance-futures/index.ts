@@ -5,8 +5,6 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const enc = new TextEncoder();
 const b64 = (v: Uint8Array) => btoa(String.fromCharCode(...v));
 const unb64 = (v: string) => Uint8Array.from(atob(v), c => c.charCodeAt(0));
-type FuturesAsset = { asset?: string; walletBalance?: string | number; availableBalance?: string | number; marginBalance?: string | number };
-type FuturesPosition = { symbol?: string; positionSide?: string; positionAmt?: string | number; entryPrice?: string | number; markPrice?: string | number; unRealizedProfit?: string | number; leverage?: string | number };
 
 async function key() {
   const secret = Deno.env.get("BINANCE_CREDENTIALS_ENCRYPTION_KEY");
@@ -36,8 +34,8 @@ async function futuresAccount(apiKey: string, apiSecret: string) {
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data?.msg === "string" ? data.msg : "binance_futures_account_check_failed");
   if (data?.canTrade !== true) throw new Error("binance_usdt_m_futures_trading_permission_not_enabled");
-  const assets = Array.isArray(data.assets) ? (data.assets as FuturesAsset[]).filter((a) => a.asset === "USDT").map((a) => ({ asset: a.asset, walletBalance: Number(a.walletBalance ?? 0), availableBalance: Number(a.availableBalance ?? 0), marginBalance: Number(a.marginBalance ?? 0) })) : [];
-  const positions = Array.isArray(data.positions) ? (data.positions as FuturesPosition[]).filter((p) => Number(p.positionAmt ?? 0) !== 0).length : 0;
+  const assets = Array.isArray(data.assets) ? data.assets.filter((a: any) => a.asset === "USDT").map((a: any) => ({ asset: a.asset, walletBalance: Number(a.walletBalance ?? 0), availableBalance: Number(a.availableBalance ?? 0), marginBalance: Number(a.marginBalance ?? 0) })) : [];
+  const positions = Array.isArray(data.positions) ? data.positions.filter((p: any) => Number(p.positionAmt ?? 0) !== 0).length : 0;
   return { canTrade: true, accountType: "USDT-M Futures", assets, openPositions: positions };
 }
 async function signedGet(apiKey: string, apiSecret: string, path: string, extra: Record<string, string> = {}) {
@@ -56,7 +54,7 @@ async function futuresPreflight(apiKey: string, apiSecret: string) {
     signedGet(apiKey, apiSecret, "/fapi/v1/openOrders"),
   ]);
   const hedgeMode = mode?.dualSidePosition === true;
-  const activePositions = Array.isArray(positions) ? (positions as FuturesPosition[]).filter((p) => Math.abs(Number(p.positionAmt ?? 0)) > 0).map((p) => ({
+  const activePositions = Array.isArray(positions) ? positions.filter((p: any) => Math.abs(Number(p.positionAmt ?? 0)) > 0).map((p: any) => ({
     symbol: p.symbol, positionSide: p.positionSide, positionAmt: Number(p.positionAmt),
     entryPrice: Number(p.entryPrice), markPrice: Number(p.markPrice), unrealizedProfit: Number(p.unRealizedProfit ?? 0), leverage: Number(p.leverage)
   })) : [];
@@ -155,6 +153,10 @@ Deno.serve(async req => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "binance_futures_error";
     console.error("[binance-futures] request failed", { message, name: error instanceof Error ? error.name : "unknown" });
-    return json({ ok: false, error: message.slice(0,180), message: message.slice(0,180) }, 400);
+    const rejected = /invalid api-key, ip, or permissions/i.test(message);
+    const userMessage = rejected
+      ? "Binance rejected this API key. Verify the API key and secret, enable USDⓈ-M Futures permission, and check API Management IP restrictions. Recent SuperTech server logs show outbound IPs 35.180.109.45 and 15.237.127.167; confirm the active egress IP before allowlisting. Keep withdrawals disabled."
+      : message.slice(0, 180);
+    return json({ ok: false, code: rejected ? "binance_api_key_ip_or_permission_rejected" : "binance_futures_error", error: userMessage, message: userMessage }, 400);
   }
 });
