@@ -103,6 +103,48 @@ function audioToWav(audio) {
   return { buffer: out, duration: samples.length / rate };
 }
 
+
+function splitNarration(text, maxChars = 300) {
+  const sentences = String(text || '').replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
+  const chunks = []; let current = '';
+  for (const raw of sentences) {
+    const sentence = raw.trim(); if (!sentence) continue;
+    if (sentence.length > maxChars) {
+      if (current) { chunks.push(current); current = ''; }
+      let part = '';
+      for (const word of sentence.split(/\s+/)) {
+        const candidate = part ? part + ' ' + word : word;
+        if (candidate.length > maxChars && part) { chunks.push(part); part = word; } else part = candidate;
+      }
+      if (part) chunks.push(part); continue;
+    }
+    const candidate = current ? current + ' ' + sentence : sentence;
+    if (candidate.length > maxChars && current) { chunks.push(current); current = sentence; } else current = candidate;
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+function combineAudioParts(parts) {
+  if (!parts.length) throw new Error('Kokoro returned no narration sections.');
+  const rate = parts[0].rate;
+  if (parts.some((part) => part.rate !== rate)) throw new Error('Kokoro narration sections returned inconsistent sample rates.');
+  const gap = Math.round(rate * 0.22);
+  const length = parts.reduce((sum, part, i) => sum + part.samples.length + (i < parts.length - 1 ? gap : 0), 0);
+  const samples = new Float32Array(length); const sceneDurations = []; let offset = 0;
+  for (let i = 0; i < parts.length; i += 1) {
+    samples.set(parts[i].samples, offset); offset += parts[i].samples.length;
+    sceneDurations.push(parts[i].samples.length / rate); if (i < parts.length - 1) offset += gap;
+  }
+  const buffer = Buffer.alloc(44 + samples.length * 2);
+  buffer.write('RIFF',0); buffer.writeUInt32LE(36 + samples.length * 2,4); buffer.write('WAVE',8);
+  buffer.write('fmt ',12); buffer.writeUInt32LE(16,16); buffer.writeUInt16LE(1,20); buffer.writeUInt16LE(1,22);
+  buffer.writeUInt32LE(rate,24); buffer.writeUInt32LE(rate*2,28); buffer.writeUInt16LE(2,32); buffer.writeUInt16LE(16,34);
+  buffer.write('data',36); buffer.writeUInt32LE(samples.length*2,40);
+  for (let i=0;i<samples.length;i+=1) { const v=Math.max(-1,Math.min(1,samples[i])); buffer.writeInt16LE(v<0?v*32768:v*32767,44+i*2); }
+  return { buffer, duration:samples.length/rate, sceneDurations };
+}
+
 function makeScenes(lesson) {
   const primary = resolveView(lesson.title + ' ' + lesson.category);
   return [
@@ -159,12 +201,27 @@ async function captureScreenshots(page, lesson, scenes, dir) {
 }
 
 async function renderVideo(lesson, scenes, tts, dir) {
-  const script = scenes.map((scene) => scene.narration).join(' ');
-  const audio = audioToWav(await tts.generate(script, { voice: 'af_heart' }));
+  // Chunk speech and render scene-by-scene to avoid long Kokoro requests truncating silently.
+  const parts = [];
+  for (let sceneIndex = 0; sceneIndex < scenes.length; sceneIndex += 1) {
+    const chunks = splitNarration(scenes[sceneIndex].narration);
+    if (!chunks.length) throw new Error('Scene ' + (sceneIndex + 1) + ' has no narration.');
+    const samplesList = []; let rate = null;
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex += 1) {
+      const generated = await tts.generate(chunks[chunkIndex], { voice: 'af_heart' });
+      const data = generated.audio || generated.data;
+      const sampleRate = generated.sampling_rate || generated.samplingRate || 24000;
+      if (!data?.length) throw new Error('Kokoro returned empty narration at scene ' + (sceneIndex + 1) + '.');
+      if (rate !== null && rate !== sampleRate) throw new Error('Kokoro sample rate changed within a scene.');
+      rate = sampleRate; const copy = new Float32Array(data.length); copy.set(data); samplesList.push(copy);
+    }
+    const count = samplesList.reduce((n,x)=>n+x.length,0); const joined = new Float32Array(count); let pos=0;
+    for (const part of samplesList) { joined.set(part,pos); pos+=part.length; }
+    parts.push({samples:joined,rate});
+  }
+  const audio = combineAudioParts(parts);
   const audioPath = path.join(dir, 'narration.wav');
   await fs.writeFile(audioPath, audio.buffer);
-  const weights = scenes.map((scene) => Math.max(8, scene.narration.split(/\s+/).length));
-  const total = weights.reduce((sum, item) => sum + item, 0);
   const segments = [];
   for (let i = 0; i < scenes.length; i += 1) {
     const scene = scenes[i];
@@ -173,7 +230,7 @@ async function renderVideo(lesson, scenes, tts, dir) {
     const segmentPath = path.join(dir, 'segment-' + String(i + 1).padStart(2, '0') + '.mp4');
     await fs.writeFile(captionPath, wrapCaption(scene.caption));
     await fs.writeFile(headerPath, 'SUPERTECHAI ACADEMY  |  ' + lesson.title.slice(0, 72));
-    const duration = audio.duration * weights[i] / total + (i === scenes.length - 1 ? 0.6 : 0);
+    const duration = audio.sceneDurations[i] + 0.35;
     const filter = [
       'scale=1920:1080:force_original_aspect_ratio=decrease',
       'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x050b18',
@@ -191,7 +248,18 @@ async function renderVideo(lesson, scenes, tts, dir) {
   await run('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', concatPath, '-c', 'copy', silentPath], { cwd: dir });
   const finalPath = path.join(dir, 'lesson.mp4');
   await run('ffmpeg', ['-y', '-i', silentPath, '-i', audioPath, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '160k', '-shortest', '-movflags', '+faststart', finalPath]);
-  if ((await fs.stat(finalPath)).size < 100_000) throw new Error('Generated video is unexpectedly small.');
+  const stat = await fs.stat(finalPath);
+  if (stat.size < 100_000) throw new Error('Generated video is unexpectedly small.');
+  const probe = await new Promise((resolve,reject) => {
+    const child=spawn('ffprobe',['-v','error','-show_entries','format=duration:stream=codec_type','-of','json',finalPath],{stdio:['ignore','pipe','pipe']});
+    let out=''; let err=''; child.stdout.on('data',x=>out+=x.toString()); child.stderr.on('data',x=>err+=x.toString());
+    child.on('error',reject); child.on('close',code=>code===0?resolve(out):reject(new Error('ffprobe failed: '+err.slice(-1000))));
+  });
+  const meta=JSON.parse(probe); const duration=Number(meta.format?.duration||0);
+  const types=new Set((meta.streams||[]).map(x=>x.codec_type));
+  if(!types.has('video')||!types.has('audio')) throw new Error('Rendered MP4 is missing video or narration audio.');
+  if(duration<audio.duration*0.9) throw new Error('Rendered MP4 is shorter than its narration; refusing incomplete lesson.');
+  if(stat.size>45*1024*1024) throw new Error('Rendered MP4 exceeds the 45 MB Academy upload limit.');
   return finalPath;
 }
 
