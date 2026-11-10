@@ -166,7 +166,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
             }
             return changed ? next : previous;
           });
-        }, 200);
+        }, 250);
       }
       const confirmedEpoch = latestConfirmedEpoch(nextCandles, granularity, Math.floor(Date.now() / 1000));
       const computeKey = `${symbol}:${granularity}`;
