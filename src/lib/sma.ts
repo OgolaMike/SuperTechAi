@@ -41,6 +41,7 @@ export type TfState = {
   label: string;
   role: string;
   candles: Candle[];
+  chartCandles: Candle[];
   signals: Signal[];
   latestSignal: Signal | null;
   currentSma: number | null;
@@ -57,6 +58,7 @@ export function emptyTfState(timeframe: Timeframe): TfState {
     label: timeframe.label,
     role: timeframe.role,
     candles: [],
+    chartCandles: [],
     signals: [],
     latestSignal: null,
     currentSma: null,
@@ -131,6 +133,7 @@ export function computeTfState(timeframe: Timeframe, candles: Candle[], nowEpoch
     label: timeframe.label,
     role: timeframe.role,
     candles: confirmed,
+    chartCandles: [...candles].sort((a, b) => a.epoch - b.epoch),
     signals,
     latestSignal: signals[signals.length - 1] ?? null,
     currentSma: latest?.mean ?? null,
