@@ -65,7 +65,8 @@ function App() {
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
   const [view, setView] = useState<View>('dashboard');
-  const [selectedSuperSignalKey, setSelectedSuperSignalKey] = useState('');\n  const [selectedBreakRetestKey, setSelectedBreakRetestKey] = useState('');
+  const [selectedSuperSignalKey, setSelectedSuperSignalKey] = useState('');
+  const [selectedBreakRetestKey, setSelectedBreakRetestKey] = useState('');
   const [now, setNow] = useState<number>(currentEpoch);
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
