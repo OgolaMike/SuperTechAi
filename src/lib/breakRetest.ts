@@ -63,7 +63,7 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL') {
     if (retestIndex < 0 || rejectionIndex >= candles.length - 1) continue;
     const rejection = candles[rejectionIndex];
     const confirmationIndex = candles.findIndex((c, i) => i > rejectionIndex && (direction === 'BUY' ? c.high > rejection.high : c.low < rejection.low));
-    if (confirmationIndex < 0) continue;
+    if (confirmationIndex < 0 || confirmationIndex < candles.length - 3) continue;
     const entry = candles[confirmationIndex].close;
     const targets = pivots(candles, direction === 'BUY' ? 'high' : 'low', Math.max(2, confirmationIndex - 100), confirmationIndex)
       .filter(pv => direction === 'BUY' ? pv.price > entry : pv.price < entry)
