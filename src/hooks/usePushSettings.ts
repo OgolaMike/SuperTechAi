@@ -19,15 +19,16 @@ function loadPrefs(): PushPrefs {
     const saved = JSON.parse(localStorage.getItem(PREFS_STORAGE_KEY) ?? 'null');
     if (saved && typeof saved === 'object') {
       return {
-        signals: saved.signals !== false,
-        targets: saved.targets !== false,
-        stops: saved.stops !== false,
-        limitOrders: saved.limitOrders !== false,
-        pendingOrders: saved.pendingOrders !== false,
-        superSignals: saved.superSignals !== false,
-        income: saved.income !== false,
-        business: saved.business !== false,
-        symbols: null,
+        signals: saved.signals === true,
+        targets: saved.targets === true,
+        stops: saved.stops === true,
+        limitOrders: saved.limitOrders === true,
+        pendingOrders: saved.pendingOrders === true,
+        superSignals: saved.superSignals === true,
+        income: saved.income === true,
+        business: saved.business === true,
+        // Keep an explicitly saved null (all assets); otherwise default to none.
+        symbols: Array.isArray(saved.symbols) ? saved.symbols : saved.symbols === null && Object.prototype.hasOwnProperty.call(saved, 'symbols') ? null : [],
       };
     }
   } catch {
