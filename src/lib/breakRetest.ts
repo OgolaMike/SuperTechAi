@@ -78,9 +78,6 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: nu
     const confirmation = candles[confirmationIndex];
     // Place the suggested entry below the BUY candle / above the SELL candle.
     const entry = direction === 'BUY' ? confirmation.low : confirmation.high;
-    const targets = pivots(candles, direction === 'BUY' ? 'high' : 'low', Math.max(2, confirmationIndex - 100), confirmationIndex)
-      .filter(pv => direction === 'BUY' ? pv.price > entry : pv.price < entry)
-      .sort((a, b) => direction === 'BUY' ? a.price - b.price : b.price - a.price);
     const zoneLow = level.price - tolerance;
     const zoneHigh = level.price + tolerance;
     // Place the stop beyond the complete retest zone, with a volatility-aware safety buffer.
