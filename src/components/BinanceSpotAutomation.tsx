@@ -144,9 +144,11 @@ export function BinanceSpotAutomation() {
               <label className="block text-xs font-medium text-ink-2">Binance API Secret
                 <input type="password" value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} autoComplete="new-password" className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent" placeholder="Paste API secret" />
               </label>
-              <button disabled={busy || !apiKey.trim() || !apiSecret.trim()} onClick={() => void connect()} className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
+              <button type="button" disabled={busy || !apiKey.trim() || !apiSecret.trim()} onClick={() => void connect()} className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
                 {busy ? 'Connecting…' : 'Connect Binance Spot'}
               </button>
+              {!apiKey.trim() || !apiSecret.trim() ? <p className="text-xs text-ink-3">Enter both your API key and API secret to enable connection.</p> : null}
+              {(message || error) && <div role="status" aria-live="polite" className={`rounded-xl border p-3 text-sm ${error ? 'border-rose-500/20 bg-rose-500/5 text-rose-500' : 'border-up/20 bg-up/5 text-up'}`}>{error || message}</div>}
               <div className="rounded-xl border border-accent/20 bg-accent/5 p-3 text-xs leading-5 text-ink-2">
                 Before connecting the first account, the administrator must add <strong>BINANCE_CREDENTIALS_ENCRYPTION_KEY</strong> to Supabase Edge Function Secrets. Use a unique random value of at least 32 characters; never commit it to the repository.
               </div>
@@ -207,8 +209,6 @@ export function BinanceSpotAutomation() {
           </ul>
         </div></div>
       </div>
-
-      {(message || error) && <div className={`rounded-xl border p-3 text-sm ${error ? 'border-rose-500/20 bg-rose-500/5 text-rose-500' : 'border-up/20 bg-up/5 text-up'}`}>{error || message}</div>}
 
       <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
         <div className="mb-4 flex items-center justify-between gap-3"><h3 className="font-semibold text-ink">Automated order history</h3><button onClick={() => void refresh()} className="inline-flex items-center gap-2 rounded-lg border border-line/15 px-3 py-2 text-xs text-ink"><RefreshCw className="h-3.5 w-3.5" />Refresh</button></div>
