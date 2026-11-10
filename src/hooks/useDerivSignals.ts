@@ -76,6 +76,8 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
   const pendingPricesRef = useRef<Record<string, number>>({});
   const pendingLastTickRef = useRef<number | null>(null);
   const priceFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chartFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingChartUpdatesRef = useRef<Record<string, Record<number, Candle[]>>>({});
   const activeSymbolsKey = selectedSymbols.join('|');
   const selectedRef = useRef(selectedSymbols);
   const watchedRef = useRef<Set<string>>(new Set(selectedSymbols));
@@ -111,7 +113,10 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     pendingPricesRef.current = {};
     pendingLastTickRef.current = null;
     if (priceFlushTimerRef.current) clearTimeout(priceFlushTimerRef.current);
+    if (chartFlushTimerRef.current) clearTimeout(chartFlushTimerRef.current);
     priceFlushTimerRef.current = null;
+    chartFlushTimerRef.current = null;
+    pendingChartUpdatesRef.current = {};
     setStates({});
     setPrices({});
     setLoaded(false);
@@ -133,6 +138,36 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       candlesRef.current[symbol] ??= {};
       const nextCandles = mergeCandle(candlesRef.current[symbol][granularity] ?? [], candle);
       candlesRef.current[symbol][granularity] = nextCandles;
+      // Keep chart candles live independently from closed-candle signal calculations.
+      pendingChartUpdatesRef.current[symbol] ??= {};
+      pendingChartUpdatesRef.current[symbol][granularity] = nextCandles;
+      if (!chartFlushTimerRef.current) {
+        chartFlushTimerRef.current = setTimeout(() => {
+          const updates = pendingChartUpdatesRef.current;
+          pendingChartUpdatesRef.current = {};
+          chartFlushTimerRef.current = null;
+          setStates((previous) => {
+            let changed = false;
+            const next = { ...previous };
+            for (const [assetSymbol, timeframeUpdates] of Object.entries(updates)) {
+              const existingAsset = next[assetSymbol];
+              if (!existingAsset) continue;
+              let nextAsset = existingAsset;
+              for (const [rawGranularity, chartCandles] of Object.entries(timeframeUpdates)) {
+                const granularityKey = Number(rawGranularity);
+                const existingState = nextAsset[granularityKey];
+                if (!existingState) continue;
+                if (existingState.chartCandles === chartCandles) continue;
+                if (nextAsset === existingAsset) nextAsset = { ...existingAsset };
+                nextAsset[granularityKey] = { ...existingState, chartCandles };
+                changed = true;
+              }
+              if (nextAsset !== existingAsset) next[assetSymbol] = nextAsset;
+            }
+            return changed ? next : previous;
+          });
+        }, 200);
+      }
       const confirmedEpoch = latestConfirmedEpoch(nextCandles, granularity, Math.floor(Date.now() / 1000));
       const computeKey = `${symbol}:${granularity}`;
       if (confirmedEpoch !== null && computedConfirmedRef.current[computeKey] !== confirmedEpoch) {
@@ -269,7 +304,10 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       unsubOpen();
       unsubOhlc();
       if (priceFlushTimerRef.current) clearTimeout(priceFlushTimerRef.current);
+      if (chartFlushTimerRef.current) clearTimeout(chartFlushTimerRef.current);
       priceFlushTimerRef.current = null;
+      chartFlushTimerRef.current = null;
+      pendingChartUpdatesRef.current = {};
       client.stop();
     };
   }, [activeSymbolsKey, recompute]);
