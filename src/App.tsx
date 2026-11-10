@@ -218,7 +218,7 @@ function App() {
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
         <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>
-          <NotificationSettings assets={selectedAssets} />
+          <NotificationSettings assets={assets} />
           {view === 'alerts' && <ServiceHealth />}
         </section>
 
