@@ -2,7 +2,8 @@
 verify_jwt = true
 
 [functions.push]
-verify_jwt = true
+# Public VAPID-key lookup uses the anon key; POST actions validate the user JWT inside the function.
+verify_jwt = false
 
 [functions.crypto-movers]
 verify_jwt = true
