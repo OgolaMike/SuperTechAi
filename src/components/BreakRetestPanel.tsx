@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Maximize2, RefreshCw, Target, Waves, X } from 'lucide-react';
 import type { Asset, TfState } from '@/lib/sma';
 import type { Candle } from '@/lib/deriv';
@@ -58,11 +58,11 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   </div>;
 }
 
-export function BreakRetestPanel({ assets, states, prices }: Props) {
+export function BreakRetestPanel({ assets, states, prices, selectedSetupKey }: Props) {
   const [direction, setDirection] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
   const [expanded, setExpanded] = useState<BreakRetestSetup | null>(null);
   const setups = useMemo(() => buildBreakRetestSetups(assets, states), [assets, states]);
-  const visible = setups.filter(item => direction === 'ALL' || item.direction === direction);
+  const visible = setups.filter(item => direction === 'ALL' || item.direction === direction);\n  useEffect(() => {\n    if (!selectedSetupKey) return;\n    const match = setups.find(item => item.key === selectedSetupKey);\n    if (match) setExpanded(match);\n  }, [selectedSetupKey, setups]);
   const timeframes = new Set(Object.values(states).flatMap(byTf => Object.values(byTf).filter(s => s.candles.length > 0).map(s => s.granularity))).size;
   const assetCount = new Set(Object.keys(states)).size;
   const candlesFor = (item: BreakRetestSetup) => states[item.symbol]?.[item.granularity]?.candles ?? [];
