@@ -45,10 +45,10 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   // Retain the full candle history for SMA/BB warm-up; display the latest 60 candles.
   const history = candles;
   const historyCloses = history.map((item) => item.close);
-  const historyStats = history.map((_, index) => rolling(historyCloses, index));
   const visibleStart = Math.max(0, history.length - PERIOD);
   const data = history.slice(visibleStart);
-  const stats = historyStats.slice(visibleStart);
+  // Recalculate only the visible candles; the preceding history is used solely for SMA warm-up.
+  const stats = data.map((_, index) => rolling(historyCloses, visibleStart + index));
 
   useEffect(() => {
     const viewport = chartViewportRef.current;
