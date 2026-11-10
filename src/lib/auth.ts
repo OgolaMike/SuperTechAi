@@ -1,7 +1,28 @@
 import { supabase } from '@/lib/supabase';
 
+const RESEND_COOLDOWN_MS = 60_000;
+const RESEND_STORAGE_PREFIX = 'supertech-email-resend:';
+
+export function getResendCooldownSeconds(email: string): number {
+  try {
+    const sentAt = Number(localStorage.getItem(RESEND_STORAGE_PREFIX + email.trim().toLowerCase()) || 0);
+    return Math.max(0, Math.ceil((sentAt + RESEND_COOLDOWN_MS - Date.now()) / 1000));
+  } catch {
+    return 0;
+  }
+}
+
+function reserveResendCooldown(email: string): void {
+  const remaining = getResendCooldownSeconds(email);
+  if (remaining > 0) throw new Error(`Please wait ${remaining} seconds before requesting another confirmation email.`);
+  try {
+    localStorage.setItem(RESEND_STORAGE_PREFIX + email.trim().toLowerCase(), String(Date.now()));
+  } catch {
+    // The server remains the final rate-limit authority when browser storage is unavailable.
+  }
+}
+
 function authRedirect(flow: 'confirmed' | 'recovery'): string {
-  // Always return to the SPA entry point so email actions work on the live app.
   const url = new URL('/', 'https://deriv-sma-signal-das-04us.bolt.host');
   url.searchParams.set('auth', flow);
   return url.toString();
@@ -23,9 +44,11 @@ export async function signUp(email: string, password: string, payoutTronAddress:
 }
 
 export async function resendSignupConfirmation(email: string): Promise<void> {
+  const normalizedEmail = email.trim();
+  reserveResendCooldown(normalizedEmail);
   const { error } = await supabase.auth.resend({
     type: 'signup',
-    email: email.trim(),
+    email: normalizedEmail,
     options: { emailRedirectTo: authRedirect('confirmed') },
   });
   if (error) throw error;
@@ -68,7 +91,7 @@ export function friendlyAuthError(error: unknown): string {
     return 'Your email address is not confirmed yet. Resend the SuperTechAi confirmation email, then open its link to activate your account.';
   }
   if (/rate.?limit|too many requests|email.*limit/i.test(message)) {
-    return 'SuperTechAi could not send this email because the project has reached its email-sending limit. Please do not keep retrying. The administrator must configure the dedicated email provider, then request a fresh confirmation or recovery email.';
+    return 'SuperTechAi could not send this email because the project has reached its email-sending limit. Please wait before trying again. If this continues, the administrator must check the configured email provider and its delivery limits.';
   }
   if (/invalid login credentials/i.test(message)) return 'The email or password is incorrect.';
   if (/already registered/i.test(message)) return 'An account with this email already exists. Try signing in instead.';
