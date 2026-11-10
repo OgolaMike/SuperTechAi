@@ -19,6 +19,7 @@ import { PendingOrdersPanel } from '@/components/PendingOrdersPanel';
 import { SignOutButton } from '@/components/SignOutButton';
 import { HeaderBrand, StatusBar, TrendIcons } from '@/components/StatusBar';
 import { SuperSignalPanel } from '@/components/SuperSignalPanel';
+import { BreakRetestPanel } from '@/components/BreakRetestPanel';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toasts } from '@/components/Toasts';
 import { ViewNav, type View } from '@/components/ViewNav';
@@ -189,6 +190,8 @@ function App() {
             aiModel={aiModel}
           />
         )}
+
+        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} />}
 
         {view === 'super' && (
           <section className="mt-8">
