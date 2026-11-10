@@ -66,7 +66,7 @@ export function BreakRetestPanel({ assets, states, prices }: Props) {
   const timeframes = new Set(Object.values(states).flatMap(byTf => Object.values(byTf).filter(s => s.candles.length > 0).map(s => s.granularity))).size;
   const assetCount = new Set(Object.keys(states)).size;
   const candlesFor = (item: BreakRetestSetup) => states[item.symbol]?.[item.granularity]?.candles ?? [];
-  return <section className="mt-8 space-y-6">
+  return <section id="break-retest-panel" className="mt-8 space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Pure price action scanner</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Break &amp; Retest Setups</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">Clean candlestick charts only. No moving averages, Bollinger Bands, oscillators or indicator overlays. Every call requires a break, retest, rejection and fresh structure confirmation.</p></div>
       <div className="flex items-center gap-2 rounded-xl border border-line/10 bg-surface/[0.04] px-3 py-2 text-xs text-ink-2"><RefreshCw className="h-3.5 w-3.5 text-accent"/> Live scan · all loaded markets</div>
