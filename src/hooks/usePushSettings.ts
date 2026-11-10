@@ -111,7 +111,13 @@ export function usePushSettings() {
 
   const updatePref = (key: BoolPrefKey, value: boolean) => savePrefs({ ...prefs, [key]: value });
 
+  const updateAllPrefs = (enabled: boolean) => savePrefs({
+    ...prefs,
+    signals: enabled, targets: enabled, stops: enabled, limitOrders: enabled,
+    pendingOrders: enabled, superSignals: enabled, income: enabled, business: enabled,
+  });
+
   const updateSymbols = (symbols: string[] | null) => savePrefs({ ...prefs, symbols });
 
-  return { status, prefs, error, enable, disable, updatePref, updateSymbols };
+  return { status, prefs, error, enable, disable, updatePref, updateAllPrefs, updateSymbols };
 }
