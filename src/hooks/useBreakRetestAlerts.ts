@@ -28,7 +28,14 @@ export function useBreakRetestAlerts(
     const setups = buildBreakRetestSetups(assets, states);
     const currentPrices = new Map(Object.entries(prices).filter(([, price]) => Number.isFinite(price)));
     if (!seeded.current) {
-      setups.forEach(item => seenSetups.current.add(item.key));
+      for (const item of setups) {
+        const initialPrice = currentPrices.get(item.symbol);
+        if (initialPrice === undefined) continue;
+        const entryAlreadyPassed = item.direction === 'BUY'
+          ? initialPrice <= item.entry
+          : initialPrice >= item.entry;
+        if (entryAlreadyPassed) firedLevels.current.add(`${item.key}:ENTRY`);
+      }
       previousPrices.current = currentPrices;
       seeded.current = true;
       return;
@@ -45,18 +52,21 @@ export function useBreakRetestAlerts(
       const crossed = (level: number, upward: boolean) => upward
         ? previous < level && current >= level
         : previous > level && current <= level;
-      const entryCrossed = item.direction === 'BUY'
+      const entryKey = `${item.key}:ENTRY`;
+      const entryWasReached = firedLevels.current.has(entryKey)
+        || (item.direction === 'BUY' ? current <= item.entry : current >= item.entry);
+      const entryCrossed = !entryWasReached && (item.direction === 'BUY'
         ? crossed(item.entry, false)
-        : crossed(item.entry, true);
-      const targetCrossed = item.direction === 'BUY'
+        : crossed(item.entry, true));
+      const targetCrossed = entryWasReached && (item.direction === 'BUY'
         ? crossed(item.target, true)
-        : crossed(item.target, false);
-      const stopCrossed = item.direction === 'BUY'
+        : crossed(item.target, false));
+      const stopCrossed = entryWasReached && (item.direction === 'BUY'
         ? crossed(item.stopLoss, false)
-        : crossed(item.stopLoss, true);
+        : crossed(item.stopLoss, true));
 
-      // A terminal level takes priority if one unusually large tick jumps across
-      // both entry and the outcome level; never announce a late entry in that case.
+      // Only monitor target/stop after entry. A terminal level takes priority
+      // if one unusually large tick jumps across entry and the outcome level.
       const reached: ReachedLevel | null = stopCrossed ? 'STOP' : targetCrossed ? 'TARGET' : entryCrossed ? 'ENTRY' : null;
       if (!reached) continue;
       const levelKey = `${item.key}:${reached}`;
