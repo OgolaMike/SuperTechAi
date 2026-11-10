@@ -17,11 +17,13 @@ async function callFutures(action: string, payload: Record<string, unknown> = {}
   const { data, error } = await supabase.functions.invoke('binance-futures', { body: { action, ...payload } });
   if (error) {
     const response = (error as { context?: Response }).context;
-    if (response && typeof response.json === 'function') {
-      const detail = await response.clone().json().catch(() => null);
-      throw new Error(detail?.error ?? detail?.message ?? error.message ?? 'Binance Futures request failed.');
+    if (response && typeof response.text === 'function') {
+      const raw = await response.clone().text().catch(() => '');
+      let detail: { error?: string; message?: string } | null = null;
+      try { detail = JSON.parse(raw); } catch { /* Keep the HTTP response as the fallback. */ }
+      throw new Error(detail?.error ?? detail?.message ?? (raw && raw.length < 240 ? raw : '') ?? error.message ?? `Binance Futures request failed (${response.status}).`);
     }
-    throw error;
+    throw new Error(error.message || 'Binance Futures request failed. Check the connection and try again.');
   }
   if (!data?.ok) throw new Error(data?.error ?? data?.message ?? 'Binance Futures request failed.');
   return data;
