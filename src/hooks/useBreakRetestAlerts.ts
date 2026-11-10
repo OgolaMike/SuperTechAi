@@ -14,7 +14,8 @@ export function useBreakRetestAlerts(assets: Asset[], states: Record<string, Rec
     if (!loaded) return;
     const setups = buildBreakRetestSetups(assets, states);
     if (!seeded.current) { setups.forEach(item => seen.current.add(item.key)); seeded.current = true; return; }
-    const fresh = setups.filter(item => !seen.current.has(item.key));
+    // M1 setups remain calculated and tracked, but do not create member-facing alerts.
+    const fresh = setups.filter(item => item.granularity !== 60 && !seen.current.has(item.key));
     setups.forEach(item => seen.current.add(item.key));
     if (!fresh.length) return;
     const created: Toast[] = fresh.slice(0, 4).map(item => ({
