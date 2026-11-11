@@ -9,13 +9,13 @@ type ConnectionCard = {
   id: 'binance' | 'okx' | 'ctrader' | 'mt5' | 'deriv';
   title: string;
   subtitle: string;
-  status: 'connected' | 'not_connected' | 'attention' | 'not_available';
+  status: 'connected' | 'not_connected' | 'attention' | 'not_available' | 'status_private';
   detail: string;
   action: string;
   icon: typeof Bitcoin;
 };
 
-type Props = { onOpen: (view: 'binance' | 'okx' | 'ctrader' | 'mt5') => void };
+type Props = { onOpen: (view: ConnectionCard['id']) => void };
 
 function connectionState(value: string | null | undefined): ConnectionCard['status'] {
   if (value === 'connected') return 'connected';
@@ -32,23 +32,26 @@ export function AutomationConnections({ onOpen }: Props) {
     setLoading(true);
     setError('');
     try {
-      const [spot, futures, okx, ctrader, mt5, workers] = await Promise.all([
+      // These reads are limited to tables with member-scoped SELECT policies.
+      // OKX status and MT5 worker records intentionally remain private until a
+      // dedicated member-safe status endpoint is available.
+      const [spot, futures, ctrader, mt5] = await Promise.all([
         supabase.from('binance_spot_settings').select('connection_status').maybeSingle(),
         supabase.from('binance_futures_settings').select('connection_status').maybeSingle(),
-        supabase.from('okx_futures_settings').select('connection_status').maybeSingle(),
         supabase.from('ctrader_connections').select('id,connection_status,environment,account_label').order('created_at', { ascending: false }),
         supabase.from('mt5_account_settings').select('bridge_status,last_seen_at,login,server').maybeSingle(),
-        supabase.from('mt5_bridge_workers').select('worker_id,status,last_seen_at').eq('status', 'online'),
       ]);
 
-      const failures = [spot.error, futures.error, okx.error, ctrader.error, mt5.error, workers.error].filter(Boolean);
+      const failures = [spot.error, futures.error, ctrader.error, mt5.error].filter(Boolean);
       if (failures.length) throw new Error(failures[0]?.message ?? 'Could not load account connections.');
 
       const ctraderRows = ctrader.data ?? [];
       const ctraderConnected = ctraderRows.filter((row) => row.connection_status === 'connected').length;
-      const mt5Online = mt5.data?.bridge_status === 'connected' &&
-        (workers.data ?? []).some((worker) => !mt5.data?.last_seen_at ||
-          new Date(worker.last_seen_at ?? 0).getTime() >= new Date(mt5.data.last_seen_at).getTime() - 120000);
+      const mt5LastSeen = mt5.data?.last_seen_at ? new Date(mt5.data.last_seen_at).getTime() : Number.NaN;
+      const mt5HeartbeatFresh = Number.isFinite(mt5LastSeen) &&
+        mt5LastSeen <= Date.now() + 30000 &&
+        Date.now() - mt5LastSeen <= 120000;
+      const mt5Online = mt5.data?.bridge_status === 'connected' && mt5HeartbeatFresh;
 
       setCards([
         {
@@ -63,9 +66,9 @@ export function AutomationConnections({ onOpen }: Props) {
         },
         {
           id: 'okx', title: 'OKX', subtitle: 'USDT Perpetual Futures',
-          status: connectionState(okx.data?.connection_status),
-          detail: okx.data?.connection_status ?? 'Not connected',
-          action: 'Manage OKX', icon: Activity, liveReady: true,
+          status: 'status_private',
+          detail: 'Your existing OKX manager is available. This overview will show its status after a member-safe status route is added.',
+          action: 'Manage OKX', icon: Activity,
         },
         {
           id: 'ctrader', title: 'cTrader', subtitle: 'Broker accounts via secure authorisation',
@@ -76,15 +79,18 @@ export function AutomationConnections({ onOpen }: Props) {
           action: 'Manage cTrader', icon: Cable,
         },
         {
-          id: 'mt5', title: 'MetaTrader 5', subtitle: 'Cloud-connected Windows trading terminal',
+          id: 'mt5', title: 'MetaTrader 5', subtitle: 'Windows terminal bridge',
           status: mt5Online ? 'connected' : mt5.data?.bridge_status === 'error' ? 'attention' : 'not_connected',
-          detail: mt5.data?.login ? `Account ${mt5.data.login} · ${mt5.data.server ?? 'Broker server'} · ${(workers.data ?? []).length} online worker(s)` : 'Pair an account and keep its secure worker online',
-          action: 'Manage MT5', icon: Cloud, liveReady: false,
+          detail: mt5.data?.login
+            ? `Account ••••${mt5.data.login.slice(-4)} · ${mt5.data.server ?? 'Broker server'} · ${mt5Online ? 'Worker heartbeat fresh' : 'Worker heartbeat missing or stale'}`
+            : 'Pair an account and keep its secure worker online',
+          action: 'Manage MT5', icon: Cloud,
         },
         {
           id: 'deriv', title: 'Deriv', subtitle: 'Market data connected · account trading not yet linked',
-          status: 'not_available', detail: 'Signal data is available. Secure account authorisation and trade execution are still to be built.',
-          action: 'Market data only', icon: Wifi, liveReady: false,
+          status: 'not_available',
+          detail: 'Signal data is available. Secure account authorisation and trade execution are still to be built.',
+          action: 'Market data only', icon: Wifi,
         },
       ]);
     } catch (e) {
@@ -101,6 +107,7 @@ export function AutomationConnections({ onOpen }: Props) {
     not_connected: 'Not connected',
     attention: 'Needs attention',
     not_available: 'Not yet available',
+    status_private: 'Status not shown here',
   })[status];
 
   return (
@@ -110,7 +117,7 @@ export function AutomationConnections({ onOpen }: Props) {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">One mobile control centre</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Your trading connections</h2>
           <p className="mt-2 max-w-2xl text-sm text-ink-2">
-            Connect accounts once. SuperTech AI's cloud services handle supported automation while your phone remains the control centre.
+            Connect accounts once. Supported cloud services keep running while your phone remains the control centre.
           </p>
         </div>
         <button type="button" onClick={() => void refresh()} disabled={loading}
@@ -161,7 +168,7 @@ export function AutomationConnections({ onOpen }: Props) {
           <div>
             <p className="text-sm font-semibold text-ink">Connection does not mean trading is active</p>
             <p className="mt-1 text-xs leading-relaxed text-ink-2">
-              Each provider keeps its own permission checks, risk limits and emergency stop. A connected account is not proof that a live order can be placed. We verify account access separately, without placing a test trade.
+              Each provider keeps its own permission checks, risk limits and emergency stop. A connected account is not proof that a live order can be placed. Account access is checked without placing a test trade.
             </p>
           </div>
         </div>
