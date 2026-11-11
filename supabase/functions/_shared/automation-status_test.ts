@@ -14,7 +14,10 @@ Deno.test("classifies connected provider when one connection is connected", () =
   assertEquals(classifyConnectionHealth(["not_connected", "connected"]), "connected", "connected priority");
 });
 
-Deno.test("flags attention when no provider is connected but one needs action", () => {
+Deno.test("distinguishes connecting from disconnected and attention states", () => {
+  assertEquals(classifyConnectionHealth(["connecting"]), "connecting", "connecting provider");
+  assertEquals(classifyConnectionHealth(["not_connected", "connecting"]), "connecting", "connecting provider among inactive");
+  assertEquals(classifyConnectionHealth(["connecting", "reauthorization_required"]), "attention", "attention takes priority");
   assertEquals(classifyConnectionHealth(["not_connected", "reauthorization_required"]), "attention", "reauthorization");
   assertEquals(classifyConnectionHealth(["error"]), "attention", "provider error");
 });
