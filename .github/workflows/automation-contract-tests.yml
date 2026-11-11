@@ -7,6 +7,9 @@ on:
       - "supabase/functions/_shared/execution-contract.ts"
       - "supabase/functions/_shared/execution-contract_test.ts"
       - ".github/workflows/automation-contract-tests.yml"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
   push:
     branches: ["automation/unified-mobile-cloud"]
     paths:
@@ -23,6 +26,17 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Type-check frontend
+        run: npm run typecheck
+      - name: Build frontend
+        run: npm run build
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
