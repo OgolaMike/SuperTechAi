@@ -1,4 +1,5 @@
-import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target, X } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount }: Props) {
+  const [chartOpen, setChartOpen] = useState(false);
   const signal = tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
   const isBuy = signal?.direction === 'BUY';
@@ -30,7 +32,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
         : 'border-line/20 bg-surface/[0.04] text-ink-2';
 
   return (
-    <div className={`hud-panel flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-all duration-300 hover:bg-surface/[0.05] sm:p-5 ${
+    <div role={signal ? 'button' : undefined} tabIndex={signal ? 0 : undefined} onClick={(event) => { if (signal && !(event.target as HTMLElement).closest('button')) setChartOpen(true); }} onKeyDown={(event) => { if (signal && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setChartOpen(true); } }} aria-label={signal ? `Open live ${asset.fullName} ${tf.label} ${signal.direction} signal chart` : undefined} className={`hud-panel flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-all duration-300 hover:bg-surface/[0.05] sm:p-5 ${signal ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2' : ''} ${
       isBuy ? 'border-up/30' : isSell ? 'border-down/30' : 'border-line/10'
     }`}>
       <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -62,7 +64,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
               <div className={`text-xl font-bold tracking-tight sm:text-2xl ${isBuy ? 'text-up' : 'text-down'}`}>
                 {signal.direction === 'BUY' ? 'BUY — UP' : 'SELL — DOWN'}
               </div>
-              <div className="text-sm text-ink-2">{directionExplanation(signal.direction)}</div>
+              <div className="break-words text-sm leading-relaxed text-ink-2">{directionExplanation(signal.direction)}</div>
             </div>
           </div>
 
@@ -76,7 +78,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
             </div>
           )}
 
-          <div className="rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-3">
+          <div className="min-w-0 rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">AI pattern score</div>
             {aiScore === null ? (
               <p className="mt-1 text-sm text-ink-2">AI is still learning from completed signals. No score yet.</p>
@@ -115,11 +117,33 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
         </div>
       )}
 
-      <div className="flex items-center gap-2 border-t border-line/10 pt-3 text-xs text-ink-2">
+      <div className="flex flex-wrap items-center gap-2 border-t border-line/10 pt-3 text-xs leading-relaxed text-ink-2">
         <Clock className="h-3.5 w-3.5 flex-shrink-0 text-ink-3" />
         <span>Last update: {formatDateTime(tf.updatedEpoch)}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] text-slate-300"><span className="font-semibold text-cyan-200">NO CROSS SIGNAL</span><span>Market data remains active; BUY/SELL appears only after a confirmed candle-close crossover.</span></div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] leading-relaxed text-slate-300"><span className="font-semibold text-cyan-200">NO CROSS SIGNAL</span><span>Market data remains active; BUY/SELL appears only after a confirmed candle-close crossover.</span></div>
+      {chartOpen && signal && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#050914]/95 p-3 backdrop-blur-md sm:p-6" onClick={(event) => event.stopPropagation()}>
+          <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/15 bg-[#0c1423] p-4 text-white shadow-2xl">
+              <div className="min-w-0">
+                <p className="break-words text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Live signal detail</p>
+                <h2 className="mt-1 break-words text-lg font-bold sm:text-2xl">{asset.fullName} <span className="text-sm font-medium text-slate-400">({asset.symbol})</span></h2>
+                <p className={`mt-1 text-sm font-bold ${isBuy ? 'text-blue-300' : 'text-rose-300'}`}>{signal.direction === 'BUY' ? 'BUY — UP' : 'SELL — DOWN'} · {tf.label}</p>
+              </div>
+              <button type="button" onClick={() => setChartOpen(false)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" aria-label="Close live signal chart"><X className="h-4 w-4" /> Close</button>
+            </div>
+            <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-detail-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-white/10 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-slate-400">Entry</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.entry.toFixed(asset.digits)}</p></div>
+              <div className="rounded-xl border border-rose-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-rose-300">Stop loss</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.stopLoss.toFixed(asset.digits)}</p></div>
+              <div className="rounded-xl border border-emerald-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-emerald-300">Take profit 1</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.tp1.toFixed(asset.digits)}</p></div>
+              <div className="rounded-xl border border-emerald-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-emerald-300">Take profit 3</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.tp3.toFixed(asset.digits)}</p></div>
+            </div>
+            <p className="pb-4 text-center text-xs leading-relaxed text-slate-400">Live market data updates as new prices and candles arrive. A signal is not a guarantee of profit.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
