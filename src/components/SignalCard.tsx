@@ -95,7 +95,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           <EntryTime epoch={signal.signalEpoch} direction={signal.direction} />
           <CurrentPrice price={price} entry={signal.levels.entry} direction={signal.direction} digits={asset.digits} />
           <LevelList rows={buildRows(signal)} digits={asset.digits} />
-          <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} />
+          <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} />
 
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
@@ -120,6 +120,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
         <Clock className="h-3.5 w-3.5 flex-shrink-0 text-ink-3" />
         <span>Last update: {formatDateTime(tf.updatedEpoch)}</span>
       </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] text-slate-300"><span className="font-semibold text-cyan-200">NO CROSS SIGNAL</span><span>Market data remains active; BUY/SELL appears only after a confirmed candle-close crossover.</span></div>
     </div>
   );
 }
@@ -148,7 +149,19 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
     return () => window.clearInterval(timer);
   }, []);
 
-  const data = candles.slice(-60);
+  const history = candles;
+  const start = Math.max(0, history.length - 60);
+  const data = history.slice(start);
+  const stats = data.map((_, index) => {
+    const end = start + index;
+    if (end < 59) return null;
+    const closes = history.slice(end - 59, end + 1).map(c => c.close);
+    const mean = closes.reduce((sum, value) => sum + value, 0) / 60;
+    const variance = closes.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
+    const deviation = Math.sqrt(variance);
+    return { mean, upper: mean + deviation * 2.5, lower: mean - deviation * 2.5 };
+  });
+  const latestStats = stats[stats.length - 1];
   const latest = data[data.length - 1];
   const secondsRemaining = latest ? Math.max(0, latest.epoch + 86400 - nowEpoch) : 0;
   const hours = Math.floor(secondsRemaining / 3600);
@@ -175,7 +188,7 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
   const W = 1200;
   const H = 340;
   const PAD = { top: 24, right: 112, bottom: 40, left: 24 };
-  const values = data.flatMap(candle => [candle.high, candle.low]);
+  const values = data.flatMap((candle, index) => [candle.high, candle.low, stats[index]?.upper ?? candle.high, stats[index]?.lower ?? candle.low]);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
@@ -185,6 +198,7 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
   const y = (price: number) => PAD.top + (max - price) / range * (H - PAD.top - PAD.bottom);
   const bodyWidth = Math.max(5, Math.min(18, plotWidth / data.length * 0.62));
   const grid = Array.from({ length: 6 }, (_, index) => max - range * index / 5);
+  const indicatorPath = (key: 'mean' | 'upper' | 'lower') => stats.map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '').filter(Boolean).join(' ');
   const dateLabel = (epoch: number) => new Date(epoch * 1000).toLocaleDateString([], { day: '2-digit', month: 'short' });
   const priceLabel = (value: number) => value.toFixed(digits);
 
@@ -193,7 +207,7 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0c1423] px-4 py-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Daily candles · D1</p>
-          <p className="mt-1 text-[11px] text-slate-400">{assetName} · latest 60 candles · no active signal</p>
+          <p className="mt-1 text-[11px] text-slate-400">{assetName} · latest 60 candles · live market analysis</p>
         </div>
         <div className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-right">
           <p className="text-[9px] font-bold uppercase tracking-wider text-cyan-200/70">Daily candle closes in</p>
@@ -202,12 +216,21 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
           </p>
         </div>
       </div>
+      {latest && <div className="grid grid-cols-2 gap-2 border-b border-white/10 bg-[#0a1220] p-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-white/10 bg-white/[0.035] p-2"><p className="text-[9px] uppercase tracking-wider text-slate-400">Current price</p><p className="mt-1 text-sm font-bold tabular-nums text-white">{priceLabel(latest.close)}</p></div>
+        <div className="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-amber-200/70">SMA 60</p><p className="mt-1 text-sm font-bold tabular-nums text-amber-100">{latestStats ? priceLabel(latestStats.mean) : 'Warming up'}</p></div>
+        <div className="rounded-lg border border-rose-300/20 bg-rose-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-rose-200/70">Upper band +2.5σ</p><p className="mt-1 text-sm font-bold tabular-nums text-rose-100">{latestStats ? priceLabel(latestStats.upper) : 'Warming up'}</p></div>
+        <div className="rounded-lg border border-blue-300/20 bg-blue-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-blue-200/70">Lower band −2.5σ</p><p className="mt-1 text-sm font-bold tabular-nums text-blue-100">{latestStats ? priceLabel(latestStats.lower) : 'Warming up'}</p></div>
+      </div>}
       <div className="w-full overflow-x-auto">
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Latest 60 daily candlesticks for ${assetName}; no active signal`} style={{ width: '100%', minWidth: '560px', height: 'auto', display: 'block' }}>
           {grid.map((value, index) => <g key={index}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(value)} y2={y(value)} stroke="#94a3b8" strokeOpacity=".16" strokeDasharray="3 7" />
             <text x={W - PAD.right + 8} y={y(value) + 4} fill="#94a3b8" fontSize="12">{priceLabel(value)}</text>
           </g>)}
+          {indicatorPath('upper') && <path d={indicatorPath('upper')} fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />}
+          {indicatorPath('mean') && <path d={indicatorPath('mean')} fill="none" stroke="#facc15" strokeWidth="3" strokeLinecap="round" />}
+          {indicatorPath('lower') && <path d={indicatorPath('lower')} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" />}
           {data.map((candle, index) => {
             const bullish = candle.close >= candle.open;
             const color = bullish ? '#34d399' : '#fb7185';
@@ -219,6 +242,7 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
             </g>;
           })}
           {[...new Set([0, Math.floor((data.length - 1) / 2), data.length - 1])].map(index => <text key={index} x={x(index)} y={H - 12} textAnchor="middle" fill="#94a3b8" fontSize="11">{dateLabel(data[index].epoch)}</text>)}
+          {latestStats && <><text x={PAD.left + 8} y={PAD.top + 14} fill="#facc15" fontSize="10" fontWeight="700">SMA 60</text><text x={PAD.left + 72} y={PAD.top + 14} fill="#f87171" fontSize="10" fontWeight="700">BB HIGH</text><text x={PAD.left + 145} y={PAD.top + 14} fill="#60a5fa" fontSize="10" fontWeight="700">BB LOW</text></>}
           <rect x={W - PAD.right + 4} y={y(latest!.close) - 12} width="104" height="24" rx="4" fill="#e2e8f0" />
           <text x={W - PAD.right + 56} y={y(latest!.close) + 4} textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="800">{priceLabel(latest!.close)}</text>
         </svg>
