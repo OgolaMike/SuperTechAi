@@ -1,10 +1,11 @@
-import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark, Bitcoin, Network, GraduationCap, Activity, Gavel, Repeat2 } from 'lucide-react';
+import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark, Bitcoin, Network, GraduationCap, Activity, Gavel, Repeat2, Megaphone } from 'lucide-react';
 
-export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'binance-futures' | 'network' | 'academy' | 'governance' | 'break-retest';
+export type View = 'dashboard' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'binance-futures' | 'network' | 'academy' | 'governance' | 'break-retest' | 'marketing';
 
 const VIEWS: { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'governance', label: 'Owners Centre', icon: Gavel, adminOnly: true },
+  { id: 'marketing', label: 'Marketing Studio', icon: Megaphone, adminOnly: true },
   { id: 'academy', label: 'Academy', icon: GraduationCap },
   { id: 'records', label: 'Signals', icon: Database },
   { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
