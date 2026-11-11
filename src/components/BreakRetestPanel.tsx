@@ -88,79 +88,6 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
 }
 
 
-function DailyCandlesChart({ assetName, candles }: { assetName: string; candles: Candle[] }) {
-  const [zoom, setZoom] = useState(1);
-  const [nowEpoch, setNowEpoch] = useState(() => Math.floor(Date.now() / 1000));
-  useEffect(() => {
-    const timer = window.setInterval(() => setNowEpoch(Math.floor(Date.now() / 1000)), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const data = candles.slice(-60);
-  if (data.length < 2) {
-    return <div className="border-t border-white/10 bg-[#080e19] px-4 py-4">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Daily candles · D1</p>
-      <p className="mt-2 text-xs text-slate-400">Daily market history is loading for {assetName}…</p>
-    </div>;
-  }
-
-  const W = 1200;
-  const H = 270;
-  const P = { top: 24, right: 104, bottom: 34, left: 22 };
-  const values = data.flatMap(candle => [candle.high, candle.low]);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
-  const plotWidth = W - P.left - P.right;
-  const candleSlots = Math.max(1, data.length - 1) + 7;
-  const x = (index: number) => P.left + index / candleSlots * plotWidth;
-  const y = (price: number) => P.top + (max - price) / range * (H - P.top - P.bottom);
-  const body = Math.max(5, Math.min(17, (W - P.left - P.right) / data.length * 0.58));
-  const grid = Array.from({ length: 5 }, (_, index) => max - range * index / 4);
-  const fmt = (price: number) => formatPrice(price, 5);
-  const dateLabel = (epoch: number) => new Date(epoch * 1000).toLocaleDateString([], { day: '2-digit', month: 'short' });
-  const latestCandle = data[data.length - 1];
-  const secondsRemaining = Math.max(0, latestCandle.epoch + 86400 - nowEpoch);
-  const hours = Math.floor(secondsRemaining / 3600);
-  const minutes = Math.floor((secondsRemaining % 3600) / 60);
-  const seconds = secondsRemaining % 60;
-
-  return <section className="border-t border-white/10 bg-[#080e19]">
-    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-200">Daily market context · D1</p>
-        <p className="mt-0.5 text-xs text-slate-400">{assetName} · latest 60 daily candles</p>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100">
-          {secondsRemaining > 0 ? `Daily close ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` : 'Daily candle rollover · updating'}
-        </span>
-        <button type="button" onClick={() => setZoom(value => Math.max(1, value - 0.25))} disabled={zoom <= 1} className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 text-xs text-white disabled:opacity-35" aria-label="Zoom out daily chart">−</button>
-        <button type="button" onClick={() => setZoom(value => Math.min(2, value + 0.25))} disabled={zoom >= 2} className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 text-xs text-white disabled:opacity-35" aria-label="Zoom in daily chart">+</button>
-      </div>
-    </div>
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Daily D1 candlestick chart for ${assetName}, showing the latest 60 daily candles`} style={{ width: `${zoom * 100}%`, minWidth: '560px', height: 'auto', display: 'block' }}>
-        {grid.map((price, index) => <g key={index}>
-          <line x1={P.left} x2={W - P.right} y1={y(price)} y2={y(price)} stroke="#94a3b8" strokeOpacity=".16" strokeDasharray="3 7" />
-          <text x={W - P.right + 8} y={y(price) + 4} fill="#94a3b8" fontSize="12">{fmt(price)}</text>
-        </g>)}
-        {data.map((candle, index) => {
-          const bullish = candle.close >= candle.open;
-          const color = bullish ? '#34d399' : '#fb7185';
-          const top = y(Math.max(candle.open, candle.close));
-          const bottom = y(Math.min(candle.open, candle.close));
-          return <g key={candle.epoch}>
-            <line x1={x(index)} x2={x(index)} y1={y(candle.high)} y2={y(candle.low)} stroke={color} strokeWidth="2" />
-            <rect x={x(index) - body / 2} y={top} width={body} height={Math.max(2, bottom - top)} rx="1.2" fill={color} />
-          </g>;
-        })}
-        {[...new Set([0, Math.floor((data.length - 1) / 2), data.length - 1])].map(index => <text key={index} x={x(index)} y={H - 10} textAnchor="middle" fill="#94a3b8" fontSize="11">{dateLabel(data[index].epoch)}</text>)}
-        <text x={P.left + 4} y={P.top + 12} fill="#64748b" fontSize="10" fontWeight="700">DAILY OPEN · HIGH · LOW · CLOSE</text>
-      </svg>
-    </div>
-  </section>;
-}
 
 export function BreakRetestPanel({ assets, states, prices, selectedSetupKey }: Props) {
   const [direction, setDirection] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
@@ -179,10 +106,6 @@ export function BreakRetestPanel({ assets, states, prices, selectedSetupKey }: P
     // Show the still-forming candle as well as closed candles in Break & Retest charts.
     return state?.chartCandles?.length ? state.chartCandles : state?.candles ?? [];
   };
-  const dailyCandlesFor = (item: BreakRetestSetup) => {
-    const dailyState = states[item.symbol]?.[86400];
-    return dailyState?.chartCandles?.length ? dailyState.chartCandles : dailyState?.candles ?? [];
-  };
   return <section id="break-retest-panel" className="mt-8 space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Pure price action scanner</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Break &amp; Retest Setups</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">Clean candlestick charts only. No moving averages, Bollinger Bands, oscillators or indicator overlays. Every call requires a break and retest in the same zone, followed by a candle that closes beyond the rejection candle.</p></div>
@@ -198,14 +121,13 @@ export function BreakRetestPanel({ assets, states, prices, selectedSetupKey }: P
       {visible.map(item=>{const price=prices[item.symbol]??item.entry;const Icon=item.direction==='BUY'?ArrowUpRight:ArrowDownRight;return <article key={item.key} className="min-w-0 overflow-hidden rounded-2xl border border-line/15 bg-surface/[0.045] shadow-sm">
         <div className="flex items-start justify-between gap-3 p-4"><div><div className="flex flex-wrap items-center gap-2"><span className={`rounded-md px-2 py-1 text-xs font-bold ${item.direction==='BUY'?'bg-emerald-500/10 text-emerald-500':'bg-rose-500/10 text-rose-500'}`}><Icon className="mr-1 inline h-3.5 w-3.5"/>{item.direction} MARKET</span><span className="text-xs text-ink-2">{item.exchange} · {item.timeframe}</span></div><h3 className="mt-2 text-lg font-semibold text-ink">{item.assetName}</h3><p className="text-xs text-ink-2">{item.symbol}</p></div><span className="rounded-full border border-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-500">CONFIRMED</span></div>
         <PriceActionChart setup={item} candles={candlesFor(item)} onExpand={()=>setExpanded(item)}/>
-        <DailyCandlesChart assetName={item.assetName} candles={dailyCandlesFor(item)}/>
         <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3"><div className="rounded-lg border border-accent/20 bg-surface/[0.06] p-3"><p className="flex items-center gap-1 text-[11px] font-semibold text-ink-2"><Clock3 className="h-3 w-3"/> SIGNAL CALLED</p><p className="mt-1 text-sm font-bold tabular-nums text-ink">{formatDateTime(item.confirmationEpoch)}</p></div><div className="rounded-lg border border-white/15 bg-surface/[0.06] p-3"><p className="text-[11px] font-semibold text-ink-2">ENTRY PRICE AT SIGNAL</p><p className="mt-1 text-sm font-bold tabular-nums text-ink">{formatPrice(item.entry,5)}</p></div><div className="rounded-lg bg-surface/[0.06] p-3"><p className="text-[11px] text-ink-2">LIVE MARKET PRICE</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{formatPrice(price,5)}</p></div><div className="rounded-lg bg-surface/[0.06] p-3"><p className="text-[11px] text-ink-2">RETEST ZONE</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{formatPrice(item.zoneLow,5)} – {formatPrice(item.zoneHigh,5)}</p></div><div className="rounded-lg border border-rose-500/20 bg-surface/[0.06] p-3"><p className="text-[11px] font-semibold text-ink-2">STOP LOSS</p><p className="mt-1 text-sm font-bold tabular-nums text-rose-500">{formatPrice(item.stopLoss,5)}</p></div><div className="rounded-lg border border-emerald-500/20 bg-surface/[0.06] p-3"><p className="text-[11px] font-semibold text-ink-2"><Target className="mr-1 inline h-3 w-3"/> PRICE TARGET · 5R</p><p className="mt-1 text-sm font-bold tabular-nums text-emerald-500">{formatPrice(item.target,5)}</p></div></div>
         
       </article>;})}
     </div>}
     {expanded&&<div className="fixed inset-0 z-[100] flex flex-col bg-[#050a12] text-white" role="dialog" aria-modal="true" aria-label={`Full-screen ${expanded.assetName} price action chart`}>
       <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-6"><div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Break &amp; Retest · Pure Price Action</p><h2 className="truncate text-lg font-bold">{expanded.assetName} <span className="text-sm font-medium text-slate-400">· {expanded.timeframe} · {expanded.direction}</span></h2><p className="mt-1 text-xs font-semibold text-slate-300">SIGNAL CALLED: {formatDateTime(expanded.confirmationEpoch)}</p></div><button type="button" onClick={()=>setExpanded(null)} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/5 hover:bg-white/10" aria-label="Close full-screen chart"><X className="h-5 w-5"/></button></div>
-      <div className="flex-1 min-h-0 overflow-auto p-2 sm:p-5"><div className="mx-auto flex min-h-full max-w-[1800px] flex-col"><div className={`mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 ${expanded.direction==='BUY'?'border-emerald-400/70 bg-emerald-500/15':'border-rose-400/70 bg-rose-500/15'}`}><div className="flex items-center gap-3"><div className={`rounded-xl p-2 ${expanded.direction==='BUY'?'bg-emerald-500 text-[#04130d]':'bg-rose-500 text-white'}`}>{expanded.direction==='BUY'?<ArrowUpRight className="h-7 w-7"/>:<ArrowDownRight className="h-7 w-7"/>}</div><div><p className="text-xs font-bold uppercase tracking-widest text-slate-300">Confirmed trade direction</p><p className={`text-2xl font-black tracking-wide ${expanded.direction==='BUY'?'text-emerald-300':'text-rose-300'}`}>{expanded.direction==='BUY'?'BUY · UP':'SELL · DOWN'}</p></div></div></div><div className="flex-1"><PriceActionChart setup={expanded} candles={candlesFor(expanded)} fullscreen/><DailyCandlesChart assetName={expanded.assetName} candles={dailyCandlesFor(expanded)}/></div><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"><div className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3"><p className="text-xs font-bold text-amber-200">SIGNAL CALLED</p><p className="mt-1 text-sm font-semibold tabular-nums">{formatDateTime(expanded.confirmationEpoch)}</p></div><div className="rounded-xl border border-white/15 bg-white/[0.04] p-3"><p className="text-xs text-slate-400">ENTRY PRICE AT SIGNAL</p><p className="mt-1 font-semibold tabular-nums">{formatPrice(expanded.entry,5)}</p></div><div className="rounded-xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs text-slate-400">LIVE MARKET PRICE</p><p className="mt-1 font-semibold tabular-nums">{formatPrice(prices[expanded.symbol]??expanded.entry,5)}</p></div><div className="rounded-xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs text-slate-400">RETEST ZONE</p><p className="mt-1 font-semibold tabular-nums">{formatPrice(expanded.zoneLow,5)} – {formatPrice(expanded.zoneHigh,5)}</p></div><div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3"><p className="text-xs font-bold text-rose-300">STOP LOSS</p><p className="mt-1 font-semibold tabular-nums text-rose-300">{formatPrice(expanded.stopLoss,5)}</p></div><div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3"><p className="text-xs font-bold text-emerald-300">PRICE TARGET · 5R</p><p className="mt-1 font-semibold tabular-nums text-emerald-300">{formatPrice(expanded.target,5)}</p></div></div></div></div>
+      <div className="flex-1 min-h-0 overflow-auto p-2 sm:p-5"><div className="mx-auto flex min-h-full max-w-[1800px] flex-col"><div className={`mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 ${expanded.direction==='BUY'?'border-emerald-400/70 bg-emerald-500/15':'border-rose-400/70 bg-rose-500/15'}`}><div className="flex items-center gap-3"><div className={`rounded-xl p-2 ${expanded.direction==='BUY'?'bg-emerald-500 text-[#04130d]':'bg-rose-500 text-white'}`}>{expanded.direction==='BUY'?<ArrowUpRight className="h-7 w-7"/>:<ArrowDownRight className="h-7 w-7"/>}</div><div><p className="text-xs font-bold uppercase tracking-widest text-slate-300">Confirmed trade direction</p><p className={`text-2xl font-black tracking-wide ${expanded.direction==='BUY'?'text-emerald-300':'text-rose-300'}`}>{expanded.direction==='BUY'?'BUY · UP':'SELL · DOWN'}</p></div></div></div><div className="flex-1"><PriceActionChart setup={expanded} candles={candlesFor(expanded)} fullscreen/></div><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"><div className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3"><p className="text-xs font-bold text-amber-200">SIGNAL CALLED</p><p className="mt-1 text-sm font-semibold tabular-nums">{formatDateTime(expanded.confirmationEpoch)}</p></div><div className="rounded-xl border border-white/15 bg-white/[0.04] p-3"><p className="text-xs text-slate-400">ENTRY PRICE AT SIGNAL</p><p className="mt-1 font-semibold tabular-nums">{formatPrice(expanded.entry,5)}</p></div><div className="rounded-xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs text-slate-400">LIVE MARKET PRICE</p><p className="mt-1 font-semibold tabular-nums">{formatPrice(prices[expanded.symbol]??expanded.entry,5)}</p></div><div className="rounded-xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xs text-slate-400">RETEST ZONE</p><p className="mt-1 font-semibold tabular-nums">{formatPrice(expanded.zoneLow,5)} – {formatPrice(expanded.zoneHigh,5)}</p></div><div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3"><p className="text-xs font-bold text-rose-300">STOP LOSS</p><p className="mt-1 font-semibold tabular-nums text-rose-300">{formatPrice(expanded.stopLoss,5)}</p></div><div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3"><p className="text-xs font-bold text-emerald-300">PRICE TARGET · 5R</p><p className="mt-1 font-semibold tabular-nums text-emerald-300">{formatPrice(expanded.target,5)}</p></div></div></div></div>
     </div>}
   </section>;
 }
