@@ -104,6 +104,14 @@ A single Linux cloud host can support the crypto adapters and persistent cTrader
 
 Oracle Cloud Always Free can be evaluated for the Linux component, but free capacity, account eligibility, IPv4 charges and resource reclamation must be verified before promising zero monthly cost. A truly free and dependable Windows MT5 host is not established. The product can still be mobile-first; the execution infrastructure simply remains online in the cloud.
 
-## Current implementation boundary
+## Current branch implementation (not deployed)
 
-This branch is a safe planning baseline. It does not deploy a gateway, alter production database schema, rotate credentials, change live flags, invoke an executor, or submit a broker order. Implementation should proceed in small, testable pull requests, beginning with contract tests and a provider connection registry—not a wholesale rewrite.
+The development branch now contains:
+- A mobile Connections control centre that opens the existing Binance, OKX, cTrader and MT5 management screens.
+- A read-only `automation-status` Edge Function. It validates the signed-in member, scopes every settings/worker query to that member's `user_id`, selects only non-secret health fields, masks the MT5 account login to its last four characters, and sends `Cache-Control: no-store`.
+- Status classification that distinguishes connected, connecting, attention-required and not-connected states. MT5 is only shown connected when a member's worker reports a recent heartbeat.
+- Unit tests for status classification, heartbeat freshness and account-login masking, alongside the shared execution-contract tests.
+
+The browser does not query private OKX settings or the MT5 worker table directly. The service endpoint does not return credentials, token references, worker-token hashes, or order data. It is still a status view, not a broker connectivity preflight or permission to trade.
+
+This work exists on the development branch and remains behind PR review/CI. It does not deploy an Edge Function, alter production database schema or secrets, rotate credentials, change live flags, invoke an executor, or submit a broker order. Full execution adapters and provider parity testing remain separate work.
