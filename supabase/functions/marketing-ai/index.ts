@@ -5,7 +5,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
   try {
-    const token = (req.headers.get('Authorization') || '').replace(/^Bearer\\s+/i, '');
+    const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
     const url = Deno.env.get('SUPABASE_URL') || '';
     const anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
     const key = Deno.env.get('OPENAI_API_KEY') || '';
