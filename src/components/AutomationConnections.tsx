@@ -15,7 +15,20 @@ type ConnectionCard = {
   icon: typeof Bitcoin;
 };
 
-type Props = { onOpen: (view: ConnectionCard['id']) => void };
+type Props = { onOpen: (view: 'binance' | 'okx' | 'ctrader' | 'mt5') => void };
+
+function openConnection(id: ConnectionCard['id'], onOpen: Props['onOpen']) {
+  switch (id) {
+    case 'binance':
+    case 'okx':
+    case 'ctrader':
+    case 'mt5':
+      onOpen(id);
+      return;
+    case 'deriv':
+      return;
+  }
+}
 
 function connectionState(value: string | null | undefined): ConnectionCard['status'] {
   if (value === 'connected') return 'connected';
@@ -151,7 +164,7 @@ export function AutomationConnections({ onOpen }: Props) {
                 {card.id === 'deriv' ? (
                   <span className="inline-flex items-center gap-2 text-xs text-ink-2"><LockKeyhole className="h-3.5 w-3.5" /> {card.action}</span>
                 ) : (
-                  <button type="button" onClick={() => onOpen(card.id)}
+                  <button type="button" onClick={() => openConnection(card.id, onOpen)}
                     className="w-full rounded-xl border border-line/15 bg-surface/[0.06] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent/40 hover:bg-surface/[0.1]">
                     {card.action}
                   </button>
