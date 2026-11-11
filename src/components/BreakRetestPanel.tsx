@@ -19,7 +19,22 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   onExpand?: () => void;
 }) {
   const [zoom, setZoom] = useState(1);
+  const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockEpoch(Math.floor(Date.now() / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const data = candles.slice(-60);
+  const latestCandle = data[data.length - 1];
+  const candleCloseEpoch = latestCandle ? latestCandle.epoch + setup.granularity : 0;
+  const secondsRemaining = Math.max(0, candleCloseEpoch - clockEpoch);
+  const daysRemaining = Math.floor(secondsRemaining / 86400);
+  const hoursRemaining = Math.floor((secondsRemaining % 86400) / 3600);
+  const minutesRemaining = Math.floor((secondsRemaining % 3600) / 60);
+  const secondsPart = secondsRemaining % 60;
+  const countdown = daysRemaining > 0
+    ? `${daysRemaining}d ${String(hoursRemaining).padStart(2, '0')}:${String(minutesRemaining).padStart(2, '0')}:${String(secondsPart).padStart(2, '0')}`
+    : `${String(hoursRemaining).padStart(2, '0')}:${String(minutesRemaining).padStart(2, '0')}:${String(secondsPart).padStart(2, '0')}`;
   if (data.length < 2) return <div className="grid h-56 place-items-center text-sm text-slate-400">Waiting for candle history…</div>;
   const W = 1200;
   const H = fullscreen ? 650 : 340;
@@ -45,6 +60,10 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   const fmt = (n: number) => formatPrice(n, 5);
   return <div className="relative w-full overflow-x-auto bg-[#080e19]">
     <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">{!fullscreen && <><button type="button" onClick={()=>setZoom(v=>Math.max(1,v-0.25))} disabled={zoom<=1} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-[#111c2c]/90 text-white disabled:opacity-35" aria-label="Zoom out chart"><ZoomOut className="h-4 w-4"/></button><span className="min-w-9 rounded-md bg-[#111c2c]/90 px-1.5 py-1.5 text-center text-[10px] font-semibold text-white">{zoom.toFixed(2)}×</span><button type="button" onClick={()=>setZoom(v=>Math.min(2,v+0.25))} disabled={zoom>=2} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-[#111c2c]/90 text-white disabled:opacity-35" aria-label="Zoom in chart"><ZoomIn className="h-4 w-4"/></button><button type="button" onClick={onExpand} className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-[#111c2c]/90 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:border-amber-300/60" aria-label="Open chart full screen"><Maximize2 className="h-3.5 w-3.5"/> Full screen</button></>}</div>
+    {latestCandle && <div className="absolute right-3 top-14 z-10 rounded-lg border border-cyan-300/35 bg-[#071827]/95 px-3 py-2 text-right shadow-lg">
+      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-cyan-200/75">Live candle · closes in</p>
+      <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-cyan-100">{secondsRemaining === 0 ? '00:00:00 · updating' : countdown}</p>
+    </div>}
     <div className={`absolute left-3 top-3 z-10 inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-black tracking-wider shadow-xl ${bullish ? 'border-emerald-300 bg-emerald-500 text-[#04130d]' : 'border-rose-300 bg-rose-500 text-white'}`}>
       {bullish ? <ArrowUpRight className="h-5 w-5"/> : <ArrowDownRight className="h-5 w-5"/>}
       {bullish ? 'BUY' : 'SELL'} SETUP
@@ -80,7 +99,11 @@ export function BreakRetestPanel({ assets, states, prices, selectedSetupKey }: P
   }, [selectedSetupKey, setups]);
   const timeframes = new Set(Object.values(states).flatMap(byTf => Object.values(byTf).filter(s => s.candles.length > 0).map(s => s.granularity))).size;
   const assetCount = new Set(Object.keys(states)).size;
-  const candlesFor = (item: BreakRetestSetup) => states[item.symbol]?.[item.granularity]?.candles ?? [];
+  const candlesFor = (item: BreakRetestSetup) => {
+    const state = states[item.symbol]?.[item.granularity];
+    // Show the still-forming candle as well as closed candles in Break & Retest charts.
+    return state?.chartCandles?.length ? state.chartCandles : state?.candles ?? [];
+  };
   return <section id="break-retest-panel" className="mt-8 space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Pure price action scanner</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Break &amp; Retest Setups</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">Clean candlestick charts only. No moving averages, Bollinger Bands, oscillators or indicator overlays. Every call requires a break and retest in the same zone, followed by a candle that closes beyond the rejection candle.</p></div>
