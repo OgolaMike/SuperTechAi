@@ -40,16 +40,14 @@ export function StatusBar({ status, detail, lastTick, monitoredCount, saveError 
 
 export function HeaderBrand() {
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-warn/30 bg-black">
-        <img src="/IMG-20261018-WA0005(1).jpg" alt="SuperTech Ai" className="h-full w-full object-cover" />
-        <span className="absolute -inset-px rounded-xl ring-1 ring-inset ring-white/10" />
-      </div>
-      <div className="min-w-0">
-        <h1 className="break-words font-display text-lg font-semibold tracking-tight text-ink">SuperTech Ai</h1>
-        <p className="break-words text-xs text-ink-2">Live market intelligence</p>
-      </div>
-    </div>
+    <a href="/" aria-label="SuperTechAi home" className="inline-flex min-w-0 items-center">
+      <img
+        src="/supertechai-logo.webp"
+        alt="SuperTechAi official gold and electric-blue lightning logo"
+        className="h-[76px] w-[76px] object-contain sm:h-[88px] sm:w-[88px]"
+        fetchPriority="high"
+      />
+    </a>
   );
 }
 
