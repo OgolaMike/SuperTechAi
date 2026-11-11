@@ -142,14 +142,28 @@ export function assertExecutionIntent(value: ExecutionIntent): void {
     throw new Error("execution_account_context_missing");
   }
   if (!EXECUTION_PROVIDERS.includes(value.provider)) throw new Error("unsupported_execution_provider");
+  if (value.environment !== "demo" && value.environment !== "live") {
+    throw new Error("unsupported_trading_environment");
+  }
+  if (value.order.side !== "buy" && value.order.side !== "sell") {
+    throw new Error("unsupported_execution_side");
+  }
+  if (!["market", "limit", "stop", "stop_limit"].includes(value.order.kind)) {
+    throw new Error("unsupported_execution_order_kind");
+  }
+  if (typeof value.authorization.liveExecutionAuthorized !== "boolean" ||
+      typeof value.authorization.emergencyStop !== "boolean") {
+    throw new Error("execution_authorization_flags_invalid");
+  }
   if (!value.strategyId || !value.strategyVersion || !value.signalId || !value.order.instrument) {
     throw new Error("execution_strategy_or_instrument_missing");
   }
   if (!validDate(value.signalCreatedAt) || !validDate(value.expiresAt) || !validDate(value.createdAt)) {
     throw new Error("invalid_execution_intent_timestamp");
   }
-  if (Date.parse(value.expiresAt) <= Date.parse(value.createdAt)) {
-    throw new Error("execution_intent_expiry_must_follow_creation");
+  if (Date.parse(value.expiresAt) <= Date.parse(value.createdAt) ||
+      Date.parse(value.signalCreatedAt) > Date.parse(value.expiresAt)) {
+    throw new Error("execution_intent_timestamps_out_of_order");
   }
   if (!positive(value.order.entryPrice) || !positive(value.order.stopLoss) || !positive(value.order.takeProfit)) {
     throw new Error("invalid_execution_price_or_protection_levels");
@@ -191,6 +205,10 @@ export function assertExecutionIntent(value: ExecutionIntent): void {
   if (!validDate(value.authorization.tradingPermissionVerifiedAt)) {
     throw new Error("trading_permission_verification_missing");
   }
+  if (value.risk.leverage !== undefined &&
+      (!Number.isInteger(value.risk.leverage) || value.risk.leverage < 1 || value.risk.leverage > 20)) {
+    throw new Error("execution_leverage_invalid");
+  }
 }
 
 /**
@@ -202,7 +220,7 @@ export function executionIdempotencyKey(
   connectionId: string,
   intentId: string,
 ): string {
-  if (!UUID.test(intentId) || !provider || !connectionId) {
+  if (!UUID.test(intentId) || !EXECUTION_PROVIDERS.includes(provider) || !connectionId.trim()) {
     throw new Error("invalid_execution_idempotency_context");
   }
   return `stai:${provider}:${connectionId}:${intentId}`;
