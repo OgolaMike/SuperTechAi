@@ -2,9 +2,23 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, ShieldCheck, Unplug } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+type OKXSettings = {
+  connection_status?: string | null;
+  demo_trading?: boolean | null;
+  leverage?: number | null;
+  risk_percent?: number | null;
+  max_daily_loss_pct?: number | null;
+  max_open_positions?: number | null;
+  auto_trade_enabled?: boolean | null;
+  live_execution_enabled?: boolean | null;
+  emergency_stop?: boolean | null;
+  api_key_last4?: string | null;
+  account_mode?: string | null;
+};
+
 export function OKXFuturesAutomation() {
   const [apiKey,setApiKey]=useState(''),[apiSecret,setApiSecret]=useState(''),[passphrase,setPassphrase]=useState('');
-  const [demo,setDemo]=useState(true),[settings,setSettings]=useState<any>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+  const [demo,setDemo]=useState(true),[settings,setSettings]=useState<OKXSettings | null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
   const [leverage,setLeverage]=useState('2'),[risk,setRisk]=useState('0.5'),[dailyLoss,setDailyLoss]=useState('2'),[maxPositions,setMaxPositions]=useState('3'),[autoTrade,setAutoTrade]=useState(false),[liveExecution,setLiveExecution]=useState(false),[emergencyStop,setEmergencyStop]=useState(true);
   const call=async(action:string,payload:Record<string,unknown>={})=>{const {data,error}=await supabase.functions.invoke('okx-futures',{body:{action,...payload}});if(error)throw new Error(error.message||'OKX request failed');if(!data?.ok)throw new Error(data?.error||'OKX request failed');return data;};
   const refresh=useCallback(async()=>{try{const r=await call('status');setSettings(r.settings);if(r.settings){setDemo(Boolean(r.settings.demo_trading));setLeverage(String(r.settings.leverage??2));setRisk(String(r.settings.risk_percent??0.5));setDailyLoss(String(r.settings.max_daily_loss_pct??2));setMaxPositions(String(r.settings.max_open_positions??3));setAutoTrade(Boolean(r.settings.auto_trade_enabled));setLiveExecution(Boolean(r.settings.live_execution_enabled));setEmergencyStop(Boolean(r.settings.emergency_stop));}}catch(e){setError(e instanceof Error?e.message:'Could not load OKX status');}},[]);
