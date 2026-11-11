@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { MessageCircle, TrendingUp, Send, BookOpenCheck } from 'lucide-react';
+import { MessageCircle, Send, BookOpenCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 type Review = { id:string; title:string; symbol:string; direction:'BUY'|'SELL'; timeframe:string; opened_at:string|null; closed_at:string|null; entry_price:number|string; exit_price:number|string; realized_pnl:number|string|null; realized_pnl_pct:number|string|null; setup_summary:string; why_entry:string; what_confirmed:string; risk_lesson:string; chart_image_url:string|null };
