@@ -36,9 +36,11 @@ function rolling(values: number[], index: number) {
   return { mean, upper: mean + deviation * 2.5, lower: mean - deviation * 2.5 };
 }
 
-function timeLabel(epoch: number) {
+function timeLabel(epoch: number, granularity: number) {
   const date = new Date(epoch * 1000);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  return granularity >= 86400
+    ? date.toLocaleDateString([], { day: '2-digit', month: 'short', year: '2-digit' })
+    : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 300, digits, assetName, symbol, anchorId, livePrice }: Props) {
@@ -228,7 +230,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             const index = Math.round((data.length - 1) * step / 4);
             return <g key={step}>
               <line x1={x(index)} x2={x(index)} y1={HEIGHT - PAD.bottom} y2={HEIGHT - PAD.bottom + 5} stroke="#94a3b8" strokeOpacity="0.6" />
-              <text x={x(index)} y={HEIGHT - 14} textAnchor="middle" fill="#94a3b8" fontSize="12">{timeLabel(data[index].epoch)}</text>
+              <text x={x(index)} y={HEIGHT - 14} textAnchor="middle" fill="#94a3b8" fontSize="12">{timeLabel(data[index].epoch, granularity)}</text>
             </g>;
           })}
           <text x={PAD.left + 2} y={HEIGHT - 14} fill="#cbd5e1" fontSize="10" fontWeight="700" letterSpacing="1.4">SUPERTECH AI · MARKET INTELLIGENCE</text>
