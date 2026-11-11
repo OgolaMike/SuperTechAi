@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Clock3, Maximize2, RefreshCw, Target, Waves, X } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Clock3, Maximize2, RefreshCw, Target, Waves, X, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Asset, TfState } from '@/lib/sma';
 import type { Candle } from '@/lib/deriv';
 import { buildBreakRetestSetups, type BreakRetestSetup } from '@/lib/breakRetest';
@@ -18,6 +18,7 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   fullscreen?: boolean;
   onExpand?: () => void;
 }) {
+  const [zoom, setZoom] = useState(1);
   const data = candles.slice(-60);
   if (data.length < 2) return <div className="grid h-56 place-items-center text-sm text-slate-400">Waiting for candle history…</div>;
   const W = 1200;
@@ -27,7 +28,9 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
-  const x = (i: number) => P.left + i / Math.max(1, data.length - 1) * (W - P.left - P.right);
+  const plotWidth = W - P.left - P.right;
+  const candleSlots = Math.max(1, data.length - 1) + 7;
+  const x = (i: number) => P.left + i / candleSlots * plotWidth;
   const y = (v: number) => P.top + (max - v) / range * (H - P.top - P.bottom);
   const body = Math.max(5, Math.min(18, (W - P.left - P.right) / data.length * 0.62));
   const breakIndex = Math.max(0, data.findIndex(c => c.epoch >= setup.breakEpoch));
@@ -41,12 +44,12 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   const grid = Array.from({ length: 6 }, (_, i) => max - range * i / 5);
   const fmt = (n: number) => formatPrice(n, 5);
   return <div className="relative w-full overflow-x-auto bg-[#080e19]">
-    {!fullscreen && <button type="button" onClick={onExpand} className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-[#111c2c]/90 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:border-amber-300/60" aria-label="Open chart full screen"><Maximize2 className="h-3.5 w-3.5" /> Full screen</button>}
+    <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">{!fullscreen && <><button type="button" onClick={()=>setZoom(v=>Math.max(1,v-0.25))} disabled={zoom<=1} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-[#111c2c]/90 text-white disabled:opacity-35" aria-label="Zoom out chart"><ZoomOut className="h-4 w-4"/></button><span className="min-w-9 rounded-md bg-[#111c2c]/90 px-1.5 py-1.5 text-center text-[10px] font-semibold text-white">{zoom.toFixed(2)}×</span><button type="button" onClick={()=>setZoom(v=>Math.min(2,v+0.25))} disabled={zoom>=2} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-[#111c2c]/90 text-white disabled:opacity-35" aria-label="Zoom in chart"><ZoomIn className="h-4 w-4"/></button><button type="button" onClick={onExpand} className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-[#111c2c]/90 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:border-amber-300/60" aria-label="Open chart full screen"><Maximize2 className="h-3.5 w-3.5"/> Full screen</button></>}</div>
     <div className={`absolute left-3 top-3 z-10 inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-black tracking-wider shadow-xl ${bullish ? 'border-emerald-300 bg-emerald-500 text-[#04130d]' : 'border-rose-300 bg-rose-500 text-white'}`}>
       {bullish ? <ArrowUpRight className="h-5 w-5"/> : <ArrowDownRight className="h-5 w-5"/>}
       {bullish ? 'BUY' : 'SELL'} SETUP
     </div>
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Live pure price action chart showing ${setup.direction} break and retest in one zone, closed-candle confirmation and 5R risk/reward target`} style={{ width: fullscreen ? '100%' : '100%', minWidth: fullscreen ? '760px' : '560px', height: fullscreen ? 'min(68vh, 650px)' : 'auto', display: 'block' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Live pure price action chart showing ${setup.direction} break and retest in one zone, closed-candle confirmation and 5R risk/reward target`} style={{ width: fullscreen ? '100%' : `${zoom*100}%`, minWidth: fullscreen ? '760px' : '560px', height: fullscreen ? 'min(68vh, 650px)' : 'auto', display: 'block' }}>
       <defs>
         <linearGradient id={`zone-${setup.key.replace(/[^a-zA-Z0-9]/g,'')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={accent} stopOpacity=".25"/><stop offset="100%" stopColor={accent} stopOpacity=".07"/></linearGradient>
       </defs>
