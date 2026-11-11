@@ -42,10 +42,21 @@ export function HeaderBrand() {
   return (
     <a href="/" aria-label="SuperTechAi home" className="inline-flex min-w-0 items-center">
       <img
-        src="/supertechai-logo.png"
+        src="/supertechai-logo.png?v=32bbfde1"
         alt="SuperTechAi official gold and electric-blue lightning logo"
-        className="h-[76px] w-[76px] object-contain sm:h-[88px] sm:w-[88px]"
+        className="block h-[88px] w-[88px] object-contain sm:h-[104px] sm:w-[104px]"
+        width={104}
+        height={104}
+        loading="eager"
+        decoding="async"
         fetchPriority="high"
+        onError={(event) => {
+          const image = event.currentTarget;
+          if (image.dataset.fallbackApplied !== 'true') {
+            image.dataset.fallbackApplied = 'true';
+            image.src = 'https://raw.githubusercontent.com/OgolaMike/SuperTechAi/main/public/supertechai-logo.png?v=32bbfde1';
+          }
+        }}
       />
     </a>
   );
