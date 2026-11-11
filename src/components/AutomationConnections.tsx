@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Activity, Bitcoin, Cable, CheckCircle2, Cloud, LockKeyhole,
-  RefreshCw, ShieldAlert, Wallet, Wifi, WifiOff,
+  RefreshCw, ShieldAlert, Wifi, WifiOff,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -13,7 +13,6 @@ type ConnectionCard = {
   detail: string;
   action: string;
   icon: typeof Bitcoin;
-  liveReady: boolean;
 };
 
 type Props = { onOpen: (view: 'binance' | 'okx' | 'ctrader' | 'mt5') => void };
@@ -60,7 +59,7 @@ export function AutomationConnections({ onOpen }: Props) {
             : connectionState(spot.data?.connection_status) === 'attention' ||
               connectionState(futures.data?.connection_status) === 'attention' ? 'attention' : 'not_connected',
           detail: `Spot: ${spot.data?.connection_status ?? 'not connected'} · Futures: ${futures.data?.connection_status ?? 'not connected'}`,
-          action: 'Manage Binance', icon: Bitcoin, liveReady: true,
+          action: 'Manage Binance', icon: Bitcoin,
         },
         {
           id: 'okx', title: 'OKX', subtitle: 'USDT Perpetual Futures',
@@ -74,7 +73,7 @@ export function AutomationConnections({ onOpen }: Props) {
             ctraderConnected > 0 ? 'connected' :
             ctraderRows.some((row) => row.connection_status === 'reauthorization_required' || row.connection_status === 'error') ? 'attention' : 'not_connected',
           detail: `${ctraderConnected} connected · ${ctraderRows.length} authorised account(s)`,
-          action: 'Manage cTrader', icon: Cable, liveReady: false,
+          action: 'Manage cTrader', icon: Cable,
         },
         {
           id: 'mt5', title: 'MetaTrader 5', subtitle: 'Cloud-connected Windows trading terminal',
