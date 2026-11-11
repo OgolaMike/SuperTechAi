@@ -72,7 +72,7 @@ Deno.test("rejects a buy intent with invalid stop-loss geometry", () => {
 Deno.test("rejects live execution without explicit authorization", () => {
   const intent = validIntent();
   intent.environment = "live";
-  expectThrow(() => assertExecutionIntent(intent), "live_execution_not_authorized_or_emergency_stop_active");
+  expectThrow(() => assertExecutionIntent(intent), "live_execution_not_authorized");
 });
 
 Deno.test("rejects a stop-limit order without both trigger and limit prices", () => {
