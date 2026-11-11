@@ -78,7 +78,7 @@ function App() {
   const selectedAssets = useMemo(() => assets.filter((asset) => selectedSymbols.includes(asset.symbol)), [assets, selectedSymbols]);
   const pendingOrderIdeas = useMemo(
     () => buildM15StopOrderIdeas(assets, states, prices, aiModel, now),
-    [selectedAssets, states, prices, aiModel, now],
+    [assets, states, prices, aiModel, now],
   );
   usePendingOrderAlerts(pendingOrderIdeas, loaded, soundsEnabled);
 
