@@ -77,7 +77,7 @@ function App() {
 
   const selectedAssets = useMemo(() => assets.filter((asset) => selectedSymbols.includes(asset.symbol)), [assets, selectedSymbols]);
   const pendingOrderIdeas = useMemo(
-    () => buildM15StopOrderIdeas(selectedAssets, states, prices, aiModel, now),
+    () => buildM15StopOrderIdeas(assets, states, prices, aiModel, now),
     [selectedAssets, states, prices, aiModel, now],
   );
   usePendingOrderAlerts(pendingOrderIdeas, loaded, soundsEnabled);
@@ -217,7 +217,7 @@ function App() {
         {view === 'ctrader' && <CTraderAutoTrading />}
         {view === 'binance' && <div className="space-y-8"><BinanceSpotAutomation /><div className="border-t border-line/15 pt-8"><BinanceFuturesAutomation /></div></div>}
         {view === 'okx' && <OKXFuturesAutomation />}
-        {view === 'orders' && <PendingOrdersPanel assets={selectedAssets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
+        {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
