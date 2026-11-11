@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
 import type { Signal } from '@/lib/signals';
+import type { Candle } from '@/lib/deriv';
 import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
 
 type Props = {
@@ -102,6 +104,8 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
             </div>
           )}
         </>
+      ) : tf.granularity === 86400 ? (
+        <DailyCandlesEmptyState candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} assetName={asset.fullName} digits={asset.digits} loading={loading} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
           {loading ? <Loader2 className="h-6 w-6 animate-spin text-ink-3" /> : <Minus className="h-6 w-6 text-ink-3" />}
@@ -129,4 +133,96 @@ function buildRows(signal: Signal) {
     { label: 'Take-profit 2', hint: 'Second profit level.', value: levels.tp2, hitEpoch: outcome.tp2Epoch, tone: 'text-up' },
     { label: 'TAKE PROFIT 3', hint: 'Third profit target.', value: levels.tp3, hitEpoch: outcome.tp3Epoch, tone: 'text-up' },
   ];
+}
+
+
+function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
+  candles: Candle[];
+  assetName: string;
+  digits: number;
+  loading: boolean;
+}) {
+  const [nowEpoch, setNowEpoch] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowEpoch(Math.floor(Date.now() / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const data = candles.slice(-60);
+  const latest = data[data.length - 1];
+  const secondsRemaining = latest ? Math.max(0, latest.epoch + 86400 - nowEpoch) : 0;
+  const hours = Math.floor(secondsRemaining / 3600);
+  const minutes = Math.floor((secondsRemaining % 3600) / 60);
+  const seconds = secondsRemaining % 60;
+
+  if (data.length < 2) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-line/10 bg-[#080d18] text-white">
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Daily candles · D1</p>
+            <p className="mt-1 text-xs text-slate-400">{assetName}</p>
+          </div>
+          <span className="text-[10px] font-semibold text-slate-400">NO SIGNAL · PRICE CHART</span>
+        </div>
+        <div className="grid min-h-40 place-items-center px-4 py-8 text-center text-xs text-slate-400">
+          {loading ? 'Loading daily candle history…' : 'Daily candle history is not available yet.'}
+        </div>
+      </div>
+    );
+  }
+
+  const W = 1200;
+  const H = 340;
+  const PAD = { top: 24, right: 112, bottom: 40, left: 24 };
+  const values = data.flatMap(candle => [candle.high, candle.low]);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
+  const plotWidth = W - PAD.left - PAD.right;
+  const slots = Math.max(1, data.length - 1) + 7;
+  const x = (index: number) => PAD.left + index / slots * plotWidth;
+  const y = (price: number) => PAD.top + (max - price) / range * (H - PAD.top - PAD.bottom);
+  const bodyWidth = Math.max(5, Math.min(18, plotWidth / data.length * 0.62));
+  const grid = Array.from({ length: 6 }, (_, index) => max - range * index / 5);
+  const dateLabel = (epoch: number) => new Date(epoch * 1000).toLocaleDateString([], { day: '2-digit', month: 'short' });
+  const priceLabel = (value: number) => value.toFixed(digits);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-line/10 bg-[#080d18] text-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0c1423] px-4 py-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Daily candles · D1</p>
+          <p className="mt-1 text-[11px] text-slate-400">{assetName} · latest 60 candles · no active signal</p>
+        </div>
+        <div className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-right">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-cyan-200/70">Daily candle closes in</p>
+          <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-cyan-100">
+            {secondsRemaining > 0 ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` : 'Updating…'}
+          </p>
+        </div>
+      </div>
+      <div className="w-full overflow-x-auto">
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Latest 60 daily candlesticks for ${assetName}; no active signal`} style={{ width: '100%', minWidth: '560px', height: 'auto', display: 'block' }}>
+          {grid.map((value, index) => <g key={index}>
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(value)} y2={y(value)} stroke="#94a3b8" strokeOpacity=".16" strokeDasharray="3 7" />
+            <text x={W - PAD.right + 8} y={y(value) + 4} fill="#94a3b8" fontSize="12">{priceLabel(value)}</text>
+          </g>)}
+          {data.map((candle, index) => {
+            const bullish = candle.close >= candle.open;
+            const color = bullish ? '#34d399' : '#fb7185';
+            const top = y(Math.max(candle.open, candle.close));
+            const bottom = y(Math.min(candle.open, candle.close));
+            return <g key={candle.epoch}>
+              <line x1={x(index)} x2={x(index)} y1={y(candle.high)} y2={y(candle.low)} stroke={color} strokeWidth="2" />
+              <rect x={x(index) - bodyWidth / 2} y={top} width={bodyWidth} height={Math.max(2, bottom - top)} rx="1.2" fill={color} />
+            </g>;
+          })}
+          {[...new Set([0, Math.floor((data.length - 1) / 2), data.length - 1])].map(index => <text key={index} x={x(index)} y={H - 12} textAnchor="middle" fill="#94a3b8" fontSize="11">{dateLabel(data[index].epoch)}</text>)}
+          <rect x={W - PAD.right + 4} y={y(latest!.close) - 12} width="104" height="24" rx="4" fill="#e2e8f0" />
+          <text x={W - PAD.right + 56} y={y(latest!.close) + 4} textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="800">{priceLabel(latest!.close)}</text>
+        </svg>
+      </div>
+    </div>
+  );
 }
