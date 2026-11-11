@@ -59,15 +59,29 @@ function posterSvg(f: FormState, format: 'portrait'|'square'|'story') {
 
 export function MarketingStudio() {
   const [items,setItems] = useState<Campaign[]>([]); const [loading,setLoading] = useState(true);
-  const [saving,setSaving] = useState(false); const [error,setError] = useState(''); const [notice,setNotice] = useState('');
-  const [form,setForm] = useState<FormState>(EMPTY); const [format,setFormat] = useState<'portrait'|'square'|'story'>('portrait');
-  const caption = useMemo(()=>makeCopy(form),[form]);
+  const [saving,setSaving] = useState(false); const [generating,setGenerating] = useState(false); const [error,setError] = useState(''); const [notice,setNotice] = useState('');
+  const [form,setForm] = useState<FormState>(EMPTY); const [format,setFormat] = useState<'portrait'|'square'|'story'>('portrait'); const [aiCaption,setAiCaption] = useState('');
+  const caption = useMemo(()=>aiCaption || makeCopy(form),[form,aiCaption]);
   const svg = useMemo(()=>posterSvg(form,format),[form,format]);
   async function load() {
     setLoading(true); const {data,error:loadError}=await supabase.from('marketing_campaigns').select('*').order('created_at',{ascending:false}).limit(50);
     if(loadError) setError(loadError.message); else setItems((data||[]) as Campaign[]); setLoading(false);
   }
   useEffect(()=>{void load();},[]);
+  async function generateWithAI() {
+    setGenerating(true); setError(''); setNotice('');
+    const { data, error: aiError } = await supabase.functions.invoke('marketing-ai', { body: form });
+    if (aiError) {
+      let message = aiError.message || 'AI campaign generation failed.';
+      try { const context = (aiError as any).context; if (context?.json) { const body = await context.json(); message = body.error || message; } } catch {}
+      setError(message);
+    } else if (data?.campaign) {
+      setForm(current => ({ ...current, ...data.campaign }));
+      setAiCaption(data.campaign.caption || '');
+      setNotice('AI campaign created. Review the details, then download or save it.');
+    } else setError(data?.error || 'AI returned no campaign. Please try again.');
+    setGenerating(false);
+  }
   async function save() {
     if(!form.title.trim()||!form.headline.trim()){setError('Add a campaign name and headline before saving.');return;}
     setSaving(true);setError('');setNotice('');
@@ -97,9 +111,9 @@ export function MarketingStudio() {
     w.document.write('<!doctype html><html><head><title>SuperTech AI Flyer</title><style>@page{size:auto;margin:0}html,body{margin:0;padding:0}svg{display:block;width:100%;height:auto;max-height:100vh;object-fit:contain}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>'+svg+'</body></html>');
     w.document.close();w.focus();w.print();
   }
-  const update=(key:keyof FormState,value:string)=>setForm(current=>({...current,[key]:value}));
+  const update=(key:keyof FormState,value:string)=>{setAiCaption('');setForm(current=>({...current,[key]:value}));};
   return <section className="mt-8 space-y-6">
-    <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Admin workspace</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Marketing Studio</h2><p className="mt-2 max-w-2xl text-sm text-ink-2">Create campaign copy and finished, branded flyers ready to download or import into Canva.</p></div><span className="rounded-full border border-accent/30 px-3 py-1.5 text-xs font-medium text-accent">Auto-design enabled</span></div>
+    <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Admin workspace</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Marketing Studio</h2><p className="mt-2 max-w-2xl text-sm text-ink-2">Use AI to write campaign copy and create branded flyers ready to download or import into Canva.</p></div><span className="rounded-full border border-accent/30 px-3 py-1.5 text-xs font-medium text-accent">AI + auto-design</span></div>
     <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
       <div className="rounded-2xl border border-line/15 bg-surface/[0.04] p-5">
         <div className="mb-5 flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent"/><h3 className="font-semibold text-ink">Campaign assistant</h3></div>
@@ -111,7 +125,7 @@ export function MarketingStudio() {
           {form.campaign_type==='event'&&<><label className="text-sm text-ink-2">Event date<input type="date" value={form.event_date} onChange={e=>update('event_date',e.target.value)} className="mt-1 w-full rounded-xl border border-line/20 bg-canvas px-3 py-2.5 text-ink"/></label><label className="text-sm text-ink-2">Event time<input type="time" value={form.event_time} onChange={e=>update('event_time',e.target.value)} className="mt-1 w-full rounded-xl border border-line/20 bg-canvas px-3 py-2.5 text-ink"/></label><label className="text-sm text-ink-2 sm:col-span-2">Venue or online link<input value={form.venue} onChange={e=>update('venue',e.target.value)} placeholder="Add confirmed venue or meeting link" className="mt-1 w-full rounded-xl border border-line/20 bg-canvas px-3 py-2.5 text-ink"/></label></>}
           <label className="text-sm text-ink-2 sm:col-span-2">Call to action<input value={form.call_to_action} onChange={e=>update('call_to_action',e.target.value)} placeholder="Register now / Discover more / Join us" className="mt-1 w-full rounded-xl border border-line/20 bg-canvas px-3 py-2.5 text-ink"/></label>
         </div>
-        <div className="mt-5 flex flex-wrap gap-3"><button onClick={()=>setForm(autoWrite(form))} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-canvas"><Sparkles className="h-4 w-4"/>Auto-create campaign</button><button onClick={()=>void save()} disabled={saving} className="inline-flex items-center gap-2 rounded-xl border border-line/20 px-4 py-2.5 text-sm font-medium text-ink"><Plus className="h-4 w-4"/>{saving?'Saving…':'Save draft'}</button><button onClick={()=>void copy(caption)} className="inline-flex items-center gap-2 rounded-xl border border-line/20 px-4 py-2.5 text-sm text-ink"><Copy className="h-4 w-4"/>Copy text</button></div>
+        <div className="mt-5 flex flex-wrap gap-3"><button onClick={()=>void generateWithAI()} disabled={generating} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-canvas disabled:opacity-60"><Sparkles className="h-4 w-4"/>{generating ? "Writing…" : "Create with AI"}</button><button onClick={()=>{setAiCaption('');setForm(autoWrite(form));}} className="inline-flex items-center gap-2 rounded-xl border border-line/20 px-4 py-2.5 text-sm font-medium text-ink"><Sparkles className="h-4 w-4"/>Use quick template</button><button onClick={()=>void save()} disabled={saving} className="inline-flex items-center gap-2 rounded-xl border border-line/20 px-4 py-2.5 text-sm font-medium text-ink"><Plus className="h-4 w-4"/>{saving?'Saving…':'Save draft'}</button><button onClick={()=>void copy(caption)} className="inline-flex items-center gap-2 rounded-xl border border-line/20 px-4 py-2.5 text-sm text-ink"><Copy className="h-4 w-4"/>Copy text</button></div>
         {error&&<p role="alert" className="mt-3 text-sm text-rose-400">{error}</p>}{notice&&<p role="status" className="mt-3 text-sm text-emerald-400">{notice}</p>}
       </div>
       <div className="rounded-2xl border border-line/15 bg-surface/[0.04] p-5">
