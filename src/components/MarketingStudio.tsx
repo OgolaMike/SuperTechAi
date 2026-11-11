@@ -97,7 +97,7 @@ export function MarketingStudio() {
       setCreativeUrl('');
       setAiCaption([data.campaign.caption || '', data.campaign.campaign_type === 'offer' && !String(data.campaign.caption || '').includes('$300') ? MEMBERSHIP_PRICE_LINE : ''].filter(Boolean).join('\n\n'));
       const sources = data.sources_used || {};
-      const used = Object.entries(sources).filter(([,count])=>Number(count)>0).map(([name,count])=>name.replaceAll('_',' ')+' '+count).join(', ');
+      const used = Object.entries(sources).filter(([,count])=>Number(count)>0).map(([name,count])=>name.replace(/_/g,' ')+' '+count).join(', ');
       setNotice(automatic
         ? 'Flyer created from current SuperTech AI information.'+(used ? ' Sources: '+used+'.' : ' Using the evergreen product introduction.')
         : 'AI campaign created. Review the details, then download or save it.');
@@ -162,9 +162,9 @@ export function MarketingStudio() {
       ctx.drawImage(image,(width-dw)/2,(height-dh)/2,dw,dh);
       const logo = new Image(); logo.src = '/icon.svg';
       await new Promise<void>((resolve,reject)=>{ logo.onload=()=>resolve(); logo.onerror=()=>reject(new Error('Could not load the SuperTech AI transparent logo.')); });
-      ctx.drawImage(logo,margin,78,76,76);
+      const margin=88; ctx.drawImage(logo,margin,78,76,76);
       const shade=ctx.createLinearGradient(0,0,0,height); shade.addColorStop(0,'rgba(3,8,18,.72)'); shade.addColorStop(.48,'rgba(3,8,18,.18)'); shade.addColorStop(1,'rgba(3,8,18,.82)'); ctx.fillStyle=shade; ctx.fillRect(0,0,width,height);
-      const margin=88; ctx.fillStyle='#ffffff'; ctx.font='700 44px Arial'; ctx.fillText('SUPERTECH AI',margin+96,145);
+      ctx.fillStyle='#ffffff'; ctx.font='700 44px Arial'; ctx.fillText('SUPERTECH AI',margin+96,145);
       ctx.fillStyle='#e4b95d'; ctx.font='600 22px Arial'; ctx.fillText('TRADING INTELLIGENCE',margin,190);
       const wrapText=(text:string,maxWidth:number,font:string)=>{ctx.font=font;const lines:string[]=[];let line='';for(const word of text.split(/\s+/)){const test=(line+' '+word).trim();if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word;}else line=test;}if(line)lines.push(line);return lines;};
       let y=format==='story'?650:format==='square'?390:470;
