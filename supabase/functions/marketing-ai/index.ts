@@ -55,12 +55,16 @@ Deno.serve(async (req: Request) => {
           .eq('published', true).order('created_at', { ascending: false }).limit(3),
       ]);
       sourceContext = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         published_announcements: (announcements.data || []).map((x: any) => ({
           title: clean(x.title, 180), body: clean(x.body, 900), published_at: x.published_at,
         })),
         academy_lessons: (videos.data || [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((x: any) => ['ready', 'completed', 'published', 'available'].includes(String(x.status || '').toLowerCase()))
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((x: any) => ({ title: clean(x.lesson_title, 180), status: x.status, created_at: x.created_at })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         published_trade_reviews: (reviews.data || []).map((x: any) => ({
           title: clean(x.title, 180), symbol: clean(x.symbol, 40), direction: x.direction,
           timeframe: clean(x.timeframe, 20), setup: clean(x.setup_summary, 500),
