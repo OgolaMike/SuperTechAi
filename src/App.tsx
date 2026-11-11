@@ -74,8 +74,6 @@ function App() {
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
   const { assets, states, status, lastTick, prices, loaded } = useDerivSignals(selectedSymbols);
-
-  const selectedAssets = useMemo(() => assets.filter((asset) => selectedSymbols.includes(asset.symbol)), [assets, selectedSymbols]);
   const pendingOrderIdeas = useMemo(
     () => buildM15StopOrderIdeas(assets, states, prices, aiModel, now),
     [assets, states, prices, aiModel, now],
