@@ -91,7 +91,8 @@ Deno.serve(async (req) => {
 
     const workerRows = workers.data ?? [];
     const onlineWorkers = workerRows.filter((worker) =>
-      worker.status === "online" && isRecentHeartbeat(worker.last_seen_at, now)
+      (worker.status === "online" || worker.status === "busy") &&
+      isRecentHeartbeat(worker.last_seen_at, now)
     ).length;
     const mt5HeartbeatExpected = mt5.data?.bridge_status === "connected";
     const mt5Status = mt5.data?.bridge_status === "error" ||
