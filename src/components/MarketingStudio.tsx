@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Copy, Download, ExternalLink, Plus, Printer, Sparkles, Trash2 } from 'lucide-react';
+import { CalendarDays, Copy, Download, Plus, Printer, Sparkles, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 type Campaign = {
   id: string; title: string; campaign_type: string; headline: string; details: string;
   event_date: string | null; event_time: string | null; venue: string | null;
-  call_to_action: string; caption: string; status: string; created_at: string;
+  call_to_action: string; caption: string; creative_url: string | null; status: string; created_at: string;
 };
 const TYPES = [
   ['product', 'Product promotion'], ['event', 'Event / webinar'], ['offer', 'Membership offer'],
@@ -66,6 +66,7 @@ export function MarketingStudio() {
   const [form,setForm] = useState<FormState>(EMPTY);
   const [format,setFormat] = useState<'portrait'|'square'|'story'>('portrait');
   const [aiCaption,setAiCaption] = useState('');
+  const [creativeUrl,setCreativeUrl] = useState('');
   const caption = useMemo(()=>aiCaption || makeCopy(form),[form,aiCaption]);
   const svg = useMemo(()=>posterSvg(form,format),[form,format]);
 
@@ -98,10 +99,30 @@ export function MarketingStudio() {
     setGenerating(false);
   }
 
+  async function generateArtwork() {
+    if (!form.headline.trim()) { setError('Generate or enter a campaign headline first.'); return; }
+    setGenerating(true); setError(''); setNotice('');
+    const { data, error: imageError } = await supabase.functions.invoke('marketing-image', {
+      body: { headline: form.headline, details: form.details, campaign_type: form.campaign_type, format },
+    });
+    if (imageError || !data?.image_url) {
+      let message = data?.error || imageError?.message || 'AI artwork generation failed.';
+      try { const context = (imageError as any)?.context; if (context?.json) { const body = await context.json(); message = body.error || message; } } catch {}
+      setError(message);
+    } else {
+      setCreativeUrl(data.image_url);
+      setNotice('Original AI artwork is ready. Your campaign wording is overlaid separately for clear, accurate text.');
+    }
+    setGenerating(false);
+  }
+
   async function save() {
     if(!form.title.trim()||!form.headline.trim()){setError('Add a campaign name and headline before saving.');return;}
     setSaving(true);setError('');setNotice('');
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) { setError('Please sign in again before saving this campaign.'); setSaving(false); return; }
     const {data,error:saveError}=await supabase.from('marketing_campaigns').insert({
+      user_id:authData.user.id,creative_url:creativeUrl||null,
       title:form.title.trim(),campaign_type:form.campaign_type,headline:form.headline.trim(),details:form.details.trim(),
       event_date:form.event_date||null,event_time:form.event_time||null,venue:form.venue.trim()||null,
       call_to_action:form.call_to_action.trim(),caption,status:'draft'
@@ -117,19 +138,47 @@ export function MarketingStudio() {
     try{await navigator.clipboard.writeText(text);setNotice('Campaign copy copied.');}
     catch{setError('Clipboard access is unavailable in this browser.');}
   }
-  function download() {
-    const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;
-    a.download=(form.title.trim()||'supertech-ai-campaign').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+format+'.svg';
-    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
-    setNotice('Flyer downloaded as a high-resolution SVG. You can also import it into Canva.');
+  async function download() {
+    const baseName=(form.title.trim()||'supertech-ai-campaign').toLowerCase().replace(/[^a-z0-9]+/g,'-');
+    if (!creativeUrl) {
+      const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href=url; a.download=baseName+'-'+format+'.svg'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      setNotice('Vector flyer downloaded. Generate AI artwork to create a finished PNG campaign image.'); return;
+    }
+    try {
+      const image = new Image(); image.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve,reject)=>{ image.onload=()=>resolve(); image.onerror=()=>reject(new Error('Could not load the generated artwork for download.')); image.src=creativeUrl; });
+      const [width,height] = format==='square' ? [1080,1080] : format==='story' ? [1080,1920] : [1080,1350];
+      const canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height;
+      const ctx=canvas.getContext('2d'); if(!ctx) throw new Error('Image export is not available in this browser.');
+      const scale=Math.max(width/image.width,height/image.height); const dw=image.width*scale; const dh=image.height*scale;
+      ctx.drawImage(image,(width-dw)/2,(height-dh)/2,dw,dh);
+      const shade=ctx.createLinearGradient(0,0,0,height); shade.addColorStop(0,'rgba(3,8,18,.72)'); shade.addColorStop(.48,'rgba(3,8,18,.18)'); shade.addColorStop(1,'rgba(3,8,18,.82)'); ctx.fillStyle=shade; ctx.fillRect(0,0,width,height);
+      const margin=88; ctx.fillStyle='#ffffff'; ctx.font='700 44px Arial'; ctx.fillText('SUPERTECH AI',margin,145);
+      ctx.fillStyle='#e4b95d'; ctx.font='600 22px Arial'; ctx.fillText('TRADING INTELLIGENCE',margin,190);
+      const wrapText=(text:string,maxWidth:number,font:string)=>{ctx.font=font;const lines:string[]=[];let line='';for(const word of text.split(/\\s+/)){const test=(line+' '+word).trim();if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word;}else line=test;}if(line)lines.push(line);return lines;};
+      let y=format==='story'?650:format==='square'?390:470;
+      ctx.fillStyle='#fff';ctx.font='700 74px Arial';
+      for(const line of wrapText(form.headline||'Hide the complexity. Deliver the intelligence.',width-margin*2,'700 74px Arial').slice(0,4)){ctx.fillText(line,margin,y);y+=88;}
+      y+=30;ctx.fillStyle='#d6deec';ctx.font='32px Arial';
+      for(const line of wrapText(form.details||'Clear market insights and learning resources.',width-margin*2,'32px Arial').slice(0,6)){ctx.fillText(line,margin,y);y+=48;}
+      const eventLine=[form.event_date,form.event_time,form.venue].filter(Boolean).join(' • ');
+      if(eventLine){y+=28;ctx.fillStyle='#e4b95d';ctx.font='700 26px Arial';ctx.fillText(eventLine.slice(0,70),margin,Math.min(y,height-340));}
+      const ctaY=height-245;ctx.fillStyle='#d7ad54';ctx.fillRect(margin,ctaY,width-margin*2,105);ctx.fillStyle='#07111c';ctx.font='700 34px Arial';ctx.fillText((form.call_to_action||'DISCOVER SUPERTECH AI').toUpperCase().slice(0,34),margin+36,ctaY+66);
+      ctx.fillStyle='#fff';ctx.font='24px Arial';ctx.fillText('Hide the complexity. Deliver the intelligence.',margin,height-86);
+      const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('PNG export failed.')),'image/png'));
+      const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=baseName+'-'+format+'.png';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+      setNotice('Finished AI-designed flyer downloaded as a high-resolution PNG.');
+    } catch(error) { setError(error instanceof Error?error.message:'Could not export the AI flyer.'); }
   }
   function printPdf() {
     const w=window.open('','_blank','noopener,noreferrer');
     if(!w){setError('Allow pop-ups to create a PDF.');return;}
-    w.document.write('<!doctype html><html><head><title>SuperTech AI Flyer</title><style>@page{size:auto;margin:0}html,body{margin:0;padding:0}svg{display:block;width:100%;height:auto;max-height:100vh;object-fit:contain}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>'+svg+'</body></html>');
+    const content=creativeUrl
+      ? '<div style="position:relative;width:100%;aspect-ratio:'+(format==='square'?'1/1':format==='story'?'9/16':'4/5')+';overflow:hidden;color:white;font-family:Arial,sans-serif;background:#07111c"><img src="'+creativeUrl+'" style="position:absolute;width:100%;height:100%;object-fit:cover;inset:0"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,8,18,.72),rgba(3,8,18,.18) 48%,rgba(3,8,18,.82));padding:8%;display:flex;flex-direction:column;justify-content:space-between"><div><b style="font-size:24px;letter-spacing:5px">SUPERTECH AI</b><p style="color:#e4b95d;letter-spacing:3px">TRADING INTELLIGENCE</p><h1 style="font-size:clamp(30px,6vw,68px);line-height:1.08">'+xml(form.headline)+'</h1><p style="font-size:22px;line-height:1.45">'+xml(form.details)+'</p></div><div><div style="background:#d7ad54;color:#07111c;padding:22px;font-weight:bold">'+xml(form.call_to_action.toUpperCase())+'</div><p>Hide the complexity. Deliver the intelligence.</p></div></div></div>'
+      : svg;
+    w.document.write('<!doctype html><html><head><title>SuperTech AI Flyer</title><style>@page{size:auto;margin:0}html,body{margin:0;padding:0}svg{display:block;width:100%;height:auto;max-height:100vh;object-fit:contain}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>'+content+'</body></html>');
     w.document.close();w.focus();w.print();
   }
   const update=(key:keyof FormState,value:string)=>{setAiCaption('');setForm(current=>({...current,[key]:value}));};
@@ -166,12 +215,18 @@ export function MarketingStudio() {
       </div>
       <div className="rounded-2xl border border-line/15 bg-surface/[0.04] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold text-ink">Finished flyer preview</h3><select value={format} onChange={e=>setFormat(e.target.value as typeof format)} className="rounded-lg border border-line/20 bg-canvas px-3 py-2 text-sm text-ink"><option value="portrait">Portrait flyer</option><option value="square">Square post</option><option value="story">Story / status</option></select></div>
-        <div className="mx-auto max-h-[680px] overflow-auto rounded-xl bg-[#070b13] shadow-2xl" style={{maxWidth:format==='square'?'420px':'360px'}}><div dangerouslySetInnerHTML={{__html:svg}} /></div>
-        <div className="mt-4 flex flex-wrap gap-3"><button onClick={download} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-canvas"><Download className="h-4 w-4"/>Download flyer</button><button onClick={printPdf} className="inline-flex items-center gap-2 rounded-xl border border-line/20 px-4 py-2.5 text-sm text-ink"><Printer className="h-4 w-4"/>Save as PDF</button><a href="https://www.canva.com/d/R1ccVYq3_C7Kg3K" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-accent/30 px-4 py-2.5 text-sm text-accent"><ExternalLink className="h-4 w-4"/>Open Canva template</a></div>
-        <p className="mt-3 text-xs leading-5 text-ink-2">Download a vector flyer directly, print to PDF, or import the SVG into Canva. Check dates, prices, links and claims before publishing.</p>
+        <div className="mx-auto max-h-[680px] overflow-auto rounded-xl bg-[#070b13] shadow-2xl" style={{maxWidth:format==='square'?'420px':'360px'}}>
+          {creativeUrl ? <div className="relative flex flex-col justify-between overflow-hidden p-7 text-white" style={{aspectRatio:format==='square'?'1 / 1':format==='story'?'9 / 16':'4 / 5',minHeight:format==='story'?'620px':'480px'}}>
+            <img src={creativeUrl} alt="AI-generated SuperTech AI campaign artwork" className="absolute inset-0 h-full w-full object-cover"/><div className="absolute inset-0 bg-gradient-to-b from-[#030812]/75 via-[#030812]/20 to-[#030812]/85"/>
+            <div className="relative"><p className="text-xl font-bold tracking-[0.25em]">SUPERTECH AI</p><p className="mt-2 text-[10px] font-semibold tracking-[0.28em] text-[#e4b95d]">TRADING INTELLIGENCE</p><h4 className="mt-12 text-3xl font-bold leading-tight sm:text-4xl">{form.headline || 'Hide the complexity. Deliver the intelligence.'}</h4><p className="mt-5 text-sm leading-relaxed text-slate-200">{form.details}</p>{(form.event_date||form.event_time||form.venue)&&<p className="mt-5 text-xs font-semibold text-[#e4b95d]">{[form.event_date,form.event_time,form.venue].filter(Boolean).join(' • ')}</p>}</div>
+            <div className="relative"><div className="rounded-xl bg-gradient-to-r from-[#19c7ff] to-[#d7ad54] px-4 py-4 text-center text-sm font-extrabold uppercase tracking-wide text-[#07111c]">{form.call_to_action || 'Discover SuperTech AI'}</div><p className="mt-4 text-[10px] text-white">Hide the complexity. Deliver the intelligence.</p><p className="mt-1 text-[9px] text-slate-300">Trading involves risk. No profits are guaranteed.</p></div>
+          </div> : <div dangerouslySetInnerHTML={{__html:svg}} />}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3"><button onClick={()=>void generateArtwork()} disabled={generating} className="inline-flex items-center gap-2 rounded-xl border border-accent/30 px-4 py-2.5 text-sm font-semibold text-accent disabled:opacity-60"><Sparkles className="h-4 w-4"/>{generating?'Creating artwork…':creativeUrl?'Regenerate AI artwork':'Generate AI artwork'}</button><button onClick={()=>void download()} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-canvas"><Download className="h-4 w-4"/>Download PNG</button><button onClick={printPdf} className="inline-flex items-center gap-2 rounded-xl border border-line/20 px-4 py-2.5 text-sm text-ink"><Printer className="h-4 w-4"/>Save as PDF</button></div>
+        <p className="mt-3 text-xs leading-5 text-ink-2">AI creates the original visual artwork; SuperTech AI places the real campaign wording over it so headlines, dates and calls to action remain accurate. Check details before publishing.</p>
       </div>
     </div>
-    <div className="rounded-2xl border border-line/15 bg-surface/[0.04] p-5"><h3 className="mb-4 font-semibold text-ink">Saved campaigns</h3>{loading?<p className="text-sm text-ink-2">Loading campaigns…</p>:items.length===0?<p className="text-sm text-ink-2">No campaign drafts yet.</p>:<div className="space-y-3">{items.map(item=><div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/10 p-3"><div><p className="font-medium text-ink">{item.title}</p><p className="text-xs text-ink-2">{item.campaign_type} · {new Date(item.created_at).toLocaleString()}</p></div><div className="flex gap-2"><button onClick={()=>void copy(item.caption)} aria-label="Copy campaign copy" className="rounded-lg border border-line/20 p-2 text-ink-2"><Copy className="h-4 w-4"/></button><button onClick={()=>void remove(item.id)} aria-label="Delete campaign" className="rounded-lg border border-line/20 p-2 text-rose-400"><Trash2 className="h-4 w-4"/></button></div></div>)}</div>}</div>
+    <div className="rounded-2xl border border-line/15 bg-surface/[0.04] p-5"><h3 className="mb-4 font-semibold text-ink">Saved campaigns</h3>{loading?<p className="text-sm text-ink-2">Loading campaigns…</p>:items.length===0?<p className="text-sm text-ink-2">No campaign drafts yet.</p>:<div className="space-y-3">{items.map(item=><div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/10 p-3">{item.creative_url&&<img src={item.creative_url} alt="Saved campaign artwork" className="h-14 w-14 rounded-lg object-cover"/>}<div className="min-w-0 flex-1"><p className="font-medium text-ink">{item.title}</p><p className="text-xs text-ink-2">{item.campaign_type} · {new Date(item.created_at).toLocaleString()}</p></div><div className="flex gap-2">{item.creative_url&&<button onClick={()=>{setForm({title:item.title,campaign_type:item.campaign_type,headline:item.headline,details:item.details,event_date:item.event_date||'',event_time:item.event_time||'',venue:item.venue||'',call_to_action:item.call_to_action});setAiCaption(item.caption);setCreativeUrl(item.creative_url||'');setNotice('Saved campaign loaded into the studio.');}} className="rounded-lg border border-accent/30 px-3 py-2 text-xs text-accent">Open</button>}<button onClick={()=>void copy(item.caption)} aria-label="Copy campaign copy" className="rounded-lg border border-line/20 p-2 text-ink-2"><Copy className="h-4 w-4"/></button><button onClick={()=>void remove(item.id)} aria-label="Delete campaign" className="rounded-lg border border-line/20 p-2 text-rose-400"><Trash2 className="h-4 w-4"/></button></div></div>)}</div>}</div>
     <div className="flex items-start gap-2 text-xs text-ink-2"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0"/>Automatic campaigns use published information only. Unconfirmed dates, prices, venues and performance claims are never invented.</div>
   </section>;
 }
