@@ -1,4 +1,34 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+
+type OkxRecord = Record<string, unknown>;
+type OkxSignalIntent = {
+ id: string;
+ user_id: string;
+ signal_key: string;
+ inst_id?: string | null;
+ symbol?: string | null;
+ side: "buy" | "sell";
+ timeframe_agreement: number;
+ signal_epoch: number;
+ stop_loss: number | string;
+ take_profit: number | string;
+};
+type OkxExecutionResult = {
+ executed?: boolean;
+ failed?: boolean;
+ userId?: string;
+ inst?: string;
+ side?: string;
+ sz?: number;
+ entry?: number;
+ stopLoss?: number;
+ takeProfit?: number;
+ demo?: boolean;
+ orderId?: string;
+ algoId?: string;
+ id?: string;
+ error?: string;
+};
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization,x-client-info,apikey,content-type","Access-Control-Allow-Methods":"POST,OPTIONS"};
 const reply=(v:unknown,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{...cors,"Content-Type":"application/json"}});
 const enc=new TextEncoder();
@@ -14,36 +44,36 @@ async function okx(k:string,s:string,p:string,path:string,method="GET",body:Reco
  const ts=new Date().toISOString(),payload=body?JSON.stringify(body):"",sign=await signature(s,ts+method+path+payload);
  let r:Response;try{r=await fetch("https://openapi.okx.com"+path,{method,headers:{"OK-ACCESS-KEY":k,"OK-ACCESS-SIGN":sign,"OK-ACCESS-TIMESTAMP":ts,"OK-ACCESS-PASSPHRASE":p,"Content-Type":"application/json",...(demo?{"x-simulated-trading":"1"}:{})},...(body?{body:payload}:{})});}catch{throw Error("okx_network_outcome_uncertain");}
  const d=await r.json();if(!r.ok||d.code!=="0")throw Error("OKX "+(d.code??r.status)+": "+(d.msg??"API request rejected"));
- const bad=(d.data??[]).find((x:any)=>x.sCode&&x.sCode!=="0");if(bad)throw Error("OKX "+bad.sCode+": "+bad.sMsg);
+ const bad=(d.data??[]).find((x:OkxRecord)=>typeof x.sCode==="string"&&x.sCode!=="0");if(bad)throw Error("OKX "+String(bad.sCode)+": "+String(bad.sMsg??"request rejected"));
  return d.data??[];
 }
 async function getCred(userId:string){const {data,error}=await admin.from("okx_futures_credentials").select("*").eq("user_id",userId).maybeSingle();if(error||!data)throw Error("okx_account_not_connected");const [k,s,p]=await Promise.all([decrypt(data.encrypted_api_key),decrypt(data.encrypted_api_secret),decrypt(data.encrypted_passphrase)]);return{k,s,p};}
 async function preflight(k:string,s:string,p:string,demo:boolean){
  const [cfg,balance,positions]=await Promise.all([okx(k,s,p,"/api/v5/account/config","GET",null,demo),okx(k,s,p,"/api/v5/account/balance?ccy=USDT","GET",null,demo),okx(k,s,p,"/api/v5/account/positions?instType=SWAP","GET",null,demo)]);
- const c=cfg[0]??{},u=(balance[0]?.details??[]).find((x:any)=>x.ccy==="USDT");
- return{connected:true,demoTrading:demo,accountLevel:c.acctLv??null,positionMode:c.posMode??null,usdtEquity:Number(u?.eq??0),usdtAvailable:Number(u?.availBal??u?.availEq??0),openPositions:(positions??[]).filter((x:any)=>Math.abs(Number(x.pos??0))>0).length,canTrade:true,note:"Credentials and account access verified. No order was placed."};
+ const c=(cfg[0]??{}) as OkxRecord,u=(balance[0]?.details??[]).find((x:OkxRecord)=>x.ccy==="USDT");
+ return{connected:true,demoTrading:demo,accountLevel:c.acctLv??null,positionMode:c.posMode??null,usdtEquity:Number(u?.eq??0),usdtAvailable:Number(u?.availBal??u?.availEq??0),openPositions:(positions??[]).filter((x:OkxRecord)=>Math.abs(Number(x.pos??0))>0).length,canTrade:true,note:"Credentials and account access verified. No order was placed."};
 }
-const decimals=(step:string)=>Math.max(0,(step.split(".")[1]??"").replace(/0+$/,"").length);
+
 function floorTo(n:number,step:number){return Math.floor((n+1e-10)/step)*step;}
 function instId(symbol:string){const s=symbol.toUpperCase();if(!s.endsWith("USDT"))throw Error("okx_only_usdt_perpetuals_supported");return s.slice(0,-4)+"-USDT-SWAP";}
-async function executeIntent(row:any){
+async function executeIntent(row:OkxSignalIntent){
  const userId=row.user_id;
  const {data:settings,error:se}=await admin.from("okx_futures_settings").select("*").eq("user_id",userId).maybeSingle();if(se||!settings)throw Error("okx_settings_missing");
  if(settings.connection_status!=="connected"||!settings.auto_trade_enabled||settings.emergency_stop)throw Error("okx_automation_not_enabled");
  if(settings.demo_trading!==true&&settings.live_execution_enabled!==true)throw Error("okx_live_execution_not_enabled");
  if(row.timeframe_agreement!==8||Math.floor(Date.now()/1000)-Number(row.signal_epoch)>7200||Number(row.signal_epoch)>Math.floor(Date.now()/1000)+30)throw Error("okx_signal_not_fresh_8_of_8");
- const inst=instId(row.inst_id??row.symbol),{k,s,p}=await getCred(userId),demo=settings.demo_trading===true;
+ const inst=instId(String(row.inst_id??row.symbol??"")),{k,s,p}=await getCred(userId),demo=settings.demo_trading===true;
  const [account,positions,instruments,ticker]=await Promise.all([
   okx(k,s,p,"/api/v5/account/balance?ccy=USDT","GET",null,demo),
   okx(k,s,p,"/api/v5/account/positions?instId="+encodeURIComponent(inst),"GET",null,demo),
   okx(k,s,p,"/api/v5/public/instruments?instType=SWAP&instId="+encodeURIComponent(inst)),
   okx(k,s,p,"/api/v5/market/ticker?instId="+encodeURIComponent(inst))
  ]);
- const detail=(account[0]?.details??[]).find((x:any)=>x.ccy==="USDT"),equity=Number(detail?.eq??0),available=Number(detail?.availBal??detail?.availEq??0);
+ const detail=(account[0]?.details??[]).find((x:OkxRecord)=>x.ccy==="USDT"),equity=Number(detail?.eq??0),available=Number(detail?.availBal??detail?.availEq??0);
  if(!(equity>0)||!(available>0))throw Error("okx_insufficient_usdt_balance");
- const pos=(positions??[]).filter((x:any)=>Math.abs(Number(x.pos??0))>0);
+ const pos=(positions??[]).filter((x:OkxRecord)=>Math.abs(Number(x.pos??0))>0);
  if(pos.length>=Number(settings.max_open_positions))throw Error("okx_max_open_positions_reached");
- if(pos.some((x:any)=>x.instId===inst))throw Error("okx_position_already_open_for_symbol");
+ if(pos.some((x:OkxRecord)=>x.instId===inst))throw Error("okx_position_already_open_for_symbol");
  const instrument=instruments[0],price=Number(ticker[0]?.last??0);
  if(!instrument||instrument.state!=="live"||!(price>0))throw Error("okx_instrument_not_tradable");
  const ctVal=Number(instrument.ctVal),lot=Number(instrument.lotSz),min=Number(instrument.minSz),tick=Number(instrument.tickSz);
@@ -91,8 +121,8 @@ Deno.serve(async req=>{
   if(action==="execute_pending"){
    if(!serviceCall)return reply({error:"service_authorization_required"},403);
    const {data:pending,error}=await admin.from("okx_futures_signal_intents").select("*").eq("status","signal_ready").order("created_at",{ascending:true}).limit(100);if(error)throw error;
-   const results=[];for(const row of pending??[]){try{const {data:claim,error:claimError}=await admin.from("okx_futures_signal_intents").update({status:"processing",updated_at:new Date().toISOString()}).eq("id",row.id).eq("status","signal_ready").select("id");if(claimError)throw claimError;if(!claim?.length)continue;results.push(await executeIntent(row));}catch(e){const message=e instanceof Error?e.message:"okx_execution_failed";await admin.from("okx_futures_signal_intents").update({status:"failed",failure_reason:message.slice(0,240),updated_at:new Date().toISOString()}).eq("id",row.id);console.error("[okx-executor] intent failed",{id:row.id,message});results.push({failed:true,id:row.id,error:message});}}
-   return reply({ok:true,processed:results.length,executed:results.filter((x:any)=>x.executed).length,failed:results.filter((x:any)=>x.failed).length,results});
+   const results:OkxExecutionResult[]=[];for(const row of pending??[]){try{const {data:claim,error:claimError}=await admin.from("okx_futures_signal_intents").update({status:"processing",updated_at:new Date().toISOString()}).eq("id",row.id).eq("status","signal_ready").select("id");if(claimError)throw claimError;if(!claim?.length)continue;results.push(await executeIntent(row));}catch(e){const message=e instanceof Error?e.message:"okx_execution_failed";await admin.from("okx_futures_signal_intents").update({status:"failed",failure_reason:message.slice(0,240),updated_at:new Date().toISOString()}).eq("id",row.id);console.error("[okx-executor] intent failed",{id:row.id,message});results.push({failed:true,id:row.id,error:message});}}
+   return reply({ok:true,processed:results.length,executed:results.filter((x)=>x.executed).length,failed:results.filter((x)=>x.failed).length,results});
   }
   if(action==="connect"){
    const k=String(body.apiKey??"").trim(),s=String(body.apiSecret??"").trim(),p=String(body.passphrase??""),demo=body.demoTrading!==false;
