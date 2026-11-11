@@ -14,6 +14,7 @@ import { Mt5AutoTrading } from '@/components/Mt5AutoTrading';
 import { CTraderAutoTrading } from '@/components/CTraderAutoTrading';
 import { BinanceSpotAutomation } from '@/components/BinanceSpotAutomation';
 import { BinanceFuturesAutomation } from '@/components/BinanceFuturesAutomation';
+import { OKXFuturesAutomation } from '@/components/OKXFuturesAutomation';
 import { CryptoMovers } from '@/components/CryptoMovers';
 import { ServiceHealth } from '@/components/ServiceHealth';
 import { RecordsPanel } from '@/components/RecordsPanel';
@@ -214,8 +215,8 @@ function App() {
 
         {view === 'mt5' && <Mt5AutoTrading />}
         {view === 'ctrader' && <CTraderAutoTrading />}
-        {view === 'binance' && <BinanceSpotAutomation />}
-        {view === 'binance-futures' && <BinanceFuturesAutomation />}
+        {view === 'binance' && <div className="space-y-8"><BinanceSpotAutomation /><div className="border-t border-line/15 pt-8"><BinanceFuturesAutomation /></div></div>}
+        {view === 'okx' && <OKXFuturesAutomation />}
         {view === 'orders' && <PendingOrdersPanel assets={selectedAssets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
