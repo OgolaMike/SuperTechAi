@@ -9,6 +9,7 @@ type Props = {
   signalEpoch: number;
   direction: 'BUY' | 'SELL';
   timeframe: string;
+  granularity: number;
   digits: number;
   assetName: string;
   symbol: string;
@@ -39,9 +40,10 @@ function timeLabel(epoch: number) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, digits, assetName, symbol, anchorId }: Props) {
+export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity, digits, assetName, symbol, anchorId }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
+  const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
   const chartViewportRef = useRef<HTMLDivElement>(null);
 
   // Retain the full candle history for SMA/BB warm-up; display the latest 60 candles.
@@ -51,6 +53,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const data = history.slice(visibleStart);
   // Recalculate only the visible candles; the preceding history is used solely for SMA warm-up.
   const stats = data.map((_, index) => rolling(historyCloses, visibleStart + index));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockEpoch(Math.floor(Date.now() / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const viewport = chartViewportRef.current;
@@ -109,6 +116,12 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const leftRegime = direction === 'BUY' ? '#ef4444' : '#2563eb';
   const rightRegime = direction === 'BUY' ? '#2563eb' : '#ef4444';
   const latest = data[data.length - 1];
+  const secondsRemaining = Math.max(0, latest.epoch + granularity - clockEpoch);
+  const days = Math.floor(secondsRemaining / 86400);
+  const hours = Math.floor((secondsRemaining % 86400) / 3600);
+  const minutes = Math.floor((secondsRemaining % 3600) / 60);
+  const seconds = secondsRemaining % 60;
+  const countdown = `${days > 0 ? `${days}d ` : ''}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   const latestStats = stats[stats.length - 1];
   const gridPrices = Array.from({ length: 6 }, (_, index) => max - (range * index) / 5);
 
@@ -128,7 +141,8 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · MARKET STRUCTURE</span>
           <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±2.5σ</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Current candle countdown">CLOSES IN {countdown}</span>
           <span className="mr-1 text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
           <button type="button" onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))} disabled={zoom === MIN_ZOOM} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 hover:border-amber-200/60 hover:bg-white/10 disabled:opacity-30" aria-label="Zoom out chart" title="Zoom out chart"><ZoomOut className="h-4 w-4" /></button>
           <span className="min-w-10 text-center text-[10px] tabular-nums text-slate-300">{zoom.toFixed(1)}×</span>
