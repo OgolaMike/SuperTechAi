@@ -90,7 +90,8 @@ export function MarketingStudio() {
     });
     if (aiError) {
       let message = aiError.message || 'AI campaign generation failed.';
-      try { const context = (aiError as any).context; if (context?.json) { const body = await context.json(); message = body.error || message; } } catch {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-empty
+      try { const context = (aiError as any).context; if (context?.json) { const body = await context.json(); message = body.error || message; } } catch { /* Keep the original error message. */ }
       setError(message);
     } else if (data?.campaign) {
       setForm(current => ({ ...current, ...data.campaign, details: data.campaign.campaign_type === 'offer' && !String(data.campaign.details || '').includes('$300') ? [data.campaign.details, MEMBERSHIP_PRICE_LINE].filter(Boolean).join(' ') : data.campaign.details }));
@@ -113,7 +114,8 @@ export function MarketingStudio() {
     });
     if (imageError || !data?.image_url) {
       let message = data?.error || imageError?.message || 'AI artwork generation failed.';
-      try { const context = (imageError as any)?.context; if (context?.json) { const body = await context.json(); message = body.error || message; } } catch {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-empty
+      try { const context = (imageError as any)?.context; if (context?.json) { const body = await context.json(); message = body.error || message; } } catch { /* Keep the original error message. */ }
       setError(message);
     } else {
       setCreativeUrl(data.image_url);
