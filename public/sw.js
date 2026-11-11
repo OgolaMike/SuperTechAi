@@ -2,13 +2,14 @@
 // Caches the branded app shell for installation and offline launch.
 // Live market data still requires a network connection to Deriv's WebSocket.
 
-const CACHE_NAME = 'supertech-ai-shell-v2';
-const BRAND_LOGO = '/IMG-20261018-WA0005(1).jpg';
+const CACHE_NAME = 'supertech-ai-shell-v3';
+const BRAND_LOGO = '/supertechai-icon.png?v=5752d4b0';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   BRAND_LOGO,
+  '/supertechai-logo.png?v=32bbfde1',
 ];
 
 self.addEventListener('install', (event) => {
