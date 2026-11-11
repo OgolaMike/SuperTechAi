@@ -22,9 +22,6 @@ async function callFutures(action: string, payload: Record<string, unknown> = {}
       let detail: { error?: string; message?: string } | null = null;
       try { detail = JSON.parse(raw); } catch { /* Keep the HTTP response as the fallback. */ }
       const reason = detail?.error ?? detail?.message ?? ((raw && raw.length < 240 ? raw : '') || error.message || `Binance Futures request failed (${response.status}).`);
-      if (/invalid api-key, ip, or permissions/i.test(reason)) {
-        throw new Error('Binance rejected this API key. Check that the key and secret are correct, USDⓈ-M Futures permission is enabled, and the key was created after Futures was activated. If IP restrictions are enabled, whitelist the SuperTech server egress IPs; recent connection logs have shown 35.180.109.45 and 15.237.127.167. Never enable withdrawals.');
-      }
       throw new Error(reason);
     }
     throw new Error(error.message || 'Binance Futures request failed. Check the connection and try again.');
@@ -177,8 +174,8 @@ export function BinanceFuturesAutomation() {
       </div>
 
       <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm leading-6 text-ink-2">
-        <div className="flex items-center gap-2 font-semibold text-ink"><ShieldAlert className="h-4 w-4 text-amber-500" />Execution safety</div>
-        The scanner now routes eligible Binance 8/8 Super Signals into each member’s private Futures signal queue. This is not an exchange order: live execution remains locked until testnet validation, exchange precision checks, daily-loss lockout, duplicate-order protection and protective stop/target reconciliation are completed. Enabling the live switch cannot bypass this server-side lock.
+        <div className="flex items-center gap-2 font-semibold text-ink"><ShieldAlert className="h-4 w-4 text-amber-500" />Live trading safeguards</div>
+        Only eligible 8/8 Super Signals can be considered. Each order is subject to the member’s risk settings, daily-loss limit, open-position limit, exchange quantity rules, duplicate protection and protective stop/target checks. Keep withdrawals disabled on the API key.
       </div>
 
       <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
