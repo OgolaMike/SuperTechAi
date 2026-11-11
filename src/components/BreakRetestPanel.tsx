@@ -133,7 +133,7 @@ function DailyCandlesChart({ assetName, candles }: { assetName: string; candles:
       </div>
       <div className="flex items-center gap-2">
         <span className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100">
-          Daily close {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+          {secondsRemaining > 0 ? `Daily close ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` : 'Daily candle rollover · updating'}
         </span>
         <button type="button" onClick={() => setZoom(value => Math.max(1, value - 0.25))} disabled={zoom <= 1} className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 text-xs text-white disabled:opacity-35" aria-label="Zoom out daily chart">−</button>
         <button type="button" onClick={() => setZoom(value => Math.min(2, value + 0.25))} disabled={zoom >= 2} className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 text-xs text-white disabled:opacity-35" aria-label="Zoom in daily chart">+</button>
@@ -155,7 +155,7 @@ function DailyCandlesChart({ assetName, candles }: { assetName: string; candles:
             <rect x={x(index) - body / 2} y={top} width={body} height={Math.max(2, bottom - top)} rx="1.2" fill={color} />
           </g>;
         })}
-        {[0, Math.floor((data.length - 1) / 2), data.length - 1].map(index => <text key={index} x={x(index)} y={H - 10} textAnchor="middle" fill="#94a3b8" fontSize="11">{dateLabel(data[index].epoch)}</text>)}
+        {[...new Set([0, Math.floor((data.length - 1) / 2), data.length - 1])].map(index => <text key={index} x={x(index)} y={H - 10} textAnchor="middle" fill="#94a3b8" fontSize="11">{dateLabel(data[index].epoch)}</text>)}
         <text x={P.left + 4} y={P.top + 12} fill="#64748b" fontSize="10" fontWeight="700">DAILY OPEN · HIGH · LOW · CLOSE</text>
       </svg>
     </div>
