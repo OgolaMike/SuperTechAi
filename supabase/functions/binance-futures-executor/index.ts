@@ -16,6 +16,7 @@ async function sign(secret:string,q:string){const k=await crypto.subtle.importKe
 async function binance(key:string,secret:string,path:string,method="GET",params:Record<string,string>={}){const p=new URLSearchParams({...params,timestamp:String(Date.now()),recvWindow:"5000"});const sig=await sign(secret,p.toString());let r:Response;try{r=await fetch("https://fapi.binance.com"+path+(method==="GET"?"?"+p+"&signature="+sig:""),{method,headers:{"X-MBX-APIKEY":key,"Content-Type":"application/x-www-form-urlencoded"},...(method==="GET"?{}:{body:p.toString()+"&signature="+sig})});}catch{throw Error("binance_network_outcome_uncertain");}const d=await r.json();if(!r.ok)throw Error(typeof d?.msg==="string"?d.msg:"binance_request_failed");return d;}
 const floorStep=(n:number,s:number)=>Math.floor(n/s+1e-10)*s;
 const fmt=(n:number)=>Number(n.toPrecision(14)).toString();
+let exchangeInfoSnapshot:ExchangeSymbol[]|null=null;
 Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
  if(req.method!=="POST")return reply({error:"method_not_allowed"},405);
@@ -35,33 +36,55 @@ Deno.serve(async req=>{
    if(ce||!creds){failed++;continue;}
    let key:string,secret:string;
    try{[key,secret]=await Promise.all([decrypt(creds.encrypted_api_key),decrypt(creds.encrypted_api_secret)]);}catch{failed++;continue;}
-   const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").eq("timeframe_agreement",8).order("signal_epoch",{ascending:true}).limit(10);
+   const nowEpoch=Math.floor(Date.now()/1000);
+   const freshCutoff=nowEpoch-7200;
+   const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").eq("timeframe_agreement",8).gte("signal_epoch",freshCutoff).lte("signal_epoch",nowEpoch).order("signal_epoch",{ascending:false}).limit(25);
    if(ie){failed++;continue;}
+   if(!(intents??[]).length)continue;
+   let memberSnapshot:{account:any;available:number;wallet:number;active:PositionRow[];exchangeSymbols:ExchangeSymbol[]}|null=null;
+   let memberPreflightError:string|null=null;
    for(const it of intents??[]){
     const now=Math.floor(Date.now()/1000);
     if((Array.isArray(cfg.allowed_symbols)&&cfg.allowed_symbols.length>0&&!cfg.allowed_symbols.includes(it.symbol))||Number(it.timeframe_agreement)!==8||now-Number(it.signal_epoch)>7200||now<Number(it.signal_epoch)||!Number(it.entry_price)||!Number(it.stop_loss)||!Number(it.take_profit)){skipped++;continue;}
     const {data:dup}=await db.from("binance_futures_orders").select("id,status").eq("user_id",cfg.user_id).eq("signal_key",it.signal_key).maybeSingle();
     if(dup){skipped++;continue;}
     try{
-     const [account,mode,positions,exchangeInfo]=await Promise.all([
-      binance(key,secret,"/fapi/v2/account"),
-      binance(key,secret,"/fapi/v1/positionSide/dual"),
-      binance(key,secret,"/fapi/v3/positionRisk"),
-      fetch("https://fapi.binance.com/fapi/v1/exchangeInfo").then(r=>r.json())
-     ]);
-     if(account.canTrade!==true||mode.dualSidePosition===true)throw Error("account_not_ready_or_hedge_mode");
-     const active=((positions??[]) as PositionRow[]).filter((x)=>Math.abs(Number(x.positionAmt))>0);
-     if(active.length>=Number(cfg.max_open_positions)){skipped++;continue;}
+     if(memberPreflightError){skipped++;continue;}
+     if(!memberSnapshot){
+      try{
+       const utcStart=new Date();utcStart.setUTCHours(0,0,0,0);
+       const [account,mode,positions,income]=await Promise.all([
+        binance(key,secret,"/fapi/v2/account"),
+        binance(key,secret,"/fapi/v1/positionSide/dual"),
+        binance(key,secret,"/fapi/v3/positionRisk"),
+        binance(key,secret,"/fapi/v1/income","GET",{incomeType:"REALIZED_PNL",startTime:String(utcStart.getTime()),limit:"1000"})
+       ]);
+       if(account.canTrade!==true||mode.dualSidePosition===true)throw Error("account_not_ready_or_hedge_mode");
+       const usdt=((account.assets??[]) as AssetRow[]).find((x)=>x.asset==="USDT");
+       const available=Number(usdt?.availableBalance??0),wallet=Number(usdt?.walletBalance??0);
+       if(!(available>0&&wallet>0))throw Error("insufficient_usdt_margin");
+       const realizedToday=Array.isArray(income)?(income as IncomeRow[]).reduce((sum,row)=>sum+Number(row.income??0),0):0;
+       const dailyLossLimit=wallet*Number(cfg.max_daily_loss_pct)/100;
+       if(!Number.isFinite(realizedToday)||realizedToday<=-dailyLossLimit)throw Error("daily_loss_limit_reached");
+       if(!exchangeInfoSnapshot){
+        const response=await fetch("https://fapi.binance.com/fapi/v1/exchangeInfo");
+        if(!response.ok)throw Error("binance_exchange_info_unavailable");
+        const info=await response.json() as ExchangeInfo;
+        if(!Array.isArray(info?.symbols))throw Error("binance_exchange_info_invalid");
+        exchangeInfoSnapshot=info.symbols;
+       }
+       memberSnapshot={account,available,wallet,active:((positions??[]) as PositionRow[]).filter((x)=>Math.abs(Number(x.positionAmt))>0),exchangeSymbols:exchangeInfoSnapshot};
+      }catch(preflightError){
+       memberPreflightError=preflightError instanceof Error?preflightError.message:"futures_preflight_failed";
+       failed++;
+       await db.from("binance_futures_signal_intents").update({payload:{...(it.payload??{}),execution_state:"blocked",execution_error:memberPreflightError.slice(0,120)}}).eq("id",it.id).eq("user_id",cfg.user_id);
+       break;
+      }
+     }
+     const {account,available,wallet,active,exchangeSymbols}=memberSnapshot;
+     if(active.length>=Number(cfg.max_open_positions)){skipped++;break;}
      if(active.some((x)=>x.symbol===it.symbol)){skipped++;continue;}
-     const usdt=((account.assets??[]) as AssetRow[]).find((x)=>x.asset==="USDT");
-     const available=Number(usdt?.availableBalance??0),wallet=Number(usdt?.walletBalance??0);
-     if(!(available>0&&wallet>0))throw Error("insufficient_usdt_margin");
-     const utcStart=new Date();utcStart.setUTCHours(0,0,0,0);
-     const income=await binance(key,secret,"/fapi/v1/income","GET",{incomeType:"REALIZED_PNL",startTime:String(utcStart.getTime()),limit:"1000"});
-     const realizedToday=Array.isArray(income)?(income as IncomeRow[]).reduce((sum,row)=>sum+Number(row.income??0),0):0;
-     const dailyLossLimit=wallet*Number(cfg.max_daily_loss_pct)/100;
-     if(!Number.isFinite(realizedToday)||realizedToday<=-dailyLossLimit){skipped++;continue;}
-     const symbolInfo=((exchangeInfo as ExchangeInfo).symbols??[]).find((x)=>x.symbol===it.symbol&&x.status==="TRADING");
+     const symbolInfo=exchangeSymbols.find((x)=>x.symbol===it.symbol&&x.status==="TRADING");
      if(!symbolInfo)throw Error("symbol_not_trading");
      const filters=symbolInfo.filters??[];
      const lot=filters.find((x)=>x.filterType==="LOT_SIZE");
@@ -99,6 +122,7 @@ Deno.serve(async req=>{
       if(!protectedOk)throw Error("protective_orders_not_confirmed");
       await db.from("binance_futures_orders").update({status:"protected",stop_order_id:String(stop.algoId),take_profit_order_id:String(target.algoId),result_payload:{entry:entryOrder,stop,target,verified:true}}).eq("user_id",cfg.user_id).eq("signal_key",it.signal_key);
       await db.from("binance_futures_positions").insert({user_id:cfg.user_id,symbol:it.symbol,side:side==="BUY"?"LONG":"SHORT",quantity:qty,entry_price:Number(entryOrder.avgPrice||entry),mark_price:Number(entryOrder.avgPrice||entry),leverage:Number(cfg.leverage),unrealized_pnl:0,stop_loss:sl,take_profit:tp,source_signal_key:it.signal_key,status:"open",opened_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+      memberSnapshot.active.push({symbol:it.symbol,positionAmt:side==="BUY"?qty:-qty});
       await db.from("binance_futures_signal_intents").update({status:"dismissed",payload:{...(it.payload??{}),execution_state:"protected_order_live"}}).eq("id",it.id).eq("user_id",cfg.user_id);
       submitted++;
      }catch{
@@ -107,7 +131,7 @@ Deno.serve(async req=>{
       catch{await db.from("binance_futures_orders").update({status:"uncertain",last_error_code:"CRITICAL_protection_failed_flatten_unconfirmed"}).eq("user_id",cfg.user_id).eq("signal_key",it.signal_key);}
       failed++;break;
      }
-    }catch(e){failed++;const m=e instanceof Error?e.message:"futures_executor_error";await db.from("binance_futures_signal_intents").update({payload:{...(it.payload??{}),execution_state:"blocked",execution_error:m.slice(0,120)}}).eq("id",it.id).eq("user_id",cfg.user_id);}
+    }catch(e){failed++;const m=e instanceof Error?e.message:"futures_executor_error";await db.from("binance_futures_signal_intents").update({payload:{...(it.payload??{}),execution_state:"blocked",execution_error:m.slice(0,120)}}).eq("id",it.id).eq("user_id",cfg.user_id);if(/invalid api-key|too many requests|way too many requests|banned until|rate limit/i.test(m))break;}
    }
   }
   return reply({ok:true,submitted,skipped,failed,realOrdersOnlyWhenMemberEnabled:true});
