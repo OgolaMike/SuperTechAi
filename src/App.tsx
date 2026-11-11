@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
+import { MarketingStudio } from '@/components/MarketingStudio';
 import { SuperTechAcademy } from '@/components/SuperTechAcademy';
 import { AdminPanel } from '@/components/AdminPanel';
 import { GovernancePanel } from '@/components/GovernancePanel';
@@ -227,6 +228,7 @@ function App() {
         {view === 'earnings' && <FinancePanel initialTab="wallet" />}
         {view === 'finance' && isAdmin && <FinancePanel initialTab="admin" />}
         {view === 'admin' && isAdmin && <AdminPanel />}
+        {view === 'marketing' && isAdmin && <MarketingStudio />}
         {view === 'governance' && isAdmin && <GovernancePanel />}
         </div>
 
