@@ -16,9 +16,9 @@ Repository: `OgolaMike/SuperTechAi` (default branch `main`)
 | Binance Spot | `binance-spot` v8 connection/settings/status function; scanner contains `binanceSpotAutomation.ts` for limit-intent submission and order reconciliation | Move exchange I/O behind a shared server adapter without changing the current order lifecycle. Confirm scanner scheduling and reconcile behavior before migration. |
 | Binance USD-M Futures | `binance-futures` v13; `binance-futures-executor` v6; scanner creates eligible 8/8 intents and invokes executor | Executor signs requests directly from Supabase Edge Functions. Static outbound IP is needed for IP-restricted HMAC keys. Keep current risk, freshness, One-way Mode, duplicate and protective-order checks. |
 | OKX USDT swaps | `okx-futures` v5; `okx-futures-executor` v3; scanner creates intents and invokes executor | Separate direct-fetch executor, own encrypted credential fields/settings. Add to shared adapter contract, but preserve OKX-specific contract sizing, position mode and attached-algo protection. Audit recovery for uncertain network outcomes before moving. |
-| cTrader | OAuth connect/callback and account discovery functions; account connection/settings/event tables | This is authorization/account discovery, not a complete execution adapter yet. Build persistent live/demo WebSocket sessions, token refresh, heartbeat, message queue, order/position reconciliation, and execution controls. |
-| MetaTrader 5 | `mt5-bridge` v5 with worker registration, lease/command queue, idempotency keys, risk preflight and execution attempts; separate `mt5-worker` Python package | Worker requires a running MetaTrader 5 desktop terminal and Python MetaTrader5 package. Current documented worker is Windows-based. A mobile UI cannot itself host the terminal. Provide a managed always-on Windows host or keep the worker architecture and make its host independently deployable. |
-| Deriv | Public WebSocket market-data client and scanner feed | Data-only today. Add a separate account OAuth 2.0 + PKCE flow and authenticated WebSocket trading adapter if Deriv trading is in scope. Do not mistake public market-data access for account authorization. |
+| cTrader | OAuth connect/callback and account discovery functions; account connection/settings/event tables; account discovery opens a WebSocket to retrieve accounts | This is authorization/account discovery, not a complete order execution adapter yet. Build persistent live/demo WebSocket sessions, token refresh, heartbeat, message queue, order/position reconciliation, and execution controls. |
+| MetaTrader 5 | `mt5-bridge` v5 with worker registration, lease/command queue, idempotency keys, risk preflight and execution attempts; separate `mt5-worker` Python package | The current worker is Windows-only and requires a logged-in MT5 desktop terminal. Its README explicitly says it does **not** yet execute SuperTech signals unattended, manage open positions, trail stops, cancel pending orders or close trades; it only places member-confirmed pending orders. A mobile UI cannot itself host the terminal. Deliver a managed always-on Windows worker and implement the missing unattended lifecycle before claiming full MT5 automation. |
+| Deriv | Public WebSocket market-data client and scanner feed | Data-only today. Deriv's current API supports OAuth 2.0 + PKCE and authenticated WebSocket buy/sell/contract monitoring. Add a separate account connection and execution adapter; tokens expire and the documented OAuth flow does not issue refresh tokens, so mobile reauthorization must be supported. Do not mistake public market-data access for account authorization. |
 
 The deployed function inventory also contains `scanner` v29, `push` v11 and related application functions. This plan does not replace the scanner or alter member-facing signal generation.
 
@@ -54,6 +54,13 @@ Lifecycle: `created -> validated -> claimed -> submitting -> accepted/partially_
 - Separate demo and live credentials, queues, environment flags and audit records.
 - Keep production execution disabled during migration; no connectivity test should place a trade.
 - Add health checks for each adapter and alert on stale worker heartbeat, expired token, rejected credentials, unprotected position, or queue backlog.
+
+## Mobile connection flows
+
+- Binance Spot/Futures and OKX: member enters exchange API credentials into a backend-only secure connection flow; verify read/trade scopes, account identity, and withdrawal-disabled status before saving encrypted credentials.
+- cTrader: OAuth account consent and discovery; no broker password collection.
+- Deriv: OAuth 2.0 Authorization Code + PKCE; request only the trade scope required for execution, store token expiry, and send the user through consent again after expiry because no refresh token is issued.
+- MT5: pair the account to a cloud-hosted worker. The member uses mobile to authorize/configure it, while the terminal and worker remain online in the managed host.
 
 ## Open-source reuse policy
 
