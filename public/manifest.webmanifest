@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "SuperTech Ai",
-  "short_name": "SuperTech Ai",
-  "description": "SuperTech Ai market intelligence for Deriv assets and timeframes. Smarter signals. Intelligent automation.",
+  "name": "SuperTechAi",
+  "short_name": "SuperTechAi",
+  "description": "SuperTechAi market intelligence for Deriv assets, timeframes and crypto movers.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -12,7 +12,7 @@
   "theme_color": "#070b14",
   "categories": ["finance", "utilities"],
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "/supertechai-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/supertechai-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
