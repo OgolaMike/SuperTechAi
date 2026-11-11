@@ -99,6 +99,8 @@ Deno.serve(async (req) => {
       ? "attention"
       : mt5HeartbeatExpected && onlineWorkers > 0
       ? "connected"
+      : mt5.data?.bridge_status === "connecting"
+      ? "connecting"
       : "not_connected";
 
     return json({
