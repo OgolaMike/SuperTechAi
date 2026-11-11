@@ -186,6 +186,9 @@ export function assertExecutionIntent(value: ExecutionIntent): void {
       (!positive(value.order.stopPrice) || !positive(value.order.limitPrice))) {
     throw new Error("stop_limit_order_prices_missing");
   }
+  if (value.order.quantity === undefined && value.order.quoteAmount === undefined) {
+    throw new Error("execution_order_size_missing");
+  }
   if (value.order.quantity !== undefined && !positive(value.order.quantity)) {
     throw new Error("invalid_execution_quantity");
   }
@@ -198,9 +201,11 @@ export function assertExecutionIntent(value: ExecutionIntent): void {
       !positive(value.risk.dailyLossLimitPercent) || value.risk.dailyLossLimitPercent > 5) {
     throw new Error("execution_risk_limits_invalid");
   }
-  if (value.environment === "live" &&
-      (!value.authorization.liveExecutionAuthorized || value.authorization.emergencyStop)) {
-    throw new Error("live_execution_not_authorized_or_emergency_stop_active");
+  if (value.authorization.emergencyStop) {
+    throw new Error("emergency_stop_active");
+  }
+  if (value.environment === "live" && !value.authorization.liveExecutionAuthorized) {
+    throw new Error("live_execution_not_authorized");
   }
   if (!validDate(value.authorization.tradingPermissionVerifiedAt)) {
     throw new Error("trading_permission_verification_missing");
