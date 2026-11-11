@@ -5,9 +5,9 @@ import type { SignalLevels } from '@/lib/signals';
 
 type Props = {
   candles: Candle[];
-  levels: SignalLevels;
-  signalEpoch: number;
-  direction: 'BUY' | 'SELL';
+  levels?: SignalLevels;
+  signalEpoch?: number;
+  direction?: 'BUY' | 'SELL';
   timeframe: string;
   granularity?: number;
   digits: number;
@@ -79,7 +79,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     stats[index]?.upper ?? candle.high,
     stats[index]?.lower ?? candle.low,
   ]);
-  values.push(levels.entry, levels.stopLoss, levels.tp1, levels.tp2, levels.tp3);
+  if (levels) values.push(levels.entry, levels.stopLoss, levels.tp1, levels.tp2, levels.tp3);
 
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -111,7 +111,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     return `${reverseIndex === 0 || !bandPoints[index + 1] ? 'M' : 'L'} ${item[0]} ${item[2]}`;
   }).filter(Boolean).join(' ');
 
-  const signalIndex = data.findIndex((candle) => candle.epoch === signalEpoch);
+  const signalIndex = signalEpoch == null ? -1 : data.findIndex((candle) => candle.epoch === signalEpoch);
   const transitionIndex = signalIndex >= 0 ? signalIndex : Math.max(0, data.length - 8);
   const transitionX = x(transitionIndex);
   const leftRegime = direction === 'BUY' ? '#ef4444' : '#2563eb';
@@ -127,20 +127,20 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const latestStats = stats[stats.length - 1];
   const gridPrices = Array.from({ length: 6 }, (_, index) => max - (range * index) / 5);
 
-  const levelsToDraw = [
+  const levelsToDraw = levels ? [
     { label: 'ENTRY', value: levels.entry, color: '#f8fafc', dash: '7 5', width: 1.8 },
     { label: 'STOP LOSS', value: levels.stopLoss, color: '#fb7185', dash: '5 5', width: 1.5 },
     { label: 'TAKE PROFIT 1', value: levels.tp1, color: '#4ade80', dash: '5 5', width: 1.4 },
     { label: 'TAKE PROFIT 2', value: levels.tp2, color: '#22c55e', dash: '5 5', width: 1.4 },
     { label: 'TAKE PROFIT 3', value: levels.tp3, color: '#16a34a', dash: '5 5', width: 1.4 },
-  ];
+  ] : [];
 
   return (
     <section id={anchorId} className="scroll-mt-[50vh] overflow-hidden rounded-2xl border border-white/20 bg-[#080d18] text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,.9)]" aria-label={`Premium ${timeframe} market chart`}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0c1423] px-4 py-3 sm:px-5">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-          <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : 'bg-rose-400'} shadow-[0_0_12px_currentColor]`} />
-          <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · MARKET STRUCTURE</span>
+          <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : direction === 'SELL' ? 'bg-rose-400' : 'bg-cyan-300'} shadow-[0_0_12px_currentColor]`} />
+          <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · {direction ? 'MARKET STRUCTURE' : 'LIVE MARKET · NO CROSS SIGNAL'}</span>
           <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±2.5σ</span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -172,8 +172,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             </linearGradient>
           </defs>
 
-          <rect x={PAD.left} y={PAD.top} width={Math.max(0, transitionX - PAD.left)} height={plotH} fill={`url(#${gradientId}-left)`} />
-          <rect x={transitionX} y={PAD.top} width={Math.max(0, svgWidth - PAD.right - transitionX)} height={plotH} fill={`url(#${gradientId}-right)`} />
+          {direction ? <><rect x={PAD.left} y={PAD.top} width={Math.max(0, transitionX - PAD.left)} height={plotH} fill={`url(#${gradientId}-left)`} /><rect x={transitionX} y={PAD.top} width={Math.max(0, svgWidth - PAD.right - transitionX)} height={plotH} fill={`url(#${gradientId}-right)`} /></> : null}
 
           {gridPrices.map((price, index) => {
             const gy = y(price);
@@ -206,7 +205,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             </g>;
           })}
 
-          {signalIndex >= 0 && <g>
+          {signalIndex >= 0 && direction && <g>
             <line x1={transitionX} x2={transitionX} y1={PAD.top} y2={HEIGHT - PAD.bottom} stroke={direction === 'BUY' ? '#93c5fd' : '#fda4af'} strokeWidth="2" strokeDasharray="5 6" />
             <rect x={Math.min(svgWidth - PAD.right - 112, transitionX + 12)} y={Math.max(PAD.top + 8, y(data[signalIndex].close) - 42)} width="96" height="27" rx="6" fill={direction === 'BUY' ? '#1d4ed8' : '#be123c'} stroke="#fff" strokeOpacity="0.65" />
             <text x={Math.min(svgWidth - PAD.right - 64, transitionX + 60)} y={Math.max(PAD.top + 26, y(data[signalIndex].close) - 24)} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">{direction}</text>
@@ -243,6 +242,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-blue-500" /> Lower band</span>
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-blue-500" /> Bullish candle</span>
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-rose-500" /> Bearish candle</span>
+          {!direction && <span className="font-semibold text-cyan-200">NO CROSS SIGNAL · MARKET DATA IS LIVE</span>}
         </div>
         <span className="min-w-0 break-words whitespace-normal font-semibold tracking-[0.08em] text-amber-200/90" title={`${assetName} (${symbol})`}>{assetName} <span className="text-white/60">·</span> {symbol}</span>
       </div>
