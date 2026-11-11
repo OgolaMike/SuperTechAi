@@ -157,7 +157,7 @@ export function MarketingStudio() {
       const shade=ctx.createLinearGradient(0,0,0,height); shade.addColorStop(0,'rgba(3,8,18,.72)'); shade.addColorStop(.48,'rgba(3,8,18,.18)'); shade.addColorStop(1,'rgba(3,8,18,.82)'); ctx.fillStyle=shade; ctx.fillRect(0,0,width,height);
       const margin=88; ctx.fillStyle='#ffffff'; ctx.font='700 44px Arial'; ctx.fillText('SUPERTECH AI',margin,145);
       ctx.fillStyle='#e4b95d'; ctx.font='600 22px Arial'; ctx.fillText('TRADING INTELLIGENCE',margin,190);
-      const wrapText=(text:string,maxWidth:number,font:string)=>{ctx.font=font;const lines:string[]=[];let line='';for(const word of text.split(/\\s+/)){const test=(line+' '+word).trim();if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word;}else line=test;}if(line)lines.push(line);return lines;};
+      const wrapText=(text:string,maxWidth:number,font:string)=>{ctx.font=font;const lines:string[]=[];let line='';for(const word of text.split(/\s+/)){const test=(line+' '+word).trim();if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word;}else line=test;}if(line)lines.push(line);return lines;};
       let y=format==='story'?650:format==='square'?390:470;
       ctx.fillStyle='#fff';ctx.font='700 74px Arial';
       for(const line of wrapText(form.headline||'Hide the complexity. Deliver the intelligence.',width-margin*2,'700 74px Arial').slice(0,4)){ctx.fillText(line,margin,y);y+=88;}
