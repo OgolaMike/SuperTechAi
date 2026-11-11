@@ -1,6 +1,6 @@
 import { Bell, Coins, Database, LayoutDashboard, ListOrdered, Sparkles, Users, Cable, Wallet, UserRoundPlus, Landmark, Bitcoin, Network, GraduationCap, Activity, Gavel, Repeat2, Megaphone } from 'lucide-react';
 
-export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'binance-futures' | 'network' | 'academy' | 'governance' | 'break-retest' | 'marketing';
+export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'marketing';
 
 const VIEWS: { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,8 +11,8 @@ const VIEWS: { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?
   { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
   { id: 'ctrader', label: 'Connect cTrader', icon: Cable },
   { id: 'mt5', label: 'Connect MT5', icon: Cable },
-  { id: 'binance', label: 'Binance Spot', icon: Bitcoin },
-  { id: 'binance-futures', label: 'Binance Futures', icon: Activity },
+  { id: 'binance', label: 'Binance', icon: Bitcoin },
+  { id: 'okx', label: 'OKX', icon: Activity },
   { id: 'crypto', label: 'Crypto', icon: Coins },
   { id: 'super', label: 'Super Signal', icon: Sparkles },
   { id: 'break-retest', label: 'Break & Retest', icon: Repeat2 },
