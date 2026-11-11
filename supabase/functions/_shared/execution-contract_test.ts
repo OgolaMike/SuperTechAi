@@ -111,3 +111,15 @@ Deno.test("idempotency key is stable for the same provider, account and intent",
   assert(first === second, "same intent must produce the same idempotency key");
   assert(first === `stai:binance_futures:conn-1:${id}`, "key must include provider/account/intent identity");
 });
+
+Deno.test("rejects an unknown runtime order side even when TypeScript types are bypassed", () => {
+  const intent = validIntent();
+  (intent.order as { side: string }).side = "hold";
+  expectThrow(() => assertExecutionIntent(intent), "unsupported_execution_side");
+});
+
+Deno.test("rejects an unsupported trading environment", () => {
+  const intent = validIntent();
+  (intent as { environment: string }).environment = "paper";
+  expectThrow(() => assertExecutionIntent(intent), "unsupported_trading_environment");
+});
