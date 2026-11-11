@@ -91,7 +91,8 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
     const zoneLow = Math.min(first.price, second.price) - tolerance * 0.25;
     const zoneHigh = Math.max(first.price, second.price) + tolerance * 0.25;
     // A break through the far edge after the second touch invalidates the setup.
-    const confirmationIndex = Math.min(second.index + 2, candles.length - 1);\n    const confirmationEpoch = candles[confirmationIndex].epoch;\n    const afterSecond = candles.slice(confirmationIndex + 1);
+    const confirmationIndex = Math.min(second.index + 2, candles.length - 1);
+    const confirmationEpoch = candles[confirmationIndex].epoch;\n    const afterSecond = candles.slice(confirmationIndex + 1);
     const invalidated = side === 'low'
       ? afterSecond.some(c => c.close < zoneLow - tolerance)
       : afterSecond.some(c => c.close > zoneHigh + tolerance);
