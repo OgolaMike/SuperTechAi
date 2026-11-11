@@ -3,34 +3,39 @@ import {
   classifyConnectionHealth,
   isRecentHeartbeat,
 } from "./automation-status.ts";
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+
+function assertEquals(actual: unknown, expected: unknown, label: string) {
+  if (actual !== expected) {
+    throw new Error(`${label}: expected ${String(expected)}, received ${String(actual)}`);
+  }
+}
 
 Deno.test("classifies connected provider when one connection is connected", () => {
-  assertEquals(classifyConnectionHealth(["not_connected", "connected"]), "connected");
+  assertEquals(classifyConnectionHealth(["not_connected", "connected"]), "connected", "connected priority");
 });
 
 Deno.test("flags attention when no provider is connected but one needs action", () => {
-  assertEquals(classifyConnectionHealth(["not_connected", "reauthorization_required"]), "attention");
-  assertEquals(classifyConnectionHealth(["error"]), "attention");
+  assertEquals(classifyConnectionHealth(["not_connected", "reauthorization_required"]), "attention", "reauthorization");
+  assertEquals(classifyConnectionHealth(["error"]), "attention", "provider error");
 });
 
 Deno.test("defaults empty or inactive providers to not connected", () => {
-  assertEquals(classifyConnectionHealth([]), "not_connected");
-  assertEquals(classifyConnectionHealth(["not_connected", null]), "not_connected");
+  assertEquals(classifyConnectionHealth([]), "not_connected", "empty provider list");
+  assertEquals(classifyConnectionHealth(["not_connected", null]), "not_connected", "inactive provider list");
 });
 
 Deno.test("accepts only recent and plausible worker heartbeat timestamps", () => {
   const now = Date.parse("2026-11-12T12:00:00.000Z");
-  assertEquals(isRecentHeartbeat("2026-11-12T11:59:30.000Z", now), true);
-  assertEquals(isRecentHeartbeat("2026-11-12T11:50:00.000Z", now), false);
-  assertEquals(isRecentHeartbeat("2026-11-12T12:05:00.000Z", now), false);
-  assertEquals(isRecentHeartbeat(null, now), false);
-  assertEquals(isRecentHeartbeat("not-a-date", now), false);
+  assertEquals(isRecentHeartbeat("2026-11-12T11:59:30.000Z", now), true, "recent heartbeat");
+  assertEquals(isRecentHeartbeat("2026-11-12T11:50:00.000Z", now), false, "stale heartbeat");
+  assertEquals(isRecentHeartbeat("2026-11-12T12:05:00.000Z", now), false, "future heartbeat");
+  assertEquals(isRecentHeartbeat(null, now), false, "missing heartbeat");
+  assertEquals(isRecentHeartbeat("not-a-date", now), false, "invalid heartbeat");
 });
 
 Deno.test("returns only the last four account-login characters", () => {
-  assertEquals(accountSuffix("123456789"), "6789");
-  assertEquals(accountSuffix("123"), "123");
-  assertEquals(accountSuffix(""), null);
-  assertEquals(accountSuffix(null), null);
+  assertEquals(accountSuffix("123456789"), "6789", "masked login suffix");
+  assertEquals(accountSuffix("123"), "123", "short login");
+  assertEquals(accountSuffix(""), null, "empty login");
+  assertEquals(accountSuffix(null), null, "missing login");
 });
