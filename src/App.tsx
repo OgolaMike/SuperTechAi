@@ -11,6 +11,7 @@ import { AmbientBackground } from '@/components/AmbientBackground';
 import { DashboardView } from '@/components/DashboardView';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { Mt5AutoTrading } from '@/components/Mt5AutoTrading';
+import { CTraderAutoTrading } from '@/components/CTraderAutoTrading';
 import { BinanceSpotAutomation } from '@/components/BinanceSpotAutomation';
 import { BinanceFuturesAutomation } from '@/components/BinanceFuturesAutomation';
 import { CryptoMovers } from '@/components/CryptoMovers';
@@ -212,6 +213,7 @@ function App() {
         )}
 
         {view === 'mt5' && <Mt5AutoTrading />}
+        {view === 'ctrader' && <CTraderAutoTrading />}
         {view === 'binance' && <BinanceSpotAutomation />}
         {view === 'binance-futures' && <BinanceFuturesAutomation />}
         {view === 'orders' && <PendingOrdersPanel assets={selectedAssets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
