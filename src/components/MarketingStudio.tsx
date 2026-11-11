@@ -14,6 +14,11 @@ const TYPES = [
 ] as const;
 type FormState = { title:string; campaign_type:string; headline:string; details:string; event_date:string; event_time:string; venue:string; call_to_action:string };
 const EMPTY: FormState = { title:'', campaign_type:'product', headline:'', details:'', event_date:'', event_time:'', venue:'', call_to_action:'' };
+const MEMBERSHIP_PRICE_LINE = 'Membership: $300 promotional offer for 60 days. Standard price: $500.';
+function campaignDetails(f: FormState) {
+  if (f.campaign_type !== 'offer') return f.details;
+  return f.details.includes('$300') ? f.details : [f.details, MEMBERSHIP_PRICE_LINE].filter(Boolean).join(' ');
+}
 
 function autoWrite(f: FormState): FormState {
   const presets: Record<string, {headline:string; details:string; cta:string; title:string}> = {
@@ -30,7 +35,7 @@ function autoWrite(f: FormState): FormState {
 }
 function makeCopy(f: FormState) {
   const event = f.campaign_type === 'event';
-  return ['SUPERTECH AI', f.headline.trim() || f.title.trim(), f.details.trim(),
+  return ['SUPERTECH AI', f.headline.trim() || f.title.trim(), campaignDetails(f).trim(),
     event ? [f.event_date, f.event_time, f.venue].filter(Boolean).join(' • ') : '',
     f.call_to_action.trim() || 'Discover SuperTech AI', '',
     'Hide the complexity. Deliver the intelligence.',
@@ -46,7 +51,7 @@ function wrap(value: string, limit: number) {
 function posterSvg(f: FormState, format: 'portrait'|'square'|'story') {
   const sizes = { portrait:[1080,1350], square:[1080,1080], story:[1080,1920] } as const;
   const [w,h] = sizes[format]; const titleLines = wrap(f.headline || 'Hide the complexity. Deliver the intelligence.', 22);
-  const detailLines = wrap(f.details || 'Clear market insights, learning resources and a community built around better decisions.', 43);
+  const detailLines = wrap(campaignDetails(f) || 'Clear market insights, learning resources and a community built around better decisions.', 43);
   const dateLine = [f.event_date, f.event_time, f.venue].filter(Boolean).join(' • ');
   const titleY = format === 'story' ? 620 : format === 'square' ? 390 : 470;
   const detailY = titleY + titleLines.length*94 + 45;
@@ -88,9 +93,9 @@ export function MarketingStudio() {
       try { const context = (aiError as any).context; if (context?.json) { const body = await context.json(); message = body.error || message; } } catch {}
       setError(message);
     } else if (data?.campaign) {
-      setForm(current => ({ ...current, ...data.campaign }));
+      setForm(current => ({ ...current, ...data.campaign, details: data.campaign.campaign_type === 'offer' && !String(data.campaign.details || '').includes('$300') ? [data.campaign.details, MEMBERSHIP_PRICE_LINE].filter(Boolean).join(' ') : data.campaign.details }));
       setCreativeUrl('');
-      setAiCaption(data.campaign.caption || '');
+      setAiCaption([data.campaign.caption || '', data.campaign.campaign_type === 'offer' && !String(data.campaign.caption || '').includes('$300') ? MEMBERSHIP_PRICE_LINE : ''].filter(Boolean).join('\n\n'));
       const sources = data.sources_used || {};
       const used = Object.entries(sources).filter(([,count])=>Number(count)>0).map(([name,count])=>name.replaceAll('_',' ')+' '+count).join(', ');
       setNotice(automatic
@@ -124,7 +129,7 @@ export function MarketingStudio() {
     if (!authData.user) { setError('Please sign in again before saving this campaign.'); setSaving(false); return; }
     const {data,error:saveError}=await supabase.from('marketing_campaigns').insert({
       user_id:authData.user.id,creative_url:creativeUrl||null,
-      title:form.title.trim(),campaign_type:form.campaign_type,headline:form.headline.trim(),details:form.details.trim(),
+      title:form.title.trim(),campaign_type:form.campaign_type,headline:form.headline.trim(),details:campaignDetails(form).trim(),
       event_date:form.event_date||null,event_time:form.event_time||null,venue:form.venue.trim()||null,
       call_to_action:form.call_to_action.trim(),caption,status:'draft'
     }).select().single();
@@ -155,17 +160,21 @@ export function MarketingStudio() {
       const ctx=canvas.getContext('2d'); if(!ctx) throw new Error('Image export is not available in this browser.');
       const scale=Math.max(width/image.width,height/image.height); const dw=image.width*scale; const dh=image.height*scale;
       ctx.drawImage(image,(width-dw)/2,(height-dh)/2,dw,dh);
+      const logo = new Image(); logo.src = '/icon.svg';
+      await new Promise<void>((resolve,reject)=>{ logo.onload=()=>resolve(); logo.onerror=()=>reject(new Error('Could not load the SuperTech AI transparent logo.')); });
+      ctx.drawImage(logo,margin,78,76,76);
       const shade=ctx.createLinearGradient(0,0,0,height); shade.addColorStop(0,'rgba(3,8,18,.72)'); shade.addColorStop(.48,'rgba(3,8,18,.18)'); shade.addColorStop(1,'rgba(3,8,18,.82)'); ctx.fillStyle=shade; ctx.fillRect(0,0,width,height);
-      const margin=88; ctx.fillStyle='#ffffff'; ctx.font='700 44px Arial'; ctx.fillText('SUPERTECH AI',margin,145);
+      const margin=88; ctx.fillStyle='#ffffff'; ctx.font='700 44px Arial'; ctx.fillText('SUPERTECH AI',margin+96,145);
       ctx.fillStyle='#e4b95d'; ctx.font='600 22px Arial'; ctx.fillText('TRADING INTELLIGENCE',margin,190);
       const wrapText=(text:string,maxWidth:number,font:string)=>{ctx.font=font;const lines:string[]=[];let line='';for(const word of text.split(/\s+/)){const test=(line+' '+word).trim();if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word;}else line=test;}if(line)lines.push(line);return lines;};
       let y=format==='story'?650:format==='square'?390:470;
       ctx.fillStyle='#fff';ctx.font='700 74px Arial';
       for(const line of wrapText(form.headline||'Hide the complexity. Deliver the intelligence.',width-margin*2,'700 74px Arial').slice(0,4)){ctx.fillText(line,margin,y);y+=88;}
       y+=30;ctx.fillStyle='#d6deec';ctx.font='32px Arial';
-      for(const line of wrapText(form.details||'Clear market insights and learning resources.',width-margin*2,'32px Arial').slice(0,6)){ctx.fillText(line,margin,y);y+=48;}
+      for(const line of wrapText(campaignDetails(form)||'Clear market insights and learning resources.',width-margin*2,'32px Arial').slice(0,6)){ctx.fillText(line,margin,y);y+=48;}
       const eventLine=[form.event_date,form.event_time,form.venue].filter(Boolean).join(' • ');
       if(eventLine){y+=28;ctx.fillStyle='#e4b95d';ctx.font='700 26px Arial';ctx.fillText(eventLine.slice(0,70),margin,Math.min(y,height-340));}
+      if(form.campaign_type==='offer'){ctx.fillStyle='#ffe19a';ctx.font='700 25px Arial';ctx.fillText(MEMBERSHIP_PRICE_LINE,margin,height-275);}
       const ctaY=height-245;ctx.fillStyle='#d7ad54';ctx.fillRect(margin,ctaY,width-margin*2,105);ctx.fillStyle='#07111c';ctx.font='700 34px Arial';ctx.fillText((form.call_to_action||'DISCOVER SUPERTECH AI').toUpperCase().slice(0,34),margin+36,ctaY+66);
       ctx.fillStyle='#fff';ctx.font='24px Arial';ctx.fillText('Hide the complexity. Deliver the intelligence.',margin,height-86);
       const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('PNG export failed.')),'image/png'));
@@ -177,7 +186,7 @@ export function MarketingStudio() {
     const w=window.open('','_blank','noopener,noreferrer');
     if(!w){setError('Allow pop-ups to create a PDF.');return;}
     const content=creativeUrl
-      ? '<div style="position:relative;width:100%;aspect-ratio:'+(format==='square'?'1/1':format==='story'?'9/16':'4/5')+';overflow:hidden;color:white;font-family:Arial,sans-serif;background:#07111c"><img src="'+creativeUrl+'" style="position:absolute;width:100%;height:100%;object-fit:cover;inset:0"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,8,18,.72),rgba(3,8,18,.18) 48%,rgba(3,8,18,.82));padding:8%;display:flex;flex-direction:column;justify-content:space-between"><div><b style="font-size:24px;letter-spacing:5px">SUPERTECH AI</b><p style="color:#e4b95d;letter-spacing:3px">TRADING INTELLIGENCE</p><h1 style="font-size:clamp(30px,6vw,68px);line-height:1.08">'+xml(form.headline)+'</h1><p style="font-size:22px;line-height:1.45">'+xml(form.details)+'</p></div><div><div style="background:#d7ad54;color:#07111c;padding:22px;font-weight:bold">'+xml(form.call_to_action.toUpperCase())+'</div><p>Hide the complexity. Deliver the intelligence.</p></div></div></div>'
+      ? '<div style="position:relative;width:100%;aspect-ratio:'+(format==='square'?'1/1':format==='story'?'9/16':'4/5')+';overflow:hidden;color:white;font-family:Arial,sans-serif;background:#07111c"><img src="'+creativeUrl+'" style="position:absolute;width:100%;height:100%;object-fit:cover;inset:0"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,8,18,.72),rgba(3,8,18,.18) 48%,rgba(3,8,18,.82));padding:8%;display:flex;flex-direction:column;justify-content:space-between"><div><img src="/icon.svg" style="width:64px;height:64px;object-fit:contain"><b style="font-size:24px;letter-spacing:5px">SUPERTECH AI</b><p style="color:#e4b95d;letter-spacing:3px">TRADING INTELLIGENCE</p><h1 style="font-size:clamp(30px,6vw,68px);line-height:1.08">'+xml(form.headline)+'</h1><p style="font-size:22px;line-height:1.45">'+xml(campaignDetails(form))+'</p></div><div><div style="background:#d7ad54;color:#07111c;padding:22px;font-weight:bold">'+xml(form.call_to_action.toUpperCase())+'</div><p>Hide the complexity. Deliver the intelligence.</p></div></div></div>'
       : svg;
     w.document.write('<!doctype html><html><head><title>SuperTech AI Flyer</title><style>@page{size:auto;margin:0}html,body{margin:0;padding:0}svg{display:block;width:100%;height:auto;max-height:100vh;object-fit:contain}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>'+content+'</body></html>');
     w.document.close();w.focus();w.print();
@@ -219,7 +228,7 @@ export function MarketingStudio() {
         <div className="mx-auto max-h-[680px] overflow-auto rounded-xl bg-[#070b13] shadow-2xl" style={{maxWidth:format==='square'?'420px':'360px'}}>
           {creativeUrl ? <div className="relative flex flex-col justify-between overflow-hidden p-7 text-white" style={{aspectRatio:format==='square'?'1 / 1':format==='story'?'9 / 16':'4 / 5',minHeight:format==='story'?'620px':'480px'}}>
             <img src={creativeUrl} alt="AI-generated SuperTech AI campaign artwork" className="absolute inset-0 h-full w-full object-cover"/><div className="absolute inset-0 bg-gradient-to-b from-[#030812]/75 via-[#030812]/20 to-[#030812]/85"/>
-            <div className="relative"><p className="text-xl font-bold tracking-[0.25em]">SUPERTECH AI</p><p className="mt-2 text-[10px] font-semibold tracking-[0.28em] text-[#e4b95d]">TRADING INTELLIGENCE</p><h4 className="mt-12 text-3xl font-bold leading-tight sm:text-4xl">{form.headline || 'Hide the complexity. Deliver the intelligence.'}</h4><p className="mt-5 text-sm leading-relaxed text-slate-200">{form.details}</p>{(form.event_date||form.event_time||form.venue)&&<p className="mt-5 text-xs font-semibold text-[#e4b95d]">{[form.event_date,form.event_time,form.venue].filter(Boolean).join(' • ')}</p>}</div>
+            <div className="relative"><div className="flex items-center gap-3"><img src="/icon.svg" alt="SuperTech AI logo" className="h-12 w-12 object-contain"/><p className="text-xl font-bold tracking-[0.25em]">SUPERTECH AI</p></div><p className="mt-2 text-[10px] font-semibold tracking-[0.28em] text-[#e4b95d]">TRADING INTELLIGENCE</p><h4 className="mt-12 text-3xl font-bold leading-tight sm:text-4xl">{form.headline || 'Hide the complexity. Deliver the intelligence.'}</h4><p className="mt-5 text-sm leading-relaxed text-slate-200">{campaignDetails(form)}</p>{form.campaign_type==='offer'&&<p className="mt-4 text-sm font-bold text-[#ffe19a]">$300 promotional offer · Standard $500</p>}{(form.event_date||form.event_time||form.venue)&&<p className="mt-5 text-xs font-semibold text-[#e4b95d]">{[form.event_date,form.event_time,form.venue].filter(Boolean).join(' • ')}</p>}</div>
             <div className="relative"><div className="rounded-xl bg-gradient-to-r from-[#19c7ff] to-[#d7ad54] px-4 py-4 text-center text-sm font-extrabold uppercase tracking-wide text-[#07111c]">{form.call_to_action || 'Discover SuperTech AI'}</div><p className="mt-4 text-[10px] text-white">Hide the complexity. Deliver the intelligence.</p><p className="mt-1 text-[9px] text-slate-300">Trading involves risk. No profits are guaranteed.</p></div>
           </div> : <div dangerouslySetInnerHTML={{__html:svg}} />}
         </div>
