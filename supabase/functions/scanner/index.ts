@@ -329,12 +329,19 @@ async function runScan(): Promise<Record<string, unknown>> {
       .eq("auto_trade_enabled", true)
       .eq("emergency_stop", false);
     if (futuresAutomationError) throw new Error("Could not load Futures automation pairs: " + futuresAutomationError.message);
+    const { data: okxAutomationRows, error: okxAutomationError } = await db
+      .from("okx_futures_settings")
+      .select("user_id, auto_trade_enabled, live_execution_enabled, demo_trading, emergency_stop, connection_status")
+      .eq("connection_status", "connected")
+      .eq("auto_trade_enabled", true)
+      .eq("emergency_stop", false);
+    if (okxAutomationError) throw new Error("Could not load OKX automation accounts: " + okxAutomationError.message);
     const futuresAutomationAllowsAll = (futuresAutomationRows ?? []).some((row) =>
       !Array.isArray(row.allowed_symbols) || row.allowed_symbols.length === 0
     );
     let binanceFuturesSymbols: SymbolInfo[] = [];
     let futuresLoadError: string | null = null;
-    if ((futuresAutomationRows ?? []).length > 0) {
+    if ((futuresAutomationRows ?? []).length > 0 || (okxAutomationRows ?? []).length > 0) {
       try {
         binanceFuturesSymbols = await loadBinanceFuturesSymbols();
       } catch (error) {
@@ -589,6 +596,35 @@ async function runScan(): Promise<Record<string, unknown>> {
                   console.error("Futures executor reported failures", executorResult);
                 }
               }
+            }
+            if (symbol.exchange === "BINANCE_FUTURES" && (okxAutomationRows ?? []).length > 0 && symbol.symbol.endsWith("USDT")) {
+              const okxIntentRows = (okxAutomationRows ?? []).map((account) => ({
+                user_id: account.user_id,
+                signal_key: `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`,
+                inst_id: symbol.symbol.replace(/USDT$/, "-USDT-SWAP"),
+                side: superSignal.direction === "BUY" ? "buy" : "sell",
+                timeframe_agreement: 8,
+                signal_epoch: superSignal.signalEpoch,
+                entry_price: superSignal.entry,
+                stop_loss: superSignal.stopLoss,
+                take_profit: superSignal.tp3,
+                status: "signal_ready",
+                payload: { source: "scanner_super_signal", timeframe_agreement: 8, execution_exchange: "OKX", demo_trading: account.demo_trading === true }
+              }));
+              const { error: okxIntentError } = await db.from("okx_futures_signal_intents")
+                .upsert(okxIntentRows, { onConflict: "user_id,signal_key", ignoreDuplicates: true });
+              if (okxIntentError) throw new Error("Could not save OKX Super Signal intents: " + okxIntentError.message);
+              const okxExecutorResponse = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/okx-futures-executor", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "execute_pending" })
+              });
+              if (!okxExecutorResponse.ok) {
+                const executorError = await okxExecutorResponse.text();
+                throw new Error("OKX Futures executor returned " + okxExecutorResponse.status + ": " + executorError.slice(0, 180));
+              }
+              const okxExecutionResult = await okxExecutorResponse.json();
+              if (okxExecutionResult?.failed > 0) console.error("OKX Futures executor reported failures", okxExecutionResult);
             }
             const signalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
             const { error: superEventError } = await db.from("push_events").upsert([{
