@@ -81,7 +81,7 @@ Deno.serve(async req=>{
        break;
       }
      }
-     const {account,available,wallet,active,exchangeSymbols}=memberSnapshot;
+     const {account,available,wallet,active,exchangeSymbols}=memberSnapshot!;
      if(active.length>=Number(cfg.max_open_positions)){skipped++;break;}
      if(active.some((x)=>x.symbol===it.symbol)){skipped++;continue;}
      const symbolInfo=exchangeSymbols.find((x)=>x.symbol===it.symbol&&x.status==="TRADING");
