@@ -5,11 +5,46 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+type ProviderStatus = 'connected' | 'not_connected' | 'attention' | 'not_available';
+
+type AutomationStatusResponse = {
+  providers: {
+    binance: {
+      status: ProviderStatus;
+      spotStatus: string;
+      futuresStatus: string;
+      spotCheckedAt: string | null;
+      futuresCheckedAt: string | null;
+      accountLabel: string | null;
+    };
+    okx: {
+      status: ProviderStatus;
+      accountLabel: string | null;
+      accountMode: string | null;
+      demoTrading: boolean | null;
+      lastCheckedAt: string | null;
+    };
+    ctrader: {
+      status: ProviderStatus;
+      connectedAccounts: number;
+      totalAccounts: number;
+    };
+    mt5: {
+      status: ProviderStatus;
+      onlineWorkers: number;
+      loginSuffix: string | null;
+      server: string | null;
+      lastSeenAt: string | null;
+    };
+    deriv: { status: 'not_available' };
+  };
+};
+
 type ConnectionCard = {
   id: 'binance' | 'okx' | 'ctrader' | 'mt5' | 'deriv';
   title: string;
   subtitle: string;
-  status: 'connected' | 'not_connected' | 'attention' | 'not_available' | 'status_private';
+  status: ProviderStatus;
   detail: string;
   action: string;
   icon: typeof Bitcoin;
@@ -30,10 +65,19 @@ function openConnection(id: ConnectionCard['id'], onOpen: Props['onOpen']) {
   }
 }
 
-function connectionState(value: string | null | undefined): ConnectionCard['status'] {
-  if (value === 'connected') return 'connected';
-  if (value === 'error' || value === 'reauthorization_required') return 'attention';
-  return 'not_connected';
+function statusLabel(status: ProviderStatus) {
+  return ({
+    connected: 'Connected',
+    not_connected: 'Not connected',
+    attention: 'Needs attention',
+    not_available: 'Not yet available',
+  })[status];
+}
+
+function safeProviderStatus(value: unknown): ProviderStatus {
+  return value === 'connected' || value === 'attention' || value === 'not_available'
+    ? value
+    : 'not_connected';
 }
 
 export function AutomationConnections({ onOpen }: Props) {
@@ -45,65 +89,70 @@ export function AutomationConnections({ onOpen }: Props) {
     setLoading(true);
     setError('');
     try {
-      // These reads are limited to tables with member-scoped SELECT policies.
-      // OKX status and MT5 worker records intentionally remain private until a
-      // dedicated member-safe status endpoint is available.
-      const [spot, futures, ctrader, mt5] = await Promise.all([
-        supabase.from('binance_spot_settings').select('connection_status').maybeSingle(),
-        supabase.from('binance_futures_settings').select('connection_status').maybeSingle(),
-        supabase.from('ctrader_connections').select('id,connection_status,environment,account_label').order('created_at', { ascending: false }),
-        supabase.from('mt5_account_settings').select('bridge_status,last_seen_at,login,server').maybeSingle(),
-      ]);
+      const { data, error: invokeError } =
+        await supabase.functions.invoke<AutomationStatusResponse>('automation-status', {
+          method: 'GET',
+        });
 
-      const failures = [spot.error, futures.error, ctrader.error, mt5.error].filter(Boolean);
-      if (failures.length) throw new Error(failures[0]?.message ?? 'Could not load account connections.');
+      if (invokeError) throw new Error('Could not load secure account status.');
+      if (!data?.providers) throw new Error('Account status response was incomplete.');
 
-      const ctraderRows = ctrader.data ?? [];
-      const ctraderConnected = ctraderRows.filter((row) => row.connection_status === 'connected').length;
-      const mt5LastSeen = mt5.data?.last_seen_at ? new Date(mt5.data.last_seen_at).getTime() : Number.NaN;
-      const mt5HeartbeatFresh = Number.isFinite(mt5LastSeen) &&
-        mt5LastSeen <= Date.now() + 30000 &&
-        Date.now() - mt5LastSeen <= 120000;
-      const mt5Online = mt5.data?.bridge_status === 'connected' && mt5HeartbeatFresh;
+      const providers = data.providers;
+      const binance = providers.binance;
+      const okx = providers.okx;
+      const ctrader = providers.ctrader;
+      const mt5 = providers.mt5;
 
       setCards([
         {
-          id: 'binance', title: 'Binance', subtitle: 'Spot and USDⓈ-M Futures',
-          status: connectionState(spot.data?.connection_status) === 'connected' ||
-            connectionState(futures.data?.connection_status) === 'connected'
-            ? 'connected'
-            : connectionState(spot.data?.connection_status) === 'attention' ||
-              connectionState(futures.data?.connection_status) === 'attention' ? 'attention' : 'not_connected',
-          detail: `Spot: ${spot.data?.connection_status ?? 'not connected'} · Futures: ${futures.data?.connection_status ?? 'not connected'}`,
-          action: 'Manage Binance', icon: Bitcoin,
+          id: 'binance',
+          title: 'Binance',
+          subtitle: 'Spot and USDⓈ-M Futures',
+          status: safeProviderStatus(binance.status),
+          detail: `Spot: ${binance.spotStatus} · Futures: ${binance.futuresStatus}${binance.accountLabel ? ` · ${binance.accountLabel}` : ''}`,
+          action: 'Manage Binance',
+          icon: Bitcoin,
         },
         {
-          id: 'okx', title: 'OKX', subtitle: 'USDT Perpetual Futures',
-          status: 'status_private',
-          detail: 'Your existing OKX manager is available. This overview will show its status after a member-safe status route is added.',
-          action: 'Manage OKX', icon: Activity,
+          id: 'okx',
+          title: 'OKX',
+          subtitle: 'USDT Perpetual Futures',
+          status: safeProviderStatus(okx.status),
+          detail: [okx.accountLabel, okx.accountMode, okx.demoTrading === null ? null : okx.demoTrading ? 'Demo account' : 'Live account']
+            .filter(Boolean).join(' · ') || 'Account status checked securely',
+          action: 'Manage OKX',
+          icon: Activity,
         },
         {
-          id: 'ctrader', title: 'cTrader', subtitle: 'Broker accounts via secure authorisation',
-          status: ctraderRows.length === 0 ? 'not_connected' :
-            ctraderConnected > 0 ? 'connected' :
-            ctraderRows.some((row) => row.connection_status === 'reauthorization_required' || row.connection_status === 'error') ? 'attention' : 'not_connected',
-          detail: `${ctraderConnected} connected · ${ctraderRows.length} authorised account(s)`,
-          action: 'Manage cTrader', icon: Cable,
+          id: 'ctrader',
+          title: 'cTrader',
+          subtitle: 'Broker accounts via secure authorisation',
+          status: safeProviderStatus(ctrader.status),
+          detail: `${ctrader.connectedAccounts} connected · ${ctrader.totalAccounts} authorised account(s)`,
+          action: 'Manage cTrader',
+          icon: Cable,
         },
         {
-          id: 'mt5', title: 'MetaTrader 5', subtitle: 'Windows terminal bridge',
-          status: mt5Online ? 'connected' : mt5.data?.bridge_status === 'error' ? 'attention' : 'not_connected',
-          detail: mt5.data?.login
-            ? `Account ••••${mt5.data.login.slice(-4)} · ${mt5.data.server ?? 'Broker server'} · ${mt5Online ? 'Worker heartbeat fresh' : 'Worker heartbeat missing or stale'}`
+          id: 'mt5',
+          title: 'MetaTrader 5',
+          subtitle: 'Windows terminal bridge',
+          status: safeProviderStatus(mt5.status),
+          detail: mt5.loginSuffix
+            ? `Account ••••${mt5.loginSuffix} · ${mt5.server ?? 'Broker server'} · ${mt5.onlineWorkers} active worker(s)`
+            : mt5.onlineWorkers > 0
+            ? `${mt5.onlineWorkers} active worker(s)`
             : 'Pair an account and keep its secure worker online',
-          action: 'Manage MT5', icon: Cloud,
+          action: 'Manage MT5',
+          icon: Cloud,
         },
         {
-          id: 'deriv', title: 'Deriv', subtitle: 'Market data connected · account trading not yet linked',
+          id: 'deriv',
+          title: 'Deriv',
+          subtitle: 'Market data connected · account trading not yet linked',
           status: 'not_available',
           detail: 'Signal data is available. Secure account authorisation and trade execution are still to be built.',
-          action: 'Market data only', icon: Wifi,
+          action: 'Market data only',
+          icon: Wifi,
         },
       ]);
     } catch (e) {
@@ -114,14 +163,6 @@ export function AutomationConnections({ onOpen }: Props) {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
-
-  const statusLabel = (status: ConnectionCard['status']) => ({
-    connected: 'Connected',
-    not_connected: 'Not connected',
-    attention: 'Needs attention',
-    not_available: 'Not yet available',
-    status_private: 'Status not shown here',
-  })[status];
 
   return (
     <section className="mt-6 space-y-5">
