@@ -577,24 +577,8 @@ async function runScan(): Promise<Record<string, unknown>> {
                 const { error: intentError } = await db.from("binance_futures_signal_intents")
                   .upsert(intentRows, { onConflict: "user_id,signal_key", ignoreDuplicates: true });
                 if (intentError) throw new Error("Could not save Futures Super Signal intents: " + intentError.message);
-                // Execute only server-side, after this scanner pass has persisted eligible 8/8 intents.
-                // The executor independently checks member opt-in, risk limits, freshness and protection.
-                const executorResponse = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/binance-futures-executor", {
-                  method: "POST",
-                  headers: {
-                    "Authorization": "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
-                    "Content-Type": "application/json"
-                  },
-                  body: JSON.stringify({ action: "execute_pending" })
-                });
-                if (!executorResponse.ok) {
-                  const executorError = await executorResponse.text();
-                  throw new Error("Futures executor returned " + executorResponse.status + ": " + executorError.slice(0, 180));
-                }
-                const executorResult = await executorResponse.json();
-                if (executorResult?.failed > 0) {
-                  console.error("Futures executor reported failures", executorResult);
-                }
+                // Execution is deferred until the scan has finished so the Futures executor
+                // is invoked once per scan, not once for every matching contract.
               }
             }
             if (symbol.exchange === "BINANCE_FUTURES" && (okxAutomationRows ?? []).length > 0 && symbol.symbol.endsWith("USDT")) {
@@ -662,6 +646,29 @@ async function runScan(): Promise<Record<string, unknown>> {
       }
     });
     await Promise.all(workers);
+
+    // Run the Futures executor once after all symbols have been scanned and all fresh
+    // 8/8 intents have been persisted. This avoids repeated Binance account REST bursts.
+    if ((futuresAutomationRows ?? []).length > 0) {
+      try {
+        const executorResponse = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/binance-futures-executor", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ action: "execute_pending" })
+        });
+        if (!executorResponse.ok) {
+          const executorError = await executorResponse.text();
+          throw new Error("Futures executor returned " + executorResponse.status + ": " + executorError.slice(0, 180));
+        }
+        const executorResult = await executorResponse.json();
+        if (executorResult?.failed > 0) console.error("Futures executor reported failures", executorResult);
+      } catch (error) {
+        lastError = `Futures executor: ${messageOf(error)}`;
+      }
+    }
 
     let pushSummary: Record<string, number> = { sent: 0, failed: 0, removed: 0 };
     try {
