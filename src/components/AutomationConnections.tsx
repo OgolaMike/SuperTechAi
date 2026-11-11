@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-type ProviderStatus = 'connected' | 'not_connected' | 'attention' | 'not_available';
+type ProviderStatus = 'connected' | 'connecting' | 'not_connected' | 'attention' | 'not_available';
 
 type AutomationStatusResponse = {
   providers: {
@@ -68,6 +68,7 @@ function openConnection(id: ConnectionCard['id'], onOpen: Props['onOpen']) {
 function statusLabel(status: ProviderStatus) {
   return ({
     connected: 'Connected',
+    connecting: 'Connecting',
     not_connected: 'Not connected',
     attention: 'Needs attention',
     not_available: 'Not yet available',
@@ -75,7 +76,7 @@ function statusLabel(status: ProviderStatus) {
 }
 
 function safeProviderStatus(value: unknown): ProviderStatus {
-  return value === 'connected' || value === 'attention' || value === 'not_available'
+  return value === 'connected' || value === 'connecting' || value === 'attention' || value === 'not_available'
     ? value
     : 'not_connected';
 }
@@ -187,14 +188,15 @@ export function AutomationConnections({ onOpen }: Props) {
           const Icon = card.icon;
           const good = card.status === 'connected';
           const attention = card.status === 'attention';
+          const connecting = card.status === 'connecting';
           return (
             <article key={card.id} className="flex min-h-52 flex-col rounded-2xl border border-line/15 bg-surface/[0.04] p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-line/15 bg-surface/[0.07]">
                   <Icon className="h-5 w-5 text-accent" />
                 </div>
-                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${good ? 'border-emerald-500/25 text-emerald-400' : attention ? 'border-amber-500/25 text-amber-400' : 'border-line/15 text-ink-2'}`}>
-                  {good ? <CheckCircle2 className="h-3.5 w-3.5" /> : attention ? <ShieldAlert className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${good ? 'border-emerald-500/25 text-emerald-400' : attention ? 'border-amber-500/25 text-amber-400' : connecting ? 'border-sky-500/25 text-sky-400' : 'border-line/15 text-ink-2'}`}>
+                  {good ? <CheckCircle2 className="h-3.5 w-3.5" /> : attention ? <ShieldAlert className="h-3.5 w-3.5" /> : connecting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <WifiOff className="h-3.5 w-3.5" />}
                   {statusLabel(card.status)}
                 </span>
               </div>
