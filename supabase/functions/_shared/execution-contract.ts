@@ -56,6 +56,7 @@ export type ExecutionIntent = {
     instrument: string;
     side: OrderSide;
     kind: OrderKind;
+    entryPrice: number;
     quantity?: number;
     quoteAmount?: number;
     limitPrice?: number;
@@ -150,19 +151,26 @@ export function assertExecutionIntent(value: ExecutionIntent): void {
   if (Date.parse(value.expiresAt) <= Date.parse(value.createdAt)) {
     throw new Error("execution_intent_expiry_must_follow_creation");
   }
-  if (!positive(value.order.stopLoss) || !positive(value.order.takeProfit)) {
-    throw new Error("invalid_execution_protection_levels");
+  if (!positive(value.order.entryPrice) || !positive(value.order.stopLoss) || !positive(value.order.takeProfit)) {
+    throw new Error("invalid_execution_price_or_protection_levels");
   }
   if (value.order.side === "buy" &&
-      !(value.order.stopLoss < value.order.takeProfit)) {
-    throw new Error("buy_protection_levels_invalid");
+      !(value.order.stopLoss < value.order.entryPrice && value.order.entryPrice < value.order.takeProfit)) {
+    throw new Error("buy_entry_or_protection_geometry_invalid");
   }
   if (value.order.side === "sell" &&
-      !(value.order.stopLoss > value.order.takeProfit)) {
-    throw new Error("sell_protection_levels_invalid");
+      !(value.order.takeProfit < value.order.entryPrice && value.order.entryPrice < value.order.stopLoss)) {
+    throw new Error("sell_entry_or_protection_geometry_invalid");
   }
-  if (value.order.kind !== "market" && !positive(value.order.limitPrice ?? value.order.stopPrice)) {
-    throw new Error("pending_order_price_missing");
+  if (value.order.kind === "limit" && !positive(value.order.limitPrice)) {
+    throw new Error("limit_order_price_missing");
+  }
+  if (value.order.kind === "stop" && !positive(value.order.stopPrice)) {
+    throw new Error("stop_order_price_missing");
+  }
+  if (value.order.kind === "stop_limit" &&
+      (!positive(value.order.stopPrice) || !positive(value.order.limitPrice))) {
+    throw new Error("stop_limit_order_prices_missing");
   }
   if (value.order.quantity !== undefined && !positive(value.order.quantity)) {
     throw new Error("invalid_execution_quantity");
