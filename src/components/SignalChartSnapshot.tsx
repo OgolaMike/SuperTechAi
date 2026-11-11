@@ -14,6 +14,7 @@ type Props = {
   assetName: string;
   symbol: string;
   anchorId: string;
+  livePrice?: number;
 };
 
 const WIDTH = 1440;
@@ -40,7 +41,7 @@ function timeLabel(epoch: number) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 300, digits, assetName, symbol, anchorId }: Props) {
+export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 300, digits, assetName, symbol, anchorId, livePrice }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
@@ -116,6 +117,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const leftRegime = direction === 'BUY' ? '#ef4444' : '#2563eb';
   const rightRegime = direction === 'BUY' ? '#2563eb' : '#ef4444';
   const latest = data[data.length - 1];
+  const currentPrice = livePrice ?? latest.close;
   const secondsRemaining = Math.max(0, latest.epoch + granularity - clockEpoch);
   const days = Math.floor(secondsRemaining / 86400);
   const hours = Math.floor((secondsRemaining % 86400) / 3600);
@@ -142,7 +144,9 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±2.5σ</span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Current candle countdown">CLOSES IN {countdown}</span>
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Live price and current candle countdown">
+            <span className="text-cyan-200/70">LIVE</span><span>{currentPrice.toFixed(digits)}</span><span className="text-cyan-200/40">·</span><span className="text-cyan-200/70">CLOSES IN</span><span>{countdown}</span>
+          </span>
           <span className="mr-1 text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
           <button type="button" onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))} disabled={zoom === MIN_ZOOM} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 hover:border-amber-200/60 hover:bg-white/10 disabled:opacity-30" aria-label="Zoom out chart" title="Zoom out chart"><ZoomOut className="h-4 w-4" /></button>
           <span className="min-w-10 text-center text-[10px] tabular-nums text-slate-300">{zoom.toFixed(1)}×</span>
@@ -218,8 +222,8 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             <text x={svgWidth - PAD.right + 57} y={Math.max(PAD.top + 16, y(latestStats.lower) + 4)} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">{latestStats.lower.toFixed(digits)}</text>
           </>}
 
-          <rect x={svgWidth - PAD.right + 5} y={Math.min(HEIGHT - PAD.bottom - 25, Math.max(PAD.top, y(latest.close) - 12))} width="104" height="24" rx="4" fill="#f8fafc" />
-          <text x={svgWidth - PAD.right + 57} y={Math.min(HEIGHT - PAD.bottom - 8, Math.max(PAD.top + 16, y(latest.close) + 5))} textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="800">{latest.close.toFixed(digits)}</text>
+          <rect x={svgWidth - PAD.right + 5} y={Math.min(HEIGHT - PAD.bottom - 25, Math.max(PAD.top, y(currentPrice) - 12))} width="104" height="24" rx="4" fill="#f8fafc" />
+          <text x={svgWidth - PAD.right + 57} y={Math.min(HEIGHT - PAD.bottom - 8, Math.max(PAD.top + 16, y(currentPrice) + 5))} textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="800">{currentPrice.toFixed(digits)}</text>
 
           {[0, 1, 2, 3, 4].map((step) => {
             const index = Math.round((data.length - 1) * step / 4);
