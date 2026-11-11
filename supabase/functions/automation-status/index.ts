@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
         .eq("user_id", userId)
         .maybeSingle(),
       db.from("ctrader_connections")
-        .select("connection_status,environment,account_label,broker_name,token_expires_at")
+        .select("connection_status,token_expires_at")
         .eq("user_id", userId),
       db.from("mt5_account_settings")
         .select("bridge_status,last_seen_at,login,server")
