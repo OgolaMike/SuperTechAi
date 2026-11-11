@@ -91,7 +91,7 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
     const zoneLow = Math.min(first.price, second.price) - tolerance * 0.25;
     const zoneHigh = Math.max(first.price, second.price) + tolerance * 0.25;
     // A break through the far edge after the second touch invalidates the setup.
-    const afterSecond = candles.slice(second.index + 1);
+    const confirmationIndex = Math.min(second.index + 2, candles.length - 1);\n    const confirmationEpoch = candles[confirmationIndex].epoch;\n    const afterSecond = candles.slice(confirmationIndex + 1);
     const invalidated = side === 'low'
       ? afterSecond.some(c => c.close < zoneLow - tolerance)
       : afterSecond.some(c => c.close > zoneHigh + tolerance);
@@ -108,7 +108,7 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
     const takeProfit = direction === 'BUY' ? entry + 3 * risk : entry - 3 * risk;
     if (!(takeProfit > 0)) continue;
     const patternType: PendingPatternType = side === 'low' ? 'TRIPLE BOTTOM' : 'TRIPLE TOP';
-    const signalEpoch = second.epoch;
+    const signalEpoch = confirmationEpoch;
     const outcome = resolveOutcome(direction, entry, stopLoss, takeProfit, candles, signalEpoch, nowEpoch, granularity);
     const recent = candles.slice(-6);
     const delta = recent.length > 1 ? recent[recent.length - 1].close - recent[0].close : 0;
