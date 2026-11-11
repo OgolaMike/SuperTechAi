@@ -42,7 +42,7 @@ export function HeaderBrand() {
   return (
     <a href="/" aria-label="SuperTechAi home" className="inline-flex min-w-0 items-center">
       <img
-        src="/supertechai-logo.webp"
+        src="/supertechai-logo.png"
         alt="SuperTechAi official gold and electric-blue lightning logo"
         className="h-[76px] w-[76px] object-contain sm:h-[88px] sm:w-[88px]"
         fetchPriority="high"
