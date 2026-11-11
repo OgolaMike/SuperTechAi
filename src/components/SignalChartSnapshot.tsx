@@ -9,7 +9,7 @@ type Props = {
   signalEpoch: number;
   direction: 'BUY' | 'SELL';
   timeframe: string;
-  granularity: number;
+  granularity?: number;
   digits: number;
   assetName: string;
   symbol: string;
@@ -40,7 +40,7 @@ function timeLabel(epoch: number) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity, digits, assetName, symbol, anchorId }: Props) {
+export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 300, digits, assetName, symbol, anchorId }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
