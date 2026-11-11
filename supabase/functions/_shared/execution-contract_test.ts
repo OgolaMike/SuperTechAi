@@ -53,7 +53,7 @@ const validIntent = (): ExecutionIntent => ({
   },
   authorization: {
     liveExecutionAuthorized: false,
-    emergencyStop: true,
+    emergencyStop: false,
     tradingPermissionVerifiedAt: "2026-11-11T09:59:00.000Z",
   },
   createdAt: "2026-11-11T10:00:01.000Z",
@@ -122,4 +122,16 @@ Deno.test("rejects an unsupported trading environment", () => {
   const intent = validIntent();
   (intent as { environment: string }).environment = "paper";
   expectThrow(() => assertExecutionIntent(intent), "unsupported_trading_environment");
+});
+
+Deno.test("emergency stop blocks demo and live execution alike", () => {
+  const intent = validIntent();
+  intent.authorization.emergencyStop = true;
+  expectThrow(() => assertExecutionIntent(intent), "emergency_stop_active");
+});
+
+Deno.test("rejects an intent without an explicit order size", () => {
+  const intent = validIntent();
+  delete intent.order.quantity;
+  expectThrow(() => assertExecutionIntent(intent), "execution_order_size_missing");
 });
