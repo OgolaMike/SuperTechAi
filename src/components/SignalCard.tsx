@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target, ZoomIn, ZoomOut } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
@@ -105,7 +105,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           )}
         </>
       ) : tf.granularity === 86400 ? (
-        <DailyCandlesEmptyState candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} assetName={asset.fullName} digits={asset.digits} loading={loading} />
+        <DailyCandlesEmptyState candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} assetName={asset.fullName} digits={asset.digits} loading={loading} livePrice={price} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
           {loading ? <Loader2 className="h-6 w-6 animate-spin text-ink-3" /> : <Minus className="h-6 w-6 text-ink-3" />}
@@ -137,13 +137,15 @@ function buildRows(signal: Signal) {
 }
 
 
-function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
+function DailyCandlesEmptyState({ candles, assetName, digits, loading, livePrice }: {
   candles: Candle[];
   assetName: string;
   digits: number;
   loading: boolean;
+  livePrice?: number;
 }) {
   const [nowEpoch, setNowEpoch] = useState(() => Math.floor(Date.now() / 1000));
+  const [zoom, setZoom] = useState(1);
   useEffect(() => {
     const timer = window.setInterval(() => setNowEpoch(Math.floor(Date.now() / 1000)), 1000);
     return () => window.clearInterval(timer);
@@ -201,6 +203,7 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
   const indicatorPath = (key: 'mean' | 'upper' | 'lower') => stats.map((item, index) => item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '').filter(Boolean).join(' ');
   const dateLabel = (epoch: number) => new Date(epoch * 1000).toLocaleDateString([], { day: '2-digit', month: 'short' });
   const priceLabel = (value: number) => value.toFixed(digits);
+  const marketBias = latestStats ? (latest!.close > latestStats.mean ? 'Above SMA 60 · upward bias' : latest!.close < latestStats.mean ? 'Below SMA 60 · downward bias' : 'At SMA 60 · neutral') : 'SMA 60 warming up';
 
   return (
     <div className="overflow-hidden rounded-xl border border-line/10 bg-[#080d18] text-white">
@@ -209,21 +212,26 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Daily candles · D1</p>
           <p className="mt-1 text-[11px] text-slate-400">{assetName} · latest 60 candles · live market analysis</p>
         </div>
-        <div className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-right">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setZoom(value => Math.max(1, value - 0.5))} disabled={zoom <= 1} aria-label="Zoom out daily chart" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 disabled:opacity-30"><ZoomOut className="h-4 w-4" /></button>
+          <span className="min-w-8 text-center text-[10px] tabular-nums text-slate-300">{zoom.toFixed(1)}×</span>
+          <button type="button" onClick={() => setZoom(value => Math.min(3, value + 0.5))} disabled={zoom >= 3} aria-label="Zoom in daily chart" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 disabled:opacity-30"><ZoomIn className="h-4 w-4" /></button>
+          <div className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-right">
           <p className="text-[9px] font-bold uppercase tracking-wider text-cyan-200/70">Daily candle closes in</p>
           <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-cyan-100">
             {secondsRemaining > 0 ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` : 'Updating…'}
           </p>
+          </div>
         </div>
       </div>
       {latest && <div className="grid grid-cols-2 gap-2 border-b border-white/10 bg-[#0a1220] p-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-white/10 bg-white/[0.035] p-2"><p className="text-[9px] uppercase tracking-wider text-slate-400">Current price</p><p className="mt-1 text-sm font-bold tabular-nums text-white">{priceLabel(latest.close)}</p></div>
+        <div className="rounded-lg border border-white/10 bg-white/[0.035] p-2"><p className="text-[9px] uppercase tracking-wider text-slate-400">Current price</p><p className="mt-1 text-sm font-bold tabular-nums text-white">{priceLabel(livePrice ?? latest.close)}</p></div>
         <div className="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-amber-200/70">SMA 60</p><p className="mt-1 text-sm font-bold tabular-nums text-amber-100">{latestStats ? priceLabel(latestStats.mean) : 'Warming up'}</p></div>
         <div className="rounded-lg border border-rose-300/20 bg-rose-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-rose-200/70">Upper band +2.5σ</p><p className="mt-1 text-sm font-bold tabular-nums text-rose-100">{latestStats ? priceLabel(latestStats.upper) : 'Warming up'}</p></div>
         <div className="rounded-lg border border-blue-300/20 bg-blue-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-blue-200/70">Lower band −2.5σ</p><p className="mt-1 text-sm font-bold tabular-nums text-blue-100">{latestStats ? priceLabel(latestStats.lower) : 'Warming up'}</p></div>
       </div>}
       <div className="w-full overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Latest 60 daily candlesticks for ${assetName}; no active signal`} style={{ width: '100%', minWidth: '560px', height: 'auto', display: 'block' }}>
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Latest 60 daily candlesticks for ${assetName}; no active signal`} style={{ width: `${zoom * 100}%`, minWidth: '560px', height: 'auto', display: 'block' }}>
           {grid.map((value, index) => <g key={index}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(value)} y2={y(value)} stroke="#94a3b8" strokeOpacity=".16" strokeDasharray="3 7" />
             <text x={W - PAD.right + 8} y={y(value) + 4} fill="#94a3b8" fontSize="12">{priceLabel(value)}</text>
@@ -247,6 +255,7 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading }: {
           <text x={W - PAD.right + 56} y={y(latest!.close) + 4} textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="800">{priceLabel(latest!.close)}</text>
         </svg>
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] text-slate-300"><span className="font-semibold text-cyan-200">NO CROSS SIGNAL</span><span>{marketBias} · BUY/SELL only after a confirmed candle-close cross.</span></div>
     </div>
   );
 }
