@@ -129,7 +129,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                   candles={states[idea.symbol]?.[idea.granularity]?.chartCandles ?? states[idea.symbol]?.[idea.granularity]?.candles ?? []}
                   entry={idea.entry} stopLoss={idea.stopLoss} takeProfit={idea.takeProfit}
                   currentPrice={idea.currentPrice} digits={idea.digits} direction={idea.direction}
-                  symbol={idea.symbol} zone={idea.zone} patternType={idea.patternType}
+                  symbol={idea.symbol} zone={idea.zone} patternType={idea.patternType} granularity={idea.granularity}
                 />
               </div>
               <div className="mt-4">
