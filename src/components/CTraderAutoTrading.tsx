@@ -119,7 +119,7 @@ export function CTraderAutoTrading() {
   };
 
   const disconnect = async () => {
-    if (!window.confirm('Disconnect your cTrader authorisation from SuperTech AI?')) return;
+    if (!window.confirm('Disconnect all cTrader accounts linked to this SuperTech AI login?')) return;
     setBusy(true); setError(''); setMessage('');
     const { error: invokeError } = await supabase.functions.invoke('ctrader-disconnect', { body: {} });
     if (invokeError) setError(invokeError.message);
@@ -160,7 +160,7 @@ export function CTraderAutoTrading() {
       <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div><h3 className="font-semibold text-ink">Your connected accounts</h3><p className="mt-1 text-xs text-ink-2">Choose which account will be prepared for automation.</p></div>
-          {selected && <button type="button" onClick={() => void disconnect()} disabled={busy} className="inline-flex items-center gap-2 self-start rounded-lg border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-500 disabled:opacity-50"><Unplug className="h-4 w-4" /> Disconnect</button>}
+          {selected && <button type="button" onClick={() => void disconnect()} disabled={busy} className="inline-flex items-center gap-2 self-start rounded-lg border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-500 disabled:opacity-50"><Unplug className="h-4 w-4" /> Disconnect all</button>}
         </div>
         {loading ? <p className="mt-4 text-sm text-ink-2">Loading accounts…</p> : connections.length === 0 ? <div className="mt-4 rounded-xl border border-dashed border-line/20 p-5 text-center text-sm text-ink-2">No cTrader account connected yet. Start with the Connect cTrader button above.</div> : (
           <div className="mt-4 space-y-3">
