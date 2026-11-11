@@ -377,6 +377,10 @@ async function main() {
       const row = latest.get(lesson.id);
       return !row || row.status !== 'completed' || !row.video_url || !Array.isArray(row.screenshots) || row.screenshots.length === 0;
     });
+    const dailyLimit = Number.parseInt(process.env.ACADEMY_DAILY_LIMIT || '0', 10);
+    if (!TEST_LESSON_ID && !force && Number.isFinite(dailyLimit) && dailyLimit > 0) {
+      queue.splice(dailyLimit);
+    }
     report.total_lessons = lessons.length;
     report.test_lesson_id = TEST_LESSON_ID || null;
     report.candidate_count = candidateLessons.length;
