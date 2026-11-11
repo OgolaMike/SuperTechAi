@@ -1,8 +1,8 @@
 export type ConnectionHealth = "connected" | "connecting" | "attention" | "not_connected";
 
 export function classifyConnectionHealth(values: Array<string | null | undefined>): ConnectionHealth {
-  if (values.some((value) => value === "connected")) return "connected";
   if (values.some((value) => value === "error" || value === "reauthorization_required")) return "attention";
+  if (values.some((value) => value === "connected")) return "connected";
   if (values.some((value) => value === "connecting")) return "connecting";
   return "not_connected";
 }
