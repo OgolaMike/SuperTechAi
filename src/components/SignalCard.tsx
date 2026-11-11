@@ -32,7 +32,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
         : 'border-line/20 bg-surface/[0.04] text-ink-2';
 
   return (
-    <div role={signal ? 'button' : undefined} tabIndex={signal ? 0 : undefined} onClick={(event) => { if (signal && !(event.target as HTMLElement).closest('button')) setChartOpen(true); }} onKeyDown={(event) => { if (signal && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setChartOpen(true); } }} aria-label={signal ? `Open live ${asset.fullName} ${tf.label} ${signal.direction} signal chart` : undefined} className={`hud-panel flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-all duration-300 hover:bg-surface/[0.05] sm:p-5 ${signal ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2' : ''} ${
+    <div role={signal ? 'group' : undefined} tabIndex={signal ? 0 : undefined} onClick={(event) => { if (signal && !(event.target as HTMLElement).closest('button')) setChartOpen(true); }} onKeyDown={(event) => { if (signal && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setChartOpen(true); } }} aria-label={signal ? `Open live ${asset.fullName} ${tf.label} ${signal.direction} signal chart` : undefined} className={`hud-panel flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-all duration-300 hover:bg-surface/[0.05] sm:p-5 ${signal ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2' : ''} ${
       isBuy ? 'border-up/30' : isSell ? 'border-down/30' : 'border-line/10'
     }`}>
       <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -40,10 +40,11 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           <div className="mb-1 break-words whitespace-normal text-xs font-semibold uppercase tracking-wider text-accent" title={asset.fullName}>
             {asset.fullName} <span className="font-medium text-ink-3">({asset.symbol})</span>
           </div>
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-lg font-semibold text-ink">{tf.label}</span>
             <span className="break-words whitespace-normal text-xs uppercase tracking-wider text-ink-3">{tf.role}</span>
           </div>
+          {signal && <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent/80">Tap anywhere to open live chart</p>}
         </div>
         {signal && (
           <span className={`max-w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-snug sm:px-3 sm:text-xs ${statusTone(signal.outcome.status)}`}>
@@ -70,8 +71,8 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
 
           {confluenceCount !== undefined && (
             <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 px-4 py-3 ${gradeTone}`}>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-80">8-timeframe signal grade</div>
+              <div className="min-w-0 flex-1">
+                <div className="break-words text-[10px] font-bold uppercase leading-relaxed tracking-[0.12em] opacity-80">8-timeframe signal grade</div>
                 <div className="mt-0.5 text-xs opacity-80">{confluenceCount === 8 ? 'SUPER SIGNAL · All timeframes agree' : confluenceCount >= 6 ? 'Strong alignment' : confluenceCount >= 4 ? 'Moderate alignment' : 'Limited alignment'}</div>
               </div>
               <div className="text-3xl font-black tabular-nums">{confluenceCount}<span className="text-lg font-bold opacity-70">/8</span></div>
