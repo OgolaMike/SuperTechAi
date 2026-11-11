@@ -105,7 +105,7 @@ export function BinanceFuturesAutomation() {
         maxOpenPositions: Number(maxOpen), allowedSymbols: [], autoTradeEnabled: autoTrade,
         liveExecutionEnabled: liveExecution, emergencyStop,
       });
-      setMessage('Futures controls saved. Live order execution is not yet armed by the signal engine.');
+      setMessage('Futures controls saved. New eligible 8/8 Super Signals can be executed when the account is connected, automation and live orders are enabled, and the emergency stop is off. Saving controls does not place an order.');
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save Futures settings.');
