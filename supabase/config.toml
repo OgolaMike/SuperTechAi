@@ -16,3 +16,6 @@ verify_jwt = false
 
 [functions.finance]
 verify_jwt = true
+
+[functions.marketing-ai]
+verify_jwt = true
