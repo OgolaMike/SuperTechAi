@@ -19,3 +19,6 @@ verify_jwt = true
 
 [functions.marketing-ai]
 verify_jwt = true
+
+[functions.marketing-image]
+verify_jwt = true
