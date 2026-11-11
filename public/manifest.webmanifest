@@ -12,7 +12,7 @@
   "theme_color": "#070b14",
   "categories": ["finance", "utilities"],
   "icons": [
-    { "src": "/supertechai-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/supertechai-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/supertechai-icon.png?v=5752d4b0", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/supertechai-icon.png?v=5752d4b0", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
