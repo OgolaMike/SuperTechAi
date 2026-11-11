@@ -49,7 +49,6 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   const y = (v: number) => P.top + (max - v) / range * (H - P.top - P.bottom);
   const body = Math.max(5, Math.min(18, (W - P.left - P.right) / data.length * 0.62));
   const breakIndex = Math.max(0, data.findIndex(c => c.epoch >= setup.breakEpoch));
-  const retestIndex = Math.max(0, data.findIndex(c => c.epoch >= setup.retestEpoch));
   const confirmIndex = Math.max(0, data.findIndex(c => c.epoch >= setup.confirmationEpoch));
   const zoneX = x(breakIndex);
   const zoneY = y(setup.zoneHigh);

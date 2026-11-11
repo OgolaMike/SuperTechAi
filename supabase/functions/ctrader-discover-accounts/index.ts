@@ -10,9 +10,11 @@ const decrypt = async (value: string, keyText: string) => {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64decode(ivText) }, key, b64decode(cipherText));
   return new TextDecoder().decode(plain);
 };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const waitForPayload = (ws: WebSocket, expected: number, timeoutMs = 8000) => new Promise<Record<string, any>>((resolve, reject) => {
   const timer = setTimeout(() => { cleanup(); reject(new Error("ctrader_response_timeout")); }, timeoutMs);
   const onMessage = (event: MessageEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let message: Record<string, any>;
     try {
       if (typeof event.data !== "string") throw new Error("unexpected_non_text_message");
