@@ -22,3 +22,15 @@ verify_jwt = true
 
 [functions.marketing-image]
 verify_jwt = true
+
+[functions.ctrader-connect]
+verify_jwt = true
+
+[functions.ctrader-callback]
+verify_jwt = false
+
+[functions.ctrader-disconnect]
+verify_jwt = true
+
+[functions.ctrader-discover-accounts]
+verify_jwt = true
