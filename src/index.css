@@ -463,8 +463,10 @@ nav[aria-label="Sections"] button[aria-current="page"] {
   will-change: transform, opacity;
 }
 .signal-bubble:active { filter: brightness(1.12); }
+/* Signal bubbles remain animated even when the device requests reduced motion:
+   their movement is an essential live notification, not decorative motion. */
 @media (prefers-reduced-motion: reduce) {
-  .signal-bubble { animation-duration: 1ms; }
+  .signal-bubble { animation-duration: 12s !important; animation-timing-function: linear !important; }
 }
 
 
