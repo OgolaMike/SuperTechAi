@@ -114,7 +114,16 @@ Deno.serve(async req=>{
    if(!demo&&body.liveExecutionEnabled!==true)return reply({error:"Explicitly enable live execution to switch from demo to live."},409);
    const {error}=await admin.from("okx_futures_settings").update({demo_trading:demo,leverage,risk_percent:risk,max_daily_loss_pct:daily,max_open_positions:max,emergency_stop:emergency,auto_trade_enabled:body.autoTradeEnabled===true&&!emergency,live_execution_enabled:!demo&&body.liveExecutionEnabled===true&&!emergency,updated_at:new Date().toISOString()}).eq("user_id",userId);if(error)throw error;return reply({ok:true,message:"OKX risk and execution settings saved."});
   }
-  if(action==="disconnect"){await admin.from("okx_futures_credentials").delete().eq("user_id",userId);const {error}=await admin.from("okx_futures_settings").update({connection_status:"not_connected",auto_trade_enabled:false,live_execution_enabled:false,emergency_stop:true,api_key_last4:null,account_label:null,account_mode:null,updated_at:new Date().toISOString()}).eq("user_id",userId);if(error)throw error;return reply({ok:true});}
+  if(action==="settings"){
+ const {data:current,error:ce}=await db.from("okx_futures_settings").select("connection_status").eq("user_id",uid).maybeSingle();
+ if(ce)throw ce;if(current?.connection_status!=="connected")return json({error:"connect_okx_first"},409);
+ const leverage=Number(b.leverage),risk=Number(b.riskPercent),daily=Number(b.maxDailyLossPct),max=Number(b.maxOpenPositions),demo=b.demoTrading===true,emergency=b.emergencyStop!==false;
+ if(!Number.isInteger(leverage)||leverage<1||leverage>20||!Number.isFinite(risk)||risk<=0||risk>2||!Number.isFinite(daily)||daily<=0||daily>5||!Number.isInteger(max)||max<1||max>10)return json({error:"Invalid risk controls"},400);
+ if(!demo&&b.liveExecutionEnabled!==true)return json({error:"Explicitly authorize live execution before disabling demo mode"},409);
+ const {error}=await db.from("okx_futures_settings").update({demo_trading:demo,leverage,risk_percent:risk,max_daily_loss_pct:daily,max_open_positions:max,emergency_stop:emergency,auto_trade_enabled:b.autoTradeEnabled===true&&!emergency,live_execution_enabled:!demo&&b.liveExecutionEnabled===true&&!emergency,updated_at:new Date().toISOString()}).eq("user_id",uid);
+ if(error)throw error;return json({ok:true,message:"OKX risk and execution settings saved"});
+}
+if(action==="disconnect"){await admin.from("okx_futures_credentials").delete().eq("user_id",userId);const {error}=await admin.from("okx_futures_settings").update({connection_status:"not_connected",auto_trade_enabled:false,live_execution_enabled:false,emergency_stop:true,api_key_last4:null,account_label:null,account_mode:null,updated_at:new Date().toISOString()}).eq("user_id",userId);if(error)throw error;return reply({ok:true});}
   return reply({error:"unsupported_action"},400);
  }catch(e){const m=e instanceof Error?e.message:"okx_futures_error";console.error("[okx-futures]",m);return reply({ok:false,error:m.slice(0,240),message:m.slice(0,240)},400);}
 });
