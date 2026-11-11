@@ -37,6 +37,7 @@ jobs:
       ACADEMY_DEMO_PASSWORD: ${{ secrets.ACADEMY_DEMO_PASSWORD }}
       ACADEMY_FORCE_REFRESH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_refresh == true) }}
       ACADEMY_TEST_LESSON_ID: ${{ github.event_name == 'push' && 'welcome' || (github.event_name == 'workflow_dispatch' && inputs.test_lesson_id || '') }}
+      ACADEMY_DAILY_LIMIT: ${{ github.event_name == 'schedule' && '2' || '0' }}
     steps:
       - name: Check out SuperTechAi
         uses: actions/checkout@v6
