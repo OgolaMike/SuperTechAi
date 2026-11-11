@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target, X } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
@@ -123,7 +124,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
         <span>Last update: {formatDateTime(tf.updatedEpoch)}</span>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] leading-relaxed text-slate-300"><span className="font-semibold text-cyan-200">NO CROSS SIGNAL</span><span>Market data remains active; BUY/SELL appears only after a confirmed candle-close crossover.</span></div>
-      {chartOpen && signal && (
+      {chartOpen && signal && createPortal((
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#050914]/95 p-3 backdrop-blur-md sm:p-6" onClick={(event) => event.stopPropagation()}>
           <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/15 bg-[#0c1423] p-4 text-white shadow-2xl">
@@ -144,7 +145,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
             <p className="pb-4 text-center text-xs leading-relaxed text-slate-400">Live market data updates as new prices and candles arrive. A signal is not a guarantee of profit.</p>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }
