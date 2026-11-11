@@ -89,6 +89,7 @@ export function MarketingStudio() {
       setError(message);
     } else if (data?.campaign) {
       setForm(current => ({ ...current, ...data.campaign }));
+      setCreativeUrl('');
       setAiCaption(data.campaign.caption || '');
       const sources = data.sources_used || {};
       const used = Object.entries(sources).filter(([,count])=>Number(count)>0).map(([name,count])=>name.replaceAll('_',' ')+' '+count).join(', ');
@@ -181,7 +182,7 @@ export function MarketingStudio() {
     w.document.write('<!doctype html><html><head><title>SuperTech AI Flyer</title><style>@page{size:auto;margin:0}html,body{margin:0;padding:0}svg{display:block;width:100%;height:auto;max-height:100vh;object-fit:contain}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>'+content+'</body></html>');
     w.document.close();w.focus();w.print();
   }
-  const update=(key:keyof FormState,value:string)=>{setAiCaption('');setForm(current=>({...current,[key]:value}));};
+  const update=(key:keyof FormState,value:string)=>{setAiCaption('');setCreativeUrl('');setForm(current=>({...current,[key]:value}));};
 
   return <section className="mt-8 space-y-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
