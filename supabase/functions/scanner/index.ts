@@ -338,7 +338,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     if (okxAutomationError) throw new Error("Could not load OKX automation accounts: " + okxAutomationError.message);
     const futuresAutomationAllowsAll = (futuresAutomationRows ?? []).some((row) =>
       !Array.isArray(row.allowed_symbols) || row.allowed_symbols.length === 0
-    );
+    ) || (okxAutomationRows ?? []).length > 0;
     let binanceFuturesSymbols: SymbolInfo[] = [];
     let futuresLoadError: string | null = null;
     if ((futuresAutomationRows ?? []).length > 0 || (okxAutomationRows ?? []).length > 0) {
