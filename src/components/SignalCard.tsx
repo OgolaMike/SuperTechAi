@@ -95,7 +95,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           <EntryTime epoch={signal.signalEpoch} direction={signal.direction} />
           <CurrentPrice price={price} entry={signal.levels.entry} direction={signal.direction} digits={asset.digits} />
           <LevelList rows={buildRows(signal)} digits={asset.digits} />
-          <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} />
+          <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
 
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
@@ -217,15 +217,16 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading, livePrice
           <span className="min-w-8 text-center text-[10px] tabular-nums text-slate-300">{zoom.toFixed(1)}×</span>
           <button type="button" onClick={() => setZoom(value => Math.min(3, value + 0.5))} disabled={zoom >= 3} aria-label="Zoom in daily chart" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 disabled:opacity-30"><ZoomIn className="h-4 w-4" /></button>
           <div className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-right">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-cyan-200/70">Daily candle closes in</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-cyan-200/70">Live price</p>
+          <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-white">{priceLabel(livePrice ?? latest.close)}</p>
+          <p className="mt-1 border-t border-cyan-200/15 pt-1 text-[9px] font-bold uppercase tracking-wider text-cyan-200/70">Candle closes in</p>
           <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-cyan-100">
-            {secondsRemaining > 0 ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` : 'Updating…'}
+            {secondsRemaining > 0 ? String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0') : 'Updating…'}
           </p>
           </div>
         </div>
       </div>
       {latest && <div className="grid grid-cols-2 gap-2 border-b border-white/10 bg-[#0a1220] p-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-white/10 bg-white/[0.035] p-2"><p className="text-[9px] uppercase tracking-wider text-slate-400">Current price</p><p className="mt-1 text-sm font-bold tabular-nums text-white">{priceLabel(livePrice ?? latest.close)}</p></div>
         <div className="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-amber-200/70">SMA 60</p><p className="mt-1 text-sm font-bold tabular-nums text-amber-100">{latestStats ? priceLabel(latestStats.mean) : 'Warming up'}</p></div>
         <div className="rounded-lg border border-rose-300/20 bg-rose-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-rose-200/70">Upper band +2.5σ</p><p className="mt-1 text-sm font-bold tabular-nums text-rose-100">{latestStats ? priceLabel(latestStats.upper) : 'Warming up'}</p></div>
         <div className="rounded-lg border border-blue-300/20 bg-blue-300/[0.06] p-2"><p className="text-[9px] uppercase tracking-wider text-blue-200/70">Lower band −2.5σ</p><p className="mt-1 text-sm font-bold tabular-nums text-blue-100">{latestStats ? priceLabel(latestStats.lower) : 'Warming up'}</p></div>
