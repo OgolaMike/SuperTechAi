@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Activity, KeyRound, RefreshCw, ShieldAlert, ShieldCheck, Unplug, Wallet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { OKXFuturesAutomation } from './OKXFuturesAutomation';
 
 type Settings = {
   connection_status: string; auto_trade_enabled: boolean; live_execution_enabled: boolean;
@@ -182,6 +183,8 @@ export function BinanceFuturesAutomation() {
         <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-semibold text-ink">Qualified 8/8 Super Signals</h3><span className="rounded-full border border-accent/20 px-2.5 py-1 text-xs text-accent">{signalIntents.length} recent</span></div>
         {signalIntents.length === 0 ? <p className="text-sm text-ink-3">No eligible 8/8 Binance Futures signals yet. Signals appear here when they meet the 8/8 gate and Binance Futures eligibility checks.</p> : <div className="space-y-2">{signalIntents.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/10 bg-canvas/50 p-3"><div><p className="text-sm font-semibold text-ink">{s.symbol} · {s.side} · {s.timeframe_agreement}/8</p><p className="mt-1 text-xs text-ink-3">Entry {Number(s.entry_price).toPrecision(8)} · SL {Number(s.stop_loss).toPrecision(8)} · TP {Number(s.take_profit).toPrecision(8)}</p></div><span className="rounded-full border border-amber-400/20 px-2.5 py-1 text-xs text-amber-500">Signal ready · no order sent</span></div>)}</div>}
       </div>
+      <OKXFuturesAutomation />
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-4"><p className="text-xs uppercase tracking-wide text-ink-3">Open positions shown</p><p className="mt-1 text-2xl font-semibold text-ink">{positions.filter(p=>p.status==='open').length}</p><p className="text-xs text-ink-3">Strategy-tracked positions</p></div>
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-4"><p className="text-xs uppercase tracking-wide text-ink-3">Recent Futures orders</p><p className="mt-1 text-2xl font-semibold text-ink">{orders.length}</p><p className="text-xs text-ink-3">SuperTechAi order ledger</p></div>
