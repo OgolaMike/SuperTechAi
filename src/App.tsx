@@ -151,7 +151,7 @@ function App() {
     <div className="relative min-h-screen overflow-x-clip bg-canvas text-ink">
       <AmbientBackground />
 
-      <div className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 sm:py-10 sm:pb-10">
+      <div className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 sm:py-10 lg:pb-10">
         <header className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
             <HeaderBrand />
@@ -195,6 +195,7 @@ function App() {
             loaded={loaded}
             soundsEnabled={soundsEnabled}
             aiModel={aiModel}
+            onNavigate={setView}
           />
         )}
 
