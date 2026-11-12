@@ -129,7 +129,7 @@ def main():
     records = {}
     for row in existing:
         records.setdefault(row["lesson_id"], row)
-    completed = {lesson_id for lesson_id, row in records.items() if row["status"] == "completed" and isinstance(row.get("video_url"), str) and "-illustrated-v1.mp4" in row["video_url"]}
+    completed = {lesson_id for lesson_id, row in records.items() if row["status"] == "completed" and isinstance(row.get("video_url"), str) and "-interface-v2.mp4" in row["video_url"]}
     admins = api_get("admin_users", {"select": "user_id", "limit": "1"})
     if not admins:
         raise RuntimeError("No Academy admin account was found for the publisher record.")
@@ -170,7 +170,7 @@ def main():
             render_lesson(tts, lesson, output, browser)
             if output.stat().st_size > 100 * 1024 * 1024:
                 raise RuntimeError("Video exceeds the Academy 100 MB upload limit.")
-            object_path = f"lessons/{lesson_id}-illustrated-v1.mp4"
+            object_path = f"lessons/{lesson_id}-interface-v2.mp4"
             upload = requests.post(
                 f"{SUPABASE_URL}/storage/v1/object/academy-videos/{object_path}",
                 headers={**HEADERS, "Content-Type": "video/mp4", "x-upsert": "true"},
