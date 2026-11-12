@@ -15,6 +15,9 @@ verify_jwt = true
 [functions.mt5-bridge]
 verify_jwt = false
 
+[functions.automation-status]
+verify_jwt = true
+
 [functions.finance]
 verify_jwt = true
 
@@ -34,4 +37,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.ctrader-discover-accounts]
+verify_jwt = true
+
+[functions.ctrader-cloud-reconcile]
 verify_jwt = true
