@@ -67,8 +67,16 @@ export function useSuperSignalRecords(signals: SuperSignal[], loaded: boolean) {
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => refresh(), 30000);
-    return () => window.clearInterval(timer);
+    // Realtime delivers new/updated Super Signal rows immediately; short polling is a safety net.
+    const channel = supabase
+      .channel('super-signal-records-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'super_signal_records' }, () => refresh())
+      .subscribe();
+    const timer = window.setInterval(() => refresh(), 10000);
+    return () => {
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
   }, [refresh]);
 
   useEffect(() => {
