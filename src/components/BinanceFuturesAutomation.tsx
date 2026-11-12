@@ -33,7 +33,8 @@ async function callFutures(action: string, payload: Record<string, unknown> = {}
 export function BinanceFuturesAutomation() {
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
-  const [keyType, setKeyType] = useState<'hmac' | 'rsa'>('hmac');
+  const [keyType, setKeyType] = useState<'hmac' | 'rsa'>('rsa');
+  const [showCredentialForm, setShowCredentialForm] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -78,7 +79,7 @@ export function BinanceFuturesAutomation() {
     setBusy(true); setError(''); setMessage('');
     try {
       const result = await callFutures('connect', { apiKey, apiSecret, keyType });
-      setApiKey(''); setApiSecret('');
+      setApiKey(''); setApiSecret(''); setShowCredentialForm(false);
       setMessage(`Binance USDT-M Futures connected. ${result.account?.openPositions ?? 0} existing position(s) detected. Automation remains OFF.`);
       await refresh();
     } catch (e) {
@@ -139,17 +140,18 @@ export function BinanceFuturesAutomation() {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
           <div className="mb-4 flex items-center gap-2"><KeyRound className="h-5 w-5 text-accent" /><h3 className="font-semibold text-ink">Binance Futures API</h3></div>
-          {!connected ? <div className="space-y-3">
+          {(!connected || showCredentialForm) ? <div className="space-y-3">
             <label className="block text-xs font-medium text-ink-2">API key type<select value={keyType} onChange={e => setKeyType(e.target.value as 'hmac' | 'rsa')} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink"><option value="hmac">HMAC (existing key)</option><option value="rsa">RSA (PKCS#8 private key)</option></select></label>
             <label className="block text-xs font-medium text-ink-2">API Key<input value={apiKey} onChange={e => setApiKey(e.target.value)} autoComplete="off" spellCheck={false} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent" placeholder="Paste Futures-enabled API key" /></label>
             <label className="block text-xs font-medium text-ink-2">{keyType === 'rsa' ? 'RSA private key (PKCS#8 PEM)' : 'API Secret'}{keyType === 'rsa' ? <textarea value={apiSecret} onChange={e => setApiSecret(e.target.value)} autoComplete="off" spellCheck={false} rows={5} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 font-mono text-xs text-ink outline-none focus:border-accent" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" /> : <input type="password" value={apiSecret} onChange={e => setApiSecret(e.target.value)} autoComplete="new-password" className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent" placeholder="Paste API secret" />}</label>
             <button type="button" disabled={busy || !apiKey.trim() || !apiSecret.trim()} onClick={() => void connect()} className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Connecting…' : 'Connect USDT-M Futures'}</button>
             {!apiKey.trim() || !apiSecret.trim() ? <p className="text-xs text-ink-3">Enter both your API key and API secret to enable connection.</p> : null}
-            <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-ink-2">Use a dedicated Binance API key with Futures trading permission only. Keep withdrawals disabled. For RSA, upload only the public key to Binance and keep the private key inside this secure connection form—never share it in chat.</div>
+            <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-ink-2">For cloud execution without a fixed outbound IP, choose RSA. Upload only the public key to Binance; keep the private key inside this secure connection form. Enable USDⓈ-M Futures trading only and keep withdrawals disabled. Never share the private key in chat.</div>
           </div> : <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl border border-line/10 bg-canvas/50 p-3"><div><p className="text-sm font-semibold text-ink">Key ending ••••{settings?.api_key_last4}</p><p className="mt-1 text-xs text-ink-3">Encrypted on the server</p></div><ShieldCheck className="h-5 w-5 text-up" /></div>
             <div className="flex flex-wrap gap-2">
               <button disabled={busy} onClick={() => void testConnection()} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-3 py-2 text-sm text-ink disabled:opacity-50"><RefreshCw className="h-4 w-4" />Test connection</button>
+              <button disabled={busy} onClick={() => { setShowCredentialForm(true); setError(''); setMessage(''); }} className="rounded-xl border border-line/15 px-3 py-2 text-sm text-ink disabled:opacity-50">Replace API key</button>
               <button disabled={busy} onClick={() => void disconnect()} className="inline-flex items-center gap-2 rounded-xl border border-line/15 px-3 py-2 text-sm text-ink disabled:opacity-50"><Unplug className="h-4 w-4" />Disconnect</button>
             </div>
           </div>}
