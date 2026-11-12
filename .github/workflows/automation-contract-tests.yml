@@ -13,7 +13,7 @@ on:
       - "supabase/functions/okx-futures-executor/**"
       - "supabase/functions/ctrader-cloud-reconcile/**"
       - "supabase/functions/_shared/ctrader-risk-sizing.ts"
-      - "supabase/functions/_shared/ctrader-risk-sizing_test.ts supabase/functions/_shared/ctrader-order-payload_test.ts"
+      - "supabase/functions/_shared/ctrader-risk-sizing_test.ts"
       - "supabase/functions/_shared/ctrader-order-payload.ts"
       - "supabase/functions/_shared/ctrader-order-payload_test.ts"
       - "supabase/functions/scanner/binanceSpotAutomation.ts"
@@ -37,6 +37,8 @@ on:
       - "supabase/functions/ctrader-cloud-reconcile/**"
       - "supabase/functions/_shared/ctrader-risk-sizing.ts"
       - "supabase/functions/_shared/ctrader-risk-sizing_test.ts"
+      - "supabase/functions/_shared/ctrader-order-payload.ts"
+      - "supabase/functions/_shared/ctrader-order-payload_test.ts"
       - "supabase/functions/scanner/binanceSpotAutomation.ts"
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
@@ -68,4 +70,4 @@ jobs:
       - name: Type-check automation status and exchange executors
         run: deno check supabase/functions/ctrader-cloud-reconcile/index.ts supabase/functions/automation-status/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts
       - name: Run execution contract tests
-        run: deno test supabase/functions/_shared/execution-contract_test.ts supabase/functions/_shared/automation-status_test.ts supabase/functions/_shared/ctrader-risk-sizing_test.ts
+        run: deno test supabase/functions/_shared/execution-contract_test.ts supabase/functions/_shared/automation-status_test.ts supabase/functions/_shared/ctrader-risk-sizing_test.ts supabase/functions/_shared/ctrader-order-payload_test.ts supabase/functions/_shared/ctrader-order-payload_test.ts
