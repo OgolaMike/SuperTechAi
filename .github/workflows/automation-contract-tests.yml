@@ -50,6 +50,7 @@ on:
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
       - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
+      - "src/**"
 
 permissions:
   contents: read
