@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { playAlertTone, type AlertTone } from '@/lib/alertSound';
 import { showSignalNotification } from '@/lib/deviceNotify';
 import { formatPrice } from '@/lib/sma';
+import { getAlertMode } from '@/lib/alertPreferences';
+import { useSession } from '@/lib/sessionContext';
 import type { Direction, SignalLevels, SignalView } from '@/lib/signals';
 
 export type ToastKind = 'signal' | 'reversal' | 'hit' | 'break-retest';
@@ -114,6 +116,8 @@ export function useSignalAlerts(
   loaded: boolean,
   soundsEnabled: boolean,
 ) {
+  const { session } = useSession();
+  const userId = session.user.id;
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seenRef = useRef<Map<string, string>>(new Map());
   const latestSignalRef = useRef<Map<string, SignalView>>(new Map());
@@ -195,9 +199,13 @@ export function useSignalAlerts(
     }
 
     if (created.length === 0) return;
-    setToasts((previous) => [...created, ...previous].slice(0, MAX_TOASTS));
+    const visible = created.filter((toast) => {
+      const category = toast.kind === 'hit' ? (toast.tone === 'STOP' ? 'stops' : 'targets') : 'signals';
+      return getAlertMode(category, toast.symbol, userId) !== 'muted';
+    });
+    if (visible.length) setToasts((previous) => [...visible, ...previous].slice(0, MAX_TOASTS));
 
-    const signalToasts = created.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal');
+    const signalToasts = visible.filter((toast) => getAlertMode('signals', toast.symbol, userId) === 'full' && (toast.kind === 'signal' || toast.kind === 'reversal'));
     for (const toast of signalToasts) {
       if (soundsEnabled) playAlertTone(toast.tone);
       void showSignalNotification(
@@ -206,9 +214,9 @@ export function useSignalAlerts(
         `${toast.message} Entry ${formatPrice(toast.levels.entry, toast.digits)}, stop-loss ${formatPrice(toast.levels.stopLoss, toast.digits)}`,
       ).catch(() => undefined);
     }
-    const hitToast = created.find((toast) => toast.kind === 'hit');
-    if (soundsEnabled && hitToast) playAlertTone(hitToast.tone);
-  }, [views, loaded, soundsEnabled]);
+    const fullHit = visible.find((toast) => toast.kind === 'hit' && getAlertMode(toast.tone === 'STOP' ? 'stops' : 'targets', toast.symbol, userId) === 'full');
+    if (soundsEnabled && fullHit) playAlertTone(fullHit.tone);
+  }, [views, loaded, soundsEnabled, userId]);
 
   return { toasts, dismiss };
 }

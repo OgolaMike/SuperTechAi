@@ -45,6 +45,7 @@ import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
 import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET, MAX_MONITORED_ASSETS } from '@/lib/sma';
+import { loadMemberAlertModes } from '@/lib/alertPreferences';
 
 const ASSET_STORAGE_KEY = 'supertech-selected-assets';
 const SOUND_STORAGE_KEY = 'supertech-signal-sounds';
@@ -66,7 +67,8 @@ function currentEpoch(): number {
 }
 
 function App() {
-  const { isAdmin } = useSession();
+  const { isAdmin, session } = useSession();
+  const [alertPreferencesReady, setAlertPreferencesReady] = useState(false);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
   const [view, setView] = useState<View>('dashboard');
@@ -80,14 +82,22 @@ function App() {
     () => buildM15StopOrderIdeas(assets, states, prices, aiModel, now),
     [assets, states, prices, aiModel, now],
   );
-  usePendingOrderAlerts(pendingOrderIdeas, loaded, soundsEnabled);
+  const { toasts: pendingToasts, dismiss: dismissPendingToast } = usePendingOrderAlerts(pendingOrderIdeas, loaded && alertPreferencesReady, soundsEnabled);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadMemberAlertModes(session.user.id)
+      .catch((error: unknown) => console.warn('Could not load member alert preferences:', error))
+      .finally(() => { if (!cancelled) setAlertPreferencesReady(true); });
+    return () => { cancelled = true; };
+  }, [session.user.id]);
 
   const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.symbol, asset])), [assets]);
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
-  const { toasts, dismiss } = useSignalAlerts(views, loaded, soundsEnabled);
-  const { toasts: breakRetestToasts, dismiss: dismissBreakRetestToast } = useBreakRetestAlerts(assets, states, prices, loaded, soundsEnabled);
-  const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded, soundsEnabled);
+  const { toasts, dismiss } = useSignalAlerts(views, loaded && alertPreferencesReady, soundsEnabled);
+  const { toasts: breakRetestToasts, dismiss: dismissBreakRetestToast } = useBreakRetestAlerts(assets, states, prices, loaded && alertPreferencesReady, soundsEnabled);
+  const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded && alertPreferencesReady, soundsEnabled);
   const superSignalHistory = useSuperSignalRecords(superSignals, loaded);
   const sync = useSignalRecordSync(views, loaded);
 
@@ -282,7 +292,7 @@ function App() {
         </footer>
       </div>
 
-      <Toasts toasts={[...breakRetestToasts, ...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); dismissBreakRetestToast(id); }} onOpenChart={openSignalChart} />
+      <Toasts toasts={[...pendingToasts, ...breakRetestToasts, ...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); dismissBreakRetestToast(id); dismissPendingToast(id); }} onOpenChart={openSignalChart} />
     </div>
   );
 }

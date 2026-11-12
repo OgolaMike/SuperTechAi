@@ -5,6 +5,8 @@ import { buildBreakRetestSetups } from '@/lib/breakRetest';
 import { playAlertTone } from '@/lib/alertSound';
 import { showSignalNotification } from '@/lib/deviceNotify';
 import { formatPrice } from '@/lib/sma';
+import { getAlertMode } from '@/lib/alertPreferences';
+import { useSession } from '@/lib/sessionContext';
 
 type Prices = Record<string, number>;
 type ReachedLevel = 'ENTRY' | 'TARGET' | 'STOP';
@@ -16,6 +18,8 @@ export function useBreakRetestAlerts(
   loaded: boolean,
   soundsEnabled: boolean,
 ) {
+  const { session } = useSession();
+  const userId = session.user.id;
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seenSetups = useRef<Set<string>>(new Set());
   const firedLevels = useRef<Set<string>>(new Set());
@@ -111,8 +115,10 @@ export function useBreakRetestAlerts(
     setups.forEach(item => seenSetups.current.add(item.key));
     previousPrices.current = currentPrices;
     if (!created.length) return;
-    setToasts(current => [...created, ...current].slice(0, 4));
-    for (const toast of created) {
+    const visible = created.filter((toast) => getAlertMode('limitOrders', toast.symbol, userId) !== 'muted');
+    if (visible.length) setToasts(current => [...visible, ...current].slice(0, 4));
+    for (const toast of visible) {
+      if (getAlertMode('limitOrders', toast.symbol, userId) !== 'full') continue;
       if (soundsEnabled) playAlertTone(toast.tone);
       void showSignalNotification(
         toast.tag,
@@ -120,7 +126,7 @@ export function useBreakRetestAlerts(
         `${toast.message} ${formatPrice(toast.price, toast.digits)}. Entry ${formatPrice(toast.levels.entry, toast.digits)}, 5R target ${formatPrice(toast.levels.tp1, toast.digits)}, stop loss ${formatPrice(toast.levels.stopLoss, toast.digits)}.`,
       ).catch(() => undefined);
     }
-  }, [assets, states, prices, loaded, soundsEnabled]);
+  }, [assets, states, prices, loaded, soundsEnabled, userId]);
 
   return { toasts, dismiss };
 }

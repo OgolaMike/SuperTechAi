@@ -34,7 +34,7 @@ function parseSymbols(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   return value
     .filter((item): item is string => typeof item === "string" && item.length > 0 && item.length <= 64)
-    .slice(0, 50);
+    .slice(0, 500);
 }
 
 Deno.serve(async (req) => {

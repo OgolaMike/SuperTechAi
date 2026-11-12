@@ -3,28 +3,13 @@ import type { SuperSignal } from '@/lib/intelligence';
 import type { Toast } from './useSignalAlerts';
 import { playAlertTone } from '@/lib/alertSound';
 import { showSignalNotification } from '@/lib/deviceNotify';
+import { getAlertMode } from '@/lib/alertPreferences';
+import { useSession } from '@/lib/sessionContext';
 
 export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, soundsEnabled: boolean) {
+  const { session } = useSession();
+  const userId = session.user.id;
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [superSignalsEnabled, setSuperSignalsEnabled] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('supertech-push-prefs') ?? 'null')?.superSignals !== false;
-    } catch {
-      return true;
-    }
-  });
-
-  useEffect(() => {
-    const syncPreference = () => {
-      try {
-        setSuperSignalsEnabled(JSON.parse(localStorage.getItem('supertech-push-prefs') ?? 'null')?.superSignals !== false);
-      } catch {
-        setSuperSignalsEnabled(true);
-      }
-    };
-    window.addEventListener('supertech-push-prefs-changed', syncPreference);
-    return () => window.removeEventListener('supertech-push-prefs-changed', syncPreference);
-  }, []);
   const seenRef = useRef<Set<string>>(new Set());
   const seededRef = useRef(false);
 
@@ -35,7 +20,7 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
   useEffect(() => {
     if (!loaded) return;
     const currentKeys = new Set(signals.map((signal) => `${signal.symbol}|${signal.direction}|${signal.signalEpoch}`));
-    if (!superSignalsEnabled) {
+    if (getAlertMode('superSignals', undefined, userId) === 'muted') {
       currentKeys.forEach((key) => seenRef.current.add(key));
       seededRef.current = true;
       return;
@@ -51,6 +36,8 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
       const key = `${signal.symbol}|${signal.direction}|${signal.signalEpoch}`;
       if (seenRef.current.has(key)) continue;
       seenRef.current.add(key);
+      const alertMode = getAlertMode('superSignals', signal.symbol, userId);
+      if (alertMode === 'muted') continue;
       const message = `All eight timeframes agree. A new ${signal.direction} opportunity has been confirmed.`;
       const toast: Toast = {
         id: `super:${key}`,
@@ -70,15 +57,17 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
         at: Math.floor(Date.now() / 1000),
       };
       created.push(toast);
-      if (soundsEnabled) playAlertTone(signal.direction);
-      void showSignalNotification(
-        toast.tag,
-        `SUPER SIGNAL CONFIRMED: ${signal.direction} — ${signal.name}`,
-        `${message} Entry ${signal.levels.entry.toFixed(signal.digits)}. Stop-loss ${signal.levels.stopLoss.toFixed(signal.digits)}.`,
-      ).catch(() => undefined);
+      if (alertMode === 'full') {
+        if (soundsEnabled) playAlertTone(signal.direction);
+        void showSignalNotification(
+          toast.tag,
+          `SUPER SIGNAL CONFIRMED: ${signal.direction} — ${signal.name}`,
+          `${message} Entry ${signal.levels.entry.toFixed(signal.digits)}. Stop-loss ${signal.levels.stopLoss.toFixed(signal.digits)}.`,
+        ).catch(() => undefined);
+      }
     }
     if (created.length) setToasts((current) => [...created, ...current].slice(0, 4));
-  }, [signals, loaded, soundsEnabled, superSignalsEnabled]);
+  }, [signals, loaded, soundsEnabled, userId]);
 
   return { toasts, dismiss };
 }
