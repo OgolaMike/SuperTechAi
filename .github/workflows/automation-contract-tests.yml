@@ -9,6 +9,8 @@ on:
       - "supabase/functions/_shared/automation-status.ts"
       - "supabase/functions/_shared/automation-status_test.ts"
       - "supabase/functions/automation-status/**"
+      - "supabase/functions/binance-futures-executor/**"
+      - "supabase/functions/okx-futures-executor/**"
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
       - "src/**"
@@ -49,7 +51,7 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Type-check automation status function
-        run: deno check supabase/functions/automation-status/index.ts
+      - name: Type-check automation status and exchange executors
+        run: deno check supabase/functions/automation-status/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/okx-futures-executor/index.ts
       - name: Run execution contract tests
         run: deno test supabase/functions/_shared/execution-contract_test.ts supabase/functions/_shared/automation-status_test.ts
