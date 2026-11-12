@@ -113,8 +113,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     return `${reverseIndex === 0 || !bandPoints[index + 1] ? 'M' : 'L'} ${item[0]} ${item[2]}`;
   }).filter(Boolean).join(' ');
 
-  const signalIndex = signalEpoch == null ? -1 : data.findIndex((candle) => candle.epoch === signalEpoch);
-  const transitionIndex = signalIndex >= 0 ? signalIndex : Math.max(0, data.length - 8);
+  // Anchor the two-colour regime boundary to the actual signal candle. Candle feeds can
+  // differ by a few seconds, so use the nearest timestamp instead of an arbitrary offset.
+  const signalIndex = signalEpoch == null ? -1 : data.reduce((nearest, candle, index) =>
+    Math.abs(candle.epoch - signalEpoch) < Math.abs(data[nearest].epoch - signalEpoch) ? index : nearest, 0);
+  const transitionIndex = signalIndex >= 0 ? signalIndex : 0;
   const transitionX = x(transitionIndex);
   const leftRegime = direction === 'BUY' ? '#ef4444' : '#2563eb';
   const rightRegime = direction === 'BUY' ? '#2563eb' : '#ef4444';
