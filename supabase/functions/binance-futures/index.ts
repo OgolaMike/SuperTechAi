@@ -58,7 +58,7 @@ async function signedGet(apiKey: string, apiSecret: string, path: string, keyTyp
 }
 async function futuresPreflight(apiKey: string, apiSecret: string, keyType = "hmac") {
   const [account, mode, positions, openOrders] = await Promise.all([
-    futuresAccount(apiKey, apiSecret),
+    futuresAccount(apiKey, apiSecret, keyType),
     signedGet(apiKey, apiSecret, "/fapi/v1/positionSide/dual", keyType),
     signedGet(apiKey, apiSecret, "/fapi/v3/positionRisk", keyType),
     signedGet(apiKey, apiSecret, "/fapi/v1/openOrders", keyType),
@@ -168,7 +168,7 @@ Deno.serve(async req => {
     console.error("[binance-futures] request failed", { message, name: error instanceof Error ? error.name : "unknown" });
     const rejected = /invalid api-key, ip, or permissions/i.test(message);
     const userMessage = rejected
-      ? "Binance rejected this API key. Verify the API key and secret, enable USDⓈ-M Futures permission, and check API Management IP restrictions. Recent SuperTech server logs show outbound IPs 35.180.109.45 and 15.237.127.167; confirm the active egress IP before allowlisting. Keep withdrawals disabled."
+      ? "Binance rejected this API key. Verify the API key and secret, confirm USDⓈ-M Futures permission is enabled, and check whether the key is restricted to trusted IPs. For cloud execution without a fixed IP allowlist, use a self-generated RSA key supported by USDⓈ-M Futures. Keep withdrawals disabled."
       : message.slice(0, 180);
     return json({ ok: false, code: rejected ? "binance_api_key_ip_or_permission_rejected" : "binance_futures_error", error: userMessage, message: userMessage }, 400);
   }
