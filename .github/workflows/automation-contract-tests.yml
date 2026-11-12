@@ -12,6 +12,7 @@ on:
       - "supabase/functions/binance-futures-executor/**"
       - "supabase/functions/okx-futures-executor/**"
       - "supabase/config.toml"
+      - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
       - ".github/workflows/automation-contract-tests.yml"
       - "src/**"
       - "package.json"
