@@ -11,7 +11,7 @@ export function buildHighRocStopSignal(symbol:string,candles:Candle[],nowEpoch:n
  const sign=Math.sign(r12); if(!sign||Math.sign(r3)!==sign||Math.sign(r6)!==sign)return null;
  const history:number[]=[]; for(let end=Math.max(12,closes.length-97);end<closes.length-1;end++){const v=roc(closes.slice(0,end+1),12);if(v!==null)history.push(Math.abs(v));}
  if(history.length<60)return null; const threshold=percentile(history,0.85); if(Math.abs(r12)<threshold)return null;
- const prior=closed.slice(-6,-3); if(prior.length!==3)return null; const priorHigh=Math.max(...prior.map(c=>c.high??c.close)),priorLow=Math.min(...prior.map(c=>c.low??c.close));
+ const prior=closed.slice(-4,-1); if(prior.length!==3)return null; const priorHigh=Math.max(...prior.map(c=>c.high??c.close)),priorLow=Math.min(...prior.map(c=>c.low??c.close));
  const high=latest.high??latest.close,low=latest.low??latest.close; if(sign>0?latest.close<=priorHigh:latest.close>=priorLow)return null;
  const ranges=closed.slice(-15).map((c,i,a)=>{const h=c.high??c.close,l=c.low??c.close,pc=i?a[i-1].close:(c.open??c.close);return Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc));});
  const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length; if(!(atr>0)||!Number.isFinite(atr))return null;
