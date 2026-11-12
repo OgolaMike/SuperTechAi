@@ -22,6 +22,10 @@ type Props = {
 
 const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'H8', 'D1'];
 
+function statesForRecord(record: SuperSignalRecord, states: Record<string, Record<number, TfState>>) {
+  return states[record.symbol]?.[900]?.candles ?? [];
+}
+
 function signalKey(signal: Pick<SuperSignal, 'symbol' | 'direction' | 'signalEpoch'>) {
   return `${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`;
 }
@@ -122,28 +126,38 @@ export function SuperSignalPanel({
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(250px,0.78fr)_minmax(0,1.7fr)]">
           <div className="min-w-0 space-y-2">
             <div className="max-h-[620px] space-y-2 overflow-y-auto overscroll-y-contain pr-1">
-              {allRecords.map((record) => (
-                <button
-                  key={record.signal_key}
-                  type="button"
-                  onClick={() => setSelectedKey(record.signal_key)}
-                  aria-pressed={selected?.signal_key === record.signal_key}
-                  className={`w-full min-w-0 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${selected?.signal_key === record.signal_key ? 'border-accent/50 bg-accent/10 shadow-[0_0_18px_rgba(212,175,55,0.08)]' : 'border-line/10 bg-surface/[0.025] hover:border-line/25 hover:bg-surface/[0.05]'}`}
-                >
-                  <div className="flex min-w-0 items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="break-words text-sm font-bold text-ink">{record.asset_name}</div>
-                      <div className="mt-0.5 truncate text-xs text-ink-3">{record.symbol}</div>
-                    </div>
-                    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black tracking-wider ${record.direction === 'BUY' ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>{record.direction}</span>
+              {allRecords.map((record) => {
+                const isSelected = selected?.signal_key === record.signal_key;
+                const chartCandles = statesForRecord(record, states);
+                return (
+                  <div key={record.signal_key} className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedKey(record.signal_key)}
+                      aria-pressed={isSelected}
+                      className={`w-full min-w-0 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isSelected ? 'border-accent/50 bg-accent/10 shadow-[0_0_18px_rgba(212,175,55,0.08)]' : 'border-line/10 bg-surface/[0.025] hover:border-line/25 hover:bg-surface/[0.05]'}`}
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="break-words text-sm font-bold text-ink">{record.asset_name}</div>
+                          <div className="mt-0.5 truncate text-xs text-ink-3">{record.symbol}</div>
+                        </div>
+                        <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black tracking-wider ${record.direction === 'BUY' ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>{record.direction}</span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold text-accent">8/8 CONFIRMED</span><span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent == null ? '—' : `${record.grade_percent}%`}</span>
+                        <OutcomeBadge status={record.status} closed={record.closed} />
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" />{formatDateTime(record.signal_epoch)}</div>
+                    </button>
+                    {isSelected && chartCandles.length > 0 && (
+                      <div className="min-w-0 overflow-hidden rounded-xl border border-accent/25 bg-surface/[0.025] p-2">
+                        <SignalChartSnapshot candles={chartCandles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-accent">8/8 CONFIRMED</span><span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent == null ? '—' : `${record.grade_percent}%`}</span>
-                    <OutcomeBadge status={record.status} closed={record.closed} />
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" />{formatDateTime(record.signal_epoch)}</div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -185,23 +199,14 @@ function SuperSignalDetails({ record, price, candles, aiModel }: {
 
   return (
     <article className="min-w-0 space-y-4 rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(220px,0.72fr)_minmax(0,1.45fr)]">
-        <header className="flex min-w-0 flex-wrap content-start items-start justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.025] p-3">
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 8/8</div>
-            <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
-            <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
-          </div>
-          <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-black ${isBuy ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'}`}><DirectionIcon className="h-4 w-4" />{record.direction}</span>
-        </header>
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          {candles.length > 0 ? (
-            <SignalChartSnapshot candles={candles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
-          ) : (
-            <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-line/10 bg-surface/[0.025] p-4 text-center text-sm text-ink-3">Chart data is loading for this signal.</div>
-          )}
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 8/8</div>
+          <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
+          <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
         </div>
-      </div>
+        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-black ${isBuy ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'}`}><DirectionIcon className="h-4 w-4" />{record.direction}</span>
+      </header>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/[0.06] p-3">
         <div><div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Signal fired</div><div className="mt-1 text-sm font-semibold text-ink">{formatDateTime(record.signal_epoch)}</div></div>
