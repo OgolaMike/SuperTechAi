@@ -76,8 +76,8 @@ export function buildCTraderProtectedPendingOrder(
       !(input.takeProfit < input.entryPrice && input.stopLoss > input.entryPrice)) {
     throw new Error("invalid_sell_protection_geometry");
   }
-  if (input.isLimitedRiskAccount && input.symbolAllowsGuaranteedStopLoss) {
-    throw new Error("limited_risk_gsl_requires_relative_protection_and_explicit_gsl_review");
+  if (input.isLimitedRiskAccount && !input.symbolAllowsGuaranteedStopLoss) {
+    throw new Error("limited_risk_account_requires_gsl_supported_symbol");
   }
 
   const payload: CTraderNewOrderPayload = {
@@ -88,9 +88,21 @@ export function buildCTraderProtectedPendingOrder(
     volume: input.volumeCents,
     clientOrderId: input.clientOrderId,
     label: `supertech:${input.intentId}`,
-    stopLoss: input.stopLoss,
-    takeProfit: input.takeProfit,
   };
+  if (input.isLimitedRiskAccount) {
+    const relativeStopLoss = Math.round(Math.abs(input.entryPrice - input.stopLoss) * 100000);
+    const relativeTakeProfit = Math.round(Math.abs(input.takeProfit - input.entryPrice) * 100000);
+    if (!Number.isSafeInteger(relativeStopLoss) || !Number.isSafeInteger(relativeTakeProfit) ||
+        relativeStopLoss <= 0 || relativeTakeProfit <= 0) {
+      throw new Error("invalid_relative_protection_distance");
+    }
+    payload.relativeStopLoss = relativeStopLoss;
+    payload.relativeTakeProfit = relativeTakeProfit;
+    payload.guaranteedStopLoss = true;
+  } else {
+    payload.stopLoss = input.stopLoss;
+    payload.takeProfit = input.takeProfit;
+  }
   if (input.orderKind === "LIMIT") payload.limitPrice = input.entryPrice;
   else payload.stopPrice = input.entryPrice;
   return payload;
