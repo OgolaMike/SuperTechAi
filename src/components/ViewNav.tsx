@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Activity, Bell, Cable, ChartNoAxesCombined, ChevronUp,
+  Activity, BarChart3, Bell, Cable, ChevronUp,
   Database, GraduationCap, Gavel, Landmark, LayoutDashboard, ListOrdered,
   Megaphone, MoreHorizontal, Network, Repeat2, Sparkles, Users, Wallet,
   UserRoundPlus, X,
@@ -13,7 +13,7 @@ type NavItem = { id: View; label: string; icon: typeof LayoutDashboard; adminOnl
 const PRIMARY: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'records', label: 'Signals', icon: Database },
-  { id: 'crypto', label: 'Markets', icon: ChartNoAxesCombined },
+  { id: 'crypto', label: 'Markets', icon: BarChart3 },
   { id: 'binance', label: 'Trade', icon: Activity },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
