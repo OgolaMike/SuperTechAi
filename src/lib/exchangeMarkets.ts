@@ -9,7 +9,9 @@ export const EXCHANGE_OPTIONS = [
   { id: 'GATEIO', name: 'Gate.io', quote: 'USDT' },
   { id: 'BITGET', name: 'Bitget', quote: 'USDT' },
   { id: 'MEXC', name: 'MEXC', quote: 'USDT' },
-  { id: 'HTX', name: 'HTX', quote: 'USDT' },
+  { id: 'COINEX', name: 'CoinEx', quote: 'USDT' },
+  { id: 'BINGX', name: 'BingX', quote: 'USDT' },
+  { id: 'BITMART', name: 'BitMart', quote: 'USDT' },
 ] as const;
 
 export type ExchangeId = typeof EXCHANGE_OPTIONS[number]['id'];
@@ -80,14 +82,29 @@ export async function fetchExchangeTickers(exchange: ExchangeId): Promise<Exchan
       if (!valid(price) || !valid(open24h)) return [];
       return [{ exchange, symbol, base, quote: 'USDT', price, open24h, changePct: num(x.priceChangePercent), quoteVolume: num(x.quoteVolume) }];
     });
-  } else if (exchange === 'HTX') {
-    const d = await get('https://api.huobi.pro/market/tickers');
+  } else if (exchange === 'COINEX') {
+    const d = await get('https://api.coinex.com/v2/spot/ticker');
     rows = (d.data ?? []).flatMap((x: any) => {
-      const symbol = clean(x.symbol).toUpperCase();
-      if (!symbol.endsWith('USDT')) return [];
-      const base = symbol.slice(0, -4), price = num(x.close), open24h = num(x.open);
-      if (!valid(price) || !valid(open24h)) return [];
-      return [{ exchange, symbol: clean(x.symbol), base, quote: 'USDT', price, open24h, changePct: (price / open24h - 1) * 100, quoteVolume: num(x.amount) * price }];
+      const symbol = clean(x.market), base = symbol.endsWith('USDT') ? symbol.slice(0, -4) : '';
+      const price = num(x.last), open24h = num(x.open);
+      if (!base || !valid(price) || !valid(open24h)) return [];
+      return [{ exchange, symbol, base, quote: 'USDT', price, open24h, changePct: (price / open24h - 1) * 100, quoteVolume: num(x.value) }];
+    });
+  } else if (exchange === 'BINGX') {
+    const d = await get('https://open-api.bingx.com/openApi/spot/v1/ticker/24hr');
+    rows = (d.data?.tickers ?? []).flatMap((x: any) => {
+      const symbol = clean(x.symbol), base = symbol.endsWith('-USDT') ? symbol.slice(0, -5) : '';
+      const price = num(x.lastPrice), open24h = num(x.openPrice);
+      if (!base || !valid(price) || !valid(open24h)) return [];
+      return [{ exchange, symbol, base, quote: 'USDT', price, open24h, changePct: num(x.priceChangePercent ?? ((price / open24h - 1) * 100)), quoteVolume: num(x.quoteVolume) }];
+    });
+  } else if (exchange === 'BITMART') {
+    const d = await get('https://api-cloud.bitmart.com/spot/quotation/v3/tickers');
+    rows = (d.data ?? []).flatMap((x: any) => {
+      const symbol = clean(x[0]), [base, quote] = symbol.split('_');
+      const price = num(x[1]), open24h = num(x[2]);
+      if (quote !== 'USDT' || !valid(price) || !valid(open24h)) return [];
+      return [{ exchange, symbol, base, quote, price, open24h, changePct: (price / open24h - 1) * 100, quoteVolume: num(x[6]) }];
     });
   }
   return rows.filter((x) => valid(x.quoteVolume)).sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, 150);
@@ -120,10 +137,17 @@ export async function fetchExchangeCandles(exchange: ExchangeId, symbol: string,
   } else if (exchange === 'MEXC') {
     const d = await get(`https://api.mexc.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=200`);
     rows = (d ?? []).map((x: any) => ({ epoch: Math.floor(num(x[0]) / 1000), open: num(x[1]), high: num(x[2]), low: num(x[3]), close: num(x[4]) }));
-  } else if (exchange === 'HTX') {
-    const period: Record<string, string> = { '15m': '15min', '30m': '30min', '1h': '60min', '4h': '4hour', '8h': '8hour', '1d': '1day' };
-    const d = await get(`https://api.huobi.pro/market/history/kline?symbol=${encodeURIComponent(symbol.toLowerCase())}&period=${period[interval]}&size=200`);
-    rows = (d.data ?? []).map((x: any) => ({ epoch: num(x.id), open: num(x.open), high: num(x.high), low: num(x.low), close: num(x.close) }));
+  } else if (exchange === 'COINEX') {
+    const period: Record<string, string> = { '15m': '15min', '30m': '30min', '1h': '1hour', '4h': '4hour', '8h': '8hour', '1d': '1day' };
+    const d = await get(`https://api.coinex.com/v2/spot/kline?market=${encodeURIComponent(symbol)}&period=${period[interval]}&limit=200`);
+    rows = (d.data ?? []).map((x: any) => ({ epoch: num(x.created_at), open: num(x.open), high: num(x.high), low: num(x.low), close: num(x.close) }));
+  } else if (exchange === 'BINGX') {
+    const d = await get(`https://open-api.bingx.com/openApi/spot/v2/market/kline?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=200`);
+    rows = (d.data ?? []).map((x: any) => ({ epoch: Math.floor(num(x.time ?? x.timestamp) / 1000), open: num(x.open), high: num(x.high), low: num(x.low), close: num(x.close) }));
+  } else if (exchange === 'BITMART') {
+    const step: Record<string, number> = { '15m': 15, '30m': 30, '1h': 60, '4h': 240, '8h': 480, '1d': 1440 };
+    const d = await get(`https://api-cloud.bitmart.com/spot/quotation/v3/klines?symbol=${encodeURIComponent(symbol)}&step=${step[interval]}&limit=200`);
+    rows = (d.data ?? []).map((x: any) => ({ epoch: num(x[0]), open: num(x[1]), high: num(x[2]), low: num(x[3]), close: num(x[4]) }));
   }
   return rows.filter((x) => [x.epoch, x.open, x.high, x.low, x.close].every(Number.isFinite))
     .map((x) => ({ ...x, symbol })).sort((a, b) => a.epoch - b.epoch);
