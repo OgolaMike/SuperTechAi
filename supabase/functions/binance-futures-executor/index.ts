@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { assertExecutionIntent, executionIdempotencyKey } from "../_shared/execution-contract.ts";
 
 const cors = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization,apikey,content-type","Access-Control-Allow-Methods":"POST,OPTIONS"};
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
@@ -104,6 +105,26 @@ Deno.serve(async req=>{
      const maxAffordable=(available*Number(cfg.leverage)*0.95)/entry;
      const qty=floorStep(Math.min(rawQty,maxAffordable,Number(lot.maxQty)),step);
      if(qty<minQty||qty*entry<minNotional)throw Error("order_below_exchange_minimum");
+     const executionCreatedAt=new Date();
+     assertExecutionIntent({
+      schemaVersion:1,
+      intentId:it.id,
+      idempotencyKey:executionIdempotencyKey("binance_futures", "binance_futures:"+cfg.user_id, it.id),
+      userId:cfg.user_id,
+      provider:"binance_futures",
+      connectionId:"binance_futures:"+cfg.user_id,
+      providerAccountId:cfg.user_id,
+      environment:"live",
+      strategyId:"super_signal_8of8",
+      strategyVersion:"super-signal-v1",
+      signalId:it.signal_key,
+      signalCreatedAt:new Date(Number(it.signal_epoch)*1000).toISOString(),
+      expiresAt:new Date((Number(it.signal_epoch)+7200)*1000).toISOString(),
+      order:{instrument:it.symbol,side:side.toLowerCase() as "buy"|"sell",kind:"market",entryPrice:entry,quantity:qty,stopLoss:sl,takeProfit:tp},
+      risk:{maxLossAmount:qty*riskDistance,maxLossCurrency:"USDT",riskPercent:riskPct,maxOpenPositions:Number(cfg.max_open_positions),dailyLossLimitPercent:Number(cfg.max_daily_loss_pct),leverage:Number(cfg.leverage)},
+      authorization:{liveExecutionAuthorized:cfg.live_execution_enabled===true,emergencyStop:cfg.emergency_stop===true,preflightVerifiedAt:executionCreatedAt.toISOString()},
+      createdAt:executionCreatedAt.toISOString(),
+     });
      const clientId="stai_"+(await sign(secret,cfg.user_id+"|"+it.signal_key)).slice(0,28);
      const {error:ins}=await db.from("binance_futures_orders").insert({user_id:cfg.user_id,signal_key:it.signal_key,symbol:it.symbol,side,leverage:Number(cfg.leverage),quantity:qty,entry_price:entry,stop_loss:sl,take_profit:tp,risk_usdt:qty*riskDistance,client_order_id:clientId,status:"queued",request_payload:{source:"8of8_super_signal",risk_budget_usdt:riskBudget}});
      if(ins){if(ins.code==="23505"){skipped++;continue;}throw ins;}
