@@ -151,3 +151,26 @@ Deno.test("rejects a missing preflight verification timestamp", () => {
   intent.authorization.preflightVerifiedAt = "not-a-date";
   expectThrow(() => assertExecutionIntent(intent), "execution_preflight_timestamp_missing");
 });
+
+
+Deno.test("accepts a Spot OTOCO limit intent without inventing a daily-loss setting", () => {
+  const intent = validIntent();
+  intent.provider = "binance_spot";
+  intent.environment = "live";
+  intent.authorization.liveExecutionAuthorized = true;
+  intent.order.kind = "limit";
+  intent.order.limitPrice = intent.order.entryPrice;
+  intent.risk.riskPercent = 5;
+  delete intent.risk.dailyLossLimitPercent;
+  delete intent.risk.leverage;
+  intent.connectionId = "binance_spot:user-1";
+  intent.idempotencyKey = executionIdempotencyKey("binance_spot", intent.connectionId, intent.intentId);
+  assertExecutionIntent(intent);
+});
+
+Deno.test("Spot risk above its configured five-percent ceiling is rejected", () => {
+  const intent = validIntent();
+  intent.provider = "binance_spot";
+  intent.risk.riskPercent = 5.01;
+  expectThrow(() => assertExecutionIntent(intent), "execution_risk_limits_invalid");
+});
