@@ -97,6 +97,20 @@ export function CTraderAutoTrading() {
     setBusy(false);
   };
 
+  const reconcileAccount = async () => {
+    if (!selected) return;
+    setBusy(true); setError(''); setMessage('Checking the broker connection and syncing open positions…');
+    const { data, error: invokeError } = await supabase.functions.invoke('ctrader-cloud-reconcile', { body: { connectionId: selected.id } });
+    if (invokeError || !data?.reconciled) {
+      setError(invokeError?.message ?? data?.error ?? 'Could not reconcile this cTrader account.');
+      setMessage('');
+    } else {
+      setMessage(`Account checked. ${data.openPositions} open position(s) and ${data.pendingOrders} pending order(s) found. No trades were placed.`);
+      await load();
+    }
+    setBusy(false);
+  };
+
   const saveSettings = async () => {
     if (!selected) return;
     setBusy(true); setError(''); setMessage('');
@@ -151,6 +165,7 @@ export function CTraderAutoTrading() {
           <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-amber-500"><Activity className="h-4 w-4" /> Cloud execution service not yet active</div>
           <p className="mt-2 text-sm leading-6 text-ink-2">Your account connection can be prepared here. The unattended trade engine and its scheduled cloud runner still need to be completed and tested before automatic orders can be enabled.</p>
           <div className="mt-4 rounded-xl border border-line/10 bg-canvas/50 p-3 text-xs leading-5 text-ink-2"><ShieldCheck className="mr-1 inline h-4 w-4 text-accent" /> Trading stays OFF until the cloud worker, broker permissions and safety checks are verified.</div>
+          <button type="button" onClick={() => void reconcileAccount()} disabled={busy || !selected} className="mt-3 w-full rounded-xl border border-accent/30 px-4 py-2.5 text-sm font-semibold text-accent disabled:opacity-50">Check connection &amp; sync positions</button>
         </div>
       </div>
 
