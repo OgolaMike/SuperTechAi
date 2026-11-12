@@ -133,7 +133,12 @@ This work exists on the development branch and remains behind PR review/CI. It d
 - The preflight validator is not yet connected to a persistent cloud executor. The next implementation stage must obtain fresh account/symbol/quote metadata from cTrader, calculate the risk size using the verified instrument model, request broker expected margin, and only then build the durable protected-order adapter.
 
 
-### cTrader expected-margin guard (branch only)
-- Added a tested validator for broker-reported expected margin, free margin and account balance using the account moneyDigits scale.
-- It rejects margin utilization above the configured ceiling and requires free margin to cover the expected margin plus a configurable safety buffer.
-- This is a pure validation layer only. It is not yet connected to a live cTrader expected-margin request or order submission; no broker order is sent by this helper.
+### cTrader live broker preflight preview (branch only)
+- The authenticated, read-only reconciliation function can now return the broker's available symbol catalogue for the mobile interface.
+- An optional preflight preview fetches the selected full symbol specification by broker symbol ID, including trading mode, short-selling/GSL capability, pip position and volume min/max/step.
+- It subscribes to the selected symbol's live spot feed, waits for both the subscription response and a matching bid/ask event, and converts cTrader's 1/100000 price representation.
+- It resolves quote/deposit asset names from the broker asset list, then calculates a conservative risk size only when quote and deposit currencies match. Other currency pairs fail closed.
+- It runs the existing account/symbol/spread/volume preflight and requests cTrader's broker-calculated expected margin for the exact computed volume and trade side.
+- The mobile cTrader screen now exposes a read-only preview with broker quote, spread, calculated size, risk-at-stop, expected margin and margin-to-balance estimate.
+- **Important limitation:** the cTrader expected-margin response does not itself provide free margin. The preview therefore reports `freeMarginVerified: false` and cannot authorize execution. Account equity/free-margin calculation, contract-model validation, durable execution, protected order submission and broker reconciliation remain outstanding.
+- This workflow is read-only: it does not submit, amend or cancel orders. No production function was deployed.
