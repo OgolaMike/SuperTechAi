@@ -152,7 +152,7 @@ export function SuperSignalPanel({
                     </button>
                     {isSelected && chartCandles.length > 0 && (
                       <div className="min-w-0 overflow-hidden rounded-xl border border-accent/25 bg-surface/[0.025] p-2">
-                        <SignalChartSnapshot candles={chartCandles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
+                        <SignalChartSnapshot candles={chartCandles} livePrice={prices[record.symbol]} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
                       </div>
                     )}
                   </div>
