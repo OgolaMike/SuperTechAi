@@ -116,7 +116,7 @@ function App() {
   }, [sync.version]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setNow(currentEpoch()), 15000);
+    const id = window.setInterval(() => setNow(currentEpoch()), 3000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -142,11 +142,11 @@ function App() {
       setSelectedSymbols((current) => current.includes(symbol) ? current : [...current, symbol].slice(-10));
       setView('dashboard');
     }
-    window.setTimeout(() => {
-      const targetId = chartTargetId?.startsWith('break-retest:') ? 'break-retest-panel' : chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
-      const target = document.getElementById(targetId);
-      target?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    }, 450);
+    const targetId = chartTargetId?.startsWith('break-retest:') ? 'break-retest-panel' : chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
+    // Wait only for React to commit the destination view, then reveal the chart immediately.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+    }));
   };
 
   const toggleSounds = () => {
