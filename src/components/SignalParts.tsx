@@ -27,9 +27,9 @@ type EntryTimeProps = { epoch: number; direction: Direction };
 export function EntryTime({ epoch, direction }: EntryTimeProps) {
   const tone = direction === 'BUY' ? 'text-up' : 'text-down';
   return (
-    <div className="rounded-xl border border-line/10 bg-surface/[0.04] px-4 py-3">
+    <div className="min-w-0 w-full rounded-xl border border-line/10 bg-surface/[0.04] px-3 py-3 sm:px-4">
       <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">Signal time</div>
-      <div className={`mt-1 break-words font-mono text-lg font-semibold tabular-nums sm:text-2xl ${tone}`}>{formatDateTime(epoch)}</div>
+      <div className={`mt-1 min-w-0 break-words font-mono text-base font-semibold leading-relaxed tabular-nums sm:text-xl lg:text-2xl ${tone}`}>{formatDateTime(epoch)}</div>
     </div>
   );
 }
@@ -39,18 +39,18 @@ type CurrentPriceProps = { price: number | undefined; entry: number; direction: 
 export function CurrentPrice({ price, entry, direction, digits }: CurrentPriceProps) {
   if (price === undefined) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-line/10 bg-surface/[0.02] px-3 py-3 sm:px-4">
+      <div className="flex min-w-0 w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-line/10 bg-surface/[0.02] px-3 py-3 sm:px-4">
         <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Live price</span>
-        <span className="text-sm text-ink-3">Waiting for price</span>
+        <span className="min-w-0 break-words text-sm text-ink-3">Waiting for price</span>
       </div>
     );
   }
   const favourable = direction === 'BUY' ? price >= entry : price <= entry;
   const tone = favourable ? 'text-up' : 'text-down';
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.02] px-4 py-3">
+    <div className="flex min-w-0 w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-line/10 bg-surface/[0.02] px-3 py-3 sm:px-4">
       <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Live price</span>
-      <span className={`font-mono text-lg font-semibold tabular-nums ${tone}`}>{formatPrice(price, digits)}</span>
+      <span className={`min-w-0 max-w-full break-all text-right font-mono text-base font-semibold tabular-nums sm:text-lg ${tone}`}>{formatPrice(price, digits)}</span>
     </div>
   );
 }
@@ -67,19 +67,19 @@ type LevelListProps = { rows: LevelRow[]; digits: number };
 
 export function LevelList({ rows, digits }: LevelListProps) {
   return (
-    <ul className="divide-y divide-line/10 overflow-hidden rounded-xl border border-line/10">
+    <ul className="w-full min-w-0 divide-y divide-line/10 overflow-hidden rounded-xl border border-line/10">
       {rows.map((row) => (
-        <li key={row.label} className={`level-dial flex min-w-0 flex-col items-start gap-2 rounded-xl border px-3 py-3 sm:px-4 sm:py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 ${row.tone === 'text-entry' ? 'level-dial-entry' : row.tone === 'text-down' ? 'level-dial-down' : row.tone === 'text-up' ? 'level-dial-up' : 'level-dial-neutral'} ${row.hitEpoch !== null ? 'level-dial-hit' : 'level-dial-pending'}`}>
-          <div className="min-w-0 max-w-full">
-            <div className={`flex flex-wrap items-center gap-2 text-lg font-bold leading-snug sm:text-xl ${row.tone}`}>
+        <li key={row.label} className={`level-dial flex w-full min-w-0 flex-col items-stretch gap-2 rounded-xl border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 sm:py-4 lg:px-5 ${row.tone === 'text-entry' ? 'level-dial-entry' : row.tone === 'text-down' ? 'level-dial-down' : row.tone === 'text-up' ? 'level-dial-up' : 'level-dial-neutral'} ${row.hitEpoch !== null ? 'level-dial-hit' : 'level-dial-pending'}`}>
+          <div className="min-w-0 w-full sm:flex-1">
+            <div className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-base font-bold leading-snug sm:text-lg lg:text-xl ${row.tone}`}>
               {row.hitEpoch !== null && <Check className="h-5 w-5 flex-shrink-0 text-up" />}
-              <span>{row.label}</span>
+              <span className="min-w-0 max-w-full break-words">{row.label}</span>
             </div>
-            <div className="mt-1 break-words text-xs leading-relaxed text-ink-2">
+            <div className="mt-1 min-w-0 break-words text-xs leading-relaxed text-ink-2">
               {row.hitEpoch !== null ? `Reached at ${formatDateTime(row.hitEpoch)}` : row.hint}
             </div>
           </div>
-          <span className={`max-w-full break-all font-mono text-lg font-extrabold tabular-nums sm:flex-shrink-0 sm:text-2xl ${row.tone}`}>
+          <span className={`block min-w-0 max-w-full break-all text-left font-mono text-lg font-extrabold leading-snug tabular-nums sm:flex-shrink-0 sm:text-right sm:text-xl lg:text-2xl ${row.tone}`}>
             {formatPrice(row.value, digits)}
           </span>
         </li>
