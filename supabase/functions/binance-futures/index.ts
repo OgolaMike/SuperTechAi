@@ -24,15 +24,23 @@ async function decrypt(value: string) {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: packed.slice(0,12) }, await key(), packed.slice(12));
   return new TextDecoder().decode(plain);
 }
-async function signature(secret: string, query: string) {
+async function signature(secret: string, query: string, keyType: string = "hmac") {
+  if (keyType === "rsa") {
+    const pem = secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g, "");
+    if (!pem || !secret.includes("BEGIN PRIVATE KEY")) throw new Error("rsa_private_key_must_be_pkcs8_pem");
+    const der = Uint8Array.from(atob(pem), ch => ch.charCodeAt(0));
+    const privateKey = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+    const signed = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", privateKey, enc.encode(query));
+    return btoa(String.fromCharCode(...new Uint8Array(signed)));
+  }
   const k = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = await crypto.subtle.sign("HMAC", k, enc.encode(query));
   return [...new Uint8Array(sig)].map(v => v.toString(16).padStart(2,"0")).join("");
 }
-async function futuresAccount(apiKey: string, apiSecret: string) {
+async function futuresAccount(apiKey: string, apiSecret: string, keyType = "hmac") {
   const params = new URLSearchParams({ timestamp: String(Date.now()), recvWindow: "5000" });
-  const sig = await signature(apiSecret, params.toString());
-  const response = await fetch("https://fapi.binance.com/fapi/v2/account?" + params + "&signature=" + sig, { headers: { "X-MBX-APIKEY": apiKey } });
+  const sig = await signature(apiSecret, params.toString(), keyType);
+  const response = await fetch("https://fapi.binance.com/fapi/v2/account?" + params + "&signature=" + encodeURIComponent(sig), { headers: { "X-MBX-APIKEY": apiKey } });
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data?.msg === "string" ? data.msg : "binance_futures_account_check_failed");
   if (data?.canTrade !== true) throw new Error("binance_usdt_m_futures_trading_permission_not_enabled");
@@ -40,20 +48,20 @@ async function futuresAccount(apiKey: string, apiSecret: string) {
   const positions = Array.isArray(data.positions) ? (data.positions as FuturesPosition[]).filter((p) => Number(p.positionAmt ?? 0) !== 0).length : 0;
   return { canTrade: true, accountType: "USDT-M Futures", assets, openPositions: positions };
 }
-async function signedGet(apiKey: string, apiSecret: string, path: string, extra: Record<string, string> = {}) {
+async function signedGet(apiKey: string, apiSecret: string, path: string, keyType = "hmac", extra: Record<string, string> = {}) {
   const params = new URLSearchParams({ ...extra, timestamp: String(Date.now()), recvWindow: "5000" });
-  const sig = await signature(apiSecret, params.toString());
-  const response = await fetch("https://fapi.binance.com" + path + "?" + params + "&signature=" + sig, { headers: { "X-MBX-APIKEY": apiKey } });
+  const sig = await signature(apiSecret, params.toString(), keyType);
+  const response = await fetch("https://fapi.binance.com" + path + "?" + params + "&signature=" + encodeURIComponent(sig), { headers: { "X-MBX-APIKEY": apiKey } });
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data?.msg === "string" ? data.msg : "binance_futures_preflight_failed");
   return data;
 }
-async function futuresPreflight(apiKey: string, apiSecret: string) {
+async function futuresPreflight(apiKey: string, apiSecret: string, keyType = "hmac") {
   const [account, mode, positions, openOrders] = await Promise.all([
     futuresAccount(apiKey, apiSecret),
-    signedGet(apiKey, apiSecret, "/fapi/v1/positionSide/dual"),
-    signedGet(apiKey, apiSecret, "/fapi/v3/positionRisk"),
-    signedGet(apiKey, apiSecret, "/fapi/v1/openOrders"),
+    signedGet(apiKey, apiSecret, "/fapi/v1/positionSide/dual", keyType),
+    signedGet(apiKey, apiSecret, "/fapi/v3/positionRisk", keyType),
+    signedGet(apiKey, apiSecret, "/fapi/v1/openOrders", keyType),
   ]);
   const hedgeMode = mode?.dualSidePosition === true;
   const activePositions = Array.isArray(positions) ? (positions as FuturesPosition[]).filter((p) => Math.abs(Number(p.positionAmt ?? 0)) > 0).map((p) => ({
@@ -92,11 +100,14 @@ Deno.serve(async req => {
     if (action === "connect") {
       const apiKey = String(body.apiKey ?? "").trim();
       const apiSecret = String(body.apiSecret ?? "").trim();
-      if (apiKey.length < 16 || apiKey.length > 256 || apiSecret.length < 16 || apiSecret.length > 256) return json({ error: "invalid_binance_api_credentials" }, 400);
-      const account = await futuresPreflight(apiKey, apiSecret);
+      const keyType = String(body.keyType ?? "hmac").toLowerCase();
+      if (keyType !== "hmac" && keyType !== "rsa") return json({ error: "unsupported_binance_key_type" }, 400);
+      if (apiKey.length < 16 || apiKey.length > 256 || apiSecret.length < 16 || apiSecret.length > 8192) return json({ error: "invalid_binance_api_credentials" }, 400);
+      if (keyType === "rsa" && !apiSecret.includes("BEGIN PRIVATE KEY")) return json({ error: "rsa_private_key_must_be_pkcs8_pem" }, 400);
+      const account = await futuresPreflight(apiKey, apiSecret, keyType);
       const [encryptedApiKey, encryptedApiSecret] = await Promise.all([encrypt(apiKey), encrypt(apiSecret)]);
       const last4 = apiKey.slice(-4);
-      const { error } = await admin.from("binance_futures_credentials").upsert({ user_id: userId, encrypted_api_key: encryptedApiKey, encrypted_api_secret: encryptedApiSecret, api_key_last4: last4, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      const { error } = await admin.from("binance_futures_credentials").upsert({ user_id: userId, encrypted_api_key: encryptedApiKey, encrypted_api_secret: encryptedApiSecret, key_type: keyType, api_key_last4: last4, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (error) throw error;
       const { error: settingsError } = await admin.from("binance_futures_settings").upsert({ user_id: userId, connection_status: "connected", api_key_last4: last4, account_label: "Binance USDT-M Futures", last_checked_at: new Date().toISOString(), last_error_code: null, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (settingsError) throw settingsError;
@@ -116,10 +127,10 @@ Deno.serve(async req => {
     }
 
     if (action === "test_connection") {
-      const { data: stored, error } = await admin.from("binance_futures_credentials").select("encrypted_api_key,encrypted_api_secret").eq("user_id", userId).maybeSingle();
+      const { data: stored, error } = await admin.from("binance_futures_credentials").select("encrypted_api_key,encrypted_api_secret,key_type").eq("user_id", userId).maybeSingle();
       if (error || !stored) throw new Error("binance_futures_account_not_connected");
       const [apiKey, apiSecret] = await Promise.all([decrypt(stored.encrypted_api_key), decrypt(stored.encrypted_api_secret)]);
-      const account = await futuresPreflight(apiKey, apiSecret);
+      const account = await futuresPreflight(apiKey, apiSecret, stored.key_type ?? "hmac");
       await admin.from("binance_futures_settings").update({ connection_status: "connected", last_checked_at: new Date().toISOString(), last_error_code: null }).eq("user_id", userId);
       return json({ ok: true, account });
     }
