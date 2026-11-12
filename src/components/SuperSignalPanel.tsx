@@ -185,14 +185,23 @@ function SuperSignalDetails({ record, price, candles, aiModel }: {
 
   return (
     <article className="min-w-0 space-y-4 rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(220px,0.72fr)_minmax(0,1.45fr)]">
+        <header className="flex min-w-0 flex-wrap content-start items-start justify-between gap-3 rounded-xl border border-line/10 bg-surface/[0.025] p-3">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 8/8</div>
+            <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
+            <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
+          </div>
+          <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-black ${isBuy ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'}`}><DirectionIcon className="h-4 w-4" />{record.direction}</span>
+        </header>
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 8/8</div>
-          <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
-          <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
+          {candles.length > 0 ? (
+            <SignalChartSnapshot candles={candles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
+          ) : (
+            <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-line/10 bg-surface/[0.025] p-4 text-center text-sm text-ink-3">Chart data is loading for this signal.</div>
+          )}
         </div>
-        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-black ${isBuy ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'}`}><DirectionIcon className="h-4 w-4" />{record.direction}</span>
-      </header>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/[0.06] p-3">
         <div><div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Signal fired</div><div className="mt-1 text-sm font-semibold text-ink">{formatDateTime(record.signal_epoch)}</div></div>
@@ -234,7 +243,7 @@ function SuperSignalDetails({ record, price, candles, aiModel }: {
         <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'All eight timeframes confirmed the same direction at the time this signal fired.'}</p>
       </div>
 
-      {candles.length > 0 && <SignalChartSnapshot candles={candles} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />}
+
     </article>
   );
 }
