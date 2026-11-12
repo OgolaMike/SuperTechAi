@@ -96,7 +96,11 @@ async function currentEatMovers(): Promise<Response> {
     const low = Number(candle[3]);
     const close = Number(candle[4]);
     const quoteVolume = Number(candle[7]);
-    if (!(open > 0) || !(close > 0) || !Number.isFinite(quoteVolume)) return null;
+    const hourlyCloses = Array.isArray(hourlyRows) ? hourlyRows.map((row: unknown) => Array.isArray(row) ? Number(row[4]) : NaN).filter((value: number) => Number.isFinite(value) && value > 0) : [];
+    if (!(open > 0) || !(close > 0) || !Number.isFinite(quoteVolume) || hourlyCloses.length < 13) return null;
+    const latest = hourlyCloses[hourlyCloses.length - 1], prior6 = hourlyCloses[hourlyCloses.length - 7], prior12 = hourlyCloses[hourlyCloses.length - 13];
+    const momentum = ((latest - prior6) / prior6) * 100;
+    const previousMomentum = ((prior6 - prior12) / prior12) * 100;
     return {
       symbol: ticker.symbol,
       base: usdtBase(ticker.symbol) as string,
@@ -106,6 +110,9 @@ async function currentEatMovers(): Promise<Response> {
       close,
       quoteVolume,
       changePct: ((close - open) / open) * 100,
+      change24hPct: Number(ticker.priceChangePercent),
+      momentumPct: momentum,
+      accelerationPct: momentum - previousMomentum,
     };
   });
 
