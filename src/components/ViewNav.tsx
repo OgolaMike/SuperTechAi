@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Activity, BarChart3, Bell, Bot, Cable, ChevronUp,
   Database, GraduationCap, Gavel, Landmark, LayoutDashboard, ListOrdered,
-  Megaphone, MoreHorizontal, Network, Repeat2, Sparkles, Users, Wallet,
+  Megaphone, MoreHorizontal, Repeat2, Sparkles, Users,
   UserRoundPlus, X,
 } from 'lucide-react';
 
