@@ -20,7 +20,7 @@ type Props = {
   states: Record<string, Record<number, TfState>>;
 };
 
-const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'H8', 'D1'];
+const TIMEFRAMES = ['D1', 'H8', 'H4', 'H3', 'H2', 'H1', 'M30', 'M15'];
 
 function statesForRecord(record: SuperSignalRecord, states: Record<string, Record<number, TfState>>) {
   return states[record.symbol]?.[900]?.candles ?? [];
