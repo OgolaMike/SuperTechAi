@@ -50,7 +50,7 @@ export function NotificationSettings({ assets }: Props) {
     setSaveError(null);
     try {
       await saveMemberAlertModes(settings, userId);
-      await saveAlertControls(settings);
+      await saveAlertControls(settings, assets.map((asset) => asset.symbol));
       setSaved(true);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save your alert choices.');
