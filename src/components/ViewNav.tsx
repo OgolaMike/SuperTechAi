@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Activity, BarChart3, Bell, Cable, ChevronUp,
+  Activity, BarChart3, Bell, Bot, Cable, ChevronUp,
   Database, GraduationCap, Gavel, Landmark, LayoutDashboard, ListOrdered,
   Megaphone, MoreHorizontal, Network, Repeat2, Sparkles, Users, Wallet,
   UserRoundPlus, X,
@@ -8,13 +8,13 @@ import {
 
 export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'marketing';
 
-type NavItem = { id: View; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
+type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
 const PRIMARY: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'super', label: 'Super Signals', icon: Sparkles },
   { id: 'crypto', label: 'Markets', icon: BarChart3 },
-  { id: 'binance', label: 'Trade', icon: Activity },
+  { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
 
@@ -62,7 +62,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
   return (
     <>
       <nav className="hidden w-full items-center gap-1 rounded-2xl border border-line/10 bg-surface/[0.035] p-1.5 lg:flex lg:w-auto" aria-label="Main navigation">
-        {PRIMARY.map(({ id, label, icon: Icon }) => (
+        {PRIMARY.map(({ id, label, mobileLabel, icon: Icon }) => (
           <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${primaryActive(id) ? 'glow-ring bg-surface/[0.12] text-ink shadow-sm' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
             <Icon className="h-4 w-4 shrink-0" /><span>{label}</span>
@@ -95,7 +95,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
             <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
               className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors ${primaryActive(id) ? 'text-accent' : 'text-ink-3'}`}>
               <span className={`flex h-8 w-10 items-center justify-center rounded-xl ${primaryActive(id) ? 'bg-accent/10' : ''}`}><Icon className="h-[19px] w-[19px]" /></span>
-              <span className="truncate">{label}</span>
+              <span className="truncate">{mobileLabel ?? label}</span>
             </button>
           ))}
           <button type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen}
