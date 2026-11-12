@@ -12,14 +12,14 @@ export type Timeframe = {
 const CHART_HISTORY_CANDLES = 1440;
 
 export const TIMEFRAMES: Timeframe[] = [
-  { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 10800, label: 'H3', role: 'Major structure confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 28800, label: 'H8', role: 'Higher-timeframe trend', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 86400, label: 'D1', role: 'Highest timeframe · daily bias', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 28800, label: 'H8', role: 'Higher-timeframe trend', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 10800, label: 'H3', role: 'Major structure confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: CHART_HISTORY_CANDLES },
 ];
 
 
