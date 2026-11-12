@@ -98,6 +98,45 @@ Deno.serve(async (req: Request) => {
       return json({ lesson: saved, message: "AI lesson generated and published." }, 201);
     }
 
+    if (action === "generate-discussion") {
+      if (!isAdmin) return json({ error: "Only Academy administrators can publish AI discussion topics." }, 403);
+      const topic = clean(body.topic, 240);
+      const category = clean(body.category || "Trading practice", 80);
+      if (topic.length < 4) return json({ error: "Enter a discussion topic." }, 400);
+      const raw = await askOpenAI(
+        "You are the SuperTech AI Academy discussion facilitator. Create a useful AI-led discussion for traders at the requested level. Use simple English, encourage evidence-based reasoning and risk awareness, and never invent real trade outcomes or promise profits. Return JSON with title, discussion_prompt, context, talking_points (3-5 strings), follow_up_questions (2-4 strings).",
+        { topic, category, brand: "SuperTech AI" },
+        true,
+      );
+      const content = JSON.parse(raw);
+      if (!content.title || !content.discussion_prompt || !content.context ||
+          !Array.isArray(content.talking_points) || !Array.isArray(content.follow_up_questions)) {
+        return json({ error: "AI returned an incomplete discussion. Please try again." }, 502);
+      }
+      const { data: saved, error } = await db.from("academy_ai_discussion_topics").insert({
+        title: clean(content.title, 180), category,
+        discussion_prompt: clean(content.discussion_prompt, 1600),
+        context: clean(content.context, 4000),
+        talking_points: content.talking_points.slice(0, 5).map((x: unknown) => clean(x, 500)),
+        follow_up_questions: content.follow_up_questions.slice(0, 4).map((x: unknown) => clean(x, 500)),
+        status: "published", model: "gpt-4.1-mini", generated_by: user.id,
+        published_at: new Date().toISOString(),
+      }).select("id,title,category,discussion_prompt,context,talking_points,follow_up_questions,status,created_at").single();
+      if (error) throw error;
+      return json({ discussion: saved, message: "AI discussion published." }, 201);
+    }
+
+    if (action === "list-discussions") {
+      if (!isMember && !isAdmin) return json({ error: "An approved Academy membership is required." }, 403);
+      let query = db.from("academy_ai_discussion_topics")
+        .select("id,title,category,discussion_prompt,context,talking_points,follow_up_questions,status,created_at")
+        .order("created_at", { ascending: false }).limit(50);
+      if (!isAdmin) query = query.eq("status", "published");
+      const { data, error } = await query;
+      if (error) throw error;
+      return json({ discussions: data || [] });
+    }
+
     if (action === "ask") {
       if (!isMember && !isAdmin) return json({ error: "An approved Academy membership is required." }, 403);
       const question = clean(body.question, 1600);
