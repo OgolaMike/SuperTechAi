@@ -37,6 +37,46 @@ Deno.serve(async req=>{
    if(ce||!creds){failed++;continue;}
    let key:string,secret:string;
    try{[key,secret]=await Promise.all([decrypt(creds.encrypted_api_key),decrypt(creds.encrypted_api_secret)]);}catch{failed++;continue;}
+   // Recover ambiguous submissions by the deterministic client order ID before considering new signals.
+   const {data:uncertainRows,error:uncertainError}=await db.from("binance_futures_orders")
+    .select("id,signal_key,symbol,side,quantity,entry_price,stop_loss,take_profit,client_order_id,status")
+    .eq("user_id",cfg.user_id).eq("status","uncertain").limit(25);
+   if(uncertainError){failed++;continue;}
+   let haltNewOrders=false;
+   for(const uncertain of uncertainRows??[]){
+    try{
+     if(!uncertain.client_order_id||!uncertain.symbol)continue;
+     const found=await binance(key,secret,"/fapi/v1/order","GET",{symbol:String(uncertain.symbol),origClientOrderId:String(uncertain.client_order_id)});
+     const exchangeStatus=String(found.status??"");
+     if(exchangeStatus==="NEW"||exchangeStatus==="PARTIALLY_FILLED"){
+      await binance(key,secret,"/fapi/v1/order","DELETE",{symbol:String(uncertain.symbol),origClientOrderId:String(uncertain.client_order_id)});
+      const positions=await binance(key,secret,"/fapi/v3/positionRisk","GET",{symbol:String(uncertain.symbol)});
+      const live=(positions??[] as PositionRow[]).find((x:PositionRow)=>x.symbol===uncertain.symbol&&Math.abs(Number(x.positionAmt))>0);
+      if(live){
+       const closeSide=Number(live.positionAmt)>0?"SELL":"BUY";
+       await binance(key,secret,"/fapi/v1/order","POST",{symbol:String(uncertain.symbol),side:closeSide,type:"MARKET",quantity:fmt(Math.abs(Number(live.positionAmt))),reduceOnly:"true"});
+      }
+      await db.from("binance_futures_orders").update({status:"rejected",last_error_code:"uncertain_entry_cancelled_and_position_checked"}).eq("id",uncertain.id).eq("user_id",cfg.user_id);
+      haltNewOrders=true;
+      continue;
+     }
+     if(exchangeStatus==="FILLED"||exchangeStatus==="PARTIALLY_FILLED"){
+      const positions=await binance(key,secret,"/fapi/v3/positionRisk","GET",{symbol:String(uncertain.symbol)});
+      const live=(positions??[] as PositionRow[]).find((x:PositionRow)=>x.symbol===uncertain.symbol&&Math.abs(Number(x.positionAmt))>0);
+      if(live){
+       const closeSide=Number(live.positionAmt)>0?"SELL":"BUY";
+       await binance(key,secret,"/fapi/v1/order","POST",{symbol:String(uncertain.symbol),side:closeSide,type:"MARKET",quantity:fmt(Math.abs(Number(live.positionAmt))),reduceOnly:"true"});
+      }
+      await db.from("binance_futures_orders").update({status:"rejected",exchange_order_id:String(found.orderId??""),result_payload:found,last_error_code:"uncertain_entry_found_position_flattened_for_safety"}).eq("id",uncertain.id).eq("user_id",cfg.user_id);
+      haltNewOrders=true;
+     }
+    }catch(recoveryError){
+     const message=recoveryError instanceof Error?recoveryError.message:"uncertain_order_recovery_failed";
+     await db.from("binance_futures_orders").update({last_error_code:("recovery_pending: "+message).slice(0,120)}).eq("id",uncertain.id).eq("user_id",cfg.user_id);
+     haltNewOrders=true;
+    }
+   }
+   if(haltNewOrders)continue;
    const nowEpoch=Math.floor(Date.now()/1000);
    const freshCutoff=nowEpoch-7200;
    const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").eq("timeframe_agreement",8).gte("signal_epoch",freshCutoff).lte("signal_epoch",nowEpoch).order("signal_epoch",{ascending:false}).limit(25);
