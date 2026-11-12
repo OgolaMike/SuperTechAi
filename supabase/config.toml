@@ -37,3 +37,6 @@ verify_jwt = true
 
 [functions.ctrader-discover-accounts]
 verify_jwt = true
+
+[functions.ctrader-cloud-reconcile]
+verify_jwt = true
