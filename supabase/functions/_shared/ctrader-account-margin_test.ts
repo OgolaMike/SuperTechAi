@@ -50,7 +50,7 @@ Deno.test("fails closed when broker PnL does not cover every open position", () 
 
 Deno.test("rejects insufficient free margin after the safety buffer", () => {
   assertThrows(() => calculateCTraderAccountMargin({
-    balanceRaw: 10000, balanceMoneyDigits: 2, pnlRawRows: [], pnlMoneyDigits: 2,
+    balanceRaw: 10000, balanceMoneyDigits: 2, pnlRawRows: [{ positionId: 1, netUnrealizedPnL: 0 }], pnlMoneyDigits: 2,
     positions: [{ positionId: 1, positionStatus: 1, usedMargin: 9500, moneyDigits: 2 }],
     expectedMargin: 10, maxMarginUtilizationPercent: 50, safetyBufferPercent: 25,
   }), Error, "insufficient_free_margin_after_safety_buffer");
