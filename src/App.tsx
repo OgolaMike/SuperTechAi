@@ -18,6 +18,7 @@ import { BinanceSpotAutomation } from '@/components/BinanceSpotAutomation';
 import { BinanceFuturesAutomation } from '@/components/BinanceFuturesAutomation';
 import { OKXFuturesAutomation } from '@/components/OKXFuturesAutomation';
 import { CryptoMovers } from '@/components/CryptoMovers';
+import { DerivMarket } from '@/components/DerivMarket';
 import { ServiceHealth } from '@/components/ServiceHealth';
 import { RecordsPanel } from '@/components/RecordsPanel';
 import { PendingOrdersPanel } from '@/components/PendingOrdersPanel';
@@ -265,6 +266,7 @@ function App() {
         {view === 'okx' && <OKXFuturesAutomation />}
         {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
+        {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
         <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>
