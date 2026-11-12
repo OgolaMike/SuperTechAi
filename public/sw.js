@@ -1,8 +1,10 @@
 // SuperTech Ai service worker.
-// Caches the branded app shell for installation and offline launch.
-// Live market data still requires a network connection to Deriv's WebSocket.
+// Keep online launches on the newest deployed app shell. Use cached files only
+// as a network-failure fallback so an old HTML/JS combination cannot strand
+// members on a blank screen after a release.
 
-const CACHE_NAME = 'supertech-ai-shell-v3';
+const CACHE_NAME = 'supertech-ai-shell-v4';
+const CACHE_PREFIX = 'supertech-ai-shell-';
 const BRAND_LOGO = '/supertechai-icon.png?v=5752d4b0';
 const SHELL_ASSETS = [
   '/',
@@ -17,8 +19,7 @@ self.addEventListener('install', (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(SHELL_ASSETS))
-      .then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting()),
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -29,7 +30,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_NAME)
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
             .map((key) => caches.delete(key)),
         ),
       )
@@ -81,35 +82,49 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
   if (req.mode === 'websocket' || url.protocol === 'ws:' || url.protocol === 'wss:') return;
 
-  if (req.mode === 'navigate' && url.origin === self.location.origin) {
+  if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            event.waitUntil(
+              caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy)),
+            );
+          }
           return response;
         })
-        .catch(() => caches.match('/index.html').then((response) => response || caches.match('/'))),
+        .catch(async () => {
+          const cache = await caches.open(CACHE_NAME);
+          return (await cache.match('/index.html')) || (await cache.match('/')) || Response.error();
+        }),
     );
     return;
   }
 
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(req).then((cached) => {
-        const network = fetch(req)
-          .then((response) => {
-            if (response && response.status === 200 && response.type === 'basic') {
-              const copy = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-            }
-            return response;
-          })
-          .catch(() => cached);
-        return cached || network;
+  const isStaticAsset =
+    ['script', 'style', 'image', 'font'].includes(req.destination) ||
+    url.pathname.startsWith('/assets/');
+
+  if (!isStaticAsset) return;
+
+  event.respondWith(
+    fetch(req)
+      .then((response) => {
+        if (response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)),
+          );
+        }
+        return response;
+      })
+      .catch(async () => {
+        const cache = await caches.open(CACHE_NAME);
+        return (await cache.match(req)) || Response.error();
       }),
-    );
-  }
+  );
 });
