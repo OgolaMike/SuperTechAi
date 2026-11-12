@@ -383,7 +383,6 @@ Deno.serve(async (req) => {
           throw new Error("ctrader_expected_margin_invalid");
         }
         const expectedMargin = expectedMarginRaw / (10 ** marginDigits);
-        const balance = Number(trader.balance) / (10 ** Number(trader.moneyDigits));
         // Re-read broker positions and PnL; then refresh trader info to detect balance changes during the snapshot.
         const positionsSnapshot = await sendRequest(ws, 2124, {
           ctidTraderAccountId: Number(connection.ctrader_account_id),
