@@ -70,7 +70,7 @@ export type ExecutionIntent = {
     maxLossCurrency: string;
     riskPercent: number;
     maxOpenPositions: number;
-    dailyLossLimitPercent: number;
+    dailyLossLimitPercent?: number;
     leverage?: number;
   };
   authorization: {
@@ -196,9 +196,10 @@ export function assertExecutionIntent(value: ExecutionIntent): void {
     throw new Error("invalid_execution_quote_amount");
   }
   if (!positive(value.risk.maxLossAmount) || !value.risk.maxLossCurrency ||
-      !positive(value.risk.riskPercent) || value.risk.riskPercent > 2 ||
+      !positive(value.risk.riskPercent) || value.risk.riskPercent > (value.provider === "binance_spot" ? 5 : 2) ||
       !Number.isInteger(value.risk.maxOpenPositions) || value.risk.maxOpenPositions < 1 ||
-      !positive(value.risk.dailyLossLimitPercent) || value.risk.dailyLossLimitPercent > 5) {
+      (value.risk.dailyLossLimitPercent !== undefined &&
+        (!positive(value.risk.dailyLossLimitPercent) || value.risk.dailyLossLimitPercent > 5))) {
     throw new Error("execution_risk_limits_invalid");
   }
   if (value.authorization.emergencyStop) {
