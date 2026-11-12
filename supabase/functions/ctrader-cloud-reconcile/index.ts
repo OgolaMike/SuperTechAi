@@ -1,4 +1,5 @@
 import { calculateCTraderRiskSize } from "../_shared/ctrader-risk-sizing.ts";
+import { calculateCTraderAccountMargin } from "../_shared/ctrader-account-margin.ts";
 import { validateCTraderExecutionPreflight } from "../_shared/ctrader-execution-preflight.ts";
 
 const cors = {
@@ -383,7 +384,45 @@ Deno.serve(async (req) => {
         }
         const expectedMargin = expectedMarginRaw / (10 ** marginDigits);
         const balance = Number(trader.balance) / (10 ** Number(trader.moneyDigits));
-        const marginUtilizationPercent = expectedMargin / balance * 100;
+        // Re-read broker positions and PnL; then refresh trader info to detect balance changes during the snapshot.
+        const positionsSnapshot = await sendRequest(ws, 2124, {
+          ctidTraderAccountId: Number(connection.ctrader_account_id),
+          returnProtectionOrders: false,
+        }, 2125);
+        const openPositions = (Array.isArray(positionsSnapshot.position)
+          ? positionsSnapshot.position as Record<string, unknown>[] : [])
+          .filter((position) => Number(position.positionStatus) === 1);
+        const pnlResponse = await sendRequest(ws, 2187, {
+          ctidTraderAccountId: Number(connection.ctrader_account_id),
+        }, 2188);
+        const pnlRows = (Array.isArray(pnlResponse.positionUnrealizedPnL)
+          ? pnlResponse.positionUnrealizedPnL as Record<string, unknown>[] : [])
+          .map((row) => ({
+            positionId: String(row.positionId ?? ""),
+            netUnrealizedPnL: Number(row.netUnrealizedPnL),
+          }));
+        const refreshedTrader = await sendRequest(ws, 2121, {
+          ctidTraderAccountId: Number(connection.ctrader_account_id),
+        }, 2122);
+        if (trader.balanceVersion === undefined || refreshedTrader.balanceVersion === undefined ||
+            String(trader.balanceVersion) !== String(refreshedTrader.balanceVersion)) {
+          throw new Error("ctrader_account_balance_changed_during_margin_snapshot");
+        }
+        const accountMargin = calculateCTraderAccountMargin({
+          balanceRaw: Number(refreshedTrader.balance),
+          balanceMoneyDigits: Number(refreshedTrader.moneyDigits),
+          pnlRawRows: pnlRows,
+          pnlMoneyDigits: Number(pnlResponse.moneyDigits),
+          positions: openPositions.map((position) => ({
+            positionId: String(position.positionId ?? ""),
+            positionStatus: Number(position.positionStatus),
+            usedMargin: Number(position.usedMargin),
+            moneyDigits: Number(position.moneyDigits),
+          })),
+          expectedMargin,
+          maxMarginUtilizationPercent: 50,
+          safetyBufferPercent: 25,
+        });
         preflightPreview = {
           readOnly: true,
           orderPlaced: false,
@@ -405,11 +444,20 @@ Deno.serve(async (req) => {
           riskAmount: riskSize.riskAmount,
           estimatedStopLoss: riskSize.estimatedStopLoss,
           expectedMargin,
-          marginUtilizationPercent,
+          marginUtilizationPercent: accountMargin.marginUtilizationPercent,
+          accountBalance: accountMargin.balance,
+          unrealizedNetPnl: accountMargin.unrealizedNetPnl,
+          accountEquity: accountMargin.equity,
+          existingUsedMargin: accountMargin.usedMargin,
+          verifiedFreeMargin: accountMargin.freeMargin,
+          openPositionsIncluded: accountMargin.openPositionsCount,
+          requiredFreeMarginWithBuffer: accountMargin.requiredFreeMargin,
+          freeMarginVerified: true,
+          maxMarginUtilizationPercent: 50,
+          safetyBufferPercent: 25,
           guaranteedStopLoss: spread.guaranteedStopLoss,
-          freeMarginVerified: false,
           executionAuthorized: false,
-          note: "Preview only. Free margin, contract-specific conversion and durable protected execution are not yet verified.",
+          note: "Live broker account snapshot verified for this read-only preview. Execution is still disabled until a durable protected-order executor and recovery path are implemented.",
         };
       }
       const reconciled = await sendRequest(ws, 2124, {
