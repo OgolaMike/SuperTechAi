@@ -278,8 +278,9 @@ Deno.serve(async (req) => {
         }, 2117);
         const symbolList = Array.isArray(symbolResponse.symbol) ? symbolResponse.symbol as Record<string, unknown>[] : [];
         const symbol = symbolList.find((item) => Number(item.symbolId) === symbolId);
-        if (!symbol) throw new Error("ctrader_symbol_not_found");
-        if (symbol.enabled === false) throw new Error("ctrader_symbol_not_enabled");
+        const lightSymbol = lightSymbols.find((item) => Number(item.symbolId) === symbolId);
+        if (!symbol || !lightSymbol) throw new Error("ctrader_symbol_not_found");
+        if (lightSymbol.enabled === false) throw new Error("ctrader_symbol_not_enabled");
         const assetResponse = await sendRequest(ws, 2112, {
           ctidTraderAccountId: Number(connection.ctrader_account_id),
         }, 2113);
