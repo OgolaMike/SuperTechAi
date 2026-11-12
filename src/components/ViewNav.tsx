@@ -13,8 +13,8 @@ type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof Lay
 const PRIMARY: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'super', label: 'Super Signals', icon: Sparkles },
-  { id: 'crypto', label: 'Crypto Market', icon: BarChart3 },
-  { id: 'deriv-market', label: 'Deriv Market', icon: Activity },
+  { id: 'crypto', label: 'Crypto Market', mobileLabel: 'Crypto', icon: BarChart3 },
+  { id: 'deriv-market', label: 'Deriv Market', mobileLabel: 'Deriv', icon: Activity },
   { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
