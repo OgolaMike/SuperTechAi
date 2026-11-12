@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Activity, BarChart3, Bell, Bot, Cable, ChevronUp,
-  Database, GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
+  GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
   Megaphone, MoreHorizontal, Repeat2, Sparkles, Users,
   UserRoundPlus, X,
 } from 'lucide-react';
@@ -62,7 +62,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
   return (
     <>
       <nav className="hidden w-full items-center gap-1 rounded-2xl border border-line/10 bg-surface/[0.035] p-1.5 lg:flex lg:w-auto" aria-label="Main navigation">
-        {PRIMARY.map(({ id, label, mobileLabel, icon: Icon }) => (
+        {PRIMARY.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${primaryActive(id) ? 'glow-ring bg-surface/[0.12] text-ink shadow-sm' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
             <Icon className="h-4 w-4 shrink-0" /><span>{label}</span>
