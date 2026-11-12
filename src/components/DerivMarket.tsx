@@ -16,6 +16,23 @@ type Props = {
 
 type Mover = { asset: Asset; price: number | null; changePct: number | null; candles: number };
 
+function eatDate(epoch: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(epoch * 1000));
+}
+
+function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['prices'], date: string, today: string): Mover {
+  const hourly = states[asset.symbol]?.[3600]?.candles ?? [];
+  const dayCandles = hourly.filter((candle) => eatDate(candle.epoch) === date);
+  const priorCandles = hourly.filter((candle) => eatDate(candle.epoch) < date);
+  const dayLast = dayCandles.at(-1);
+  const priorLast = priorCandles.at(-1);
+  const price = date === today ? (prices[asset.symbol] ?? dayLast?.close ?? null) : (dayLast?.close ?? null);
+  const changePct = priorLast && priorLast.close !== 0 && price != null
+    ? ((price - priorLast.close) / priorLast.close) * 100
+    : null;
+  return { asset, price, changePct, candles: dayCandles.length };
+}
+
 function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']): Mover {
   const hourly = states[asset.symbol]?.[3600]?.candles ?? [];
   const latest = hourly.at(-1);
@@ -35,10 +52,17 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
   const [showSma, setShowSma] = useState(true);
   const [showBands, setShowBands] = useState(true);
   const [query, setQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const derivAssets = useMemo(() => assets.filter((asset) => asset.exchange === 'DERIV'), [assets]);
   const movers = useMemo(() => derivAssets.map((asset) => getRoc(asset, states, prices)), [derivAssets, states, prices]);
   const ranked = useMemo(() => movers.filter((item) => item.changePct != null), [movers]);
+  const todayDate = eatDate(Math.floor(Date.now() / 1000));
+  const historyDates = useMemo(() => [...new Set(derivAssets.flatMap((asset) => (states[asset.symbol]?.[3600]?.candles ?? []).map((candle) => eatDate(candle.epoch))))].sort().reverse().slice(0, 7), [derivAssets, states]);
+  const activeDate = selectedDate && historyDates.includes(selectedDate) ? selectedDate : (historyDates.includes(todayDate) ? todayDate : historyDates[0] ?? todayDate);
+  const dailyMovers = useMemo(() => derivAssets.map((asset) => getDailyRoc(asset, states, prices, activeDate, todayDate)).filter((item) => item.changePct != null), [derivAssets, states, prices, activeDate, todayDate]);
+  const dailyGainers = useMemo(() => [...dailyMovers].sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0)).slice(0, 10), [dailyMovers]);
+  const dailyLosers = useMemo(() => [...dailyMovers].sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0)).slice(0, 10), [dailyMovers]);
   const watchlist = useMemo(() => {
     const term = query.trim().toLowerCase();
     return [...movers].filter((item) => !term || `${item.asset.name} ${item.asset.symbol} ${item.asset.fullName}`.toLowerCase().includes(term))
@@ -114,6 +138,22 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
         ) : (
           <div className="rounded-xl border border-line/10 p-5 text-sm text-ink-2">Loading Deriv market history and calculating momentum…</div>
         )}
+      </div>
+
+      <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-4 sm:p-5">
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Daily market history · EAT</p>
+          <h3 className="mt-1 text-lg font-semibold text-ink">Seven-day gainers and losers</h3>
+          <p className="mt-1 text-xs text-ink-3">Choose a Kenya market date to compare Deriv assets against the previous market day's close.</p>
+        </div>
+        <div role="tablist" className="mb-4 flex flex-wrap gap-2">
+          {historyDates.map((date) => <button key={date} type="button" role="tab" aria-selected={date === activeDate} onClick={() => setSelectedDate(date)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium tabular-nums ${date === activeDate ? 'border-accent/40 bg-accent/10 text-accent' : 'border-line/10 bg-surface/[0.03] text-ink-2 hover:text-ink'}`}>{date}</button>)}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <MoverList title={`${activeDate} top gainers`} tone="up" items={dailyGainers} selected={active?.symbol ?? ''} onSelect={setSelectedSymbol} format={rocText} />
+          <MoverList title={`${activeDate} top losers`} tone="down" items={dailyLosers} selected={active?.symbol ?? ''} onSelect={setSelectedSymbol} format={rocText} />
+        </div>
       </div>
 
       {active ? (
