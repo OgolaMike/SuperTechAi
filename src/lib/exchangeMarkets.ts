@@ -1,4 +1,5 @@
 import type { Candle } from '@/lib/deriv';
+import { supabase } from '@/lib/supabase';
 import { TIMEFRAMES, aggregateHourlyCandles, computeTfState, type TfState } from '@/lib/sma';
 
 export const EXCHANGE_OPTIONS = [
@@ -20,9 +21,10 @@ const clean = (v: unknown) => typeof v === 'string' ? v : String(v ?? '');
 const num = (v: unknown) => Number(v);
 const valid = (v: number) => Number.isFinite(v) && v > 0;
 const get = async (url: string) => {
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new Error(`Exchange market data unavailable (${response.status})`);
-  return response.json();
+  const { data, error } = await supabase.functions.invoke('exchange-market', { method: 'POST', body: { url } });
+  if (error) throw new Error(error.message || 'Exchange market data proxy is unavailable');
+  if (!data || typeof data !== 'object' || 'error' in data) throw new Error(data && typeof data === 'object' && 'error' in data ? String(data.error) : 'Invalid exchange market response');
+  return data;
 };
 
 export async function fetchExchangeTickers(exchange: ExchangeId): Promise<ExchangeTicker[]> {
