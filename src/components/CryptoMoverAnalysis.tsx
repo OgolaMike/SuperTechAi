@@ -106,10 +106,10 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
   const analysis = useMemo(() => describeMarket(state), [state]);
   const rateOfChange = useMemo(() => {
     const closes = state.candles.map((candle) => candle.close);
-    const latest = closes.at(-1);
+    const latest = closes[closes.length - 1];
     if (latest == null || latest === 0) return null;
     const calculate = (periods: number) => {
-      const previous = closes.at(-(periods + 1));
+      const previous = closes[closes.length - (periods + 1)];
       return previous == null || previous === 0 ? null : ((latest - previous) / previous) * 100;
     };
     return { one: calculate(1), three: calculate(3), six: calculate(6), twelve: calculate(12) };
