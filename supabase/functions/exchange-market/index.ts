@@ -11,7 +11,9 @@ const ALLOWED_HOSTS = new Set([
   "api.gateio.ws",
   "api.bitget.com",
   "api.mexc.com",
-  "api.huobi.pro",
+  "api.coinex.com",
+  "open-api.bingx.com",
+  "api-cloud.bitmart.com",
 ]);
 
 function respond(body: unknown, status = 200) {
@@ -34,7 +36,9 @@ Deno.serve(async (req) => {
       || (target.hostname === "api.gateio.ws" && target.pathname.startsWith("/api/v4/spot/"))
       || (target.hostname === "api.bitget.com" && target.pathname.startsWith("/api/v2/spot/market/"))
       || (target.hostname === "api.mexc.com" && (target.pathname.startsWith("/api/v3/ticker/") || target.pathname.startsWith("/api/v3/klines")))
-      || (target.hostname === "api.huobi.pro" && target.pathname.startsWith("/market/"));
+      || (target.hostname === "api.coinex.com" && target.pathname.startsWith("/v2/spot/"))
+      || (target.hostname === "open-api.bingx.com" && target.pathname.startsWith("/openApi/spot/"))
+      || (target.hostname === "api-cloud.bitmart.com" && target.pathname.startsWith("/spot/quotation/v3/"));
     if (target.protocol !== "https:" || !ALLOWED_HOSTS.has(target.hostname) || !allowedPath || target.username || target.password) {
       return respond({ error: "exchange_host_not_allowed" }, 400);
     }
