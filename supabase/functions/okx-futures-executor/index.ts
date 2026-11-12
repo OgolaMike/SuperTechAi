@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { assertExecutionIntent, executionIdempotencyKey } from "../_shared/execution-contract.ts";
 
 type OkxRecord = Record<string, unknown>;
 type OkxExecutionResult = {
@@ -29,7 +30,7 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   const {data:claimed,error:claimError}=await db.from("okx_futures_signal_intents").update({status:"processing",updated_at:new Date().toISOString()}).eq("id",row.id).eq("status","signal_ready").select("id");if(claimError)throw claimError;if(!claimed?.length)continue;
   const {data:st,error:stErr}=await db.from("okx_futures_settings").select("*").eq("user_id",row.user_id).maybeSingle();if(stErr||!st||st.connection_status!=="connected"||!st.auto_trade_enabled||st.emergency_stop)throw Error("okx_automation_not_enabled");
   if(st.demo_trading!==true&&st.live_execution_enabled!==true)throw Error("okx_live_execution_not_authorized");
-  if(Number(row.timeframe_agreement)!==8||Date.now()/1000-Number(row.signal_epoch)>7200)throw Error("signal_not_fresh_8_of_8");
+  if(Number(row.timeframe_agreement)!==8||Date.now()/1000-Number(row.signal_epoch)>7200||Date.now()/1000<Number(row.signal_epoch))throw Error("signal_not_fresh_8_of_8");
   const {data:c,error:ce}=await db.from("okx_futures_credentials").select("*").eq("user_id",row.user_id).single();if(ce||!c)throw Error("okx_credentials_missing");
   const [k,s,p]=await Promise.all([dec(c.encrypted_api_key),dec(c.encrypted_api_secret),dec(c.encrypted_passphrase)]);
   const inst=String(row.inst_id),demo=st.demo_trading===true;
@@ -42,6 +43,26 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   const {data:risk}=await db.from("okx_futures_daily_risk").select("start_equity").eq("user_id",row.user_id).eq("risk_date",new Date().toISOString().slice(0,10)).maybeSingle();
   if(!risk){const {error:e}=await db.from("okx_futures_daily_risk").insert({user_id:row.user_id,start_equity:equity});if(e)throw e;}else if((Number(risk.start_equity)-equity)/Number(risk.start_equity)*100>=Number(st.max_daily_loss_pct))throw Error("daily_loss_limit_reached");
   const riskCash=equity*Number(st.risk_percent)/100,perContract=Math.abs(price-sl)*ct;let sz=stepFloor(riskCash/perContract,lot);sz=Math.min(sz,stepFloor(available*Number(st.leverage)*0.9/(price*ct),lot));if(sz<min)throw Error("minimum_contract_size_exceeds_risk_budget_or_margin");
+  const executionCreatedAt=new Date();
+  assertExecutionIntent({
+   schemaVersion:1,
+   intentId:row.id,
+   idempotencyKey:executionIdempotencyKey("okx_futures", "okx_futures:"+row.user_id, row.id),
+   userId:row.user_id,
+   provider:"okx_futures",
+   connectionId:"okx_futures:"+row.user_id,
+   providerAccountId:row.user_id,
+   environment:demo?"demo":"live",
+   strategyId:"super_signal_8of8",
+   strategyVersion:"super-signal-v1",
+   signalId:row.signal_key,
+   signalCreatedAt:new Date(Number(row.signal_epoch)*1000).toISOString(),
+   expiresAt:new Date((Number(row.signal_epoch)+7200)*1000).toISOString(),
+   order:{instrument:inst,side:side as "buy"|"sell",kind:"market",entryPrice:price,quantity:sz,stopLoss:sl,takeProfit:tp},
+   risk:{maxLossAmount:sz*perContract,maxLossCurrency:"USDT",riskPercent:Number(st.risk_percent),maxOpenPositions:Number(st.max_open_positions),dailyLossLimitPercent:Number(st.max_daily_loss_pct),leverage:Number(st.leverage)},
+   authorization:{liveExecutionAuthorized:st.live_execution_enabled===true,emergencyStop:st.emergency_stop===true,preflightVerifiedAt:executionCreatedAt.toISOString()},
+   createdAt:executionCreatedAt.toISOString(),
+  });
   await api(k,s,p,"/api/v5/account/set-leverage","POST",{instId:inst,lever:String(st.leverage),mgnMode:"cross"},demo);
   const attachedId=("stp"+crypto.randomUUID().replaceAll("-","")).slice(0,32);
   const order=await api(k,s,p,"/api/v5/trade/order","POST",{instId:inst,tdMode:"cross",side,ordType:"market",sz:String(sz),clOrdId:("st"+crypto.randomUUID().replaceAll("-","")).slice(0,32),attachAlgoOrds:[{attachAlgoClOrdId:attachedId,tpTriggerPx:String(Math.round(tp/tickSize)*tickSize),tpOrdPx:"-1",tpTriggerPxType:"mark",slTriggerPx:String(Math.round(sl/tickSize)*tickSize),slOrdPx:"-1",slTriggerPxType:"mark"}]},demo),oid=String(order[0]?.ordId??"");
