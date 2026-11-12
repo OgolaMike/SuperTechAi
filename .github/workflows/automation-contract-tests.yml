@@ -33,6 +33,8 @@ on:
       - "supabase/functions/binance-futures-executor/**"
       - "supabase/functions/okx-futures-executor/**"
       - "supabase/functions/ctrader-cloud-reconcile/**"
+      - "supabase/functions/_shared/ctrader-risk-sizing.ts"
+      - "supabase/functions/_shared/ctrader-risk-sizing_test.ts"
       - "supabase/functions/scanner/binanceSpotAutomation.ts"
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
