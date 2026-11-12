@@ -136,7 +136,8 @@ This work exists on the development branch and remains behind PR review/CI. It d
 ### cTrader live broker preflight preview (branch only)
 - The authenticated, read-only reconciliation function can now return the broker's available symbol catalogue for the mobile interface.
 - An optional preflight preview fetches the selected full symbol specification by broker symbol ID, including trading mode, short-selling/GSL capability, pip position and volume min/max/step.
-- It subscribes to the selected symbol's live spot feed, waits for both the subscription response and a matching bid/ask event, and converts cTrader's 1/100000 price representation.
+- It subscribes to the selected symbol's live spot feed with timestamps, waits for both the subscription response and a matching bid/ask event, rejects stale/untimestamped quotes, and converts cTrader's 1/100000 price representation to the symbol's precision.
+- Risk sizing is restricted to broker categories identified as Forex/Currency and non-spread-betting accounts. Unsupported instrument/account models fail closed; limited-risk accounts using GSL-based margin calculation strategies are also blocked because the standard expected-margin request does not model that calculation.
 - It resolves quote/deposit asset names from the broker asset list, then calculates a conservative risk size only when quote and deposit currencies match. Other currency pairs fail closed.
 - It runs the existing account/symbol/spread/volume preflight and requests cTrader's broker-calculated expected margin for the exact computed volume and trade side.
 - The mobile cTrader screen now exposes a read-only preview with broker quote, spread, calculated size, risk-at-stop, expected margin and margin-to-balance estimate.
