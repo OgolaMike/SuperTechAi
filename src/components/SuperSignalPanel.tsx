@@ -165,7 +165,6 @@ export function SuperSignalPanel({
             <SuperSignalDetails
               record={selected}
               price={prices[selected.symbol]}
-              candles={states[selected.symbol]?.[900]?.candles ?? []}
               aiModel={aiModel}
             />
           )}
@@ -177,10 +176,9 @@ export function SuperSignalPanel({
   );
 }
 
-function SuperSignalDetails({ record, price, candles, aiModel }: {
+function SuperSignalDetails({ record, price, aiModel }: {
   record: SuperSignalRecord;
   price?: number;
-  candles: import('@/lib/deriv').Candle[];
   aiModel: SignalLearningModel;
 }) {
   const isBuy = record.direction === 'BUY';
