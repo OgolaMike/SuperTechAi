@@ -58,6 +58,12 @@ export function ExchangeMarkets({ aiModel }: Props) {
     return () => { cancelled = true; };
   }, [exchange, selected?.symbol, refresh]);
 
+  useEffect(() => {
+    if (!selected) return;
+    const timer = window.setInterval(() => setRefresh((value) => value + 1), 60_000);
+    return () => window.clearInterval(timer);
+  }, [exchange, selected?.symbol]);
+
   const gainers = useMemo(() => [...load.rows].sort((a, b) => b.changePct - a.changePct).slice(0, 10), [load.rows]);
   const losers = useMemo(() => [...load.rows].sort((a, b) => a.changePct - b.changePct).slice(0, 10), [load.rows]);
   const filtered = useMemo(() => {
