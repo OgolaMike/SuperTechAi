@@ -12,35 +12,79 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
-// All eight frames use native Deriv candle intervals; D1 remains the highest timeframe.
+// Official analysis, charts and 8/8 grading share this exact high-to-low sequence.
+// H2 and H3 are built from complete hourly candles so Deriv and Binance use matching bars.
 const TIMEFRAMES = [
-  { granularity: 60, label: "M1", candleCount: 200 },
-  { granularity: 300, label: "M5", candleCount: 200 },
-  { granularity: 900, label: "M15", candleCount: 200 },
-  { granularity: 1800, label: "M30", candleCount: 200 },
-  { granularity: 3600, label: "H1", candleCount: 200 },
-  { granularity: 14400, label: "H4", candleCount: 200 },
-  { granularity: 28800, label: "H8", candleCount: 200 },
   { granularity: 86400, label: "D1", candleCount: 366 },
+  { granularity: 28800, label: "H8", candleCount: 200 },
+  { granularity: 14400, label: "H4", candleCount: 200 },
+  { granularity: 10800, label: "H3", candleCount: 200 },
+  { granularity: 7200, label: "H2", candleCount: 200 },
+  { granularity: 3600, label: "H1", candleCount: 603 },
+  { granularity: 1800, label: "M30", candleCount: 200 },
+  { granularity: 900, label: "M15", candleCount: 200 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
-const AUTOMATION_TIMEFRAMES = TIMEFRAMES.filter((frame) => [60, 300, 900].includes(frame.granularity));
+// Keep the separate M1/M5/M15 execution-quality gate intact; M1 and M5 are not
+// members of the official eight-timeframe market-analysis or 8/8 grading set.
+const AUTOMATION_TIMEFRAMES: Timeframe[] = [
+  { granularity: 60, label: "M1", candleCount: 200 },
+  { granularity: 300, label: "M5", candleCount: 200 },
+  { granularity: 900, label: "M15", candleCount: 200 },
+];
 const SUPER_SIGNAL_FRESH_PRIMARY_SECONDS = 8 * 900;
 
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
   return Math.floor(nowEpoch / granularity) * granularity - granularity;
 }
 
+function aggregateHourlyCandles(hourly: Candle[], targetGranularity: number): Candle[] {
+  const hoursPerCandle = targetGranularity / 3600;
+  if (!Number.isInteger(hoursPerCandle) || hoursPerCandle < 2) return [];
+  const buckets = new Map<number, Candle[]>();
+  for (const candle of hourly) {
+    const bucketEpoch = Math.floor(candle.epoch / targetGranularity) * targetGranularity;
+    const bucket = buckets.get(bucketEpoch) ?? [];
+    bucket.push(candle);
+    buckets.set(bucketEpoch, bucket);
+  }
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).flatMap(([epoch, items]) => {
+    const ordered = items.sort((a, b) => a.epoch - b.epoch);
+    if (ordered.length !== hoursPerCandle ||
+        ordered.some((candle, index) => candle.epoch !== epoch + index * 3600)) return [];
+    return [{
+      epoch,
+      open: ordered[0].open ?? ordered[0].close,
+      high: Math.max(...ordered.map((candle) => candle.high ?? candle.close)),
+      low: Math.min(...ordered.map((candle) => candle.low ?? candle.close)),
+      close: ordered[ordered.length - 1].close,
+    }];
+  });
+}
+
 async function loadTimeframeCandles(
   feed: DerivFeed | null,
   symbol: SymbolInfo,
   timeframe: Timeframe,
-  _nowEpoch: number,
+  nowEpoch: number,
   cache: Map<number, Candle[]>,
 ): Promise<Candle[]> {
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
+
+  // H2/H3 use fully formed UTC hourly buckets across Deriv, Binance Spot and Futures.
+  if (timeframe.granularity === 7200 || timeframe.granularity === 10800) {
+    const hoursPerCandle = timeframe.granularity / 3600;
+    const hourlyFrame = TIMEFRAMES.find((frame) => frame.granularity === 3600)!;
+    const hourlyCount = Math.min(1000, Math.max(hourlyFrame.candleCount, timeframe.candleCount * hoursPerCandle + hoursPerCandle));
+    const hourly = await loadTimeframeCandles(
+      feed, symbol, { ...hourlyFrame, candleCount: hourlyCount }, nowEpoch, cache,
+    );
+    const aggregated = aggregateHourlyCandles(hourly, timeframe.granularity);
+    cache.set(timeframe.granularity, aggregated);
+    return aggregated;
+  }
 
   if (symbol.exchange !== "BINANCE" && symbol.exchange !== "BINANCE_FUTURES" && !feed) {
     throw new Error("Deriv feed is unavailable for this market");
