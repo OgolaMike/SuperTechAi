@@ -12,6 +12,20 @@ type AuthState = {
   isEmailConfirmed: boolean;
 };
 
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: number | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error('Authentication request timed out')), ms);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) window.clearTimeout(timer);
+  }
+}
+
 async function checkAccess(userId: string): Promise<{ isAdmin: boolean; isApproved: boolean }> {
   const admin = await supabase.from('admin_users').select('user_id').eq('user_id', userId).maybeSingle();
   if (admin.error) throw admin.error;
@@ -54,7 +68,7 @@ export function useAuthSession(): AuthState {
         return;
       }
       try {
-        const access = await checkAccess(session.user.id);
+        const access = await withTimeout(checkAccess(session.user.id), 12000);
         if (active) setState({
           ready: true,
           session,
@@ -75,17 +89,16 @@ export function useAuthSession(): AuthState {
       }
     };
 
-    void supabase.auth.getSession().then(({ data, error }) => {
+    void withTimeout(supabase.auth.getSession(), 10000).then(({ data, error }) => {
       if (error) {
         if (active) setState(s => ({ ...s, ready: true, accessError: true }));
         return;
       }
       void apply(data.session, recovery);
+    }).catch(() => {
+      if (active) setState(s => ({ ...s, ready: true, accessError: true }));
     });
 
-    // Supabase warns against making Supabase queries inside this callback.
-    // Defer membership checks until after the auth callback has returned, or
-    // the auth lock can block the very session transition needed for login.
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') recovery = true;
       if (event === 'SIGNED_OUT') recovery = false;
@@ -96,7 +109,9 @@ export function useAuthSession(): AuthState {
 
     const retry = () => {
       if (navigator.onLine) {
-        void supabase.auth.getSession().then(({ data }) => apply(data.session, recovery));
+        void withTimeout(supabase.auth.getSession(), 10000).then(({ data }) => apply(data.session, recovery)).catch(() => {
+          if (active) setState(s => ({ ...s, ready: true, accessError: true }));
+        });
       }
     };
     window.addEventListener('online', retry);
@@ -112,7 +127,7 @@ export function useAuthSession(): AuthState {
     if (!userId || state.isApproved || state.accessError || state.isPasswordRecovery || state.isEmailConfirmed) return;
     let active = true;
     const timer = window.setInterval(() => {
-      checkAccess(userId).then(access => {
+      withTimeout(checkAccess(userId), 12000).then(access => {
         if (active) setState(s => s.session?.user.id === userId ? { ...s, ...access, accessError: false } : s);
       }).catch(() => {
         if (active) setState(s => s.session?.user.id === userId ? { ...s, accessError: true } : s);
