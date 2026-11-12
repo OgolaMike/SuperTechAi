@@ -240,12 +240,22 @@ Deno.serve(async (req) => {
       const symbolsResponse = await sendRequest(ws, 2114, {
         ctidTraderAccountId: Number(connection.ctrader_account_id),
       }, 2115);
+      const lightSymbols = (Array.isArray(symbolsResponse.symbol) ? symbolsResponse.symbol : []) as Record<string, unknown>[];
       const symbolMap = new Map<string, string>();
-      for (const symbol of (Array.isArray(symbolsResponse.symbol) ? symbolsResponse.symbol : []) as Record<string, unknown>[]) {
+      for (const symbol of lightSymbols) {
         if (symbol.symbolId !== undefined && typeof symbol.symbolName === "string") {
           symbolMap.set(String(symbol.symbolId), symbol.symbolName);
         }
       }
+      const availableSymbols = lightSymbols
+        .filter((symbol) => symbol.symbolId !== undefined && typeof symbol.symbolName === "string")
+        .map((symbol) => ({
+          symbolId: Number(symbol.symbolId),
+          symbolName: String(symbol.symbolName),
+          enabled: symbol.enabled !== false,
+        }))
+        .filter((symbol) => Number.isSafeInteger(symbol.symbolId) && symbol.symbolId > 0)
+        .sort((left, right) => left.symbolName.localeCompare(right.symbolName));
       let preflightPreview: Record<string, unknown> | null = null;
       if (body?.preflightPreview !== undefined) {
         const request = body.preflightPreview;
@@ -460,6 +470,7 @@ Deno.serve(async (req) => {
         tokenRefreshed: refreshed,
         tradingEnabled: false,
         orderPlaced: false,
+        symbols: availableSymbols,
         preflightPreview,
       });
     } finally {
