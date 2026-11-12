@@ -249,7 +249,7 @@ function App() {
         )}
 
         {view === 'connections' && <AutomationConnections onOpen={setView} />}
-        {view === 'mt5' && <Mt5AutoTrading />
+        {view === 'mt5' && <Mt5AutoTrading />}
         {view === 'ctrader' && <CTraderAutoTrading />}
         {view === 'binance' && <div className="space-y-8"><BinanceSpotAutomation /><div className="border-t border-line/15 pt-8"><BinanceFuturesAutomation /></div></div>}
         {view === 'okx' && <OKXFuturesAutomation />}
