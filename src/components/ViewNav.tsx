@@ -12,7 +12,7 @@ type NavItem = { id: View; label: string; icon: typeof LayoutDashboard; adminOnl
 
 const PRIMARY: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
-  { id: 'records', label: 'Signals', icon: Database },
+  { id: 'super', label: 'Super Signals', icon: Sparkles },
   { id: 'crypto', label: 'Markets', icon: BarChart3 },
   { id: 'binance', label: 'Trade', icon: Activity },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
@@ -20,7 +20,6 @@ const PRIMARY: NavItem[] = [
 
 const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
   { title: 'Intelligence', items: [
-    { id: 'super', label: 'Super Signal', icon: Sparkles },
     { id: 'break-retest', label: 'Break & Retest', icon: Repeat2 },
     { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
     { id: 'academy', label: 'Academy', icon: GraduationCap },
