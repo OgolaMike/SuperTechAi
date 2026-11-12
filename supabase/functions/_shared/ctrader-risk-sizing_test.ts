@@ -11,7 +11,7 @@ const base = {
   quoteCurrency: "USD",
   depositCurrency: "USD",
   minVolume: 100,
-  maxVolume: 10_000_000,
+  maxVolume: 100_000_000,
   stepVolume: 100,
 };
 
@@ -54,7 +54,7 @@ Deno.test("rounds volume down to the broker's step and never exceeds risk", () =
     moneyDigits: 2,
     riskPercent: 0.5,
     minVolume: 100,
-    maxVolume: 100_000,
+    maxVolume: 1_000_000,
     stepVolume: 250,
   });
   assertEquals(result.volumeCents % 250, 100 % 250);
