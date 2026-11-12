@@ -11,6 +11,7 @@ on:
       - "supabase/functions/automation-status/**"
       - "supabase/functions/binance-futures-executor/**"
       - "supabase/functions/okx-futures-executor/**"
+      - "supabase/functions/scanner/binanceSpotAutomation.ts"
       - "supabase/config.toml"
       - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
       - ".github/workflows/automation-contract-tests.yml"
@@ -53,6 +54,6 @@ jobs:
         with:
           deno-version: v2.x
       - name: Type-check automation status and exchange executors
-        run: deno check supabase/functions/automation-status/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/okx-futures-executor/index.ts
+        run: deno check supabase/functions/automation-status/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts
       - name: Run execution contract tests
         run: deno test supabase/functions/_shared/execution-contract_test.ts supabase/functions/_shared/automation-status_test.ts
