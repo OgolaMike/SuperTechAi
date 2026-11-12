@@ -162,9 +162,9 @@ export function CTraderAutoTrading() {
 
         <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
           <div className="flex items-center gap-3"><div className="rounded-xl bg-accent/10 p-3 text-accent"><Cloud className="h-5 w-5" /></div><div><h3 className="font-semibold text-ink">2. Cloud execution</h3><p className="text-xs text-ink-2">Designed to work while you are offline</p></div></div>
-          <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-amber-500"><Activity className="h-4 w-4" /> Cloud execution service not yet active</div>
-          <p className="mt-2 text-sm leading-6 text-ink-2">Your account connection can be prepared here. The unattended trade engine and its scheduled cloud runner still need to be completed and tested before automatic orders can be enabled.</p>
-          <div className="mt-4 rounded-xl border border-line/10 bg-canvas/50 p-3 text-xs leading-5 text-ink-2"><ShieldCheck className="mr-1 inline h-4 w-4 text-accent" /> Trading stays OFF until the cloud worker, broker permissions and safety checks are verified.</div>
+          <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-amber-500"><Activity className="h-4 w-4" /> Cloud account sync available · Trade engine not active</div>
+          <p className="mt-2 text-sm leading-6 text-ink-2">You can now check the broker session and sync open positions from the cloud. Automatic order placement, risk-based sizing and continuous position management are still being built and tested separately.</p>
+          <div className="mt-4 rounded-xl border border-line/10 bg-canvas/50 p-3 text-xs leading-5 text-ink-2"><ShieldCheck className="mr-1 inline h-4 w-4 text-accent" /> This sync never places or closes trades. Automated trading remains OFF until order sizing, protection and the full execution checks are verified.</div>
           <button type="button" onClick={() => void reconcileAccount()} disabled={busy || !selected} className="mt-3 w-full rounded-xl border border-accent/30 px-4 py-2.5 text-sm font-semibold text-accent disabled:opacity-50">Check connection &amp; sync positions</button>
         </div>
       </div>
