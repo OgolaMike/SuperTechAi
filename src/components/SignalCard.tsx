@@ -36,8 +36,8 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
     <div role={signal ? 'group' : undefined} tabIndex={signal ? 0 : undefined} onClick={(event) => { if (signal && !(event.target as HTMLElement).closest('button')) setChartOpen(true); }} onKeyDown={(event) => { if (signal && !(event.target as HTMLElement).closest('button') && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setChartOpen(true); } }} aria-label={signal ? `Open live ${asset.fullName} ${tf.label} ${signal.direction} signal chart` : undefined} className={`hud-panel flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-surface/[0.03] p-4 transition-all duration-300 hover:bg-surface/[0.05] sm:p-5 ${signal ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2' : ''} ${
       isBuy ? 'border-up/30' : isSell ? 'border-down/30' : 'border-line/10'
     }`}>
-      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 max-w-full flex-1">
           <div className="mb-1 break-words whitespace-normal text-xs font-semibold uppercase tracking-wider text-accent" title={asset.fullName}>
             {asset.fullName} <span className="font-medium text-ink-3">({asset.symbol})</span>
           </div>
@@ -48,7 +48,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           {signal && <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent/80">Tap anywhere to open live chart</p>}
         </div>
         {signal && (
-          <span className={`max-w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-snug sm:px-3 sm:text-xs ${statusTone(signal.outcome.status)}`}>
+          <span className={`max-w-full whitespace-normal break-words rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-relaxed sm:px-3 sm:text-xs ${statusTone(signal.outcome.status)}`}>
             {STATUS_TEXT[signal.outcome.status]}
           </span>
         )}
@@ -56,7 +56,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
 
       {signal ? (
         <>
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border ${
               isBuy ? 'border-up/40 bg-up/10' : 'border-down/40 bg-down/10'
             }`}>
@@ -66,7 +66,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
               <div className={`text-xl font-bold tracking-tight sm:text-2xl ${isBuy ? 'text-up' : 'text-down'}`}>
                 {signal.direction === 'BUY' ? 'BUY — UP' : 'SELL — DOWN'}
               </div>
-              <div className="break-words text-sm leading-relaxed text-ink-2">{directionExplanation(signal.direction)}</div>
+              <div className="min-w-0 break-words text-sm leading-relaxed text-ink-2">{directionExplanation(signal.direction)}</div>
             </div>
           </div>
 
