@@ -383,7 +383,8 @@ export function Mt5AutoTrading() {
   };
 
   return (
-    <section className="mt-8 space-y-6">\n      <Mt5WorkerDownload />
+    <section className="mt-8 space-y-6">
+      <Mt5WorkerDownload />
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Secure account connection</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Connect your trading account</h2>
