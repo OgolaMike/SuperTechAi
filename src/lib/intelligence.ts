@@ -38,15 +38,16 @@ const FRESH_PRIMARY_CANDLES = 8;
 const NEUTRAL_BAND = 0.1;
 const SMA_PERIOD = 60;
 
+// Grade weights follow the official high-to-low sequence. M15 is last and carries the highest weight.
 const CONFIRMATION_GRADES: Record<string, number> = {
-  M1: 65,
-  M5: 70,
-  M15: 75,
-  M30: 80,
-  H1: 85,
-  H4: 90,
-  H8: 95,
-  D1: 100,
+  D1: 65,
+  H8: 70,
+  H4: 75,
+  H3: 80,
+  H2: 85,
+  H1: 90,
+  M30: 95,
+  M15: 100,
 };
 
 const CLASSIFICATION_RANK: Record<Classification, number> = {
