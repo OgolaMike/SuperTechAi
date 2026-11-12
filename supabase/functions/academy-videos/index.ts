@@ -129,14 +129,14 @@ Deno.serve(async (req: Request) => {
         lesson_id: lessonId,
         lesson_title: lessonTitle,
         provider_session_id: providerSessionId,
-        provider_video_id: "real-screen-kokoro-v1",
+        provider_video_id: "complete-v2",
         status: "completed",
         video_url: videoPath,
         screenshots: screenshotRows,
         created_by: user.id,
       }).select("id,lesson_id,lesson_title,status,video_url,screenshots,created_at").single();
       if (saveError) throw saveError;
-      return json({ video: saved, screenshot_count: screenshotRows.length, message: "Real-screen Academy lesson published." }, 201);
+      return json({ video: saved, screenshot_count: screenshotRows.length, message: "Complete-v2 Academy lesson published." }, 201);
     }
 
     if (action === "cancel") {
