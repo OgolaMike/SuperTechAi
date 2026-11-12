@@ -1,6 +1,11 @@
 name: SuperTechAi Academy video publisher
 
 on:
+  push:
+    paths:
+      - "scripts/academy_video_worker/**"
+      - "public/academy-demo.html"
+      - ".github/workflows/academy-video-worker.yml"
   pull_request:
     paths:
       - "scripts/academy_video_worker/**"
