@@ -99,6 +99,8 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
       : afterSecond.some(c => c.close > zoneHigh + tolerance);
     if (invalidated) continue;
 
+    // Keep the pending-order mapping explicit: support / swing lows = BUY LIMIT;
+    // resistance / swing highs = SELL LIMIT. These are inverse, mirrored setups.
     const direction: Direction = side === 'low' ? 'BUY' : 'SELL';
     const entry = (zoneLow + zoneHigh) / 2;
     // Only stage the third-test limit while price is approaching from outside the zone.
@@ -128,7 +130,9 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
   return ideas;
 }
 
-/** Pure price-action double-touch scanner. It stages a LIMIT at the zone for a possible third test; it never places broker orders. */
+/** Pure price-action double-touch scanner: two swing lows stage a BUY LIMIT at support;
+ * two swing highs stage a SELL LIMIT at resistance. Both wait for a possible third test
+ * and use a 3R target. This scanner tracks ideas only; it never places broker orders. */
 export function buildM15StopOrderIdeas(
   assets: Asset[], statesBySymbol: Record<string, Record<number, TfState>>,
   prices: Record<string, number>, _aiModel: unknown, nowEpoch: number,
