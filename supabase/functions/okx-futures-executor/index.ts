@@ -20,6 +20,7 @@ const db=createClient(url,service,{auth:{persistSession:false}});
 async function dec(v:string){const master=Deno.env.get("BINANCE_CREDENTIALS_ENCRYPTION_KEY");if(!master||master.length<32)throw Error("exchange_encryption_key_missing");const digest=await crypto.subtle.digest("SHA-256",enc.encode(master)),key=await crypto.subtle.importKey("raw",digest,"AES-GCM",false,["decrypt"]),a=Uint8Array.from(atob(v),c=>c.charCodeAt(0));return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:a.slice(0,12)},key,a.slice(12)));}
 async function sign(secret:string,msg:string){const key=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC",key,enc.encode(msg)))));}
 async function api(k:string,s:string,p:string,path:string,method="GET",body:Record<string,unknown>|null=null,demo=false){const ts=new Date().toISOString(),raw=body?JSON.stringify(body):"",sig=await sign(s,ts+method+path+raw),r=await fetch("https://openapi.okx.com"+path,{method,headers:{"OK-ACCESS-KEY":k,"OK-ACCESS-SIGN":sig,"OK-ACCESS-TIMESTAMP":ts,"OK-ACCESS-PASSPHRASE":p,"Content-Type":"application/json",...(demo?{"x-simulated-trading":"1"}:{})},...(body?{body:raw}:{})}),d=await r.json();if(!r.ok||d.code!=="0")throw Error("OKX "+(d.code??r.status)+": "+(d.msg??"request failed"));const bad=(d.data??[]).find((x:OkxRecord)=>typeof x.sCode==="string"&&x.sCode!=="0");if(bad)throw Error("OKX "+String(bad.sCode)+": "+String(bad.sMsg??"request failed"));return d.data??[];}
+async function stableClientId(value:string){const digest=await crypto.subtle.digest("SHA-256",enc.encode(value));return "st"+[...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("").slice(0,30);}
 const stepFloor=(n:number,step:number)=>Math.floor((n+1e-10)/step)*step;
 Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors});if(req.method!=="POST")return out({error:"method_not_allowed"},405);try{
  const token=(req.headers.get("Authorization")??"").replace(/^Bearer\s+/i,"");if(!service||token!==service)return out({error:"service_authorization_required"},403);
@@ -64,8 +65,23 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
    createdAt:executionCreatedAt.toISOString(),
   });
   await api(k,s,p,"/api/v5/account/set-leverage","POST",{instId:inst,lever:String(st.leverage),mgnMode:"cross"},demo);
-  const attachedId=("stp"+crypto.randomUUID().replaceAll("-","")).slice(0,32);
-  const order=await api(k,s,p,"/api/v5/trade/order","POST",{instId:inst,tdMode:"cross",side,ordType:"market",sz:String(sz),clOrdId:("st"+crypto.randomUUID().replaceAll("-","")).slice(0,32),attachAlgoOrds:[{attachAlgoClOrdId:attachedId,tpTriggerPx:String(Math.round(tp/tickSize)*tickSize),tpOrdPx:"-1",tpTriggerPxType:"mark",slTriggerPx:String(Math.round(sl/tickSize)*tickSize),slOrdPx:"-1",slTriggerPxType:"mark"}]},demo),oid=String(order[0]?.ordId??"");
+  const attachedId=("stp"+(await stableClientId(row.id)).slice(2)).slice(0,32);
+  const clientOrderId=await stableClientId(row.id);
+  let order:OkxRecord[];
+  try{
+   order=await api(k,s,p,"/api/v5/trade/order","POST",{instId:inst,tdMode:"cross",side,ordType:"market",sz:String(sz),clOrdId:clientOrderId,attachAlgoOrds:[{attachAlgoClOrdId:attachedId,tpTriggerPx:String(Math.round(tp/tickSize)*tickSize),tpOrdPx:"-1",tpTriggerPxType:"mark",slTriggerPx:String(Math.round(sl/tickSize)*tickSize),slOrdPx:"-1",slTriggerPxType:"mark"}]},demo);
+  }catch(submitError){
+   if(!(submitError instanceof TypeError))throw submitError;
+   try{
+    order=await api(k,s,p,"/api/v5/trade/order?instId="+encodeURIComponent(inst)+"&clOrdId="+encodeURIComponent(clientOrderId),"GET",null,demo);
+    if(!order[0]?.ordId)throw Error("okx_order_lookup_incomplete");
+   }catch{
+    await db.from("okx_futures_signal_intents").update({status:"uncertain",failure_reason:"network_outcome_uncertain; lookup_by_client_order_id_pending",updated_at:new Date().toISOString()}).eq("id",row.id);
+    results.push({failed:true,id:row.id,error:"order_submission_outcome_uncertain"});
+    continue;
+   }
+  }
+  const oid=String(order[0]?.ordId??"");
   if(!oid)throw Error("exchange_order_id_missing");
   const check=await api(k,s,p,"/api/v5/trade/order?instId="+encodeURIComponent(inst)+"&ordId="+encodeURIComponent(oid),"GET",null,demo),filled=Number(check[0]?.accFillSz??0),avg=Number(check[0]?.avgPx??price);
   if(filled<=0)throw Error("market_order_not_filled");
