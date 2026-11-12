@@ -154,7 +154,7 @@ export async function fetchExchangeCandles(exchange: ExchangeId, symbol: string,
 }
 
 export async function buildExchangeStates(exchange: ExchangeId, symbol: string): Promise<ExchangeAssetState['states']> {
-  const requested = [900, 1800, 3600, 14400, 28800, 86400];
+  const requested = [900, 1800, 3600, 14400, 86400];
   const results = await Promise.all(requested.map(async (granularity) => {
     try { return [granularity, await fetchExchangeCandles(exchange, symbol, granularity)] as const; }
     catch { return [granularity, [] as Candle[]] as const; }
@@ -162,6 +162,7 @@ export async function buildExchangeStates(exchange: ExchangeId, symbol: string):
   const byGranularity = Object.fromEntries(results) as Record<number, Candle[]>;
   const hourly = byGranularity[3600] ?? [];
   const all: Record<number, Candle[]> = { ...byGranularity };
+  all[28800] = aggregateHourlyCandles(hourly, 28800);
   all[7200] = aggregateHourlyCandles(hourly, 7200);
   all[10800] = aggregateHourlyCandles(hourly, 10800);
   const now = Math.floor(Date.now() / 1000);
