@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { BookOpen, Bot, BrainCircuit, MessageCircle, RefreshCw, Send, Sparkles } from 'lucide-react';
 
-type AiDiscussion = { id: string; title: string; category: string; discussion_prompt: string; context: string; talking_points: string[]; follow_up_questions: string[]; created_at: string };\n\ntype AiLesson = {
+type AiDiscussion = { id: string; title: string; category: string; discussion_prompt: string; context: string; talking_points: string[]; follow_up_questions: string[]; created_at: string };
+
+type AiLesson = {
   id: string; slug: string; title: string; category: string; level: string;
   duration_minutes: number; content: {
     summary: string; objective: string; steps: string[]; narration: string;
@@ -12,7 +14,9 @@ type AiDiscussion = { id: string; title: string; category: string; discussion_pr
 };
 
 export function AcademyAIHub({ isAdmin }: { isAdmin: boolean }) {
-  const [lessons, setLessons] = useState<AiLesson[]>([]);\n  const [discussions, setDiscussions] = useState<AiDiscussion[]>([]);\n  const [discussionTopic, setDiscussionTopic] = useState('');
+  const [lessons, setLessons] = useState<AiLesson[]>([]);
+  const [discussions, setDiscussions] = useState<AiDiscussion[]>([]);
+  const [discussionTopic, setDiscussionTopic] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [topic, setTopic] = useState('');
   const [category, setCategory] = useState('Trading foundations');
@@ -24,9 +28,13 @@ export function AcademyAIHub({ isAdmin }: { isAdmin: boolean }) {
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.functions.invoke('academy-ai', { body: { action: 'list-lessons' } });
-    if (error) { setError('AI Academy lessons could not be loaded. Please refresh.'); return; }
-    setLessons((data?.lessons || []) as AiLesson[]);
+    const [lessonResult, discussionResult] = await Promise.all([
+      supabase.functions.invoke('academy-ai', { body: { action: 'list-lessons' } }),
+      supabase.functions.invoke('academy-ai', { body: { action: 'list-discussions' } }),
+    ]);
+    if (lessonResult.error) { setError('AI Academy lessons could not be loaded. Please refresh.'); return; }
+    setLessons((lessonResult.data?.lessons || []) as AiLesson[]);
+    if (!discussionResult.error) setDiscussions((discussionResult.data?.discussions || []) as AiDiscussion[]);
   }, []);
 
   useEffect(() => { void load(); }, [load]);
