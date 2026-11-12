@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Activity, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import { Activity, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import type { Asset, TfState, Timeframe } from '@/lib/sma';
@@ -34,10 +34,16 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
   const [spacing, setSpacing] = useState(12);
   const [showSma, setShowSma] = useState(true);
   const [showBands, setShowBands] = useState(true);
+  const [query, setQuery] = useState('');
 
   const derivAssets = useMemo(() => assets.filter((asset) => asset.exchange === 'DERIV'), [assets]);
   const movers = useMemo(() => derivAssets.map((asset) => getRoc(asset, states, prices)), [derivAssets, states, prices]);
   const ranked = useMemo(() => movers.filter((item) => item.changePct != null), [movers]);
+  const watchlist = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return [...movers].filter((item) => !term || `${item.asset.name} ${item.asset.symbol} ${item.asset.fullName}`.toLowerCase().includes(term))
+      .sort((a, b) => (b.changePct ?? -Infinity) - (a.changePct ?? -Infinity));
+  }, [movers, query]);
   const gainers = useMemo(() => [...ranked].sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0)).slice(0, 10), [ranked]);
   const losers = useMemo(() => [...ranked].sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0)).slice(0, 10), [ranked]);
   const active = derivAssets.find((asset) => asset.symbol === selectedSymbol) ?? gainers[0]?.asset ?? derivAssets[0] ?? null;
@@ -194,6 +200,27 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
       ) : (
         <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-8 text-sm text-ink-2">Deriv assets are still loading. The market list will appear when the public feed is ready.</div>
       )}
+
+      <section className="overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.03]">
+        <div className="flex flex-col gap-3 border-b border-line/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><h3 className="text-base font-semibold text-ink">Deriv market watchlist</h3><p className="mt-1 text-xs text-ink-3">Every discovered Deriv asset, ranked by its latest 24-hour rate of change.</p></div>
+          <label className="flex items-center gap-2 rounded-lg border border-line/15 bg-canvas px-3 py-2"><Search className="h-4 w-4 text-ink-3" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Deriv assets" className="min-w-0 bg-transparent text-sm text-ink outline-none placeholder:text-ink-3" /></label>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-left text-sm">
+            <thead className="bg-surface/[0.04] text-[10px] uppercase tracking-wider text-ink-3"><tr><th className="px-4 py-3">Asset</th><th className="px-4 py-3 text-right">Live price</th><th className="px-4 py-3 text-right">24h ROC</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
+            <tbody className="divide-y divide-line/10">
+              {watchlist.map((item) => <tr key={item.asset.symbol} className={active?.symbol === item.asset.symbol ? 'bg-accent/[0.05]' : ''}>
+                <td className="px-4 py-3"><button type="button" onClick={() => setSelectedSymbol(item.asset.symbol)} className="text-left"><span className="block font-semibold text-ink">{item.asset.name}</span><span className="block text-[10px] text-ink-3">{item.asset.symbol} · {item.asset.fullName}</span></button></td>
+                <td className="px-4 py-3 text-right tabular-nums text-ink">{formatPrice(item.price, item.asset.digits)}</td>
+                <td className={`px-4 py-3 text-right font-semibold tabular-nums ${(item.changePct ?? 0) >= 0 ? 'text-up' : 'text-down'}`}>{rocText(item.changePct)}</td>
+                <td className="px-4 py-3 text-right"><button type="button" onClick={() => setSelectedSymbol(item.asset.symbol)} className="rounded-lg border border-line/15 px-3 py-1.5 text-xs font-semibold text-ink-2 hover:text-ink">Analyse</button></td>
+              </tr>)}
+              {watchlist.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-xs text-ink-3">No matching Deriv assets.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="flex items-center justify-between text-xs text-ink-3">
         <span>{derivAssets.length} assets · separate from Crypto Market</span>
