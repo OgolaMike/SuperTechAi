@@ -229,7 +229,7 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
         }).eq("id", row.id).eq("user_id", userId);
       } else if (row.expires_at && Date.now() >= new Date(row.expires_at).getTime() && workingStatus === "NEW") {
         const cancelled = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "DELETE", {
-          orderListId: String(row.broker_order_list_id),
+          orderListId,
         });
         await db.from("binance_spot_orders").update({
           status: "expired", completed_at: new Date().toISOString(),
