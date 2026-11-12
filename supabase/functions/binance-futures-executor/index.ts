@@ -41,7 +41,7 @@ Deno.serve(async req=>{
    const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").eq("timeframe_agreement",8).gte("signal_epoch",freshCutoff).lte("signal_epoch",nowEpoch).order("signal_epoch",{ascending:false}).limit(25);
    if(ie){failed++;continue;}
    if(!(intents??[]).length)continue;
-   let memberSnapshot:{account:any;available:number;wallet:number;active:PositionRow[];exchangeSymbols:ExchangeSymbol[]}|null=null;
+   let memberSnapshot:{available:number;wallet:number;active:PositionRow[];exchangeSymbols:ExchangeSymbol[]}|null=null;
    let memberPreflightError:string|null=null;
    for(const it of intents??[]){
     const now=Math.floor(Date.now()/1000);
@@ -73,7 +73,7 @@ Deno.serve(async req=>{
         if(!Array.isArray(info?.symbols))throw Error("binance_exchange_info_invalid");
         exchangeInfoSnapshot=info.symbols;
        }
-       memberSnapshot={account,available,wallet,active:((positions??[]) as PositionRow[]).filter((x)=>Math.abs(Number(x.positionAmt))>0),exchangeSymbols:exchangeInfoSnapshot};
+       memberSnapshot={available,wallet,active:((positions??[]) as PositionRow[]).filter((x)=>Math.abs(Number(x.positionAmt))>0),exchangeSymbols:exchangeInfoSnapshot};
       }catch(preflightError){
        memberPreflightError=preflightError instanceof Error?preflightError.message:"futures_preflight_failed";
        failed++;
@@ -81,7 +81,7 @@ Deno.serve(async req=>{
        break;
       }
      }
-     const {account,available,wallet,active,exchangeSymbols}=memberSnapshot!;
+     const {available,wallet,active,exchangeSymbols}=memberSnapshot!;
      if(active.length>=Number(cfg.max_open_positions)){skipped++;break;}
      if(active.some((x)=>x.symbol===it.symbol)){skipped++;continue;}
      const symbolInfo=exchangeSymbols.find((x)=>x.symbol===it.symbol&&x.status==="TRADING");
