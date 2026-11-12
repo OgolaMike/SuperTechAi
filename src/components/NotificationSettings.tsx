@@ -3,8 +3,9 @@ import { Bell, BellOff, Check, Loader2, Search } from 'lucide-react';
 import { usePushSettings, type PushStatus } from '@/hooks/usePushSettings';
 import type { Asset } from '@/lib/sma';
 import {
-  ALERT_CATEGORIES, loadAlertModes, saveAlertModes, type AlertMode, type AlertModeSettings,
+  ALERT_CATEGORIES, loadAlertModes, loadMemberAlertModes, saveMemberAlertModes, type AlertMode, type AlertModeSettings,
 } from '@/lib/alertPreferences';
+import { useSession } from '@/lib/sessionContext';
 
 const STATUS_TEXT: Record<PushStatus, string> = {
   checking: 'Checking this device…', unsupported: 'This browser does not support push notifications.',
@@ -15,8 +16,12 @@ const MODE_LABEL: Record<AlertMode, string> = { full: 'Full', bubble: 'Bubble', 
 type Props = { assets: Asset[] };
 
 export function NotificationSettings({ assets }: Props) {
+  const { session } = useSession();
+  const userId = session.user.id;
   const { status, error, enable, disable, saveAlertControls } = usePushSettings();
-  const [settings, setSettings] = useState<AlertModeSettings>(loadAlertModes);
+  const [settings, setSettings] = useState<AlertModeSettings>(() => loadAlertModes(userId));
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [saved, setSaved] = useState(true);
   const busy = status === 'working' || status === 'checking';
@@ -28,16 +33,28 @@ export function NotificationSettings({ assets }: Props) {
   const bubbleCount = assets.filter((asset) => (settings.assets[asset.symbol] ?? settings.defaultAssetMode) === 'bubble').length;
   const mutedCount = assets.filter((asset) => (settings.assets[asset.symbol] ?? settings.defaultAssetMode) === 'muted').length;
 
-  useEffect(() => { setSettings(loadAlertModes()); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingSettings(true);
+    loadMemberAlertModes(userId).then((value) => { if (!cancelled) setSettings(value); })
+      .catch((err: unknown) => { if (!cancelled) setSaveError(err instanceof Error ? err.message : 'Could not load your saved alert settings.'); })
+      .finally(() => { if (!cancelled) setLoadingSettings(false); });
+    return () => { cancelled = true; };
+  }, [userId]);
   const change = (next: AlertModeSettings) => { setSettings(next); setSaved(false); };
   const setCategory = (key: keyof AlertModeSettings['categories'], mode: AlertMode) =>
     change({ ...settings, categories: { ...settings.categories, [key]: mode } });
   const setAsset = (symbol: string, mode: AlertMode) =>
     change({ ...settings, assets: { ...settings.assets, [symbol]: mode } });
   const save = async () => {
-    saveAlertModes(settings);
-    await saveAlertControls(settings);
-    setSaved(true);
+    setSaveError(null);
+    try {
+      await saveMemberAlertModes(settings, userId);
+      await saveAlertControls(settings);
+      setSaved(true);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Could not save your alert choices.');
+    }
   };
   const setAllAssets = (mode: AlertMode) => change({ ...settings, defaultAssetMode: mode, assets: {} });
 
@@ -53,9 +70,9 @@ export function NotificationSettings({ assets }: Props) {
           {status === 'on' ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
         </span>
       </div>
-      {error && <p className="mt-3 rounded-xl border border-down/25 bg-down/10 px-3 py-2 text-sm text-down">{error}</p>}
+      {(error || saveError) && <p className="mt-3 rounded-xl border border-down/25 bg-down/10 px-3 py-2 text-sm text-down">{saveError ?? error}</p>}
 
-      <div className="mt-5 space-y-5">
+      {loadingSettings ? <p className="mt-5 text-sm text-ink-2">Loading your saved alert choices…</p> : <div className="mt-5 space-y-5">
         <div>
           <div className="mb-3">
             <h3 className="text-sm font-semibold text-ink">1. Choose the trade alerts</h3>
@@ -128,11 +145,11 @@ export function NotificationSettings({ assets }: Props) {
               {busy ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : <Bell className="mr-2 inline h-4 w-4" />} Enable push alerts
             </button>
           )}
-          <button type="button" onClick={save} disabled={saved || busy} className="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-canvas disabled:cursor-not-allowed disabled:opacity-40">
+          <button type="button" onClick={save} disabled={saved || busy || loadingSettings} className="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-canvas disabled:cursor-not-allowed disabled:opacity-40">
             <Check className="mr-2 inline h-4 w-4" /> {saved ? 'Saved' : 'Save my choices'}
           </button>
         </div>
-      </div>
+      </div>}
     </section>
   );
 }
