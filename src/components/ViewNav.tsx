@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import {
-  Activity, BarChart3, Bell, Bot, Cable, ChevronUp,
+  Activity, BarChart3, Bell, Bot, Cable, ChevronUp, ChartNoAxesCombined,
   GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
   Megaphone, MoreHorizontal, Repeat2, Sparkles, Users,
   UserRoundPlus, X,
 } from 'lucide-react';
 
-export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections';
+export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
 const PRIMARY: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'super', label: 'Super Signals', icon: Sparkles },
-  { id: 'crypto', label: 'Markets', icon: BarChart3 },
+  { id: 'crypto', label: 'Crypto Market', icon: BarChart3 },
+  { id: 'deriv-market', label: 'Deriv Market', icon: ChartNoAxesCombined },
   { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
@@ -90,7 +91,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
       </nav>
 
       <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-line/15 bg-canvas/95 px-2 pb-[max(env(safe-area-inset-bottom),0.45rem)] pt-2 shadow-[0_-12px_36px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden" aria-label="Main navigation">
-        <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
+        <div className="mx-auto grid max-w-xl grid-cols-7 gap-1">
           {PRIMARY.map(({ id, label, mobileLabel, icon: Icon }) => (
             <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
               className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors ${primaryActive(id) ? 'text-accent' : 'text-ink-3'}`}>
