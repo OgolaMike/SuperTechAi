@@ -65,15 +65,13 @@ const sendRequest = (ws: WebSocket, payloadType: number, payload: Record<string,
   });
 
 const rest = async (base: string, service: string, path: string, init: RequestInit = {}) => {
-  const response = await fetch(`${base}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      apikey: service,
-      Authorization: `Bearer ${service}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
+  const headers = new Headers({
+    apikey: service,
+    Authorization: `Bearer ${service}`,
+    "Content-Type": "application/json",
   });
+  new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+  const response = await fetch(`${base}/rest/v1/${path}`, { ...init, headers });
   if (!response.ok) throw new Error(`database_${response.status}`);
   if (response.status === 204) return null;
   return await response.json();
