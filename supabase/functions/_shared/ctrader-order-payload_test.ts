@@ -77,3 +77,28 @@ Deno.test("rejects sells when the broker disables short selling", () => {
     "short_selling_not_allowed",
   );
 });
+
+Deno.test("uses relative guaranteed protection for limited-risk accounts", () => {
+  const payload = buildCTraderProtectedPendingOrder({
+    ...base,
+    isLimitedRiskAccount: true,
+    symbolAllowsGuaranteedStopLoss: true,
+  });
+  assertEquals(payload.stopLoss, undefined);
+  assertEquals(payload.takeProfit, undefined);
+  assertEquals(payload.relativeStopLoss, 500);
+  assertEquals(payload.relativeTakeProfit, 1000);
+  assertEquals(payload.guaranteedStopLoss, true);
+});
+
+Deno.test("rejects limited-risk accounts when symbol GSL is unavailable", () => {
+  assertThrows(
+    () => buildCTraderProtectedPendingOrder({
+      ...base,
+      isLimitedRiskAccount: true,
+      symbolAllowsGuaranteedStopLoss: false,
+    }),
+    Error,
+    "limited_risk_account_requires_gsl_supported_symbol",
+  );
+});
