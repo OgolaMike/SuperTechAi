@@ -16,6 +16,7 @@ export type Toast = {
   direction: Direction;
   previousDirection?: Direction;
   previousSignalEpoch?: number;
+  signalEpoch?: number;
   symbol: string;
   assetName: string;
   timeframe: string;
@@ -39,7 +40,8 @@ function outcomeFields(view: SignalView): Record<HitLabel, number | null> {
 }
 
 function isFresh(epoch: number, granularity: number, nowEpoch: number): boolean {
-  return nowEpoch - epoch <= FRESH_CANDLES * granularity;
+  const age = nowEpoch - epoch;
+  return age >= 0 && age <= FRESH_CANDLES * granularity;
 }
 
 function hitMessage(hit: HitLabel): string {
@@ -82,6 +84,7 @@ function toastFor(
     direction: signal.direction,
     levels: signal.levels,
     at,
+    signalEpoch: signal.signalEpoch,
   };
   if (kind === 'signal' || kind === 'reversal') {
     const reversalMessage = previous
@@ -125,6 +128,24 @@ export function useSignalAlerts(
 
   const dismiss = useCallback((id: string) => {
     setToasts((previous) => previous.filter((toast) => toast.id !== id));
+  }, []);
+
+  // A suspended phone can resume with an old bubble still in React state.
+  // Re-check the original candle timestamp on every foreground transition.
+  useEffect(() => {
+    const discardExpired = () => {
+      const now = Math.floor(Date.now() / 1000);
+      setToasts((current) => current.filter((toast) => {
+        if (toast.kind !== 'signal' && toast.kind !== 'reversal') return true;
+        return toast.signalEpoch !== undefined && isFresh(toast.signalEpoch, toast.granularity, now);
+      }));
+    };
+    document.addEventListener('visibilitychange', discardExpired);
+    window.addEventListener('focus', discardExpired);
+    return () => {
+      document.removeEventListener('visibilitychange', discardExpired);
+      window.removeEventListener('focus', discardExpired);
+    };
   }, []);
 
   useEffect(() => {
