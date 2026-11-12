@@ -143,3 +143,12 @@ This work exists on the development branch and remains behind PR review/CI. It d
 - The mobile cTrader screen now exposes a read-only preview with broker quote, spread, calculated size, risk-at-stop, expected margin and margin-to-balance estimate.
 - **Important limitation:** the cTrader expected-margin response does not itself provide free margin. The preview therefore reports `freeMarginVerified: false` and cannot authorize execution. Account equity/free-margin calculation, contract-model validation, durable execution, protected order submission and broker reconciliation remain outstanding.
 - This workflow is read-only: it does not submit, amend or cancel orders. No production function was deployed.
+
+
+### cTrader account equity and free-margin verification (branch only)
+- The live and demo account environment routing remains explicit: the reconciliation endpoint connects to cTrader's live WebSocket host for accounts stored with `environment=live`, and the demo host only for `environment=demo`. The new margin snapshot does not force demo mode.
+- The read-only preview now requests the broker's open-position snapshot and account-wide unrealized PnL (Open API request/response 2187/2188), then calculates equity as balance plus broker-reported net unrealized PnL.
+- Existing used margin is summed from every open position using each position's own `moneyDigits` scale. PnL uses the response's `moneyDigits`; balance uses the trader's `moneyDigits`. Missing precision, missing/extra PnL rows, duplicate positions, or incomplete margin data fail closed.
+- A second trader-info read must return the same broker `balanceVersion` as the first read; otherwise the preview rejects the snapshot as changed during calculation.
+- New-order expected margin is compared with reconstructed free margin, with a hard 50% maximum expected-margin/equity ratio and a 25% free-margin safety buffer. These are conservative preview guards, not user-overridable execution permissions.
+- The result is still read-only and explicitly reports `executionAuthorized=false`. This is designed to validate the actual live account connection and broker data without placing a trade. A persistent protected-order executor, immediate SL/TP verification, and durable uncertain-submit recovery are still required before execution can be enabled.
