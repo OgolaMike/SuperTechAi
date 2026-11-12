@@ -73,6 +73,7 @@ const sendRequestForSpot = (
   payload: Record<string, unknown>,
   expectedResponse: number,
   expectedSymbolId: number,
+  priceDigits: number,
 ) => new Promise<{ bid: number; ask: number; timestamp: number | null }>((resolve, reject) => {
   const clientMsgId = crypto.randomUUID();
   let responseSeen = false;
@@ -102,8 +103,8 @@ const sendRequestForSpot = (
       const askRaw = Number(p.ask);
       if (Number.isFinite(bidRaw) && bidRaw > 0 && Number.isFinite(askRaw) && askRaw >= bidRaw) {
         quote = {
-          bid: bidRaw / 100000,
-          ask: askRaw / 100000,
+          bid: Number((bidRaw / 100000).toFixed(priceDigits)),
+          ask: Number((askRaw / 100000).toFixed(priceDigits)),
           timestamp: Number.isFinite(Number(p.timestamp)) ? Number(p.timestamp) : null,
         };
         if (responseSeen) cleanup(undefined, quote);
@@ -292,10 +293,32 @@ Deno.serve(async (req) => {
         const quoteCurrency = assetName(symbol.quoteAssetId);
         const depositCurrency = assetName(trader.depositAssetId);
         if (!quoteCurrency || !depositCurrency) throw new Error("ctrader_asset_currency_unresolved");
+        const categoryResponse = await sendRequest(ws, 2160, {
+          ctidTraderAccountId: Number(connection.ctrader_account_id),
+        }, 2161);
+        const categories = Array.isArray(categoryResponse.symbolCategory)
+          ? categoryResponse.symbolCategory as Record<string, unknown>[]
+          : [];
+        const category = categories.find((item) => String(item.id) === String(symbol.symbolCategoryId));
+        const categoryName = typeof category?.name === "string" ? category.name : "";
+        if (!/forex|currency/i.test(categoryName)) {
+          throw new Error("ctrader_contract_model_not_supported_for_risk_sizing");
+        }
+        if (Number(trader.accountType) === 2) {
+          throw new Error("ctrader_spread_betting_account_not_supported_for_risk_sizing");
+        }
+        if (trader.isLimitedRisk === true && Number(trader.limitedRiskMarginCalculationStrategy) !== 0) {
+          throw new Error("ctrader_limited_risk_margin_model_not_supported_by_expected_margin_api");
+        }
         const quote = await sendRequestForSpot(ws, 2127, {
           ctidTraderAccountId: Number(connection.ctrader_account_id),
           symbolId: [symbolId],
-        }, 2128, symbolId);
+          subscribeToSpotTimestamp: true,
+        }, 2128, symbolId, Number(symbol.digits));
+        if (quote.timestamp === null || quote.timestamp <= 0 ||
+            Date.now() - quote.timestamp > 30000 || quote.timestamp - Date.now() > 5000) {
+          throw new Error("ctrader_live_quote_stale_or_untimestamped");
+        }
         const direction = request.direction as "BUY" | "SELL";
         const entryPrice = direction === "BUY" ? quote.ask : quote.bid;
         if (!(Number(symbol.pipPosition) >= 0) || !Number.isInteger(Number(symbol.pipPosition))) {
@@ -362,6 +385,7 @@ Deno.serve(async (req) => {
           orderPlaced: false,
           symbolId,
           symbolName: typeof symbol.symbolName === "string" ? symbol.symbolName : String(symbolId),
+          symbolCategory: categoryName,
           direction,
           bid: quote.bid,
           ask: quote.ask,
