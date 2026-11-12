@@ -1,5 +1,6 @@
 [functions.scanner]
-verify_jwt = true
+# Scanner cron requests are authenticated by the private Vault-backed X-Scanner-Cron-Secret header in index.ts.
+verify_jwt = false
 
 [functions.push]
 # Public VAPID-key lookup uses the anon key; POST actions validate the user JWT inside the function.
