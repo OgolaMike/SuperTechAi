@@ -125,3 +125,9 @@ This work exists on the development branch and remains behind PR review/CI. It d
 - `_shared/ctrader-order-payload.ts` builds validated, protected LIMIT/STOP request payloads using cTrader order/side enums and a deterministic intent label. It rejects MARKET orders until the separate immediate-protection/flatten path is verified. For limited-risk accounts it emits relative stop/target distances with the guaranteed-stop flag only when the symbol supports GSL; otherwise it fails closed.
 - This sizing helper is not yet wired into a broker order path. Cross-currency conversion, non-linear contract types, live spread validation, expected-margin limits, and durable execution reconciliation remain mandatory before any order submission.
 - The cTrader Open API documents order volume in hundredths of a unit and exposes broker-specific min/max/step volume rules, trading mode and stop-distance constraints. The executor must use the account's actual symbol metadata, not generic lot assumptions.
+
+
+### cTrader broker preflight controls (branch only)
+- Added a fail-closed, pure preflight validator for account access rights, symbol trading mode, short-selling permission, limited-risk guaranteed-stop requirements, live bid/ask spread, and broker min/max/step volume rules.
+- These checks are unit-tested and do not submit, amend or close orders.
+- The preflight validator is not yet connected to a persistent cloud executor. The next implementation stage must obtain fresh account/symbol/quote metadata from cTrader, calculate the risk size using the verified instrument model, request broker expected margin, and only then build the durable protected-order adapter.
