@@ -109,7 +109,7 @@ Deno.serve(async req => {
       const last4 = apiKey.slice(-4);
       const { error } = await admin.from("binance_futures_credentials").upsert({ user_id: userId, encrypted_api_key: encryptedApiKey, encrypted_api_secret: encryptedApiSecret, key_type: keyType, api_key_last4: last4, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (error) throw error;
-      const { error: settingsError } = await admin.from("binance_futures_settings").upsert({ user_id: userId, connection_status: "connected", api_key_last4: last4, account_label: "Binance USDT-M Futures", last_checked_at: new Date().toISOString(), last_error_code: null, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      const { error: settingsError } = await admin.from("binance_futures_settings").upsert({ user_id: userId, connection_status: "connected", auto_trade_enabled: false, live_execution_enabled: false, emergency_stop: true, api_key_last4: last4, account_label: "Binance USDT-M Futures", last_checked_at: new Date().toISOString(), last_error_code: null, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (settingsError) throw settingsError;
       return json({ ok: true, connectionStatus: "connected", apiKeyLast4: last4, account });
     }
