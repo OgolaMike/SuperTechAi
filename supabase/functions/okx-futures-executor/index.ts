@@ -39,7 +39,7 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   if(claimError)throw claimError;
   if(!claimed?.length)continue;
   try{
-   const {data:settings,error:settingsError}=await db.from("okx_futures_settings").select("demo_trading").eq("user_id",pending.user_id).maybeSingle();
+   const {data:settings,error:settingsError}=await db.from("okx_futures_settings").select("demo_trading,leverage").eq("user_id",pending.user_id).maybeSingle();
    if(settingsError||!settings)throw Error("recovery_settings_unavailable");
    const {data:credential,error:credentialError}=await db.from("okx_futures_credentials").select("*").eq("user_id",pending.user_id).maybeSingle();
    if(credentialError||!credential)throw Error("recovery_credentials_unavailable");
@@ -63,7 +63,7 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
    const existing=await db.from("okx_futures_orders").select("id").eq("intent_id",pending.id).maybeSingle();
    if(existing.error)throw existing.error;
    if(!existing.data){
-    const {error:saveError}=await db.from("okx_futures_orders").insert({user_id:pending.user_id,intent_id:pending.id,signal_key:pending.signal_key,inst_id:inst,side:pending.side,sz:filled,entry_price:Number(exchangeOrder.avgPx??pending.entry_price??0),stop_loss:Number(pending.stop_loss),take_profit:Number(pending.take_profit),leverage:1,exchange_order_id:orderId,exchange_algo_id:algoId,status:"protected",demo_trading:demo});
+    const {error:saveError}=await db.from("okx_futures_orders").insert({user_id:pending.user_id,intent_id:pending.id,signal_key:pending.signal_key,inst_id:inst,side:pending.side,sz:filled,entry_price:Number(exchangeOrder.avgPx??pending.entry_price??0),stop_loss:Number(pending.stop_loss),take_profit:Number(pending.take_profit),leverage:Number(settings.leverage??1),exchange_order_id:orderId,exchange_algo_id:algoId,status:"protected",demo_trading:demo});
     if(saveError)throw saveError;
    }
    const {error:updateError}=await db.from("okx_futures_signal_intents").update({status:"executed",exchange_order_id:orderId,exchange_algo_id:algoId,failure_reason:null,updated_at:new Date().toISOString()}).eq("id",pending.id).eq("status","recovery_checking");
