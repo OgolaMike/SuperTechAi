@@ -76,7 +76,7 @@ export type ExecutionIntent = {
   authorization: {
     liveExecutionAuthorized: boolean;
     emergencyStop: boolean;
-    tradingPermissionVerifiedAt: string;
+    preflightVerifiedAt: string;
   };
   createdAt: string;
 };
@@ -207,8 +207,8 @@ export function assertExecutionIntent(value: ExecutionIntent): void {
   if (value.environment === "live" && !value.authorization.liveExecutionAuthorized) {
     throw new Error("live_execution_not_authorized");
   }
-  if (!validDate(value.authorization.tradingPermissionVerifiedAt)) {
-    throw new Error("trading_permission_verification_missing");
+  if (!validDate(value.authorization.preflightVerifiedAt)) {
+    throw new Error("execution_preflight_timestamp_missing");
   }
   if (value.risk.leverage !== undefined &&
       (!Number.isInteger(value.risk.leverage) || value.risk.leverage < 1 || value.risk.leverage > 20)) {
