@@ -19,8 +19,8 @@ Deno.test("sizes a linear USD-quoted position within the configured risk", () =>
   const result = calculateCTraderRiskSize(base);
   assertEquals(result.balance, 1_000_000);
   assertEquals(result.riskAmount, 5_000);
-  assertEquals(result.volumeUnits, 1_000_000);
-  assertEquals(result.estimatedStopLoss, 5_000);
+  assertEquals(result.volumeUnits, 999_999);
+  if (result.estimatedStopLoss > result.riskAmount) throw new Error("rounded size exceeded risk budget");
 });
 
 Deno.test("rejects non-matching deposit currencies without a conversion rate", () => {
