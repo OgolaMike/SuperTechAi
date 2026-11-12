@@ -25,8 +25,57 @@ const stepFloor=(n:number,step:number)=>Math.floor((n+1e-10)/step)*step;
 Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors});if(req.method!=="POST")return out({error:"method_not_allowed"},405);try{
  const token=(req.headers.get("Authorization")??"").replace(/^Bearer\s+/i,"");if(!service||token!==service)return out({error:"service_authorization_required"},403);
  const body=await req.json();if(body.action!=="execute_pending")return out({error:"unsupported_action"},400);
- const {data:rows,error}=await db.from("okx_futures_signal_intents").select("*").eq("status","signal_ready").order("created_at",{ascending:true}).limit(100);if(error)throw error;
  const results:OkxExecutionResult[]=[];
+ // Reconcile persisted uncertain submissions before considering any new signal.
+ // Never resubmit an uncertain intent: lookup only by the deterministic OKX client order ID.
+ const staleRecoveryBefore=new Date(Date.now()-120_000).toISOString();
+ const {data:uncertainRows,error:uncertainError}=await db.from("okx_futures_signal_intents").select("*").or("status.eq.uncertain,and(status.eq.recovery_checking,updated_at.lt."+staleRecoveryBefore+")").order("created_at",{ascending:true}).limit(100);
+ if(uncertainError)throw uncertainError;
+ for(const pending of uncertainRows??[]){
+  const previousStatus=String(pending.status),previousUpdatedAt=String(pending.updated_at??"");
+  let claim=db.from("okx_futures_signal_intents").update({status:"recovery_checking",updated_at:new Date().toISOString()}).eq("id",pending.id).eq("status",previousStatus);
+  if(previousStatus==="recovery_checking")claim=claim.eq("updated_at",previousUpdatedAt);
+  const {data:claimed,error:claimError}=await claim.select("id");
+  if(claimError)throw claimError;
+  if(!claimed?.length)continue;
+  try{
+   const {data:settings,error:settingsError}=await db.from("okx_futures_settings").select("demo_trading").eq("user_id",pending.user_id).maybeSingle();
+   if(settingsError||!settings)throw Error("recovery_settings_unavailable");
+   const {data:credential,error:credentialError}=await db.from("okx_futures_credentials").select("*").eq("user_id",pending.user_id).maybeSingle();
+   if(credentialError||!credential)throw Error("recovery_credentials_unavailable");
+   const [key,secret,passphrase]=await Promise.all([dec(credential.encrypted_api_key),dec(credential.encrypted_api_secret),dec(credential.encrypted_passphrase)]);
+   const inst=String(pending.inst_id),demo=settings.demo_trading===true,clientOrderId=await stableClientId(String(pending.id));
+   const found=await api(key,secret,passphrase,"/api/v5/trade/order?instId="+encodeURIComponent(inst)+"&clOrdId="+encodeURIComponent(clientOrderId),"GET",null,demo);
+   const exchangeOrder=found[0];
+   if(!exchangeOrder?.ordId)throw Error("uncertain_order_not_confirmed;_hold_without_retry");
+   const filled=Number(exchangeOrder.accFillSz??0),state=String(exchangeOrder.state??"");
+   if(filled<=0&&state==="canceled"){
+    const {error:updateError}=await db.from("okx_futures_signal_intents").update({status:"failed",failure_reason:"reconciled_order_canceled_without_fill;not_retried",exchange_order_id:String(exchangeOrder.ordId),updated_at:new Date().toISOString()}).eq("id",pending.id).eq("status","recovery_checking");
+    if(updateError)throw updateError;
+    results.push({failed:true,id:String(pending.id),error:"uncertain_order_canceled_without_fill"});
+    continue;
+   }
+   if(state!=="filled"||filled<=0)throw Error("order_found_but_fill_or_terminal_state_not_confirmed;held_for_review");
+   const attached=Array.isArray(exchangeOrder.attachAlgoOrds)?exchangeOrder.attachAlgoOrds:[];
+   const attachedProtection=attached.find((item:OkxRecord)=>String(item.attachAlgoClOrdId??"")===("stp"+clientOrderId.slice(2)).slice(0,32)&&Boolean(item.attachAlgoId));
+   if(!attachedProtection)throw Error("filled_order_protection_not_confirmed;held_for_review");
+   const algoId=String(attachedProtection.attachAlgoId),orderId=String(exchangeOrder.ordId);
+   const existing=await db.from("okx_futures_orders").select("id").eq("intent_id",pending.id).maybeSingle();
+   if(existing.error)throw existing.error;
+   if(!existing.data){
+    const {error:saveError}=await db.from("okx_futures_orders").insert({user_id:pending.user_id,intent_id:pending.id,signal_key:pending.signal_key,inst_id:inst,side:pending.side,sz:filled,entry_price:Number(exchangeOrder.avgPx??pending.entry_price??0),stop_loss:Number(pending.stop_loss),take_profit:Number(pending.take_profit),leverage:1,exchange_order_id:orderId,exchange_algo_id:algoId,status:"protected",demo_trading:demo});
+    if(saveError)throw saveError;
+   }
+   const {error:updateError}=await db.from("okx_futures_signal_intents").update({status:"executed",exchange_order_id:orderId,exchange_algo_id:algoId,failure_reason:null,updated_at:new Date().toISOString()}).eq("id",pending.id).eq("status","recovery_checking");
+   if(updateError)throw updateError;
+   results.push({executed:true,user_id:pending.user_id,inst_id:inst,demo,order_id:orderId,algo_id:algoId});
+  }catch(recoveryError){
+   const reason=recoveryError instanceof Error?recoveryError.message:"uncertain_order_recovery_pending";
+   await db.from("okx_futures_signal_intents").update({status:"uncertain",failure_reason:("recovery_pending: "+reason).slice(0,240),updated_at:new Date().toISOString()}).eq("id",pending.id).eq("status","recovery_checking");
+   results.push({failed:true,id:String(pending.id),error:reason});
+  }
+ }
+ const {data:rows,error}=await db.from("okx_futures_signal_intents").select("*").eq("status","signal_ready").order("created_at",{ascending:true}).limit(100);if(error)throw error;
  for(const row of rows??[]){try{
   const {data:claimed,error:claimError}=await db.from("okx_futures_signal_intents").update({status:"processing",updated_at:new Date().toISOString()}).eq("id",row.id).eq("status","signal_ready").select("id");if(claimError)throw claimError;if(!claimed?.length)continue;
   const {data:st,error:stErr}=await db.from("okx_futures_settings").select("*").eq("user_id",row.user_id).maybeSingle();if(stErr||!st||st.connection_status!=="connected"||!st.auto_trade_enabled||st.emergency_stop)throw Error("okx_automation_not_enabled");
