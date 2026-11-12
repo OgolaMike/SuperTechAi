@@ -121,14 +121,29 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
   const { data: rows, error } = await db.from("binance_spot_orders")
     .select("id,symbol,broker_order_list_id,status,client_order_id,expires_at,stop_loss,take_profit,request_payload")
     .eq("user_id", userId)
-    .in("status", ["submitted", "partially_filled", "filled"]);
+    .in("status", ["submitted", "partially_filled", "filled", "uncertain"]);
   if (error) throw error;
   for (const row of rows ?? []) {
-    if (!row.broker_order_list_id) continue;
     try {
-      const list = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "GET", {
-        orderListId: String(row.broker_order_list_id),
-      });
+      const requestPayload = row.request_payload as Record<string, unknown> | null;
+      const storedListClientOrderId = typeof requestPayload?.list_client_order_id === "string"
+        ? requestPayload.list_client_order_id : null;
+      if (!row.broker_order_list_id && (row.status !== "uncertain" || !storedListClientOrderId)) continue;
+      const list = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "GET",
+        row.broker_order_list_id
+          ? { orderListId: String(row.broker_order_list_id) }
+          : { origClientOrderId: storedListClientOrderId! });
+      const recoveredListId = list.orderListId == null ? null : String(list.orderListId);
+      if (!recoveredListId) throw new Error("binance_uncertain_order_lookup_incomplete");
+      if (row.status === "uncertain") {
+        await db.from("binance_spot_orders").update({
+          status: "submitted",
+          broker_order_list_id: recoveredListId,
+          result_payload: list,
+          last_error_code: null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", row.id).eq("user_id", userId);
+      }
       const stage = String((row.request_payload as Record<string, unknown> | null)?.stage ?? "entry_OTOCO");
       if (stage === "exit_oco") {
         if (list.listOrderStatus === "ALL_DONE" || list.listStatusType === "ALL_DONE") {
@@ -344,6 +359,8 @@ export async function submitBinanceSpotLimitIntents(
             account_usdt_balance: accountUsdtBalance,
             planned_risk_usdt: plannedRiskUsdt,
             quote_notional_usdt: notional,
+            list_client_order_id: listClientOrderId,
+            working_client_order_id: workingClientOrderId,
             strategy: "M15-M5-M1-LIMIT-OTOCO",
           },
         }).select("id").single();
