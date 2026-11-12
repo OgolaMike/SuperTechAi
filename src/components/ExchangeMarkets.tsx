@@ -3,13 +3,14 @@ import { Activity, RefreshCw, Search, TrendingDown, TrendingUp } from 'lucide-re
 import { SignalCard } from '@/components/SignalCard';
 import { EXCHANGE_OPTIONS, buildExchangeStates, fetchExchangeTickers, type ExchangeId, type ExchangeTicker } from '@/lib/exchangeMarkets';
 import type { SignalLearningModel } from '@/lib/aiLearning';
+import type { View } from '@/components/ViewNav';
 import type { Asset, Timeframe, TfState } from '@/lib/sma';
 import { TIMEFRAMES, formatPrice } from '@/lib/sma';
 
-type Props = { aiModel: SignalLearningModel };
+type Props = { aiModel: SignalLearningModel; onNavigate: (view: View) => void };
 type LoadState = { rows: ExchangeTicker[]; loading: boolean; error: string | null };
 
-export function ExchangeMarkets({ aiModel }: Props) {
+export function ExchangeMarkets({ aiModel, onNavigate }: Props) {
   const [exchange, setExchange] = useState<ExchangeId>('OKX');
   const [load, setLoad] = useState<LoadState>({ rows: [], loading: true, error: null });
   const [selectedSymbol, setSelectedSymbol] = useState('');
@@ -113,6 +114,11 @@ export function ExchangeMarkets({ aiModel }: Props) {
           <select value={exchange} onChange={(event) => setExchange(event.target.value as ExchangeId)} className="rounded-xl border border-line/15 bg-canvas px-4 py-3 text-sm font-semibold text-ink">
             {EXCHANGE_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.name} Market</option>)}
           </select>
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-ink-3">Existing markets</span>
+          <button type="button" onClick={() => onNavigate('crypto')} className="rounded-full border border-line/15 bg-surface/[0.03] px-3 py-1.5 text-xs font-semibold text-ink-2 hover:text-ink">Binance Market</button>
+          <button type="button" onClick={() => onNavigate('deriv-market')} className="rounded-full border border-line/15 bg-surface/[0.03] px-3 py-1.5 text-xs font-semibold text-ink-2 hover:text-ink">Deriv Market</button>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           {EXCHANGE_OPTIONS.map((item) => <button key={item.id} type="button" onClick={() => setExchange(item.id)} aria-pressed={exchange === item.id} className={exchange === item.id ? 'rounded-xl border border-accent/40 bg-accent/10 px-3 py-2.5 text-xs font-semibold text-accent' : 'rounded-xl border border-line/10 bg-surface/[0.03] px-3 py-2.5 text-xs font-semibold text-ink-2 hover:text-ink'}>{item.name}</button>)}
