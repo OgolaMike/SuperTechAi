@@ -6,7 +6,7 @@ import {
   UserRoundPlus, X,
 } from 'lucide-react';
 
-export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections';
+export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -15,6 +15,7 @@ const PRIMARY: NavItem[] = [
   { id: 'super', label: 'Super Signals', icon: Sparkles },
   { id: 'crypto', label: 'Crypto Market', mobileLabel: 'Crypto', icon: BarChart3 },
   { id: 'deriv-market', label: 'Deriv Market', mobileLabel: 'Deriv', icon: Activity },
+  { id: 'exchange-markets', label: 'Exchange Markets', mobileLabel: 'Exchanges', icon: BarChart3 },
   { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
