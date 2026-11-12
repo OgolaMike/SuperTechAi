@@ -58,7 +58,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Pure price-action · all assets · all timeframes</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          Finds two confirmed swing lows or highs, marks their shared price zone and stages a limit order for a possible third test. Stop-loss sits beyond the opposite edge of the zone; take-profit is fixed at 3R. Each timeframe is scanned independently. No indicators or AI filters are used.
+          SELL: a Triple Top is formed from two confirmed swing highs at resistance; SuperTech AI stages a SELL LIMIT for the third test. BUY: a Triple Bottom is formed from two confirmed swing lows at support; SuperTech AI stages a BUY LIMIT for the third test. The stop-loss sits beyond the far edge of the pattern zone and the target is 3R. Every available asset and timeframe is scanned independently using pure price action.
         </p>
       </div>
 
@@ -73,7 +73,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
           <button key={item} type="button" onClick={() => setCategory(item)}
             className={`rounded-xl border px-4 py-4 text-left transition-colors ${category === item ? (item === 'TRIPLE BOTTOM' ? 'border-up/50 bg-up/10' : 'border-down/50 bg-down/10') : 'border-line/25 bg-surface/[0.03]'}`}>
             <span className={`block text-sm font-bold ${item === 'TRIPLE BOTTOM' ? 'text-up' : 'text-down'}`}>{item}</span>
-            <span className="mt-1 block text-xs text-ink-2">{item === 'TRIPLE BOTTOM' ? 'BUY LIMIT · support retest' : 'SELL LIMIT · resistance retest'}</span>
+            <span className="mt-1 block text-xs text-ink-2">{item === 'TRIPLE BOTTOM' ? 'BUY LIMIT · third test of support' : 'SELL LIMIT · third test of resistance'}</span>
             <span className="mt-2 block text-xs text-ink-3">{trackedOrders.filter(order => order.patternType === item && (order.status === 'WAITING' || order.status === 'ENTRY HIT')).length} active</span>
           </button>
         ))}
