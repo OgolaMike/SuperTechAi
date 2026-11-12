@@ -1,5 +1,9 @@
 name: Package MT5 Windows worker
 on:
+  pull_request:
+    paths:
+      - 'mt5-worker/**'
+      - '.github/workflows/package-mt5-worker.yml'
   push:
     tags:
       - 'mt5-worker-v*'
