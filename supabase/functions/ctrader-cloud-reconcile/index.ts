@@ -1,3 +1,6 @@
+import { calculateCTraderRiskSize } from "../_shared/ctrader-risk-sizing.ts";
+import { validateCTraderExecutionPreflight } from "../_shared/ctrader-execution-preflight.ts";
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
@@ -63,6 +66,63 @@ const sendRequest = (ws: WebSocket, payloadType: number, payload: Record<string,
     ws.addEventListener("close", onClose);
     ws.send(JSON.stringify({ clientMsgId, payloadType, payload }));
   });
+
+const sendRequestForSpot = (
+  ws: WebSocket,
+  payloadType: number,
+  payload: Record<string, unknown>,
+  expectedResponse: number,
+  expectedSymbolId: number,
+) => new Promise<{ bid: number; ask: number; timestamp: number | null }>((resolve, reject) => {
+  const clientMsgId = crypto.randomUUID();
+  let responseSeen = false;
+  let quote: { bid: number; ask: number; timestamp: number | null } | undefined;
+  const timer = setTimeout(() => cleanup(new Error("ctrader_spot_quote_timeout")), 10000);
+  const onMessage = (event: MessageEvent) => {
+    let message: Message;
+    try {
+      if (typeof event.data !== "string") throw new Error("unexpected_non_text_message");
+      message = JSON.parse(event.data);
+    } catch {
+      cleanup(new Error("invalid_ctrader_json_response"));
+      return;
+    }
+    const p = message.payload ?? {};
+    if (message.payloadType === 2142 || message.payloadType === 50) {
+      cleanup(new Error(String(p.errorCode ?? "ctrader_api_error")));
+      return;
+    }
+    if (message.payloadType === expectedResponse && message.clientMsgId === clientMsgId) {
+      responseSeen = true;
+      if (quote) cleanup(undefined, quote);
+      return;
+    }
+    if (message.payloadType === 2131 && Number(p.symbolId) === expectedSymbolId) {
+      const bidRaw = Number(p.bid);
+      const askRaw = Number(p.ask);
+      if (Number.isFinite(bidRaw) && bidRaw > 0 && Number.isFinite(askRaw) && askRaw >= bidRaw) {
+        quote = {
+          bid: bidRaw / 100000,
+          ask: askRaw / 100000,
+          timestamp: Number.isFinite(Number(p.timestamp)) ? Number(p.timestamp) : null,
+        };
+        if (responseSeen) cleanup(undefined, quote);
+      }
+    }
+  };
+  const onClose = () => cleanup(new Error("ctrader_connection_closed"));
+  const cleanup = (error?: Error, result?: { bid: number; ask: number; timestamp: number | null }) => {
+    clearTimeout(timer);
+    ws.removeEventListener("message", onMessage);
+    ws.removeEventListener("close", onClose);
+    if (error) reject(error);
+    else if (result) resolve(result);
+    else reject(new Error("ctrader_spot_quote_missing"));
+  };
+  ws.addEventListener("message", onMessage);
+  ws.addEventListener("close", onClose);
+  ws.send(JSON.stringify({ clientMsgId, payloadType, payload }));
+});
 
 const rest = async (base: string, service: string, path: string, init: RequestInit = {}) => {
   const headers = new Headers({
@@ -186,6 +246,133 @@ Deno.serve(async (req) => {
           symbolMap.set(String(symbol.symbolId), symbol.symbolName);
         }
       }
+      let preflightPreview: Record<string, unknown> | null = null;
+      if (body?.preflightPreview !== undefined) {
+        const request = body.preflightPreview;
+        const symbolId = Number(request?.symbolId);
+        const riskPercent = Number(request?.riskPercent);
+        const stopLoss = Number(request?.stopLoss);
+        const takeProfit = Number(request?.takeProfit);
+        const maxSpreadPips = Number(request?.maxSpreadPips);
+        if (!Number.isSafeInteger(symbolId) || symbolId <= 0 ||
+            !Number.isFinite(riskPercent) || riskPercent <= 0 || riskPercent > 1 ||
+            !Number.isFinite(stopLoss) || stopLoss <= 0 ||
+            !Number.isFinite(takeProfit) || takeProfit <= 0 ||
+            !Number.isFinite(maxSpreadPips) || maxSpreadPips <= 0 ||
+            (request?.direction !== "BUY" && request?.direction !== "SELL")) {
+          throw new Error("invalid_ctrader_preflight_preview_request");
+        }
+        const symbolResponse = await sendRequest(ws, 2116, {
+          ctidTraderAccountId: Number(connection.ctrader_account_id),
+          symbolId: [symbolId],
+        }, 2117);
+        const symbolList = Array.isArray(symbolResponse.symbol) ? symbolResponse.symbol as Record<string, unknown>[] : [];
+        const symbol = symbolList.find((item) => Number(item.symbolId) === symbolId);
+        if (!symbol) throw new Error("ctrader_symbol_not_found");
+        if (symbol.enabled === false) throw new Error("ctrader_symbol_not_enabled");
+        const assetResponse = await sendRequest(ws, 2112, {
+          ctidTraderAccountId: Number(connection.ctrader_account_id),
+        }, 2113);
+        const assets = Array.isArray(assetResponse.asset) ? assetResponse.asset as Record<string, unknown>[] : [];
+        const assetName = (assetId: unknown) => {
+          const asset = assets.find((item) => String(item.assetId) === String(assetId));
+          return typeof asset?.name === "string" ? asset.name : "";
+        };
+        const quoteCurrency = assetName(symbol.quoteAssetId);
+        const depositCurrency = assetName(trader.depositAssetId);
+        if (!quoteCurrency || !depositCurrency) throw new Error("ctrader_asset_currency_unresolved");
+        const quote = await sendRequestForSpot(ws, 2127, {
+          ctidTraderAccountId: Number(connection.ctrader_account_id),
+          symbolId: [symbolId],
+        }, 2128, symbolId);
+        const direction = request.direction as "BUY" | "SELL";
+        const entryPrice = direction === "BUY" ? quote.ask : quote.bid;
+        if (!(Number(symbol.pipPosition) >= 0) || !Number.isInteger(Number(symbol.pipPosition))) {
+          throw new Error("ctrader_symbol_pip_position_missing");
+        }
+        const pipSize = 10 ** -Number(symbol.pipPosition);
+        const riskSize = calculateCTraderRiskSize({
+          balance: Number(trader.balance),
+          moneyDigits: Number(trader.moneyDigits),
+          riskPercent,
+          entryPrice,
+          stopLoss,
+          direction,
+          quoteCurrency,
+          depositCurrency,
+          minVolume: Number(symbol.minVolume),
+          maxVolume: Number(symbol.maxVolume),
+          stepVolume: Number(symbol.stepVolume),
+        });
+        if (direction === "BUY" && !(stopLoss < entryPrice && takeProfit > entryPrice)) {
+          throw new Error("invalid_buy_target_geometry");
+        }
+        if (direction === "SELL" && !(takeProfit < entryPrice && stopLoss > entryPrice)) {
+          throw new Error("invalid_sell_target_geometry");
+        }
+        const spread = validateCTraderExecutionPreflight({
+          accessRights: Number(trader.accessRights),
+          tradingMode: Number(symbol.tradingMode),
+          direction,
+          shortSellingEnabled: symbol.enableShortSelling === true,
+          isLimitedRisk: trader.isLimitedRisk === true,
+          symbolAllowsGuaranteedStopLoss: symbol.guaranteedStopLoss === true,
+          guaranteedStopLossRequested: trader.isLimitedRisk === true,
+          bid: quote.bid,
+          ask: quote.ask,
+          pipSize,
+          maxSpreadPips,
+          volumeCents: riskSize.volumeCents,
+          minVolume: Number(symbol.minVolume),
+          maxVolume: Number(symbol.maxVolume),
+          stepVolume: Number(symbol.stepVolume),
+        });
+        const marginResponse = await sendRequest(ws, 2139, {
+          ctidTraderAccountId: Number(connection.ctrader_account_id),
+          symbolId,
+          volume: [riskSize.volumeCents],
+        }, 2140);
+        const marginRows = Array.isArray(marginResponse.margin) ? marginResponse.margin as Record<string, unknown>[] : [];
+        const marginRow = marginRows.find((item) => Number(item.volume) === riskSize.volumeCents);
+        if (!marginRow) throw new Error("ctrader_expected_margin_missing");
+        const marginDigits = Number(marginResponse.moneyDigits);
+        if (!Number.isInteger(marginDigits) || marginDigits < 0 || marginDigits > 8) {
+          throw new Error("ctrader_expected_margin_scale_missing");
+        }
+        const expectedMarginRaw = Number(direction === "BUY" ? marginRow.buyMargin : marginRow.sellMargin);
+        if (!Number.isFinite(expectedMarginRaw) || expectedMarginRaw <= 0) {
+          throw new Error("ctrader_expected_margin_invalid");
+        }
+        const expectedMargin = expectedMarginRaw / (10 ** marginDigits);
+        const balance = Number(trader.balance) / (10 ** Number(trader.moneyDigits));
+        const marginUtilizationPercent = expectedMargin / balance * 100;
+        preflightPreview = {
+          readOnly: true,
+          orderPlaced: false,
+          symbolId,
+          symbolName: typeof symbol.symbolName === "string" ? symbol.symbolName : String(symbolId),
+          direction,
+          bid: quote.bid,
+          ask: quote.ask,
+          quoteTimestamp: quote.timestamp,
+          spreadPips: spread.spreadPips,
+          entryPrice,
+          stopLoss,
+          takeProfit,
+          quoteCurrency,
+          depositCurrency,
+          volumeCents: riskSize.volumeCents,
+          volumeUnits: riskSize.volumeUnits,
+          riskAmount: riskSize.riskAmount,
+          estimatedStopLoss: riskSize.estimatedStopLoss,
+          expectedMargin,
+          marginUtilizationPercent,
+          guaranteedStopLoss: spread.guaranteedStopLoss,
+          freeMarginVerified: false,
+          executionAuthorized: false,
+          note: "Preview only. Free margin, contract-specific conversion and durable protected execution are not yet verified.",
+        };
+      }
       const reconciled = await sendRequest(ws, 2124, {
         ctidTraderAccountId: Number(connection.ctrader_account_id),
         returnProtectionOrders: false,
@@ -273,6 +460,7 @@ Deno.serve(async (req) => {
         tokenRefreshed: refreshed,
         tradingEnabled: false,
         orderPlaced: false,
+        preflightPreview,
       });
     } finally {
       if (heartbeat !== undefined) clearInterval(heartbeat);
