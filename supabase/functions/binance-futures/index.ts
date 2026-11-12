@@ -26,7 +26,7 @@ async function decrypt(value: string) {
 }
 async function signature(secret: string, query: string, keyType: string = "hmac") {
   if (keyType === "rsa") {
-    const pem = secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g, "");
+    const pem = secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
     if (!pem || !secret.includes("BEGIN PRIVATE KEY")) throw new Error("rsa_private_key_must_be_pkcs8_pem");
     const der = Uint8Array.from(atob(pem), ch => ch.charCodeAt(0));
     const privateKey = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
