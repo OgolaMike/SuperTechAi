@@ -1,6 +1,6 @@
 #requires -Version 5.1
 $ErrorActionPreference = 'Stop'
-$WorkerDir = Join-Path $PSScriptRoot 'mt5-worker'
+$WorkerDir = $PSScriptRoot
 Set-Location $WorkerDir
 
 Write-Host "SuperTech AI MT5 Worker setup" -ForegroundColor Cyan
