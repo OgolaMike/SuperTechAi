@@ -104,7 +104,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Live market day · EAT</p>
             <h3 className="mt-1 text-lg font-semibold text-ink">Today's gainers and losers</h3>
-            <p className="mt-1 text-xs text-ink-3">Rankings use Binance's current Kenya trading-day change, not the previous rolling 24 hours.</p>
+            <p className="mt-1 text-xs text-ink-3">Rankings use current Kenya trading-day rate of change (ROC), not the previous rolling 24 hours.</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-ink-3">
             <span className={today.loading ? "h-2 w-2 animate-pulse rounded-full bg-accent" : "h-2 w-2 rounded-full bg-up"} />
@@ -225,7 +225,7 @@ function WatchListTable({ movers }: { movers: CryptoMover[] }) {
     <div className="hud-panel overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.03]">
       <div className="flex items-center justify-between border-b border-line/10 px-5 py-3">
         <h3 className="text-sm font-semibold text-ink">Full watch list</h3>
-        <span className="text-xs text-ink-3">{movers.length} pairs · source: Binance</span>
+        <span className="text-xs text-ink-3">{movers.length} pairs · daily ROC · Binance</span>
       </div>
       <div className="max-h-[480px] overflow-auto">
         <table className="w-full min-w-[560px] border-collapse text-left text-xs">
@@ -234,7 +234,7 @@ function WatchListTable({ movers }: { movers: CryptoMover[] }) {
               <th className="px-5 py-2.5 font-semibold">#</th>
               <th className="px-3 py-2.5 font-semibold">Pair</th>
               <th className="px-3 py-2.5 text-right font-semibold">Close</th>
-              <th className="px-3 py-2.5 text-right font-semibold">Change</th>
+              <th className="px-3 py-2.5 text-right font-semibold">Daily ROC</th>
               <th className="px-5 py-2.5 text-right font-semibold">Volume</th>
             </tr>
           </thead>
