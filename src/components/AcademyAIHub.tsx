@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { BookOpen, Bot, BrainCircuit, MessageCircle, RefreshCw, Send, Sparkles } from 'lucide-react';
 
-type AiLesson = {
+type AiDiscussion = { id: string; title: string; category: string; discussion_prompt: string; context: string; talking_points: string[]; follow_up_questions: string[]; created_at: string };\n\ntype AiLesson = {
   id: string; slug: string; title: string; category: string; level: string;
   duration_minutes: number; content: {
     summary: string; objective: string; steps: string[]; narration: string;
@@ -12,7 +12,7 @@ type AiLesson = {
 };
 
 export function AcademyAIHub({ isAdmin }: { isAdmin: boolean }) {
-  const [lessons, setLessons] = useState<AiLesson[]>([]);
+  const [lessons, setLessons] = useState<AiLesson[]>([]);\n  const [discussions, setDiscussions] = useState<AiDiscussion[]>([]);\n  const [discussionTopic, setDiscussionTopic] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [topic, setTopic] = useState('');
   const [category, setCategory] = useState('Trading foundations');
@@ -37,6 +37,15 @@ export function AcademyAIHub({ isAdmin }: { isAdmin: boolean }) {
     const { data, error } = await supabase.functions.invoke('academy-ai', { body: { action: 'generate-lesson', topic: topic.trim(), category, level } });
     if (error || data?.error) setError(data?.error || 'AI lesson generation failed. Please try again.');
     else { setTopic(''); await load(); setSelectedId(data.lesson.id); }
+    setBusy('');
+  };
+
+  const generateDiscussion = async () => {
+    if (discussionTopic.trim().length < 4) return;
+    setBusy('discussion'); setError('');
+    const { data, error } = await supabase.functions.invoke('academy-ai', { body: { action: 'generate-discussion', topic: discussionTopic.trim(), category } });
+    if (error || data?.error) setError(data?.error || 'AI discussion generation failed.');
+    else { setDiscussionTopic(''); await load(); }
     setBusy('');
   };
 
@@ -76,7 +85,17 @@ export function AcademyAIHub({ isAdmin }: { isAdmin: boolean }) {
         </div>
       </div>}
 
+      {isAdmin && <div className="rounded-2xl border border-accent/20 bg-canvas/40 p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink"><MessageCircle className="h-4 w-4 text-accent" /> Create an AI-led discussion</div>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={discussionTopic} onChange={(e) => setDiscussionTopic(e.target.value)} placeholder="Discussion topic (e.g. When should a breakout be ignored?)" className="min-w-0 flex-1 rounded-xl border border-line/10 bg-canvas px-3 py-2.5 text-sm text-ink" /><button onClick={() => void generateDiscussion()} disabled={busy === 'discussion' || discussionTopic.trim().length < 4} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy === 'discussion' ? 'Creating…' : 'Generate discussion'}</button></div>
+      </div>}
+
       {error && <p role="status" className="rounded-xl border border-amber-400/20 p-3 text-xs text-amber-500">{error}</p>}
+
+      <div className="rounded-2xl border border-line/10 bg-canvas/25 p-4">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink"><MessageCircle className="h-4 w-4 text-accent" /> AI-generated Academy discussions</div>
+        {!discussions.length ? <p className="text-xs text-ink-3">New AI-led discussion topics will appear here.</p> : <div className="grid gap-3 sm:grid-cols-2">{discussions.map((item) => <article key={item.id} className="rounded-xl border border-line/10 bg-canvas/50 p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-accent">{item.category}</p><h3 className="mt-1 text-sm font-semibold text-ink">{item.title}</h3><p className="mt-2 text-sm leading-5 text-ink-2">{item.discussion_prompt}</p><p className="mt-2 text-xs leading-5 text-ink-3">{item.context}</p><button onClick={() => { setQuestion(item.discussion_prompt); setAnswer(''); }} className="mt-3 text-xs font-semibold text-accent">Discuss this with AI tutor →</button></article>)}</div>}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="space-y-2">
