@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
   Activity, BarChart3, Bell, Bot, Cable, ChevronUp,
-  Database, GraduationCap, Gavel, Landmark, LayoutDashboard, ListOrdered,
+  GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
   Megaphone, MoreHorizontal, Repeat2, Sparkles, Users,
   UserRoundPlus, X,
 } from 'lucide-react';
 
-export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing';
+export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -26,6 +26,7 @@ const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
     { id: 'academy', label: 'Academy', icon: GraduationCap },
   ] },
   { title: 'Trading connections', items: [
+    { id: 'connections', label: 'Connections', icon: Link2 },
     { id: 'ctrader', label: 'Connect cTrader', icon: Cable },
     { id: 'mt5', label: 'Connect MT5', icon: Cable },
     { id: 'okx', label: 'OKX Futures', icon: Activity },
@@ -61,7 +62,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
   return (
     <>
       <nav className="hidden w-full items-center gap-1 rounded-2xl border border-line/10 bg-surface/[0.035] p-1.5 lg:flex lg:w-auto" aria-label="Main navigation">
-        {PRIMARY.map(({ id, label, mobileLabel, icon: Icon }) => (
+        {PRIMARY.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${primaryActive(id) ? 'glow-ring bg-surface/[0.12] text-ink shadow-sm' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
             <Icon className="h-4 w-4 shrink-0" /><span>{label}</span>
@@ -90,7 +91,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
 
       <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-line/15 bg-canvas/95 px-2 pb-[max(env(safe-area-inset-bottom),0.45rem)] pt-2 shadow-[0_-12px_36px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden" aria-label="Main navigation">
         <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
-          {PRIMARY.map(({ id, label, icon: Icon }) => (
+          {PRIMARY.map(({ id, label, mobileLabel, icon: Icon }) => (
             <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
               className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors ${primaryActive(id) ? 'text-accent' : 'text-ink-3'}`}>
               <span className={`flex h-8 w-10 items-center justify-center rounded-xl ${primaryActive(id) ? 'bg-accent/10' : ''}`}><Icon className="h-[19px] w-[19px]" /></span>

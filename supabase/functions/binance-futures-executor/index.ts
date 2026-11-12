@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { assertExecutionIntent, executionIdempotencyKey } from "../_shared/execution-contract.ts";
 
 const cors = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization,apikey,content-type","Access-Control-Allow-Methods":"POST,OPTIONS"};
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
@@ -36,6 +37,46 @@ Deno.serve(async req=>{
    if(ce||!creds){failed++;continue;}
    let key:string,secret:string;
    try{[key,secret]=await Promise.all([decrypt(creds.encrypted_api_key),decrypt(creds.encrypted_api_secret)]);}catch{failed++;continue;}
+   // Recover ambiguous submissions by the deterministic client order ID before considering new signals.
+   const {data:uncertainRows,error:uncertainError}=await db.from("binance_futures_orders")
+    .select("id,signal_key,symbol,side,quantity,entry_price,stop_loss,take_profit,client_order_id,status")
+    .eq("user_id",cfg.user_id).eq("status","uncertain").limit(25);
+   if(uncertainError){failed++;continue;}
+   let haltNewOrders=false;
+   for(const uncertain of uncertainRows??[]){
+    try{
+     if(!uncertain.client_order_id||!uncertain.symbol)continue;
+     const found=await binance(key,secret,"/fapi/v1/order","GET",{symbol:String(uncertain.symbol),origClientOrderId:String(uncertain.client_order_id)});
+     const exchangeStatus=String(found.status??"");
+     if(exchangeStatus==="NEW"||exchangeStatus==="PARTIALLY_FILLED"){
+      await binance(key,secret,"/fapi/v1/order","DELETE",{symbol:String(uncertain.symbol),origClientOrderId:String(uncertain.client_order_id)});
+      const positions=await binance(key,secret,"/fapi/v3/positionRisk","GET",{symbol:String(uncertain.symbol)});
+      const live=(positions??[] as PositionRow[]).find((x:PositionRow)=>x.symbol===uncertain.symbol&&Math.abs(Number(x.positionAmt))>0);
+      if(live){
+       const closeSide=Number(live.positionAmt)>0?"SELL":"BUY";
+       await binance(key,secret,"/fapi/v1/order","POST",{symbol:String(uncertain.symbol),side:closeSide,type:"MARKET",quantity:fmt(Math.abs(Number(live.positionAmt))),reduceOnly:"true"});
+      }
+      await db.from("binance_futures_orders").update({status:"rejected",last_error_code:"uncertain_entry_cancelled_and_position_checked"}).eq("id",uncertain.id).eq("user_id",cfg.user_id);
+      haltNewOrders=true;
+      continue;
+     }
+     if(exchangeStatus==="FILLED"||exchangeStatus==="PARTIALLY_FILLED"){
+      const positions=await binance(key,secret,"/fapi/v3/positionRisk","GET",{symbol:String(uncertain.symbol)});
+      const live=(positions??[] as PositionRow[]).find((x:PositionRow)=>x.symbol===uncertain.symbol&&Math.abs(Number(x.positionAmt))>0);
+      if(live){
+       const closeSide=Number(live.positionAmt)>0?"SELL":"BUY";
+       await binance(key,secret,"/fapi/v1/order","POST",{symbol:String(uncertain.symbol),side:closeSide,type:"MARKET",quantity:fmt(Math.abs(Number(live.positionAmt))),reduceOnly:"true"});
+      }
+      await db.from("binance_futures_orders").update({status:"rejected",exchange_order_id:String(found.orderId??""),result_payload:found,last_error_code:"uncertain_entry_found_position_flattened_for_safety"}).eq("id",uncertain.id).eq("user_id",cfg.user_id);
+      haltNewOrders=true;
+     }
+    }catch(recoveryError){
+     const message=recoveryError instanceof Error?recoveryError.message:"uncertain_order_recovery_failed";
+     await db.from("binance_futures_orders").update({last_error_code:("recovery_pending: "+message).slice(0,120)}).eq("id",uncertain.id).eq("user_id",cfg.user_id);
+     haltNewOrders=true;
+    }
+   }
+   if(haltNewOrders)continue;
    const nowEpoch=Math.floor(Date.now()/1000);
    const freshCutoff=nowEpoch-7200;
    const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").eq("timeframe_agreement",8).gte("signal_epoch",freshCutoff).lte("signal_epoch",nowEpoch).order("signal_epoch",{ascending:false}).limit(25);
@@ -104,6 +145,26 @@ Deno.serve(async req=>{
      const maxAffordable=(available*Number(cfg.leverage)*0.95)/entry;
      const qty=floorStep(Math.min(rawQty,maxAffordable,Number(lot.maxQty)),step);
      if(qty<minQty||qty*entry<minNotional)throw Error("order_below_exchange_minimum");
+     const executionCreatedAt=new Date();
+     assertExecutionIntent({
+      schemaVersion:1,
+      intentId:it.id,
+      idempotencyKey:executionIdempotencyKey("binance_futures", "binance_futures:"+cfg.user_id, it.id),
+      userId:cfg.user_id,
+      provider:"binance_futures",
+      connectionId:"binance_futures:"+cfg.user_id,
+      providerAccountId:cfg.user_id,
+      environment:"live",
+      strategyId:"super_signal_8of8",
+      strategyVersion:"super-signal-v1",
+      signalId:it.signal_key,
+      signalCreatedAt:new Date(Number(it.signal_epoch)*1000).toISOString(),
+      expiresAt:new Date((Number(it.signal_epoch)+7200)*1000).toISOString(),
+      order:{instrument:it.symbol,side:side.toLowerCase() as "buy"|"sell",kind:"market",entryPrice:entry,quantity:qty,stopLoss:sl,takeProfit:tp},
+      risk:{maxLossAmount:qty*riskDistance,maxLossCurrency:"USDT",riskPercent:riskPct,maxOpenPositions:Number(cfg.max_open_positions),dailyLossLimitPercent:Number(cfg.max_daily_loss_pct),leverage:Number(cfg.leverage)},
+      authorization:{liveExecutionAuthorized:cfg.live_execution_enabled===true,emergencyStop:cfg.emergency_stop===true,preflightVerifiedAt:executionCreatedAt.toISOString()},
+      createdAt:executionCreatedAt.toISOString(),
+     });
      const clientId="stai_"+(await sign(secret,cfg.user_id+"|"+it.signal_key)).slice(0,28);
      const {error:ins}=await db.from("binance_futures_orders").insert({user_id:cfg.user_id,signal_key:it.signal_key,symbol:it.symbol,side,leverage:Number(cfg.leverage),quantity:qty,entry_price:entry,stop_loss:sl,take_profit:tp,risk_usdt:qty*riskDistance,client_order_id:clientId,status:"queued",request_payload:{source:"8of8_super_signal",risk_budget_usdt:riskBudget}});
      if(ins){if(ins.code==="23505"){skipped++;continue;}throw ins;}

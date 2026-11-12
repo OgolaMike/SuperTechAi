@@ -12,6 +12,7 @@ import { AmbientBackground } from '@/components/AmbientBackground';
 import { DashboardView } from '@/components/DashboardView';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { Mt5AutoTrading } from '@/components/Mt5AutoTrading';
+import { AutomationConnections } from '@/components/AutomationConnections';
 import { CTraderAutoTrading } from '@/components/CTraderAutoTrading';
 import { BinanceSpotAutomation } from '@/components/BinanceSpotAutomation';
 import { BinanceFuturesAutomation } from '@/components/BinanceFuturesAutomation';
@@ -247,6 +248,7 @@ function App() {
           </section>
         )}
 
+        {view === 'connections' && <AutomationConnections onOpen={setView} />}
         {view === 'mt5' && <Mt5AutoTrading />}
         {view === 'ctrader' && <CTraderAutoTrading />}
         {view === 'binance' && <div className="space-y-8"><BinanceSpotAutomation /><div className="border-t border-line/15 pt-8"><BinanceFuturesAutomation /></div></div>}

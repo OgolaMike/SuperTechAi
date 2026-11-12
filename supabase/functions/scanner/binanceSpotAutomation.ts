@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { assertExecutionIntent, executionIdempotencyKey } from "../_shared/execution-contract.ts";
 
 type SpotIntent = {
   symbol: string;
@@ -120,14 +121,30 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
   const { data: rows, error } = await db.from("binance_spot_orders")
     .select("id,symbol,broker_order_list_id,status,client_order_id,expires_at,stop_loss,take_profit,request_payload")
     .eq("user_id", userId)
-    .in("status", ["submitted", "partially_filled", "filled"]);
+    .in("status", ["submitted", "partially_filled", "filled", "uncertain"]);
   if (error) throw error;
   for (const row of rows ?? []) {
-    if (!row.broker_order_list_id) continue;
     try {
-      const list = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "GET", {
-        orderListId: String(row.broker_order_list_id),
-      });
+      const requestPayload = row.request_payload as Record<string, unknown> | null;
+      const storedListClientOrderId = typeof requestPayload?.list_client_order_id === "string"
+        ? requestPayload.list_client_order_id : null;
+      if (!row.broker_order_list_id && (row.status !== "uncertain" || !storedListClientOrderId)) continue;
+      const list = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "GET",
+        row.broker_order_list_id
+          ? { orderListId: String(row.broker_order_list_id) }
+          : { origClientOrderId: storedListClientOrderId! });
+      const recoveredListId = list.orderListId == null ? null : String(list.orderListId);
+      if (!recoveredListId) throw new Error("binance_uncertain_order_lookup_incomplete");
+      const orderListId = recoveredListId;
+      if (row.status === "uncertain") {
+        await db.from("binance_spot_orders").update({
+          status: "submitted",
+          broker_order_list_id: recoveredListId,
+          result_payload: list,
+          last_error_code: null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", row.id).eq("user_id", userId);
+      }
       const stage = String((row.request_payload as Record<string, unknown> | null)?.stage ?? "entry_OTOCO");
       if (stage === "exit_oco") {
         if (list.listOrderStatus === "ALL_DONE" || list.listStatusType === "ALL_DONE") {
@@ -147,7 +164,7 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
         // remaining entry quantity and protect any partial fill with a separate OCO.
         if (workingStatus === "PARTIALLY_FILLED") {
           await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "DELETE", {
-            orderListId: String(row.broker_order_list_id),
+            orderListId,
           });
         }
         const rules = await getRules(row.symbol);
@@ -212,7 +229,7 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
         }).eq("id", row.id).eq("user_id", userId);
       } else if (row.expires_at && Date.now() >= new Date(row.expires_at).getTime() && workingStatus === "NEW") {
         const cancelled = await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "DELETE", {
-          orderListId: String(row.broker_order_list_id),
+          orderListId,
         });
         await db.from("binance_spot_orders").update({
           status: "expired", completed_at: new Date().toISOString(),
@@ -230,7 +247,7 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
 
 export async function reconcileBinanceSpotOrders(db: SupabaseClient) {
   const { data: rows, error } = await db.from("binance_spot_orders")
-    .select("user_id").in("status", ["submitted", "partially_filled", "filled"]);
+    .select("user_id").in("status", ["submitted", "partially_filled", "filled", "uncertain"]);
   if (error) throw error;
   const userIds = [...new Set((rows ?? []).map((row) => row.user_id as string))];
   for (const userId of userIds) {
@@ -271,6 +288,10 @@ export async function submitBinanceSpotLimitIntents(
   const priceTick = rules.tickSize;
 
   for (const account of (accounts ?? []) as AccountSettings[]) {
+    if (Array.isArray(account.allowed_symbols) && account.allowed_symbols.length > 0 && !account.allowed_symbols.includes(symbol)) {
+      skipped += buyIntents.length;
+      continue;
+    }
     const { data: stored, error: credentialError } = await db.from("binance_spot_credentials")
       .select("encrypted_api_key,encrypted_api_secret").eq("user_id", account.user_id).maybeSingle();
     if (credentialError || !stored) { failed += 1; continue; }
@@ -299,9 +320,8 @@ export async function submitBinanceSpotLimitIntents(
         skipped += buyIntents.length;
         continue;
       }
-      // Risk budget is 3% of the member's current USDT account balance.
-      // Position quantity is derived from the entry-to-stop distance, then capped
-      // by free USDT so the order never spends funds that are not available.
+      // Position quantity is derived from the configured risk percentage and entry-to-stop distance,
+      // then capped by free USDT so the order never spends funds that are not available.
       const totalRiskBudget = accountUsdtBalance * (riskPercent / 100);
       const selectedIntents = buyIntents.slice(0, Math.min(buyIntents.length, availableSlots));
       if (!selectedIntents.length || totalRiskBudget <= 0) { skipped += buyIntents.length; continue; }
@@ -340,6 +360,8 @@ export async function submitBinanceSpotLimitIntents(
             account_usdt_balance: accountUsdtBalance,
             planned_risk_usdt: plannedRiskUsdt,
             quote_notional_usdt: notional,
+            list_client_order_id: listClientOrderId,
+            working_client_order_id: workingClientOrderId,
             strategy: "M15-M5-M1-LIMIT-OTOCO",
           },
         }).select("id").single();
@@ -348,6 +370,45 @@ export async function submitBinanceSpotLimitIntents(
           failed += 1; continue;
         }
         try {
+          const executionCreatedAt = new Date();
+          const expiresAt = new Date((intent.signalEpoch + 8 * 900) * 1000);
+          assertExecutionIntent({
+            schemaVersion: 1,
+            intentId: inserted.id,
+            idempotencyKey: executionIdempotencyKey("binance_spot", "binance_spot:" + account.user_id, inserted.id),
+            userId: account.user_id,
+            provider: "binance_spot",
+            connectionId: "binance_spot:" + account.user_id,
+            providerAccountId: account.user_id,
+            environment: "live",
+            strategyId: "spot_m15_limit_otoco",
+            strategyVersion: "spot-otoco-v1",
+            signalId: symbol + "|M15|" + intent.signalEpoch + "|BUY",
+            signalCreatedAt: new Date(intent.signalEpoch * 1000).toISOString(),
+            expiresAt: expiresAt.toISOString(),
+            order: {
+              instrument: symbol,
+              side: "buy",
+              kind: "limit",
+              entryPrice,
+              quantity,
+              limitPrice: entryPrice,
+              stopLoss,
+              takeProfit,
+            },
+            risk: {
+              maxLossAmount: plannedRiskUsdt,
+              maxLossCurrency: "USDT",
+              riskPercent,
+              maxOpenPositions: Number(account.max_open_positions),
+            },
+            authorization: {
+              liveExecutionAuthorized: true,
+              emergencyStop: false,
+              preflightVerifiedAt: executionCreatedAt.toISOString(),
+            },
+            createdAt: executionCreatedAt.toISOString(),
+          });
           const response = await signedBinance(apiKey, apiSecret, "/api/v3/orderList/otoco", "POST", {
             symbol,
             workingType: "LIMIT",
