@@ -43,7 +43,7 @@ export function validateCTraderExecutionPreflight(
       !positive(input.pipSize)) {
     throw new Error("ctrader_live_quote_invalid");
   }
-  const spreadPips = (input.ask - input.bid) / input.pipSize;
+  const spreadPips = Math.round(((input.ask - input.bid) / input.pipSize) * 1e8) / 1e8;
   if (!Number.isFinite(input.maxSpreadPips) || input.maxSpreadPips < 0) {
     throw new Error("ctrader_spread_limit_invalid");
   }
