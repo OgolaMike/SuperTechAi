@@ -48,6 +48,36 @@ export function AcademyAIHub({ isAdmin }: { isAdmin: boolean }) {
     setBusy('');
   };
 
+  const generateCoreCurriculum = async () => {
+    const curriculum = [
+      ['How financial markets work','Trading foundations','Beginner'],
+      ['Candlesticks, price action and market structure','Chart reading','Beginner'],
+      ['Support, resistance and key price levels','Chart reading','Beginner'],
+      ['Trend, pullbacks and breakouts','Chart reading','Intermediate'],
+      ['Break and retest setups','Trading practice','Intermediate'],
+      ['Momentum, ROC and market strength','Trading intelligence','Intermediate'],
+      ['Risk management, position sizing and stop losses','Risk management','Beginner'],
+      ['Multi-timeframe confirmation and confluence','Trading intelligence','Advanced'],
+      ['Crypto markets, exchanges and volatility','Crypto','Intermediate'],
+      ['Using SuperTech AI signals and automation safely','Automation','Advanced'],
+    ];
+    setBusy('curriculum'); setError('');
+    for (let i = 0; i < curriculum.length; i++) {
+      const [lessonTopic, lessonCategory, lessonLevel] = curriculum[i];
+      const { data, error } = await supabase.functions.invoke('academy-ai', {
+        body: { action: 'generate-lesson', topic: lessonTopic, category: lessonCategory, level: lessonLevel },
+      });
+      if (error || data?.error) {
+        setError('Curriculum stopped at lesson ' + (i + 1) + ' of ' + curriculum.length + ': ' + (data?.error || 'AI generation failed. You can retry the remaining lessons.'));
+        setBusy('');
+        await load();
+        return;
+      }
+    }
+    await load();
+    setBusy('');
+  };
+
   const generateDiscussion = async () => {
     if (discussionTopic.trim().length < 4) return;
     setBusy('discussion'); setError('');
@@ -90,6 +120,7 @@ export function AcademyAIHub({ isAdmin }: { isAdmin: boolean }) {
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-xl border border-line/10 bg-canvas px-3 py-2.5 text-sm text-ink"><option>Trading foundations</option><option>Chart reading</option><option>Risk management</option><option>Trading intelligence</option><option>Crypto</option><option>Automation</option><option>Advanced trading</option></select>
           <select value={level} onChange={(e) => setLevel(e.target.value)} className="rounded-xl border border-line/10 bg-canvas px-3 py-2.5 text-sm text-ink"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
           <button onClick={() => void generate()} disabled={busy === 'generate' || topic.trim().length < 4} className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Sparkles className="h-4 w-4" />{busy === 'generate' ? 'Generating…' : 'Generate & publish'}</button>
+          <button onClick={() => void generateCoreCurriculum()} disabled={!!busy} className="rounded-xl border border-accent/30 px-4 py-2.5 text-xs font-semibold text-accent disabled:opacity-50 sm:col-span-3">{busy === 'curriculum' ? 'Building the 10-lesson curriculum…' : 'Generate complete core curriculum (10 lessons)'}</button>
         </div>
       </div>}
 
