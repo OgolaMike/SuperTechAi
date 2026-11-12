@@ -9,7 +9,7 @@ import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
 // All eight frames use native Deriv candle intervals; D1 remains the highest timeframe.
@@ -700,8 +700,23 @@ async function runScan(): Promise<Record<string, unknown>> {
   }
 }
 
+async function authorizeScannerRequest(req: Request): Promise<boolean> {
+  const suppliedSecret = req.headers.get("x-scanner-cron-secret");
+  if (!suppliedSecret || suppliedSecret.length < 32 || suppliedSecret.length > 256) return false;
+
+  const { data, error } = await db.rpc("verify_scanner_cron_secret", { p_secret: suppliedSecret });
+  if (error) {
+    console.error("Scanner cron authorization check failed:", error.message);
+    return false;
+  }
+  return data === true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
+  if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (!(await authorizeScannerRequest(req))) return jsonResponse({ error: "Unauthorized" }, 401);
+
   try {
     return jsonResponse(await runScan());
   } catch (error) {
