@@ -6,6 +6,7 @@ import { AdminPanel } from '@/components/AdminPanel';
 import { GovernancePanel } from '@/components/GovernancePanel';
 import { FinancePanel } from '@/components/FinancePanel';
 import { NetworkPanel } from '@/components/NetworkPanel';
+import { AccountHub } from '@/components/AccountHub';
 import { AssetSelector } from '@/components/AssetSelector';
 import { AmbientBackground } from '@/components/AmbientBackground';
 import { DashboardView } from '@/components/DashboardView';
@@ -260,7 +261,7 @@ function App() {
         </section>
 
         {view === 'network' && <NetworkPanel />}
-        {view === 'referrals' && <FinancePanel initialTab="referrals" />}
+        {view === 'referrals' && <AccountHub />}
         {view === 'earnings' && <FinancePanel initialTab="wallet" />}
         {view === 'finance' && isAdmin && <FinancePanel initialTab="admin" />}
         {view === 'admin' && isAdmin && <AdminPanel />}
