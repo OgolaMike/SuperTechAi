@@ -30,6 +30,7 @@ on:
       - "supabase/functions/automation-status/**"
       - "supabase/functions/binance-futures-executor/**"
       - "supabase/functions/okx-futures-executor/**"
+      - "supabase/functions/ctrader-cloud-reconcile/**"
       - "supabase/functions/scanner/binanceSpotAutomation.ts"
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
