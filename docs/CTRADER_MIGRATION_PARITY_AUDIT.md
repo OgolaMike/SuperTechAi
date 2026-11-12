@@ -81,3 +81,88 @@ If original SQL cannot be recovered, create a clearly labelled **new baseline/re
 ## Safety boundary
 
 This audit and catalog inspection are read-only. No production schema, credentials, account settings, deployment, or live trading flags were changed. No broker order was submitted. Live-account compatibility remains required; it is not a reason to remove safeguards or silently redirect users to demo.
+
+
+## Runtime-lease function recovery (live catalog, read-only)
+
+The missing applied migration `20261105160904_add_ctrader_runtime_lease_claiming` could not be found as an authoritative SQL file in repository history. Its deployed behavior has now been recovered from the active database's `pg_get_functiondef` and `pg_proc.proacl` catalog metadata.
+
+The live definitions are:
+
+```sql
+create or replace function public.claim_ctrader_runtime_lease(
+  p_connection_id uuid,
+  p_lease_owner text,
+  p_ttl_seconds integer default 45
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_claimed boolean := false;
+begin
+  if p_lease_owner is null or length(trim(p_lease_owner)) = 0 then
+    raise exception 'lease_owner_required';
+  end if;
+  if p_ttl_seconds is null or p_ttl_seconds < 10 or p_ttl_seconds > 300 then
+    raise exception 'lease_ttl_out_of_range';
+  end if;
+
+  insert into public.ctrader_runtime_leases (
+    connection_id, lease_owner, lease_expires_at, heartbeat_at, updated_at
+  )
+  values (
+    p_connection_id, p_lease_owner,
+    now() + make_interval(secs => p_ttl_seconds), now(), now()
+  )
+  on conflict (connection_id) do update
+    set lease_owner = excluded.lease_owner,
+        lease_expires_at = excluded.lease_expires_at,
+        heartbeat_at = now(),
+        updated_at = now()
+    where public.ctrader_runtime_leases.lease_expires_at < now()
+       or public.ctrader_runtime_leases.lease_owner = p_lease_owner
+  returning true into v_claimed;
+
+  return coalesce(v_claimed, false);
+end;
+$$;
+
+create or replace function public.release_ctrader_runtime_lease(
+  p_connection_id uuid,
+  p_lease_owner text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.ctrader_runtime_leases
+  where connection_id = p_connection_id
+    and lease_owner = p_lease_owner;
+  return found;
+end;
+$$;
+
+revoke all on function public.claim_ctrader_runtime_lease(uuid, text, integer)
+  from public, anon, authenticated;
+revoke all on function public.release_ctrader_runtime_lease(uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.claim_ctrader_runtime_lease(uuid, text, integer)
+  to service_role;
+grant execute on function public.release_ctrader_runtime_lease(uuid, text)
+  to service_role;
+```
+
+The live catalog confirms both functions are SECURITY DEFINER, use the `public` search path, and have EXECUTE granted only to `postgres` and `service_role` (not PUBLIC, anon, or authenticated). The lease claim validates the owner and TTL (10–300 seconds), renews the same owner, and permits a different owner only after expiry. Release deletes only a lease matching both connection and owner.
+
+**Important provenance limit:** this is a catalog-recovered representation of the deployed function definitions and grants. It is not proof of the exact original contents or ordering of migration `20261105160904`. Do not write it into the old migration slot and call it original. Use it as verified input to a separately labelled reconciliation/baseline artifact, after reviewing the complete cTrader schema and the later lease-hardening migration.
+
+## Updated recovery status
+
+- Deployed runtime lease function bodies and their effective EXECUTE grants: recovered and verified from the live catalog.
+- Exact original SQL for migration `20261105160904`: still not recovered.
+- Production schema: unchanged; this inspection was read-only.
