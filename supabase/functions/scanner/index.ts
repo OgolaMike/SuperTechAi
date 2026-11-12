@@ -3,6 +3,7 @@ import { DerivFeed, fetchCandles, loadSymbols, type Candle, type SymbolInfo } fr
 import { fetchBinanceCandles, loadBinanceSymbols, fetchBinanceFuturesCandles, loadBinanceFuturesSymbols } from "./binance.ts";
 import { computeSignals, type Signal } from "./strategy.ts";
 import { buildBackendLimitIntent } from "./pendingIntents.ts";
+import { buildHighRocStopSignal } from "./highRocSignals.ts";
 import { reconcileBinanceSpotOrders, submitBinanceSpotLimitIntents } from "./binanceSpotAutomation.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
 
@@ -511,6 +512,26 @@ async function runScan(): Promise<Record<string, unknown>> {
             const isFreshSignal = latestSignal && !latestSignal.outcome.closed &&
               nowEpoch - (latestSignal.signalEpoch + 900) <= 2 * 900 &&
               (previousMark === undefined || latestSignal.signalEpoch > previousMark);
+            // High ROC is an independent signal-only strategy. It never calls a trade executor.
+            try {
+              const highRoc = buildHighRocStopSignal(symbol.symbol, candleCache.get(900) ?? [], nowEpoch);
+              if (highRoc && highRoc.signalEpoch === latestClosed) {
+                const signalKey = highRoc.idempotencyKey;
+                const { error: highRocEventError } = await db.from("push_events").upsert([{
+                  event_key: signalKey + "|signal", signal_key: signalKey, kind: "high_roc_stop",
+                  payload: { label: highRoc.orderType, strategy: "HIGH ROC", strategyVersion: highRoc.strategyVersion,
+                    symbol: symbol.symbol, assetName: symbol.name, timeframe: "M15", direction: highRoc.direction, orderType: highRoc.orderType,
+                    digits: symbol.digits, signalEpoch: highRoc.signalEpoch, entry: highRoc.entry, stopLoss: highRoc.stopLoss,
+                    tp1: highRoc.takeProfit, tp2: highRoc.takeProfit, tp3: highRoc.takeProfit, price: highRoc.currentPrice, eventEpoch: nowEpoch,
+                    expiresAt: new Date(highRoc.expiresAtEpoch * 1000).toISOString(), expiryEpoch: highRoc.expiresAtEpoch,
+                    roc3: highRoc.roc3, roc6: highRoc.roc6, roc12: highRoc.roc12, roc12Threshold: highRoc.roc12Threshold,
+                    strength: highRoc.strength, riskReward: 2, timeframeAgreement: 3, executionMode: "SIGNAL_ONLY",
+                    note: "Stop-entry proposal only. No broker order has been placed." }
+                }], { onConflict: "event_key", ignoreDuplicates: true });
+                if (highRocEventError) throw new Error("Could not queue High ROC signal: " + highRocEventError.message);
+              }
+            } catch (error) { lastError = "High ROC signal " + symbol.symbol + ": " + messageOf(error); }
+
             if (isFreshSignal) {
               try {
                 // Automated-entry confluence is intentionally limited to M15, M5 and M1.
