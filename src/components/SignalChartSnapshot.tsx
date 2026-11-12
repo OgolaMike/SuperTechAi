@@ -50,7 +50,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const chartViewportRef = useRef<HTMLDivElement>(null);
 
   // Retain the full candle history for SMA/BB warm-up; display the latest 60 candles.
-  const history = candles;
+  const history = livePrice != null && Number.isFinite(livePrice) && candles.length > 0
+    ? candles.map((candle, index) => index === candles.length - 1
+      ? { ...candle, close: livePrice, high: Math.max(candle.high, livePrice), low: Math.min(candle.low, livePrice) }
+      : candle)
+    : candles;
   const historyCloses = history.map((item) => item.close);
   const visibleStart = Math.max(0, history.length - PERIOD);
   const data = history.slice(visibleStart);
