@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
       ws.addEventListener("open", () => { clearTimeout(timer); resolve(); }, { once: true });
       ws.addEventListener("error", () => { clearTimeout(timer); reject(new Error("ctrader_socket_error")); }, { once: true });
     });
-    let heartbeat: number | undefined;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
     try {
       heartbeat = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ payloadType: 51, payload: {} }));
