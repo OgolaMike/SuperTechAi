@@ -91,7 +91,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
 
       <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-line/15 bg-canvas/95 px-2 pb-[max(env(safe-area-inset-bottom),0.45rem)] pt-2 shadow-[0_-12px_36px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden" aria-label="Main navigation">
         <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
-          {PRIMARY.map(({ id, label, icon: Icon }) => (
+          {PRIMARY.map(({ id, label, mobileLabel, icon: Icon }) => (
             <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
               className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors ${primaryActive(id) ? 'text-accent' : 'text-ink-3'}`}>
               <span className={`flex h-8 w-10 items-center justify-center rounded-xl ${primaryActive(id) ? 'bg-accent/10' : ''}`}><Icon className="h-[19px] w-[19px]" /></span>
