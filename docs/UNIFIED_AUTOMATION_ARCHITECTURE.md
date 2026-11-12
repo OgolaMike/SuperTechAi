@@ -131,3 +131,9 @@ This work exists on the development branch and remains behind PR review/CI. It d
 - Added a fail-closed, pure preflight validator for account access rights, symbol trading mode, short-selling permission, limited-risk guaranteed-stop requirements, live bid/ask spread, and broker min/max/step volume rules.
 - These checks are unit-tested and do not submit, amend or close orders.
 - The preflight validator is not yet connected to a persistent cloud executor. The next implementation stage must obtain fresh account/symbol/quote metadata from cTrader, calculate the risk size using the verified instrument model, request broker expected margin, and only then build the durable protected-order adapter.
+
+
+### cTrader expected-margin guard (branch only)
+- Added a tested validator for broker-reported expected margin, free margin and account balance using the account moneyDigits scale.
+- It rejects margin utilization above the configured ceiling and requires free margin to cover the expected margin plus a configurable safety buffer.
+- This is a pure validation layer only. It is not yet connected to a live cTrader expected-margin request or order submission; no broker order is sent by this helper.
