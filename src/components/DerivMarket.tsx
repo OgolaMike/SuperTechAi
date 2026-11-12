@@ -31,7 +31,8 @@ function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['price
   const changePct = priorLast && priorLast.close !== 0 && price != null
     ? ((price - priorLast.close) / priorLast.close) * 100
     : null;
-  return { asset, price, changePct, candles: dayCandles.length };
+  const recent = candleMomentum(hourly.map((candle) => candle.close));
+  return { asset, price, changePct, candles: dayCandles.length, ...recent, grade: gradeMarket({ change24h: changePct, ...recent }) };
 }
 
 function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']): Mover {
