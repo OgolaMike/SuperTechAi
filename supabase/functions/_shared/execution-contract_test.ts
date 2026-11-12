@@ -54,7 +54,7 @@ const validIntent = (): ExecutionIntent => ({
   authorization: {
     liveExecutionAuthorized: false,
     emergencyStop: false,
-    tradingPermissionVerifiedAt: "2026-11-11T09:59:00.000Z",
+    preflightVerifiedAt: "2026-11-11T09:59:00.000Z",
   },
   createdAt: "2026-11-11T10:00:01.000Z",
 });
@@ -134,4 +134,20 @@ Deno.test("rejects an intent without an explicit order size", () => {
   const intent = validIntent();
   delete intent.order.quantity;
   expectThrow(() => assertExecutionIntent(intent), "execution_order_size_missing");
+});
+
+Deno.test("accepts the same contract for an explicitly authorized live provider intent", () => {
+  const intent = validIntent();
+  intent.provider = "okx_futures";
+  intent.environment = "live";
+  intent.authorization.liveExecutionAuthorized = true;
+  intent.connectionId = "okx_futures:user-1";
+  intent.idempotencyKey = executionIdempotencyKey("okx_futures", intent.connectionId, intent.intentId);
+  assertExecutionIntent(intent);
+});
+
+Deno.test("rejects a missing preflight verification timestamp", () => {
+  const intent = validIntent();
+  intent.authorization.preflightVerifiedAt = "not-a-date";
+  expectThrow(() => assertExecutionIntent(intent), "execution_preflight_timestamp_missing");
 });
