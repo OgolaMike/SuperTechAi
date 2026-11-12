@@ -23,7 +23,7 @@ function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; 
   const displayName = toast.assetName || toast.symbol;
   const bubbleSize = Math.min(132, Math.max(104, 88 + displayName.length * 1.4));
   return <>
-    <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => setOpen(true)}
+    <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => toast.id.startsWith('super:') ? onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId, toast.id.slice(6)) : setOpen(true)}
       className={`signal-bubble pointer-events-auto absolute flex -translate-x-1/2 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-full border-2 px-3 py-3 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${buy ? 'border-up/80 bg-up/15 text-up shadow-up/40' : 'border-down/80 bg-down/15 text-down shadow-down/40'}`}
       style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: '-150px', animationDelay: `${index * 850}ms` }} onAnimationEnd={() => onDismiss(toast.id)}>
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
