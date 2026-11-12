@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CryptoMoverAnalysis } from '@/components/CryptoMoverAnalysis';
 import { MAX_MONITORED_ASSETS } from '@/lib/sma';
 import type { SignalLearningModel } from '@/lib/aiLearning';
+import { gradeMarket } from '@/lib/marketGrading';
 import { Coins, Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import {
   fetchCryptoMovers,
@@ -70,8 +71,8 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
     [dayMovers],
   );
 
-  const todayGainers = useMemo(() => [...today.movers].sort((a, b) => b.changePct - a.changePct).slice(0, LEADERBOARD_SIZE), [today.movers]);
-  const todayLosers = useMemo(() => [...today.movers].sort((a, b) => a.changePct - b.changePct).slice(0, LEADERBOARD_SIZE), [today.movers]);
+  const todayGainers = useMemo(() => [...today.movers].filter((mover) => gradeMarket({ change24h: mover.change24hPct ?? null, momentum: mover.momentumPct ?? null, acceleration: mover.accelerationPct ?? null }).score != null).sort((a, b) => (gradeMarket({ change24h: b.change24hPct ?? null, momentum: b.momentumPct ?? null, acceleration: b.accelerationPct ?? null }).score ?? -Infinity) - (gradeMarket({ change24h: a.change24hPct ?? null, momentum: a.momentumPct ?? null, acceleration: a.accelerationPct ?? null }).score ?? -Infinity)).slice(0, LEADERBOARD_SIZE), [today.movers]);
+  const todayLosers = useMemo(() => [...today.movers].filter((mover) => gradeMarket({ change24h: mover.change24hPct ?? null, momentum: mover.momentumPct ?? null, acceleration: mover.accelerationPct ?? null }).score != null).sort((a, b) => (gradeMarket({ change24h: a.change24hPct ?? null, momentum: a.momentumPct ?? null, acceleration: a.accelerationPct ?? null }).score ?? Infinity) - (gradeMarket({ change24h: b.change24hPct ?? null, momentum: b.momentumPct ?? null, acceleration: b.accelerationPct ?? null }).score ?? Infinity)).slice(0, LEADERBOARD_SIZE), [today.movers]);
   const selectedMover = today.movers.find((mover) => mover.symbol === selectedSymbol) ?? dayMovers.find((mover) => mover.symbol === selectedSymbol) ?? todayGainers[0] ?? todayLosers[0] ?? gainers[0] ?? losers[0] ?? null;
 
   useEffect(() => {
@@ -104,7 +105,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Live market day · EAT</p>
             <h3 className="mt-1 text-lg font-semibold text-ink">Today's gainers and losers</h3>
-            <p className="mt-1 text-xs text-ink-3">Rankings use current Kenya trading-day rate of change (ROC), not the previous rolling 24 hours.</p>
+            <p className="mt-1 text-xs text-ink-3">Rankings combine actual 24-hour change, the latest 6-hour move and whether momentum is strengthening or weakening.</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-ink-3">
             <span className={today.loading ? "h-2 w-2 animate-pulse rounded-full bg-accent" : "h-2 w-2 rounded-full bg-up"} />
@@ -114,8 +115,8 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
         {today.error && <p className="mb-3 text-xs text-down">Live rankings could not refresh: {today.error}. Showing the last successful update where available.</p>}
         {today.movers.length > 0 ? (
           <div className="grid gap-4 lg:grid-cols-2">
-            <Leaderboard title="Today's top gainers" tone="up" movers={todayGainers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} />
-            <Leaderboard title="Today's top losers" tone="down" movers={todayLosers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} />
+            <Leaderboard title="Today's strongest assets" tone="up" movers={todayGainers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} showGrade />
+            <Leaderboard title="Today's weakest assets" tone="down" movers={todayLosers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} showGrade />
           </div>
         ) : (
           <div className="rounded-xl border border-line/10 p-5 text-sm text-ink-2">{today.loading ? "Connecting to Binance market data…" : "Current-day rankings are temporarily unavailable."}</div>
@@ -189,7 +190,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
   );
 }
 
-function Leaderboard({ title, tone, movers, selectedSymbol, onSelect }: { title: string; tone: 'up' | 'down'; movers: CryptoMover[]; selectedSymbol: string | null; onSelect: (symbol: string) => void }) {
+function Leaderboard({ title, tone, movers, selectedSymbol, onSelect, showGrade = false }: { title: string; tone: 'up' | 'down'; movers: CryptoMover[]; selectedSymbol: string | null; onSelect: (symbol: string) => void; showGrade?: boolean }) {
   const Icon = tone === 'up' ? TrendingUp : TrendingDown;
   const toneClass = tone === 'up' ? 'text-up bg-up/10' : 'text-down bg-down/10';
   return (
@@ -210,7 +211,7 @@ function Leaderboard({ title, tone, movers, selectedSymbol, onSelect }: { title:
               </span>
               <span className="flex items-center gap-4 text-right">
                 <span className="hidden font-mono text-xs tabular-nums text-ink-2 sm:inline">{formatUsd(mover.close)}</span>
-                <span className={`min-w-[64px] rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${toneClass}`}>{formatChange(mover.changePct)}</span>
+                <span className="text-right">{showGrade && (() => { const grade = gradeMarket({ change24h: mover.change24hPct ?? null, momentum: mover.momentumPct ?? null, acceleration: mover.accelerationPct ?? null }); return <span className="block text-xs font-bold text-ink">{grade.grade} · {grade.score}/100</span>; })()}<span className={`block min-w-[64px] rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${toneClass}`}>{formatChange(showGrade ? mover.change24hPct ?? mover.changePct : mover.changePct)}</span>{showGrade && <span className="block text-[10px] text-ink-3">24h change</span>}</span>
               </span>
             </button>
           </li>
