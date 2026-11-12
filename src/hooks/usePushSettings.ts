@@ -58,8 +58,9 @@ export function usePushSettings() {
     pendingOrders: enabled, superSignals: enabled, income: enabled, business: enabled,
   });
   const updateSymbols = (symbols: string[] | null) => savePrefs({ ...prefs, symbols });
-  const saveAlertControls = (settings: AlertModeSettings) => {
-    const fullAssets = Object.entries(settings.assets).filter(([, mode]) => mode === 'full').map(([symbol]) => symbol);
+  const saveAlertControls = (settings: AlertModeSettings, availableSymbols: string[]) => {
+    const fullAssets = availableSymbols.filter((symbol) => (settings.assets[symbol] ?? settings.defaultAssetMode) === 'full');
+    const allAssetsFull = availableSymbols.length > 0 && fullAssets.length === availableSymbols.length;
     return savePrefs({
       ...prefs,
       signals: settings.categories.signals === 'full',
@@ -70,7 +71,7 @@ export function usePushSettings() {
       superSignals: settings.categories.superSignals === 'full',
       income: settings.categories.income === 'full',
       business: settings.categories.business === 'full',
-      symbols: settings.defaultAssetMode === 'full' ? null : fullAssets,
+      symbols: allAssetsFull ? null : fullAssets,
     });
   };
   return { status, prefs, error, enable, disable, updatePref, updateAllPrefs, updateSymbols, saveAlertControls };
