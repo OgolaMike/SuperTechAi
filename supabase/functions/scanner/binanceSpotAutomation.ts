@@ -135,6 +135,7 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
           : { origClientOrderId: storedListClientOrderId! });
       const recoveredListId = list.orderListId == null ? null : String(list.orderListId);
       if (!recoveredListId) throw new Error("binance_uncertain_order_lookup_incomplete");
+      const orderListId = recoveredListId;
       if (row.status === "uncertain") {
         await db.from("binance_spot_orders").update({
           status: "submitted",
@@ -163,7 +164,7 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
         // remaining entry quantity and protect any partial fill with a separate OCO.
         if (workingStatus === "PARTIALLY_FILLED") {
           await signedBinance(apiKey, apiSecret, "/api/v3/orderList", "DELETE", {
-            orderListId: String(row.broker_order_list_id),
+            orderListId,
           });
         }
         const rules = await getRules(row.symbol);
@@ -246,7 +247,7 @@ async function reconcileOrderLists(db: SupabaseClient, userId: string, apiKey: s
 
 export async function reconcileBinanceSpotOrders(db: SupabaseClient) {
   const { data: rows, error } = await db.from("binance_spot_orders")
-    .select("user_id").in("status", ["submitted", "partially_filled", "filled"]);
+    .select("user_id").in("status", ["submitted", "partially_filled", "filled", "uncertain"]);
   if (error) throw error;
   const userIds = [...new Set((rows ?? []).map((row) => row.user_id as string))];
   for (const userId of userIds) {
