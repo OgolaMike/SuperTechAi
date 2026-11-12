@@ -36,6 +36,8 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
       const key = `${signal.symbol}|${signal.direction}|${signal.signalEpoch}`;
       if (seenRef.current.has(key)) continue;
       seenRef.current.add(key);
+      const alertMode = getAlertMode('superSignals', signal.symbol, userId);
+      if (alertMode === 'muted') continue;
       const message = `All eight timeframes agree. A new ${signal.direction} opportunity has been confirmed.`;
       const toast: Toast = {
         id: `super:${key}`,
@@ -55,7 +57,7 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
         at: Math.floor(Date.now() / 1000),
       };
       created.push(toast);
-      if (getAlertMode('superSignals', signal.symbol, userId) === 'full') {
+      if (alertMode === 'full') {
         if (soundsEnabled) playAlertTone(signal.direction);
         void showSignalNotification(
           toast.tag,
