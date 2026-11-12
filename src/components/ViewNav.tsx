@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
   Activity, BarChart3, Bell, Bot, Cable, ChevronUp,
-  Database, GraduationCap, Gavel, Landmark, LayoutDashboard, ListOrdered,
+  Database, GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
   Megaphone, MoreHorizontal, Repeat2, Sparkles, Users,
   UserRoundPlus, X,
 } from 'lucide-react';
 
-export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing';
+export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -26,6 +26,7 @@ const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
     { id: 'academy', label: 'Academy', icon: GraduationCap },
   ] },
   { title: 'Trading connections', items: [
+    { id: 'connections', label: 'Connections', icon: Link2 },
     { id: 'ctrader', label: 'Connect cTrader', icon: Cable },
     { id: 'mt5', label: 'Connect MT5', icon: Cable },
     { id: 'okx', label: 'OKX Futures', icon: Activity },
