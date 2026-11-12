@@ -24,8 +24,8 @@ function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['price
   const hourly = states[asset.symbol]?.[3600]?.candles ?? [];
   const dayCandles = hourly.filter((candle) => eatDate(candle.epoch) === date);
   const priorCandles = hourly.filter((candle) => eatDate(candle.epoch) < date);
-  const dayLast = dayCandles.at(-1);
-  const priorLast = priorCandles.at(-1);
+  const dayLast = dayCandles[dayCandles.length - 1];
+  const priorLast = priorCandles[priorCandles.length - 1];
   const price = date === today ? (prices[asset.symbol] ?? dayLast?.close ?? null) : (dayLast?.close ?? null);
   const changePct = priorLast && priorLast.close !== 0 && price != null
     ? ((price - priorLast.close) / priorLast.close) * 100
@@ -35,8 +35,8 @@ function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['price
 
 function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']): Mover {
   const hourly = states[asset.symbol]?.[3600]?.candles ?? [];
-  const latest = hourly.at(-1);
-  const previous = hourly.at(-25);
+  const latest = hourly[hourly.length - 1];
+  const previous = hourly[hourly.length - 25];
   const price = prices[asset.symbol] ?? latest?.close ?? null;
   const changePct = previous && previous.close !== 0 && price != null
     ? ((price - previous.close) / previous.close) * 100
