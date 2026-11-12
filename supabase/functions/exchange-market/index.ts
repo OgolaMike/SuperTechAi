@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
     const upstream = await fetch(target.toString(), {
       headers: { Accept: "application/json", "User-Agent": "SuperTechAi-MarketData/1.0" },
       signal: AbortSignal.timeout(10000),
+      redirect: "error",
     });
     if (!upstream.ok) return respond({ error: "exchange_upstream_error", status: upstream.status }, 502);
     const data = await upstream.json();
