@@ -66,16 +66,16 @@
   },
   {
     "id": "automation",
-    "title": "Trading automation and pending orders",
-    "summary": "Understand connected accounts, automation controls and order monitoring.",
-    "objective": "Know the difference between an analysis signal and an executed order.",
+    "title": "Automated Trading and Account Connections",
+    "summary": "Connect Binance, cTrader or MT5 and understand automation controls.",
+    "objective": "Connect the correct account safely and verify settings before enabling automated trading.",
     "steps": [
-      "Read connection and account status before enabling automation.",
-      "Review configured assets, order rules and risk limits.",
-      "Use Pending Orders to inspect queued opportunities and their status.",
-      "Monitor execution and account exposure; pause automation if anything looks wrong."
+      "Open Automate to see the available account connection options.",
+      "Choose the service you want to connect, such as Binance, cTrader or MT5.",
+      "Follow the secure connection steps and check the connection status.",
+      "Review enabled automation, allowed assets and risk controls before activation."
     ],
-    "narration": "Automation can help carry out a defined plan, but it makes configuration and monitoring more important. A signal is analysis. A pending order is an instruction waiting for its conditions. An executed order is a live position. Check your connection, allowed assets, risk limits and order details before enabling automation. Monitor activity regularly."
+    "narration": "The Automate area brings your trading account connections and automation options together. Choose the service you want to connect, such as Binance, cTrader or MT5, then follow the secure connection steps shown in the app. Check that the account is connected and that the correct account is selected. Before enabling automation, review the assets you allow, the trading settings and your risk controls. A successful connection does not mean a trade has been placed. Always check your exchange or broker account activity, and pause automation if anything looks unfamiliar."
   },
   {
     "id": "network",
