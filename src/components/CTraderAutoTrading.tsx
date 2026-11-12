@@ -12,6 +12,13 @@ type CTraderConnection = {
   token_expires_at: string | null;
   last_seen_at: string | null;
 };
+type CTraderSymbol = { symbolId: number; symbolName: string; enabled: boolean };
+type CTraderPreflightPreview = {
+  symbolName: string; direction: 'BUY' | 'SELL'; bid: number; ask: number; spreadPips: number;
+  entryPrice: number; stopLoss: number; takeProfit: number; quoteCurrency: string; depositCurrency: string;
+  volumeUnits: number; riskAmount: number; expectedMargin: number; marginUtilizationPercent: number;
+  freeMarginVerified: boolean; note: string;
+};
 type CTraderSettings = {
   automation_enabled: boolean;
   unattended_execution_enabled: boolean;
@@ -42,6 +49,12 @@ export function CTraderAutoTrading() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [symbols, setSymbols] = useState<CTraderSymbol[]>([]);
+  const [selectedSymbolId, setSelectedSymbolId] = useState('');
+  const [previewDirection, setPreviewDirection] = useState<'BUY' | 'SELL'>('BUY');
+  const [previewStopLoss, setPreviewStopLoss] = useState('');
+  const [previewTakeProfit, setPreviewTakeProfit] = useState('');
+  const [preflightPreview, setPreflightPreview] = useState<CTraderPreflightPreview | null>(null);
 
   const selected = connections.find((item) => item.id === selectedId) ?? connections[0] ?? null;
 
@@ -105,8 +118,41 @@ export function CTraderAutoTrading() {
       setError(invokeError?.message ?? data?.error ?? 'Could not reconcile this cTrader account.');
       setMessage('');
     } else {
+      const brokerSymbols = (data.symbols ?? []) as CTraderSymbol[];
+      setSymbols(brokerSymbols);
+      setSelectedSymbolId((current) => brokerSymbols.some((item) => String(item.symbolId) === current) ? current : String(brokerSymbols.find((item) => item.enabled)?.symbolId ?? ''));
+      setPreflightPreview(null);
       setMessage(`Account checked. ${data.openPositions} open position(s) and ${data.pendingOrders} pending order(s) found. No trades were placed.`);
       await load();
+    }
+    setBusy(false);
+  };
+
+  const runPreflightPreview = async () => {
+    if (!selected || !selectedSymbolId || !previewStopLoss || !previewTakeProfit || settings.max_spread_pips <= 0) {
+      setError('Select a symbol, enter stop-loss and take-profit prices, and set a positive maximum spread in safety preferences.');
+      return;
+    }
+    setBusy(true); setError(''); setMessage('Fetching live broker quote, symbol rules and expected margin…'); setPreflightPreview(null);
+    const { data, error: invokeError } = await supabase.functions.invoke('ctrader-cloud-reconcile', {
+      body: {
+        connectionId: selected.id,
+        preflightPreview: {
+          symbolId: Number(selectedSymbolId),
+          direction: previewDirection,
+          riskPercent: settings.risk_per_trade_percent,
+          stopLoss: Number(previewStopLoss),
+          takeProfit: Number(previewTakeProfit),
+          maxSpreadPips: settings.max_spread_pips,
+        },
+      },
+    });
+    if (invokeError || !data?.preflightPreview) {
+      setError(invokeError?.message ?? data?.error ?? 'The broker preflight preview could not be completed.');
+      setMessage('');
+    } else {
+      setPreflightPreview(data.preflightPreview as CTraderPreflightPreview);
+      setMessage('Broker preflight preview completed. No order was submitted.');
     }
     setBusy(false);
   };
@@ -169,6 +215,43 @@ export function CTraderAutoTrading() {
         </div>
       </div>
 
+      {selected && <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
+        <div className="flex items-start gap-3"><Activity className="mt-0.5 h-5 w-5 text-accent" /><div><h3 className="font-semibold text-ink">3. Live broker preflight preview</h3><p className="mt-1 text-xs leading-5 text-ink-2">After syncing the account, check a proposed setup against live bid/ask, broker volume limits and expected margin. This is a read-only calculation; it cannot place an order.</p></div></div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs text-ink-2">Broker symbol
+            <select value={selectedSymbolId} onChange={(e) => { setSelectedSymbolId(e.target.value); setPreflightPreview(null); }} disabled={busy || symbols.length === 0} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2.5 text-sm text-ink">
+              {symbols.filter((item) => item.enabled).map((item) => <option key={item.symbolId} value={item.symbolId}>{item.symbolName}</option>)}
+            </select>
+          </label>
+          <label className="text-xs text-ink-2">Direction
+            <select value={previewDirection} onChange={(e) => { setPreviewDirection(e.target.value as 'BUY' | 'SELL'); setPreflightPreview(null); }} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2.5 text-sm text-ink">
+              <option value="BUY">BUY</option><option value="SELL">SELL</option>
+            </select>
+          </label>
+          <label className="text-xs text-ink-2">Stop-loss price
+            <input type="number" step="any" value={previewStopLoss} onChange={(e) => { setPreviewStopLoss(e.target.value); setPreflightPreview(null); }} placeholder="Enter stop-loss price" className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2.5 text-sm text-ink" />
+          </label>
+          <label className="text-xs text-ink-2">Take-profit price
+            <input type="number" step="any" value={previewTakeProfit} onChange={(e) => { setPreviewTakeProfit(e.target.value); setPreflightPreview(null); }} placeholder="Enter take-profit price" className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2.5 text-sm text-ink" />
+          </label>
+        </div>
+        <p className="mt-3 text-xs text-ink-2">Risk: {settings.risk_per_trade_percent}% · Maximum spread: {settings.max_spread_pips} pips. Set the spread limit under Trading safety preferences.</p>
+        <button type="button" onClick={() => void runPreflightPreview()} disabled={busy || !selected || symbols.length === 0} className="mt-4 w-full rounded-xl border border-accent/30 px-4 py-3 text-sm font-semibold text-accent disabled:opacity-50">{busy ? 'Checking broker data…' : 'Run read-only preflight'}</button>
+        {symbols.length === 0 && <p className="mt-2 text-xs text-amber-500">First run “Check connection &amp; sync positions” to load your broker's symbol list.</p>}
+        {preflightPreview && <div className="mt-4 rounded-xl border border-line/15 bg-canvas/60 p-4">
+          <div className="flex items-center justify-between gap-2"><h4 className="font-semibold text-ink">{preflightPreview.symbolName} · {preflightPreview.direction}</h4><span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-500">Preview only</span></div>
+          <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+            <div><p className="text-xs text-ink-2">Live bid / ask</p><p className="font-medium text-ink">{preflightPreview.bid} / {preflightPreview.ask}</p></div>
+            <div><p className="text-xs text-ink-2">Spread</p><p className="font-medium text-ink">{preflightPreview.spreadPips} pips</p></div>
+            <div><p className="text-xs text-ink-2">Estimated size</p><p className="font-medium text-ink">{preflightPreview.volumeUnits} units</p></div>
+            <div><p className="text-xs text-ink-2">Risk at stop</p><p className="font-medium text-ink">{preflightPreview.riskAmount.toFixed(2)} {preflightPreview.depositCurrency}</p></div>
+            <div><p className="text-xs text-ink-2">Expected margin</p><p className="font-medium text-ink">{preflightPreview.expectedMargin.toFixed(2)} {preflightPreview.depositCurrency}</p></div>
+            <div><p className="text-xs text-ink-2">Margin / balance</p><p className="font-medium text-ink">{preflightPreview.marginUtilizationPercent.toFixed(2)}%</p></div>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-amber-500">{preflightPreview.note} Free margin is not yet independently verified, so this is not execution approval.</p>
+        </div>}
+      </div>}
+
       {error && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-500">{error}</div>}
       {message && <div role="status" className="rounded-xl border border-line/10 bg-surface/[0.04] p-3 text-sm text-ink-2">{message}</div>}
 
@@ -190,7 +273,7 @@ export function CTraderAutoTrading() {
       </div>
 
       {selected && <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
-        <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-accent" /><div><h3 className="font-semibold text-ink">3. Trading safety preferences</h3><p className="mt-1 text-xs leading-5 text-ink-2">Set your preferred limits now. These settings do not place trades or switch automation on.</p></div></div>
+        <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-accent" /><div><h3 className="font-semibold text-ink">4. Trading safety preferences</h3><p className="mt-1 text-xs leading-5 text-ink-2">Set your preferred limits now. These settings do not place trades or switch automation on.</p></div></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs text-ink-2">Risk per trade (%)
             <input type="number" min="0.1" max="1" step="0.1" value={settings.risk_per_trade_percent} onChange={(e) => setSettings(s => ({ ...s, risk_per_trade_percent: Number(e.target.value) }))} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-3 py-2.5 text-sm text-ink" />
