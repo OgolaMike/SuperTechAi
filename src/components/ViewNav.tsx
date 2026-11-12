@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Activity, Bell, Bitcoin, Cable, ChartNoAxesCombined, ChevronUp, Coins,
+  Activity, Bell, Cable, ChartNoAxesCombined, ChevronUp,
   Database, GraduationCap, Gavel, Landmark, LayoutDashboard, ListOrdered,
   Megaphone, MoreHorizontal, Network, Repeat2, Sparkles, Users, Wallet,
   UserRoundPlus, X,
@@ -49,7 +49,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const accountViews: View[] = ['referrals', 'earnings', 'network'];
   const tradeViews: View[] = ['binance', 'ctrader', 'mt5', 'okx', 'orders'];
-  const primaryActive = (id: View) => id === 'account' as View
+  const primaryActive = (id: View) => id === 'referrals'
     ? accountViews.includes(view)
     : id === 'binance' ? tradeViews.includes(view) : view === id;
   const moreItems = MORE_GROUPS.flatMap((group) => group.items).filter((item) => !item.adminOnly || isAdmin);
