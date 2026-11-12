@@ -18,7 +18,7 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
   auth: { persistSession: false },
 });
 
-type Ticker24h = { symbol: string; quoteVolume: string };
+type Ticker24h = { symbol: string; quoteVolume: string; priceChangePercent?: string };
 
 function isTicker24h(value: unknown): value is Ticker24h {
   return typeof value === "object" && value !== null
@@ -85,7 +85,10 @@ async function currentEatMovers(): Promise<Response> {
   const universe = await getTopUniverse();
 
   const movers = await mapInBatches(universe, CONCURRENCY, async (ticker) => {
-    const rows = await getJson(`/klines?symbol=${ticker.symbol}&interval=1d&timeZone=3&startTime=${dayStart}&limit=1`);
+    const [rows, hourlyRows] = await Promise.all([
+      getJson(`/klines?symbol=${ticker.symbol}&interval=1d&timeZone=3&startTime=${dayStart}&limit=1`),
+      getJson(`/klines?symbol=${ticker.symbol}&interval=1h&limit=13`),
+    ]);
     const candle = Array.isArray(rows) ? rows[0] : null;
     if (!Array.isArray(candle) || Number(candle[0]) !== dayStart) return null;
     const open = Number(candle[1]);
