@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, RefreshCw, Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { RefreshCw, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import { EXCHANGE_OPTIONS, buildExchangeStates, fetchExchangeTickers, type ExchangeId, type ExchangeTicker } from '@/lib/exchangeMarkets';
 import type { SignalLearningModel } from '@/lib/aiLearning';
