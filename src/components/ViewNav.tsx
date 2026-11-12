@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Activity, BarChart3, Bell, Bot, Cable, ChevronUp, ChartNoAxesCombined,
+  Activity, BarChart3, Bell, Bot, Cable, ChevronUp,
   GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
   Megaphone, MoreHorizontal, Repeat2, Sparkles, Users,
   UserRoundPlus, X,
@@ -14,7 +14,7 @@ const PRIMARY: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'super', label: 'Super Signals', icon: Sparkles },
   { id: 'crypto', label: 'Crypto Market', icon: BarChart3 },
-  { id: 'deriv-market', label: 'Deriv Market', icon: ChartNoAxesCombined },
+  { id: 'deriv-market', label: 'Deriv Market', icon: Activity },
   { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
