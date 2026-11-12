@@ -32,8 +32,6 @@ const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
   ] },
   { title: 'Your space', items: [
     { id: 'alerts', label: 'Alerts & service health', icon: Bell },
-    { id: 'network', label: 'Network', icon: Network },
-    { id: 'earnings', label: 'My Earnings', icon: Wallet },
   ] },
   { title: 'Owner tools', items: [
     { id: 'governance', label: 'Owners Centre', icon: Gavel, adminOnly: true },
