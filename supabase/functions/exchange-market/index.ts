@@ -28,7 +28,14 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const rawUrl = typeof body?.url === "string" ? body.url : "";
     const target = new URL(rawUrl);
-    if (target.protocol !== "https:" || !ALLOWED_HOSTS.has(target.hostname) || target.username || target.password) {
+    const allowedPath = (target.hostname === "www.okx.com" && target.pathname.startsWith("/api/v5/market/"))
+      || (target.hostname === "api.bybit.com" && target.pathname.startsWith("/v5/market/"))
+      || (target.hostname === "api.kucoin.com" && target.pathname.startsWith("/api/v1/market/"))
+      || (target.hostname === "api.gateio.ws" && target.pathname.startsWith("/api/v4/spot/"))
+      || (target.hostname === "api.bitget.com" && target.pathname.startsWith("/api/v2/spot/market/"))
+      || (target.hostname === "api.mexc.com" && (target.pathname.startsWith("/api/v3/ticker/") || target.pathname.startsWith("/api/v3/klines")))
+      || (target.hostname === "api.huobi.pro" && target.pathname.startsWith("/market/"));
+    if (target.protocol !== "https:" || !ALLOWED_HOSTS.has(target.hostname) || !allowedPath || target.username || target.password) {
       return respond({ error: "exchange_host_not_allowed" }, 400);
     }
     const upstream = await fetch(target.toString(), {
