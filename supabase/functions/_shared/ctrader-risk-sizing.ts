@@ -70,8 +70,9 @@ export function calculateCTraderRiskSize(
   // P/L for a linear instrument quoted in the deposit currency:
   // price distance × base units = deposit-currency risk.
   const rawVolumeCents = (riskAmount / stopDistance) * 100;
+  if (rawVolumeCents < input.minVolume) throw new Error("risk_size_outside_symbol_volume_limits");
   const stepsFromMinimum = Math.floor((rawVolumeCents - input.minVolume) / input.stepVolume);
-  const volumeCents = input.minVolume + Math.max(0, stepsFromMinimum) * input.stepVolume;
+  const volumeCents = input.minVolume + stepsFromMinimum * input.stepVolume;
   if (!finitePositive(volumeCents) || volumeCents > input.maxVolume) {
     throw new Error("risk_size_outside_symbol_volume_limits");
   }
