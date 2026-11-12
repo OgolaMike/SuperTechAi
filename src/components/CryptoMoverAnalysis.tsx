@@ -104,6 +104,16 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
 
   const state = useMemo(() => computeTfState(timeframe, candles, Math.floor(Date.now() / 1000)), [timeframe, candles]);
   const analysis = useMemo(() => describeMarket(state), [state]);
+  const rateOfChange = useMemo(() => {
+    const closes = state.candles.map((candle) => candle.close);
+    const latest = closes.at(-1);
+    if (latest == null || latest === 0) return null;
+    const calculate = (periods: number) => {
+      const previous = closes.at(-(periods + 1));
+      return previous == null || previous === 0 ? null : ((latest - previous) / previous) * 100;
+    };
+    return { one: calculate(1), three: calculate(3), six: calculate(6), twelve: calculate(12) };
+  }, [state.candles]);
   const data = useMemo(() => state.candles.slice(-Math.min(visibleCount, state.candles.length)), [state.candles, visibleCount]);
   const stats = useMemo(() => {
     const closes = state.candles.map((item) => item.close);
@@ -181,7 +191,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
         <div className="flex items-center gap-2 p-5 text-sm text-down"><AlertTriangle className="h-4 w-4" />{error}</div>
       ) : (
         <>
-          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
             <div className="rounded-xl border border-line/10 p-3">
               <p className="text-[10px] uppercase tracking-wider text-ink-3">Market bias</p>
               <p className="mt-1 text-sm font-semibold text-ink">{analysis.bias}</p>
@@ -190,6 +200,11 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
             <div className="rounded-xl border border-line/10 p-3">
               <p className="text-[10px] uppercase tracking-wider text-ink-3">Momentum</p>
               <p className="mt-1 text-sm font-semibold text-ink">{analysis.momentum}</p>
+            </div>
+            <div className="rounded-xl border border-line/10 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-ink-3">Rate of change (ROC)</p>
+              <p className="mt-1 text-sm font-semibold text-ink">{rateOfChange?.six == null ? 'Building data' : `${rateOfChange.six >= 0 ? '+' : ''}${rateOfChange.six.toFixed(3)}%`}</p>
+              <p className="mt-1 text-xs leading-relaxed text-ink-2">1 candle: {rateOfChange?.one == null ? '—' : `${rateOfChange.one >= 0 ? '+' : ''}${rateOfChange.one.toFixed(3)}%`} · 3: {rateOfChange?.three == null ? '—' : `${rateOfChange.three >= 0 ? '+' : ''}${rateOfChange.three.toFixed(3)}%`} · 12: {rateOfChange?.twelve == null ? '—' : `${rateOfChange.twelve >= 0 ? '+' : ''}${rateOfChange.twelve.toFixed(3)}%`}</p>
             </div>
             <div className="rounded-xl border border-line/10 p-3">
               <p className="text-[10px] uppercase tracking-wider text-ink-3">Bollinger position</p>
