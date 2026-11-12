@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { assertExecutionIntent, executionIdempotencyKey } from "../_shared/execution-contract.ts";
 
 type SpotIntent = {
   symbol: string;
@@ -271,6 +272,10 @@ export async function submitBinanceSpotLimitIntents(
   const priceTick = rules.tickSize;
 
   for (const account of (accounts ?? []) as AccountSettings[]) {
+    if (Array.isArray(account.allowed_symbols) && account.allowed_symbols.length > 0 && !account.allowed_symbols.includes(symbol)) {
+      skipped += buyIntents.length;
+      continue;
+    }
     const { data: stored, error: credentialError } = await db.from("binance_spot_credentials")
       .select("encrypted_api_key,encrypted_api_secret").eq("user_id", account.user_id).maybeSingle();
     if (credentialError || !stored) { failed += 1; continue; }
@@ -299,9 +304,8 @@ export async function submitBinanceSpotLimitIntents(
         skipped += buyIntents.length;
         continue;
       }
-      // Risk budget is 3% of the member's current USDT account balance.
-      // Position quantity is derived from the entry-to-stop distance, then capped
-      // by free USDT so the order never spends funds that are not available.
+      // Position quantity is derived from the configured risk percentage and entry-to-stop distance,
+      // then capped by free USDT so the order never spends funds that are not available.
       const totalRiskBudget = accountUsdtBalance * (riskPercent / 100);
       const selectedIntents = buyIntents.slice(0, Math.min(buyIntents.length, availableSlots));
       if (!selectedIntents.length || totalRiskBudget <= 0) { skipped += buyIntents.length; continue; }
@@ -348,6 +352,45 @@ export async function submitBinanceSpotLimitIntents(
           failed += 1; continue;
         }
         try {
+          const executionCreatedAt = new Date();
+          const expiresAt = new Date((intent.signalEpoch + 8 * 900) * 1000);
+          assertExecutionIntent({
+            schemaVersion: 1,
+            intentId: inserted.id,
+            idempotencyKey: executionIdempotencyKey("binance_spot", "binance_spot:" + account.user_id, inserted.id),
+            userId: account.user_id,
+            provider: "binance_spot",
+            connectionId: "binance_spot:" + account.user_id,
+            providerAccountId: account.user_id,
+            environment: "live",
+            strategyId: "spot_m15_limit_otoco",
+            strategyVersion: "spot-otoco-v1",
+            signalId: symbol + "|M15|" + intent.signalEpoch + "|BUY",
+            signalCreatedAt: new Date(intent.signalEpoch * 1000).toISOString(),
+            expiresAt: expiresAt.toISOString(),
+            order: {
+              instrument: symbol,
+              side: "buy",
+              kind: "limit",
+              entryPrice,
+              quantity,
+              limitPrice: entryPrice,
+              stopLoss,
+              takeProfit,
+            },
+            risk: {
+              maxLossAmount: plannedRiskUsdt,
+              maxLossCurrency: "USDT",
+              riskPercent,
+              maxOpenPositions: Number(account.max_open_positions),
+            },
+            authorization: {
+              liveExecutionAuthorized: true,
+              emergencyStop: false,
+              preflightVerifiedAt: executionCreatedAt.toISOString(),
+            },
+            createdAt: executionCreatedAt.toISOString(),
+          });
           const response = await signedBinance(apiKey, apiSecret, "/api/v3/orderList/otoco", "POST", {
             symbol,
             workingType: "LIMIT",
