@@ -26,6 +26,9 @@ on:
       - "supabase/functions/_shared/automation-status.ts"
       - "supabase/functions/_shared/automation-status_test.ts"
       - "supabase/functions/automation-status/**"
+      - "supabase/functions/binance-futures-executor/**"
+      - "supabase/functions/okx-futures-executor/**"
+      - "supabase/functions/scanner/binanceSpotAutomation.ts"
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
 
