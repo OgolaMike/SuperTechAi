@@ -310,11 +310,15 @@ Deno.serve(async (req) => {
         if (trader.isLimitedRisk === true && Number(trader.limitedRiskMarginCalculationStrategy) !== 0) {
           throw new Error("ctrader_limited_risk_margin_model_not_supported_by_expected_margin_api");
         }
+        const priceDigits = Number(symbol.digits);
+        if (!Number.isInteger(priceDigits) || priceDigits < 0 || priceDigits > 10) {
+          throw new Error("ctrader_symbol_price_precision_invalid");
+        }
         const quote = await sendRequestForSpot(ws, 2127, {
           ctidTraderAccountId: Number(connection.ctrader_account_id),
           symbolId: [symbolId],
           subscribeToSpotTimestamp: true,
-        }, 2128, symbolId, Number(symbol.digits));
+        }, 2128, symbolId, priceDigits);
         if (quote.timestamp === null || quote.timestamp <= 0 ||
             Date.now() - quote.timestamp > 30000 || quote.timestamp - Date.now() > 5000) {
           throw new Error("ctrader_live_quote_stale_or_untimestamped");
