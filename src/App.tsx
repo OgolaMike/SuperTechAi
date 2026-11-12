@@ -1,32 +1,32 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
-import { MarketingStudio } from '@/components/MarketingStudio';
-import { SuperTechAcademy } from '@/components/SuperTechAcademy';
-import { AdminPanel } from '@/components/AdminPanel';
-import { GovernancePanel } from '@/components/GovernancePanel';
-import { FinancePanel } from '@/components/FinancePanel';
-import { NetworkPanel } from '@/components/NetworkPanel';
-import { AccountHub } from '@/components/AccountHub';
+const MarketingStudio = lazy(() => import('@/components/MarketingStudio').then((module) => ({ default: module.MarketingStudio })));
+const SuperTechAcademy = lazy(() => import('@/components/SuperTechAcademy').then((module) => ({ default: module.SuperTechAcademy })));
+const AdminPanel = lazy(() => import('@/components/AdminPanel').then((module) => ({ default: module.AdminPanel })));
+const GovernancePanel = lazy(() => import('@/components/GovernancePanel').then((module) => ({ default: module.GovernancePanel })));
+const FinancePanel = lazy(() => import('@/components/FinancePanel').then((module) => ({ default: module.FinancePanel })));
+const NetworkPanel = lazy(() => import('@/components/NetworkPanel').then((module) => ({ default: module.NetworkPanel })));
+const AccountHub = lazy(() => import('@/components/AccountHub').then((module) => ({ default: module.AccountHub })));
 import { AssetSelector } from '@/components/AssetSelector';
 import { AmbientBackground } from '@/components/AmbientBackground';
-import { DashboardView } from '@/components/DashboardView';
-import { NotificationSettings } from '@/components/NotificationSettings';
-import { Mt5AutoTrading } from '@/components/Mt5AutoTrading';
-import { AutomationConnections } from '@/components/AutomationConnections';
-import { CTraderAutoTrading } from '@/components/CTraderAutoTrading';
-import { BinanceSpotAutomation } from '@/components/BinanceSpotAutomation';
-import { BinanceFuturesAutomation } from '@/components/BinanceFuturesAutomation';
-import { OKXFuturesAutomation } from '@/components/OKXFuturesAutomation';
-import { CryptoMovers } from '@/components/CryptoMovers';
-import { DerivMarket } from '@/components/DerivMarket';
-import { ExchangeMarkets } from '@/components/ExchangeMarkets';
-import { ServiceHealth } from '@/components/ServiceHealth';
-import { RecordsPanel } from '@/components/RecordsPanel';
-import { PendingOrdersPanel } from '@/components/PendingOrdersPanel';
+const DashboardView = lazy(() => import('@/components/DashboardView').then((module) => ({ default: module.DashboardView })));
+const NotificationSettings = lazy(() => import('@/components/NotificationSettings').then((module) => ({ default: module.NotificationSettings })));
+const Mt5AutoTrading = lazy(() => import('@/components/Mt5AutoTrading').then((module) => ({ default: module.Mt5AutoTrading })));
+const AutomationConnections = lazy(() => import('@/components/AutomationConnections').then((module) => ({ default: module.AutomationConnections })));
+const CTraderAutoTrading = lazy(() => import('@/components/CTraderAutoTrading').then((module) => ({ default: module.CTraderAutoTrading })));
+const BinanceSpotAutomation = lazy(() => import('@/components/BinanceSpotAutomation').then((module) => ({ default: module.BinanceSpotAutomation })));
+const BinanceFuturesAutomation = lazy(() => import('@/components/BinanceFuturesAutomation').then((module) => ({ default: module.BinanceFuturesAutomation })));
+const OKXFuturesAutomation = lazy(() => import('@/components/OKXFuturesAutomation').then((module) => ({ default: module.OKXFuturesAutomation })));
+const CryptoMovers = lazy(() => import('@/components/CryptoMovers').then((module) => ({ default: module.CryptoMovers })));
+const DerivMarket = lazy(() => import('@/components/DerivMarket').then((module) => ({ default: module.DerivMarket })));
+const ExchangeMarkets = lazy(() => import('@/components/ExchangeMarkets').then((module) => ({ default: module.ExchangeMarkets })));
+const ServiceHealth = lazy(() => import('@/components/ServiceHealth').then((module) => ({ default: module.ServiceHealth })));
+const RecordsPanel = lazy(() => import('@/components/RecordsPanel').then((module) => ({ default: module.RecordsPanel })));
+const PendingOrdersPanel = lazy(() => import('@/components/PendingOrdersPanel').then((module) => ({ default: module.PendingOrdersPanel })));
 import { SignOutButton } from '@/components/SignOutButton';
 import { HeaderBrand, StatusBar, TrendIcons } from '@/components/StatusBar';
-import { SuperSignalPanel } from '@/components/SuperSignalPanel';
-import { BreakRetestPanel } from '@/components/BreakRetestPanel';
+const SuperSignalPanel = lazy(() => import('@/components/SuperSignalPanel').then((module) => ({ default: module.SuperSignalPanel })));
+const BreakRetestPanel = lazy(() => import('@/components/BreakRetestPanel').then((module) => ({ default: module.BreakRetestPanel })));
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toasts } from '@/components/Toasts';
 import { ViewNav, type View } from '@/components/ViewNav';
@@ -197,6 +197,7 @@ function App() {
           />
         </div>
 
+        <Suspense fallback={<div className="mt-8 min-h-[40vh] animate-pulse rounded-2xl border border-line/15 bg-surface/[0.025]" aria-label="Loading section" />}>
         <div key={view} className="view-transition">
         {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
 
@@ -284,6 +285,7 @@ function App() {
         {view === 'marketing' && isAdmin && <MarketingStudio />}
         {view === 'governance' && isAdmin && <GovernancePanel />}
         </div>
+        </Suspense>
 
         <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[0.03] p-5">
           <div className="flex items-start gap-3">
