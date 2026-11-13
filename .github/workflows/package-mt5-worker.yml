@@ -1,0 +1,36 @@
+name: Package MT5 Windows worker
+on:
+  pull_request:
+    paths:
+      - 'mt5-worker/**'
+      - '.github/workflows/package-mt5-worker.yml'
+  push:
+    tags:
+      - 'mt5-worker-v*'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Prepare package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/mt5-worker | Out-Null
+          Copy-Item mt5-worker/* dist/mt5-worker/ -Recurse
+          Compress-Archive -Path dist/mt5-worker/* -DestinationPath dist/SuperTechAI-MT5-Worker.zip -Force
+      - name: Publish release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/SuperTechAI-MT5-Worker.zip
+          generate_release_notes: true
+      - name: Upload build artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SuperTechAI-MT5-Worker
+          path: dist/SuperTechAI-MT5-Worker.zip
