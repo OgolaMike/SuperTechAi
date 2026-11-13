@@ -101,7 +101,9 @@ async function loadTimeframeCandles(
 
 // Stop starting new Deriv requests after this, so the run finishes inside the function time limit.
 const TIME_BUDGET_MS = 100_000;
-const SCAN_CONCURRENCY = 4;
+const SCAN_CONCURRENCY = 1;
+// Bound CPU work per invocation. The scheduler advances through deterministic symbol batches.
+const SCAN_SYMBOLS_PER_RUN = 10;
 // Events are only created for candles confirmed within this many periods, so outages never replay old signals.
 const FRESH_CANDLES = 2;
 
@@ -336,6 +338,13 @@ function evaluateSuperSignal(
 async function runScan(): Promise<Record<string, unknown>> {
   const started = Date.now();
   const nowEpoch = Math.floor(started / 1000);
+  const leaseToken = crypto.randomUUID();
+  const { data: leaseAcquired, error: leaseError } = await db.rpc("acquire_scanner_lease", {
+    p_lease_token: leaseToken,
+    p_ttl_seconds: 120,
+  });
+  if (leaseError) throw new Error("Scanner lease check failed: " + leaseError.message);
+  if (leaseAcquired !== true) return { skipped: true, reason: "scanner_already_running" };
 
   let feed: DerivFeed | null = null;
   let derivLoadError: string | null = null;
@@ -405,7 +414,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     // never the Spot top-100 market list.
     const symbols = [...derivSymbols, ...binanceSymbols, ...futuresSymbolsForScan];
     // Rotate the starting symbol each minute so a time-limited run never always skips the same assets.
-    const offset = symbols.length ? Math.floor(started / 60000) % symbols.length : 0;
+    const offset = symbols.length ? (Math.floor(started / 60000) * SCAN_SYMBOLS_PER_RUN) % symbols.length : 0;
     const ordered = [...symbols.slice(offset), ...symbols.slice(0, offset)];
 
     let fetchedCount = 0;
@@ -704,7 +713,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       }
     };
 
-    const queue = [...ordered];
+    const queue = ordered.slice(0, SCAN_SYMBOLS_PER_RUN);
     const workers = Array.from({ length: SCAN_CONCURRENCY }, async () => {
       while (queue.length > 0 && Date.now() - started <= TIME_BUDGET_MS) {
         await scanSymbol(queue.shift()!);
@@ -755,6 +764,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     return {
       symbolsDiscovered: symbols.length,
       symbolsScanned: scannedSymbols,
+      symbolsRemaining: Math.max(0, symbols.length - scannedSymbols),
       candlesFetched: fetchedCount,
       signalRowsWritten: rowsWritten,
       push: pushSummary,
@@ -762,6 +772,8 @@ async function runScan(): Promise<Record<string, unknown>> {
     };
   } finally {
     feed?.close();
+    const { error: releaseError } = await db.rpc("release_scanner_lease", { p_lease_token: leaseToken });
+    if (releaseError) console.error("Scanner lease release failed:", releaseError.message);
   }
 }
 
