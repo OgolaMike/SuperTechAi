@@ -21,6 +21,13 @@ async function decryptSecret(value: string) {
   return new TextDecoder().decode(plain);
 }
 async function sign(secret: string, query: string) {
+  if (secret.includes("-----BEGIN PRIVATE KEY-----")) {
+    const pem = secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g, "");
+    const der = unb64(pem);
+    const key = await crypto.subtle.importKey("pkcs8", der, { name: "Ed25519" }, false, ["sign"]);
+    const signature = await crypto.subtle.sign("Ed25519", key, enc.encode(query));
+    return b64(new Uint8Array(signature));
+  }
   const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = await crypto.subtle.sign("HMAC", key, enc.encode(query));
   return [...new Uint8Array(signature)].map((v) => v.toString(16).padStart(2, "0")).join("");
@@ -28,7 +35,7 @@ async function sign(secret: string, query: string) {
 async function binanceAccount(apiKey: string, apiSecret: string) {
   const params = new URLSearchParams({ timestamp: String(Date.now()), recvWindow: "5000" });
   const signature = await sign(apiSecret, params.toString());
-  const response = await fetch("https://api.binance.com/api/v3/account?" + params.toString() + "&signature=" + signature, { headers: { "X-MBX-APIKEY": apiKey } });
+  const response = await fetch("https://api.binance.com/api/v3/account?" + params.toString() + "&signature=" + encodeURIComponent(signature), { headers: { "X-MBX-APIKEY": apiKey } });
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data?.msg === "string" ? data.msg : "binance_account_check_failed");
   if (data?.canTrade !== true) throw new Error("binance_spot_trading_permission_not_enabled");
