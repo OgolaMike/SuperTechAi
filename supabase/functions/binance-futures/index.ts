@@ -28,7 +28,7 @@ async function signature(secret: string, query: string, keyType: string = "hmac"
   if (keyType === "ed25519") {
     const normalized = secret.trim();
     if (!normalized.includes("-----BEGIN PRIVATE KEY-----") || !normalized.includes("-----END PRIVATE KEY-----")) throw new Error("binance_ed25519_private_key_must_be_pkcs8_pem");
-    const pem = normalized.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g, "");
+    const pem = normalized.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
     let der: Uint8Array;
     try { der = unb64(pem); } catch { throw new Error("binance_ed25519_private_key_invalid_pem"); }
     let privateKey: CryptoKey;
