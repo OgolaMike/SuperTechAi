@@ -35,7 +35,14 @@ async function decrypt(value: string) {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: packed.slice(0, 12) }, await encryptionKey(), packed.slice(12));
   return new TextDecoder().decode(plain);
 }
-async function hmac(secret: string, value: string) {
+async function signRequest(secret: string, value: string) {
+  if (secret.includes("-----BEGIN PRIVATE KEY-----")) {
+    const pem = secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g, "");
+    const der = b64decode(pem);
+    const key = await crypto.subtle.importKey("pkcs8", der, { name: "Ed25519" }, false, ["sign"]);
+    const signature = await crypto.subtle.sign("Ed25519", key, encoder.encode(value));
+    return btoa(String.fromCharCode(...new Uint8Array(signature)));
+  }
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
   return [...new Uint8Array(signature)].map((v) => v.toString(16).padStart(2, "0")).join("");
@@ -48,8 +55,8 @@ async function signedBinance(
   values: Record<string, string>,
 ) {
   const params = new URLSearchParams({ ...values, recvWindow: "5000", timestamp: String(Date.now()) });
-  const signature = await hmac(apiSecret, params.toString());
-  const url = BASE + path + (method !== "POST" ? "?" + params.toString() + "&signature=" + signature : "");
+  const signature = await signRequest(apiSecret, params.toString());
+  const url = BASE + path + (method !== "POST" ? "?" + params.toString() + "&signature=" + encodeURIComponent(signature) : "");
   let response: Response;
   try {
     response = await fetch(url, {
@@ -58,7 +65,7 @@ async function signedBinance(
         "X-MBX-APIKEY": apiKey,
         ...(method === "POST" ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
       },
-      ...(method === "POST" ? { body: params.toString() + "&signature=" + signature } : {}),
+      ...(method === "POST" ? { body: params.toString() + "&signature=" + encodeURIComponent(signature) } : {}),
     });
   } catch {
     throw new Error("binance_network_outcome_uncertain");
