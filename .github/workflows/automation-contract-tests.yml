@@ -5,7 +5,11 @@ on:
     branches: [main]
     paths:
       - "supabase/functions/_shared/execution-contract.ts"
+      - "supabase/functions/_shared/exchange-provider-registry.ts"
+      - "supabase/functions/_shared/exchange-provider-registry_test.ts"
       - "supabase/functions/_shared/execution-contract_test.ts"
+      - "supabase/functions/_shared/exchange-provider-registry.ts"
+      - "supabase/functions/_shared/exchange-provider-registry_test.ts"
       - "supabase/functions/_shared/automation-status.ts"
       - "supabase/functions/_shared/automation-status_test.ts"
       - "supabase/functions/automation-status/**"
