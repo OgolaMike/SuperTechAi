@@ -57,6 +57,11 @@ export type EventPayload = {
 };
 
 const encoder = new TextEncoder();
+function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
 const MAX_FAILURES = 5;
 const VAPID_TOKEN_SECONDS = 12 * 3600;
 
@@ -87,8 +92,8 @@ function concatBytes(...parts: Uint8Array[]): Uint8Array {
 }
 
 async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, key, length * 8);
+  const key = await crypto.subtle.importKey("raw", asArrayBuffer(ikm), "HKDF", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt: asArrayBuffer(salt), info: asArrayBuffer(info) }, key, length * 8);
   return new Uint8Array(bits);
 }
 
@@ -98,7 +103,7 @@ async function encryptPayload(plaintext: string, p256dh: string, authSecret: str
   const userAuth = fromBase64Url(authSecret);
   const ephemeral = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
   const ephemeralPublic = new Uint8Array(await crypto.subtle.exportKey("raw", ephemeral.publicKey));
-  const userKey = await crypto.subtle.importKey("raw", userPublic, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const userKey = await crypto.subtle.importKey("raw", asArrayBuffer(userPublic), { name: "ECDH", namedCurve: "P-256" }, false, []);
   const sharedSecret = new Uint8Array(
     await crypto.subtle.deriveBits({ name: "ECDH", public: userKey }, ephemeral.privateKey, 256),
   );
@@ -111,9 +116,9 @@ async function encryptPayload(plaintext: string, p256dh: string, authSecret: str
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const contentKey = await hkdf(salt, ikm, encoder.encode("Content-Encoding: aes128gcm\0"), 16);
   const nonce = await hkdf(salt, ikm, encoder.encode("Content-Encoding: nonce\0"), 12);
-  const aesKey = await crypto.subtle.importKey("raw", contentKey, "AES-GCM", false, ["encrypt"]);
+  const aesKey = await crypto.subtle.importKey("raw", asArrayBuffer(contentKey), "AES-GCM", false, ["encrypt"]);
   const padded = concatBytes(encoder.encode(plaintext), new Uint8Array([2]));
-  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aesKey, padded));
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: asArrayBuffer(nonce) }, aesKey, asArrayBuffer(padded)));
   const recordSize = new Uint8Array([0, 0, 16, 0]);
   return concatBytes(salt, recordSize, new Uint8Array([ephemeralPublic.length]), ephemeralPublic, cipher);
 }
@@ -132,7 +137,7 @@ async function vapidAuthorization(endpoint: string, config: VapidConfig): Promis
   const unsigned = `${header}.${claims}`;
   const key = await crypto.subtle.importKey("jwk", config.jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
   const signature = new Uint8Array(
-    await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, encoder.encode(unsigned)),
+    await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, asArrayBuffer(encoder.encode(unsigned))),
   );
   return `vapid t=${unsigned}.${toBase64Url(signature)}, k=${config.publicKey}`;
 }
@@ -224,7 +229,7 @@ async function sendPush(sub: PushSubscriptionRow, message: string, config: Vapid
         "Content-Encoding": "aes128gcm",
         "Content-Type": "application/octet-stream",
       },
-      body,
+      body: asArrayBuffer(body),
     });
     return { ok: response.status === 201, gone: response.status === 404 || response.status === 410, status: response.status };
   } catch (error) {
