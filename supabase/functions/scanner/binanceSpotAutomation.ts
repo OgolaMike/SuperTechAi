@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { assertExecutionIntent, executionIdempotencyKey } from "../_shared/execution-contract.ts";
+import { assertExecutionIntent, executionIdempotencyKey } from "./execution-contract.ts";
 
 type SpotIntent = {
   symbol: string;
