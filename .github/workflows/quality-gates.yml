@@ -43,7 +43,7 @@ jobs:
           deno-version: v2.x
       - name: Check scanner and Binance execution functions
         run: |
-          deno check supabase/functions/scanner/index.ts
-          deno check supabase/functions/binance-spot/index.ts
-          deno check supabase/functions/binance-futures/index.ts
-          deno check supabase/functions/binance-futures-executor/index.ts
+          deno check --node-modules-dir=auto supabase/functions/scanner/index.ts
+          deno check --node-modules-dir=auto supabase/functions/binance-spot/index.ts
+          deno check --node-modules-dir=auto supabase/functions/binance-futures/index.ts
+          deno check --node-modules-dir=auto supabase/functions/binance-futures-executor/index.ts
