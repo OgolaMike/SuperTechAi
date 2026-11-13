@@ -154,8 +154,9 @@ export function BinanceSpotAutomation() {
               <label className="block text-xs font-medium text-ink-2">Binance API Key
                 <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" spellCheck={false} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent" placeholder="Paste API key" />
               </label>
-              <label className="block text-xs font-medium text-ink-2">Binance API Secret
-                <input type="password" value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} autoComplete="new-password" className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent" placeholder="Paste API secret" />
+              <label className="block text-xs font-medium text-ink-2">Binance API Secret or Ed25519 Private Key (PEM)
+                <textarea value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} autoComplete="off" spellCheck={false} rows={5} className="mt-1 w-full resize-y rounded-xl border border-line/15 bg-canvas px-3 py-3 font-mono text-xs text-ink outline-none focus:border-accent" placeholder={"For Ed25519, paste the full PEM beginning with -----BEGIN PRIVATE KEY-----"} />
+                <span className="mt-1 block text-[11px] leading-5 text-ink-3">Ed25519: paste the full private-key PEM, including BEGIN/END lines. HMAC: paste the Binance API Secret. Never share either credential.</span>
               </label>
               <button type="button" disabled={busy || !apiKey.trim() || !apiSecret.trim()} onClick={() => void connect()} className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
                 {busy ? 'Connecting…' : 'Connect Binance Spot'}
