@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
     const action = String(body?.action ?? "");
     if (action === "connect") {
       const apiKey = String(body.apiKey ?? "").trim(), apiSecret = String(body.apiSecret ?? "").trim();
-      if (apiKey.length < 16 || apiKey.length > 256 || apiSecret.length < 16 || apiSecret.length > 256) return json({ error: "invalid_binance_api_credentials" }, 400);
+      if (apiKey.length < 16 || apiKey.length > 256 || apiSecret.length < 64 || apiSecret.length > 8192) return json({ error: "invalid_binance_api_credentials" }, 400);
+      if (!apiSecret.includes("-----BEGIN PRIVATE KEY-----") || !apiSecret.includes("-----END PRIVATE KEY-----")) return json({ error: "binance_spot_requires_ed25519_pkcs8_private_key_pem" }, 400);
       const account = await binanceAccount(apiKey, apiSecret);
       const [encryptedApiKey, encryptedApiSecret] = await Promise.all([encryptSecret(apiKey), encryptSecret(apiSecret)]);
       const last4 = apiKey.slice(-4);
