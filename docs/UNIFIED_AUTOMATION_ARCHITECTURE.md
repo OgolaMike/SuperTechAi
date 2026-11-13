@@ -22,6 +22,57 @@ Repository: `OgolaMike/SuperTechAi` (default branch `main`)
 
 The deployed function inventory also contains `scanner` v29, `push` v11 and related application functions. This plan does not replace the scanner or alter member-facing signal generation.
 
+
+### Multi-exchange trading rollout (backend-first)
+
+The server-side capability registry is the source of truth for whether an exchange
+may be offered for order execution. It deliberately keeps market-data support
+separate from trading support:
+
+| Exchange | Spot execution | Derivatives execution |
+|---|---|---|
+| Binance | Existing path | Existing path |
+| OKX | Not implemented | Existing USDT swap path |
+| Bybit | Not implemented | Not implemented |
+| KuCoin | Not implemented | Not implemented |
+| Gate.io | Not implemented | Not implemented |
+| MEXC | Not implemented | Not implemented |
+| Bitget | Not implemented | Not implemented |
+| CoinEx | Not implemented | Not implemented |
+| BingX | Not implemented | Not implemented |
+| BitMart | Not implemented | Not implemented |
+
+The other eight venues currently have market-data integration only. A venue must
+not be marked trading-ready until its backend adapter has completed credential
+verification, instrument/precision discovery, account and permission checks,
+server-side risk sizing, idempotent order submission, attached protective
+stop-loss/take-profit placement, uncertain-outcome recovery, and periodic
+position/order reconciliation. Provider-specific order semantics must remain
+inside each adapter.
+
+#### Work that belongs in the backend
+
+- Exchange API credentials are submitted only to authenticated backend
+  connection endpoints, encrypted at rest, and never returned to the browser.
+- Market scanning, candle aggregation, 8-timeframe grading, signal-intent
+  creation, account preflight, risk sizing, order submission, SL/TP protection,
+  order/position reconciliation, retries, queue processing and health checks
+  run in cloud services.
+- The mobile app is a control surface for OAuth consent, credential entry,
+  account selection, per-account settings, explicit trading authorization,
+  emergency stop, notifications and status/history display.
+- OAuth consent and provider-side API-key creation cannot be automated away.
+  MT5 additionally requires a continuously running Windows terminal/worker;
+  cTrader and Deriv require provider-specific authenticated sessions.
+- Do not rely on the phone remaining open or connected. A backend worker must
+  own all recurring jobs and broker sessions that the provider requires.
+
+The new shared registry and its tests are an inventory/safety gate, not an
+executor. It prevents market-data availability from being presented as order
+execution readiness. It does not enable any new trading route or change live
+execution settings. New venues remain disabled until their adapter and parity
+tests are delivered and verified.
+
 ## Target topology
 
 1. **Mobile control plane (existing SuperTech AI app):** one Connections screen, provider authorization, account/environment selection, per-account automation toggles, risk limits, emergency stop, status, and order history.
