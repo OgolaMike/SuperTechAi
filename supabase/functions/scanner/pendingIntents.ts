@@ -110,7 +110,7 @@ export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Ma
       symbol, signalEpoch: trigger.signalEpoch, direction, orderType, entry,
       stopLoss: entry - sign * primary.deviation,
       takeProfit: entry + sign * primary.deviation * 2.5,
-      currentPrice, timeframeAgreement: 3, momentumScore: m5Momentum, strengthScore: m5Momentum,
+      currentPrice, timeframeAgreement: 3 as const, momentumScore: m5Momentum, strengthScore: m5Momentum,
       strategyVersion: "m15-m5-m1-limit-v3" as const,
       idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}|L${index + 1}`,
     }))
