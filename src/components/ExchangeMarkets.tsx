@@ -38,9 +38,8 @@ export function ExchangeMarkets({ aiModel, onNavigate }: Props) {
         if (!cancelled) setLoad((previous) => ({ ...previous, loading: false, error: error instanceof Error ? error.message : 'Exchange feed is unavailable.' }));
       }
     };
-    setLoad({ rows: [], loading: true, error: null });
-    setStates({});
-    setSelectedSymbol('');
+    setLoad((previous) => ({ ...previous, loading: previous.rows.length === 0, error: null }));
+    // Keep the previous chart visible while the next exchange/symbol refreshes.
     void loadTickers();
     const timer = window.setInterval(loadTickers, 60_000);
     return () => { cancelled = true; window.clearInterval(timer); };
@@ -50,7 +49,7 @@ export function ExchangeMarkets({ aiModel, onNavigate }: Props) {
   useEffect(() => {
     if (!selected) return;
     let cancelled = false;
-    setChartLoading(true);
+    setChartLoading((current) => current || Object.keys(states).length === 0);
     setChartError(null);
     buildExchangeStates(exchange, selected.symbol)
       .then((next) => { if (!cancelled) setStates(next); })
