@@ -434,7 +434,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       live_execution_enabled: boolean; emergency_stop: boolean; bridge_status: string;
     }>> | null = null;
     const loadMt5Accounts = () => {
-      mt5AccountsPromise ??= db.from("mt5_account_settings")
+      mt5AccountsPromise ??= Promise.resolve(db.from("mt5_account_settings")
         .select("user_id,login,server,auto_trade_enabled,unattended_execution_enabled,place_new_orders,risk_controls_enabled,live_execution_enabled,emergency_stop,bridge_status")
         .eq("bridge_status", "connected")
         .then(({ data, error }) => {
@@ -445,7 +445,7 @@ async function runScan(): Promise<Record<string, unknown>> {
             place_new_orders: boolean; risk_controls_enabled: boolean;
             live_execution_enabled: boolean; emergency_stop: boolean; bridge_status: string;
           }>;
-        });
+        }));
       return mt5AccountsPromise;
     };
 
