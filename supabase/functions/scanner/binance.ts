@@ -62,13 +62,14 @@ export async function fetchBinanceCandles(symbol: string, granularity: number, c
   if (!interval) throw new Error(`Unsupported Binance interval: ${granularity}`);
   const rows = await getJson(`/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${Math.min(1000, count)}`);
   if (!Array.isArray(rows)) throw new Error(`Binance returned invalid candles for ${symbol}`);
-  return rows.map((row: unknown) => {
+  type ParsedCandle = { epoch: number; open: number; high: number; low: number; close: number };
+  return rows.map((row: unknown): ParsedCandle | null => {
     if (!Array.isArray(row)) return null;
     return {
       epoch: Math.floor(Number(row[0]) / 1000),
       open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]),
     };
-  }).filter((candle): candle is Candle => candle !== null && Number.isFinite(candle.epoch) &&
+  }).filter((candle): candle is ParsedCandle => candle !== null && Number.isFinite(candle.epoch) &&
     [candle.open, candle.high, candle.low, candle.close].every(Number.isFinite))
     .sort((a, b) => a.epoch - b.epoch);
 }
@@ -117,13 +118,14 @@ export async function fetchBinanceFuturesCandles(symbol: string, granularity: nu
   if (!response.ok) throw new Error(`Binance Futures candle request failed for ${symbol}: ${response.status}`);
   const rows: unknown = await response.json();
   if (!Array.isArray(rows)) throw new Error(`Binance returned invalid Futures candles for ${symbol}`);
-  return rows.map((row: unknown) => {
+  type ParsedCandle = { epoch: number; open: number; high: number; low: number; close: number };
+  return rows.map((row: unknown): ParsedCandle | null => {
     if (!Array.isArray(row)) return null;
     return {
       epoch: Math.floor(Number(row[0]) / 1000),
       open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]),
     };
-  }).filter((candle): candle is Candle => candle !== null &&
+  }).filter((candle): candle is ParsedCandle => candle !== null &&
     Number.isFinite(candle.epoch) &&
     [candle.open, candle.high, candle.low, candle.close].every(Number.isFinite))
     .sort((a, b) => a.epoch - b.epoch);
