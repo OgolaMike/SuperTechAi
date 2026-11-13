@@ -29,7 +29,7 @@ const get = async (url: string) => {
   return data;
 };
 
-export async function fetchExchangeTickers(exchange: ExchangeId): Promise<ExchangeTicker[]> {
+async function fetchExchangeTickersUncached(exchange: ExchangeId): Promise<ExchangeTicker[]> {
   let rows: ExchangeTicker[] = [];
   if (exchange === 'OKX') {
     const d = await get('https://www.okx.com/api/v5/market/tickers?instType=SPOT');
@@ -153,7 +153,7 @@ export async function fetchExchangeCandles(exchange: ExchangeId, symbol: string,
     .map((x) => ({ ...x, symbol })).sort((a, b) => a.epoch - b.epoch);
 }
 
-export async function buildExchangeStates(exchange: ExchangeId, symbol: string): Promise<ExchangeAssetState['states']> {
+async function buildExchangeStatesUncached(exchange: ExchangeId, symbol: string): Promise<ExchangeAssetState['states']> {
   const requested = [900, 1800, 3600, 14400, 86400];
   const results = await Promise.all(requested.map(async (granularity) => {
     try { return [granularity, await fetchExchangeCandles(exchange, symbol, granularity)] as const; }
@@ -167,4 +167,41 @@ export async function buildExchangeStates(exchange: ExchangeId, symbol: string):
   all[10800] = aggregateHourlyCandles(hourly, 10800);
   const now = Math.floor(Date.now() / 1000);
   return Object.fromEntries(TIMEFRAMES.map((tf) => [tf.granularity, computeTfState(tf, all[tf.granularity] ?? [], now)]));
+}
+
+
+// Short-lived in-memory caches make tab switches and repeat visits feel instant.
+// Requests are shared while in flight to prevent duplicate exchange calls.
+const TICKER_CACHE_MS = 45_000;
+const CHART_CACHE_MS = 5 * 60_000;
+const tickerCache = new Map<ExchangeId, { value: ExchangeTicker[]; expiresAt: number }>();
+const tickerRequests = new Map<ExchangeId, Promise<ExchangeTicker[]>>();
+const chartCache = new Map<string, { value: ExchangeAssetState['states']; expiresAt: number }>();
+const chartRequests = new Map<string, Promise<ExchangeAssetState['states']>>();
+
+export async function fetchExchangeTickers(exchange: ExchangeId): Promise<ExchangeTicker[]> {
+  const cached = tickerCache.get(exchange);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const pending = tickerRequests.get(exchange);
+  if (pending) return pending;
+  const request = fetchExchangeTickersUncached(exchange).then((value) => {
+    tickerCache.set(exchange, { value, expiresAt: Date.now() + TICKER_CACHE_MS });
+    return value;
+  }).finally(() => tickerRequests.delete(exchange));
+  tickerRequests.set(exchange, request);
+  return request;
+}
+
+export async function buildExchangeStates(exchange: ExchangeId, symbol: string): Promise<ExchangeAssetState['states']> {
+  const key = exchange + ':' + symbol;
+  const cached = chartCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const pending = chartRequests.get(key);
+  if (pending) return pending;
+  const request = buildExchangeStatesUncached(exchange, symbol).then((value) => {
+    chartCache.set(key, { value, expiresAt: Date.now() + CHART_CACHE_MS });
+    return value;
+  }).finally(() => chartRequests.delete(key));
+  chartRequests.set(key, request);
+  return request;
 }
