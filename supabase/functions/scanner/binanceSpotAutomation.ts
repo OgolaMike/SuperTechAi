@@ -37,7 +37,7 @@ async function decrypt(value: string) {
 }
 async function signRequest(secret: string, value: string) {
   if (secret.includes("-----BEGIN PRIVATE KEY-----")) {
-    const pem = secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g, "");
+    const pem = secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
     const der = b64decode(pem);
     const key = await crypto.subtle.importKey("pkcs8", der, { name: "Ed25519" }, false, ["sign"]);
     const signature = await crypto.subtle.sign("Ed25519", key, encoder.encode(value));
