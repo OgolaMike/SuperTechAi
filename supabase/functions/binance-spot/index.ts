@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const enc = new TextEncoder();
@@ -43,10 +43,11 @@ async function binanceAccount(apiKey: string, apiSecret: string) {
   const balances = Array.isArray(data?.balances) ? data.balances.filter((item: Record<string, unknown>) => Number(item.free ?? 0) + Number(item.locked ?? 0) > 0).slice(0, 20).map((item: Record<string, unknown>) => ({ asset: String(item.asset ?? ""), free: Number(item.free ?? 0), locked: Number(item.locked ?? 0) })) : [];
   return { canTrade: true, canWithdraw: false, accountType: String(data.accountType ?? "SPOT"), balances };
 }
-async function getCredentials(admin: ReturnType<typeof createClient>, userId: string) {
+async function getCredentials(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin.from("binance_spot_credentials").select("encrypted_api_key,encrypted_api_secret").eq("user_id", userId).maybeSingle();
-  if (error || !data) throw new Error("binance_account_not_connected");
-  return { apiKey: await decryptSecret(data.encrypted_api_key), apiSecret: await decryptSecret(data.encrypted_api_secret) };
+  const stored = data as unknown as { encrypted_api_key: string; encrypted_api_secret: string } | null;
+  if (error || !stored) throw new Error("binance_account_not_connected");
+  return { apiKey: await decryptSecret(stored.encrypted_api_key), apiSecret: await decryptSecret(stored.encrypted_api_secret) };
 }
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
