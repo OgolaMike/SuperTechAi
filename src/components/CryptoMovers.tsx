@@ -28,7 +28,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
   useEffect(() => {
     let cancelled = false;
     setLoad((previous) => ({ ...previous, loading: true }));
-    fetchCryptoMovers()
+    fetchCryptoMovers(reloadKey > 0)
       .then((movers) => {
         if (!cancelled) setLoad({ movers, error: null, loading: false });
       })
@@ -44,7 +44,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
     let cancelled = false;
     const refreshToday = async () => {
       try {
-        const result = await fetchCurrentDayCryptoMovers();
+        const result = await fetchCurrentDayCryptoMovers(reloadKey > 0);
         if (!cancelled) setToday({ movers: result.movers, error: null, loading: false, updatedAt: result.updatedAt });
       } catch (err) {
         if (!cancelled) setToday((previous) => ({ ...previous, error: err instanceof Error ? err.message : "Current-day data is temporarily unavailable.", loading: false }));
