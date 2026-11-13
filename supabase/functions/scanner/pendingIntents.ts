@@ -102,7 +102,7 @@ export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Ma
   const sign = direction === "BUY" ? 1 : -1;
   const midpoint = (primary.mean + currentPrice) / 2;
   const entries = [primary.mean, midpoint];
-  const orderType = direction === "BUY" ? "BUY_LIMIT" : "SELL_LIMIT";
+  const orderType: OrderDirection = direction === "BUY" ? "BUY_LIMIT" : "SELL_LIMIT";
   return entries
     .filter((entry, index) => entry > 0 && (direction === "BUY" ? entry < currentPrice : entry > currentPrice) &&
       (index === 0 || Math.abs(entry - entries[index - 1]) > primary.deviation * 0.01))
@@ -110,8 +110,8 @@ export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Ma
       symbol, signalEpoch: trigger.signalEpoch, direction, orderType, entry,
       stopLoss: entry - sign * primary.deviation,
       takeProfit: entry + sign * primary.deviation * 2.5,
-      currentPrice, timeframeAgreement: 3, momentumScore: m5Momentum, strengthScore: m5Momentum,
-      strategyVersion: "m15-m5-m1-limit-v3",
+      currentPrice, timeframeAgreement: 3 as const, momentumScore: m5Momentum, strengthScore: m5Momentum,
+      strategyVersion: "m15-m5-m1-limit-v3" as const,
       idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}|L${index + 1}`,
     }))
     .filter((intent) => [intent.stopLoss, intent.takeProfit].every((v) => Number.isFinite(v) && v > 0));

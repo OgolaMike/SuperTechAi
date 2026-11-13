@@ -6,7 +6,7 @@ const OPEN_TIMEOUT_MS = 15000;
 const REQUEST_TIMEOUT_MS = 15000;
 
 type JsonRecord = Record<string, unknown>;
-type Pending = { resolve: (message: JsonRecord) => void; reject: (error: Error) => void; timer: number };
+type Pending = { resolve: (message: JsonRecord) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> };
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -26,9 +26,10 @@ export class DerivFeed {
       }
       if (!isRecord(parsed) || typeof parsed.req_id !== "number") return;
       const message = parsed;
-      const entry = this.pending.get(message.req_id);
+      const reqId = message.req_id as number;
+      const entry = this.pending.get(reqId);
       if (!entry) return;
-      this.pending.delete(message.req_id);
+      this.pending.delete(reqId);
       clearTimeout(entry.timer);
       if (isRecord(message.error)) {
         entry.reject(new Error(

@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const enc = new TextEncoder();
@@ -43,10 +43,11 @@ async function binanceAccount(apiKey: string, apiSecret: string) {
   const balances = Array.isArray(data?.balances) ? data.balances.filter((item: Record<string, unknown>) => Number(item.free ?? 0) + Number(item.locked ?? 0) > 0).slice(0, 20).map((item: Record<string, unknown>) => ({ asset: String(item.asset ?? ""), free: Number(item.free ?? 0), locked: Number(item.locked ?? 0) })) : [];
   return { canTrade: true, canWithdraw: false, accountType: String(data.accountType ?? "SPOT"), balances };
 }
-async function getCredentials(admin: ReturnType<typeof createClient>, userId: string) {
+async function getCredentials(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin.from("binance_spot_credentials").select("encrypted_api_key,encrypted_api_secret").eq("user_id", userId).maybeSingle();
-  if (error || !data) throw new Error("binance_account_not_connected");
-  return { apiKey: await decryptSecret(data.encrypted_api_key), apiSecret: await decryptSecret(data.encrypted_api_secret) };
+  const stored = data as unknown as { encrypted_api_key: string; encrypted_api_secret: string } | null;
+  if (error || !stored) throw new Error("binance_account_not_connected");
+  return { apiKey: await decryptSecret(stored.encrypted_api_key), apiSecret: await decryptSecret(stored.encrypted_api_secret) };
 }
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -68,8 +69,12 @@ Deno.serve(async (req) => {
     const action = String(body?.action ?? "");
     if (action === "connect") {
       const apiKey = String(body.apiKey ?? "").trim(), apiSecret = String(body.apiSecret ?? "").trim();
-      if (apiKey.length < 16 || apiKey.length > 256 || apiSecret.length < 64 || apiSecret.length > 8192) return json({ error: "invalid_binance_api_credentials" }, 400);
-      if (!apiSecret.includes("-----BEGIN PRIVATE KEY-----") || !apiSecret.includes("-----END PRIVATE KEY-----")) return json({ error: "binance_spot_requires_ed25519_pkcs8_private_key_pem" }, 400);
+      const keyType = String(body.keyType ?? "ed25519").toLowerCase();
+      if (apiKey.length < 16 || apiKey.length > 256 || apiSecret.length < 32 || apiSecret.length > 8192) return json({ error: "invalid_binance_api_credentials" }, 400);
+      const isPem = apiSecret.includes("-----BEGIN PRIVATE KEY-----") && apiSecret.includes("-----END PRIVATE KEY-----");
+      if (keyType === "ed25519" && !isPem) return json({ error: "binance_ed25519_private_key_must_be_pkcs8_pem" }, 400);
+      if (keyType === "hmac" && isPem) return json({ error: "selected_hmac_key_type_but_received_pem_private_key" }, 400);
+      if (keyType !== "ed25519" && keyType !== "hmac") return json({ error: "unsupported_binance_spot_key_type" }, 400);
       const account = await binanceAccount(apiKey, apiSecret);
       const [encryptedApiKey, encryptedApiSecret] = await Promise.all([encryptSecret(apiKey), encryptSecret(apiSecret)]);
       const last4 = apiKey.slice(-4);
@@ -104,9 +109,6 @@ Deno.serve(async (req) => {
       const symbols = Array.isArray(body.allowedSymbols) ? [...new Set(body.allowedSymbols.map((v: unknown) => String(v).toUpperCase()).filter((v: string) => /^[A-Z0-9]{4,20}$/.test(v)))].slice(0, 100) : [];
       if (!Number.isInteger(maxOpen) || maxOpen < 1 || maxOpen > 20) return json({ error: "invalid_spot_risk_limits" }, 400);
       const emergency = body.emergencyStop !== false;
-      if (body.autoTradeEnabled === true && body.liveExecutionEnabled === true && !emergency && symbols.length === 0) {
-        return json({ error: "select_at_least_one_binance_spot_symbol" }, 400);
-      }
       const { error } = await admin.from("binance_spot_settings").update({
         auto_trade_enabled: body.autoTradeEnabled === true && !emergency,
         live_execution_enabled: body.liveExecutionEnabled === true && !emergency,
