@@ -6,17 +6,22 @@ const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status
 const enc=new TextEncoder();
 type PositionRow = { symbol?: string; positionAmt?: string | number };
 type AssetRow = { asset?: string; availableBalance?: string | number; walletBalance?: string | number };
-type IncomeRow = { income?: string | number };
+type IncomeRow = { income?: string | number; incomeType?: string };
 type ExchangeFilter = { filterType?: string; stepSize?: string; maxQty?: string; minQty?: string; tickSize?: string; notional?: string; minNotional?: string };
 type ExchangeSymbol = { symbol?: string; status?: string; filters?: ExchangeFilter[] };
 type ExchangeInfo = { symbols?: ExchangeSymbol[] };
 type BinanceOrderResult = { orderId?: string | number; avgPrice?: string | number; algoId?: string | number };
 async function aesKey(){const s=Deno.env.get("BINANCE_CREDENTIALS_ENCRYPTION_KEY");if(!s||s.length<32)throw Error("binance_encryption_key_not_configured");const d=await crypto.subtle.digest("SHA-256",enc.encode(s));return crypto.subtle.importKey("raw",d,"AES-GCM",false,["decrypt"]);}
 async function decrypt(v:string){const a=Uint8Array.from(atob(v),c=>c.charCodeAt(0));return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:a.slice(0,12)},await aesKey(),a.slice(12)));}
-async function sign(secret:string,q:string,keyType="hmac"){if(keyType==="ed25519"){const pem=secret.trim();if(!pem.includes("-----BEGIN PRIVATE KEY-----")||!pem.includes("-----END PRIVATE KEY-----"))throw Error("binance_ed25519_private_key_must_be_pkcs8_pem");const body=pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g,"");const der=Uint8Array.from(atob(body),c=>c.charCodeAt(0));const privateKey=await crypto.subtle.importKey("pkcs8",der,{name:"Ed25519"},false,["sign"]);const signed=await crypto.subtle.sign("Ed25519",privateKey,enc.encode(q));return btoa(String.fromCharCode(...new Uint8Array(signed)));}if(keyType==="rsa"){const pem=secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,"");if(!pem||!secret.includes("BEGIN PRIVATE KEY"))throw Error("rsa_private_key_must_be_pkcs8_pem");const der=Uint8Array.from(atob(pem),c=>c.charCodeAt(0));const privateKey=await crypto.subtle.importKey("pkcs8",der,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]);const signed=await crypto.subtle.sign("RSASSA-PKCS1-v1_5",privateKey,enc.encode(q));return btoa(String.fromCharCode(...new Uint8Array(signed)));}const k=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const s=await crypto.subtle.sign("HMAC",k,enc.encode(q));return [...new Uint8Array(s)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+async function sign(secret:string,q:string,keyType="hmac"){if(keyType==="ed25519"){const pem=secret.trim();if(!pem.includes("-----BEGIN PRIVATE KEY-----")||!pem.includes("-----END PRIVATE KEY-----"))throw Error("binance_ed25519_private_key_must_be_pkcs8_pem");const body=pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,"");const der=Uint8Array.from(atob(body),c=>c.charCodeAt(0));const privateKey=await crypto.subtle.importKey("pkcs8",der,{name:"Ed25519"},false,["sign"]);const signed=await crypto.subtle.sign("Ed25519",privateKey,enc.encode(q));return btoa(String.fromCharCode(...new Uint8Array(signed)));}if(keyType==="rsa"){const pem=secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,"");if(!pem||!secret.includes("BEGIN PRIVATE KEY"))throw Error("rsa_private_key_must_be_pkcs8_pem");const der=Uint8Array.from(atob(pem),c=>c.charCodeAt(0));const privateKey=await crypto.subtle.importKey("pkcs8",der,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]);const signed=await crypto.subtle.sign("RSASSA-PKCS1-v1_5",privateKey,enc.encode(q));return btoa(String.fromCharCode(...new Uint8Array(signed)));}const k=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const s=await crypto.subtle.sign("HMAC",k,enc.encode(q));return [...new Uint8Array(s)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function binance(key:string,secret:string,keyType:string,path:string,method="GET",params:Record<string,string>={}){const p=new URLSearchParams({...params,timestamp:String(Date.now()),recvWindow:"5000"});const sig=await sign(secret,p.toString(),keyType);let r:Response;try{r=await fetch("https://fapi.binance.com"+path+(method==="GET"?"?"+p+"&signature="+encodeURIComponent(sig):""),{method,headers:{"X-MBX-APIKEY":key,"Content-Type":"application/x-www-form-urlencoded"},...(method==="GET"?{}:{body:p.toString()+"&signature="+encodeURIComponent(sig)})});}catch{throw Error("binance_network_outcome_uncertain");}const d=await r.json();if(!r.ok)throw Error(typeof d?.msg==="string"?d.msg:"binance_request_failed");return d;}
 const floorStep=(n:number,s:number)=>Math.floor(n/s+1e-10)*s;
 const fmt=(n:number)=>Number(n.toPrecision(14)).toString();
+async function stableClientOrderId(value:string){
+ const digest=await crypto.subtle.digest("SHA-256",enc.encode(value));
+ const hex=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
+ return "st_"+hex.slice(0,32);
+}
 let exchangeInfoSnapshot:ExchangeSymbol[]|null=null;
 Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
@@ -98,15 +103,21 @@ Deno.serve(async req=>{
         binance(key,secret,keyType,"/fapi/v2/account"),
         binance(key,secret,keyType,"/fapi/v1/positionSide/dual"),
         binance(key,secret,keyType,"/fapi/v3/positionRisk"),
-        binance(key,secret,keyType,"/fapi/v1/income","GET",{incomeType:"REALIZED_PNL",startTime:String(utcStart.getTime()),limit:"1000"})
+        binance(key,secret,keyType,"/fapi/v1/income","GET",{startTime:String(utcStart.getTime()),limit:"1000"})
        ]);
        if(account.canTrade!==true||mode.dualSidePosition===true)throw Error("account_not_ready_or_hedge_mode");
        const usdt=((account.assets??[]) as AssetRow[]).find((x)=>x.asset==="USDT");
        const available=Number(usdt?.availableBalance??0),wallet=Number(usdt?.walletBalance??0);
        if(!(available>0&&wallet>0))throw Error("insufficient_usdt_margin");
-       const realizedToday=Array.isArray(income)?(income as IncomeRow[]).reduce((sum,row)=>sum+Number(row.income??0),0):0;
+       const realizedAndCostsToday=Array.isArray(income)
+        ?(income as IncomeRow[]).reduce((sum,row)=>{
+          const type=String(row.incomeType??"");
+          return ["REALIZED_PNL","COMMISSION","FUNDING_FEE"].includes(type)?sum+Number(row.income??0):sum;
+         },0):0;
+       const unrealizedNow=((positions??[]) as PositionRow[]).reduce((sum,row)=>sum+Number((row as PositionRow & {unRealizedProfit?:string|number}).unRealizedProfit??0),0);
+       const netDailyPnl=realizedAndCostsToday+unrealizedNow;
        const dailyLossLimit=wallet*Number(cfg.max_daily_loss_pct)/100;
-       if(!Number.isFinite(realizedToday)||realizedToday<=-dailyLossLimit)throw Error("daily_loss_limit_reached");
+       if(!Number.isFinite(netDailyPnl)||!Number.isFinite(dailyLossLimit)||dailyLossLimit<=0||netDailyPnl<=-dailyLossLimit)throw Error("daily_loss_limit_reached");
        if(!exchangeInfoSnapshot){
         const response=await fetch("https://fapi.binance.com/fapi/v1/exchangeInfo");
         if(!response.ok)throw Error("binance_exchange_info_unavailable");
@@ -165,7 +176,7 @@ Deno.serve(async req=>{
       authorization:{liveExecutionAuthorized:cfg.live_execution_enabled===true,emergencyStop:cfg.emergency_stop===true,preflightVerifiedAt:executionCreatedAt.toISOString()},
       createdAt:executionCreatedAt.toISOString(),
      });
-     const clientId="stai_"+(await sign(secret,cfg.user_id+"|"+it.signal_key,keyType)).slice(0,28);
+     const clientId=await stableClientOrderId(cfg.user_id+"|"+it.signal_key);
      const {error:ins}=await db.from("binance_futures_orders").insert({user_id:cfg.user_id,signal_key:it.signal_key,symbol:it.symbol,side,leverage:Number(cfg.leverage),quantity:qty,entry_price:entry,stop_loss:sl,take_profit:tp,risk_usdt:qty*riskDistance,client_order_id:clientId,status:"queued",request_payload:{source:"8of8_super_signal",risk_budget_usdt:riskBudget}});
      if(ins){if(ins.code==="23505"){skipped++;continue;}throw ins;}
      await binance(key,secret,keyType,"/fapi/v1/leverage","POST",{symbol:it.symbol,leverage:String(cfg.leverage)});
