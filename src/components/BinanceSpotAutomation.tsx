@@ -206,7 +206,7 @@ export function BinanceSpotAutomation() {
           </div>
           <div className="mt-3 rounded-xl border border-up/20 bg-up/5 p-3">
             <p className="text-sm font-semibold text-ink">Automatic Binance market access</p>
-            <p className="mt-1 text-xs leading-5 text-ink-2">All eligible Binance USDT Spot pairs covered by SuperTech AI analysis are automatically permitted for automation. The system checks live exchange trading status and symbol rules before every order. No manual symbol list is needed.</p>
+            <p className="mt-1 text-xs leading-5 text-ink-2">All eligible Binance USDT Spot pairs covered by SuperTech AI analysis are automatically permitted. An empty allowlist means all eligible pairs; the backend checks live exchange trading status and symbol rules before every order.</p>
           </div>
           <div className="mt-4 space-y-3 rounded-xl border border-line/10 bg-canvas/50 p-3">
             <label className="flex items-center justify-between gap-3 text-sm text-ink"><span>Enable automation</span><input type="checkbox" checked={autoTrade} onChange={(e) => setAutoTrade(e.target.checked)} /></label>
