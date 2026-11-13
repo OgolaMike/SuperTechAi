@@ -44,6 +44,7 @@ async function callBinance(action: string, payload: Record<string, unknown> = {}
 export function BinanceSpotAutomation() {
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
+  const [keyType, setKeyType] = useState<'ed25519' | 'hmac'>('ed25519');
   const [settings, setSettings] = useState<Settings | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
@@ -78,7 +79,7 @@ export function BinanceSpotAutomation() {
   const connect = async () => {
     setBusy(true); setError(''); setMessage('');
     try {
-      const result = await callBinance('connect', { apiKey, apiSecret });
+      const result = await callBinance('connect', { apiKey, apiSecret, keyType });
       setBalances((result.account?.balances ?? []) as AccountBalance[]);
       setApiKey(''); setApiSecret('');
       setMessage('Binance Spot account connected. Automation remains OFF until you explicitly arm it.');
@@ -153,6 +154,12 @@ export function BinanceSpotAutomation() {
             <div className="space-y-3">
               <label className="block text-xs font-medium text-ink-2">Binance API Key
                 <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" spellCheck={false} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent" placeholder="Paste API key" />
+              </label>
+              <label className="block text-xs font-medium text-ink-2">Binance key type
+                <select value={keyType} onChange={(e) => setKeyType(e.target.value as 'ed25519' | 'hmac')} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent">
+                  <option value="ed25519">Self-generated Ed25519</option>
+                  <option value="hmac">System-generated API Secret (HMAC)</option>
+                </select>
               </label>
               <label className="block text-xs font-medium text-ink-2">Binance API Secret or Ed25519 Private Key (PEM)
                 <textarea value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} autoComplete="off" spellCheck={false} rows={5} className="mt-1 w-full resize-y rounded-xl border border-line/15 bg-canvas px-3 py-3 font-mono text-xs text-ink outline-none focus:border-accent" placeholder={"For Ed25519, paste the full PEM beginning with -----BEGIN PRIVATE KEY-----"} />
