@@ -41,7 +41,7 @@ async function readSnapshot(): Promise<MoverRow[]> {
   return (Array.isArray(data) ? data : []) as MoverRow[];
 }
 
-export async function fetchCurrentDayCryptoMovers(): Promise<{ movers: CryptoMover[]; updatedAt: string }> {
+async function fetchCurrentDayCryptoMoversUncached(): Promise<{ movers: CryptoMover[]; updatedAt: string }> {
   const { data, error } = await supabase.functions.invoke('crypto-movers', {
     method: 'POST',
     body: { period: 'today' },
@@ -74,7 +74,7 @@ export async function fetchCurrentDayCryptoMovers(): Promise<{ movers: CryptoMov
   return { movers, updatedAt: typeof payload.updatedAt === 'string' ? payload.updatedAt : new Date().toISOString() };
 }
 
-export async function fetchCryptoMovers(): Promise<CryptoMover[]> {
+async function fetchCryptoMoversUncached(): Promise<CryptoMover[]> {
   let rows = await readSnapshot();
   const savedDates = new Set(rows.map((row) => row.trade_date));
 
@@ -129,4 +129,32 @@ export function formatCompactUsd(value: number): string {
 
 export function formatChange(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+}
+
+
+// Keep completed-day snapshots warm between page visits. Live rankings have a
+// shorter cache because they are refreshed frequently.
+let historyCache: { value: CryptoMover[]; expiresAt: number } | null = null;
+let historyRequest: Promise<CryptoMover[]> | null = null;
+let todayCache: { value: { movers: CryptoMover[]; updatedAt: string }; expiresAt: number } | null = null;
+let todayRequest: Promise<{ movers: CryptoMover[]; updatedAt: string }> | null = null;
+
+export async function fetchCryptoMovers(forceRefresh = false): Promise<CryptoMover[]> {
+  if (!forceRefresh && historyCache && historyCache.expiresAt > Date.now()) return historyCache.value;
+  if (historyRequest) return historyRequest;
+  historyRequest = fetchCryptoMoversUncached().then((value) => {
+    historyCache = { value, expiresAt: Date.now() + 60_000 };
+    return value;
+  }).finally(() => { historyRequest = null; });
+  return historyRequest;
+}
+
+export async function fetchCurrentDayCryptoMovers(forceRefresh = false): Promise<{ movers: CryptoMover[]; updatedAt: string }> {
+  if (!forceRefresh && todayCache && todayCache.expiresAt > Date.now()) return todayCache.value;
+  if (todayRequest) return todayRequest;
+  todayRequest = fetchCurrentDayCryptoMoversUncached().then((value) => {
+    todayCache = { value, expiresAt: Date.now() + 20_000 };
+    return value;
+  }).finally(() => { todayRequest = null; });
+  return todayRequest;
 }
