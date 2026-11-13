@@ -25,6 +25,18 @@ async function decrypt(value: string) {
   return new TextDecoder().decode(plain);
 }
 async function signature(secret: string, query: string, keyType: string = "hmac") {
+  if (keyType === "ed25519") {
+    const normalized = secret.trim();
+    if (!normalized.includes("-----BEGIN PRIVATE KEY-----") || !normalized.includes("-----END PRIVATE KEY-----")) throw new Error("binance_ed25519_private_key_must_be_pkcs8_pem");
+    const pem = normalized.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g, "");
+    let der: Uint8Array;
+    try { der = unb64(pem); } catch { throw new Error("binance_ed25519_private_key_invalid_pem"); }
+    let privateKey: CryptoKey;
+    try { privateKey = await crypto.subtle.importKey("pkcs8", der, { name: "Ed25519" }, false, ["sign"]); }
+    catch { throw new Error("binance_ed25519_private_key_invalid_pkcs8"); }
+    const signed = await crypto.subtle.sign("Ed25519", privateKey, enc.encode(query));
+    return b64(new Uint8Array(signed));
+  }
   if (keyType === "rsa") {
     const pem = secret.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
     if (!pem || !secret.includes("BEGIN PRIVATE KEY")) throw new Error("rsa_private_key_must_be_pkcs8_pem");
@@ -101,9 +113,10 @@ Deno.serve(async req => {
       const apiKey = String(body.apiKey ?? "").trim();
       const apiSecret = String(body.apiSecret ?? "").trim();
       const keyType = String(body.keyType ?? "hmac").toLowerCase();
-      if (keyType !== "hmac" && keyType !== "rsa") return json({ error: "unsupported_binance_key_type" }, 400);
+      if (keyType !== "hmac" && keyType !== "rsa" && keyType !== "ed25519") return json({ error: "unsupported_binance_key_type" }, 400);
       if (apiKey.length < 16 || apiKey.length > 256 || apiSecret.length < 16 || apiSecret.length > 8192) return json({ error: "invalid_binance_api_credentials" }, 400);
-      if (keyType === "rsa" && !apiSecret.includes("BEGIN PRIVATE KEY")) return json({ error: "rsa_private_key_must_be_pkcs8_pem" }, 400);
+      if (keyType === "rsa" && !apiSecret.includes("-----BEGIN PRIVATE KEY-----")) return json({ error: "rsa_private_key_must_be_pkcs8_pem" }, 400);
+      if (keyType === "ed25519" && (!apiSecret.includes("-----BEGIN PRIVATE KEY-----") || !apiSecret.includes("-----END PRIVATE KEY-----"))) return json({ error: "binance_ed25519_private_key_must_be_pkcs8_pem" }, 400);
       const account = await futuresPreflight(apiKey, apiSecret, keyType);
       const [encryptedApiKey, encryptedApiSecret] = await Promise.all([encrypt(apiKey), encrypt(apiSecret)]);
       const last4 = apiKey.slice(-4);
