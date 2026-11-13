@@ -7,6 +7,9 @@ export type CryptoMover = {
   open: number;
   close: number;
   changePct: number;
+  change24hPct?: number;
+  momentumPct?: number;
+  accelerationPct?: number;
   quoteVolume: number;
   volumeRank: number;
 };
@@ -66,6 +69,9 @@ async function fetchCurrentDayCryptoMoversUncached(): Promise<{ movers: CryptoMo
       open: Number(row.open ?? 0),
       close,
       changePct,
+      change24hPct: Number.isFinite(Number(row.change24hPct)) ? Number(row.change24hPct) : undefined,
+      momentumPct: Number.isFinite(Number(row.momentumPct)) ? Number(row.momentumPct) : undefined,
+      accelerationPct: Number.isFinite(Number(row.accelerationPct)) ? Number(row.accelerationPct) : undefined,
       quoteVolume: Number(row.quoteVolume ?? 0),
       volumeRank: Number(row.volumeRank ?? 0),
     }];
