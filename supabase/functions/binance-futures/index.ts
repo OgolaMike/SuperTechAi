@@ -5,6 +5,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const enc = new TextEncoder();
 const b64 = (v: Uint8Array) => btoa(String.fromCharCode(...v));
 const unb64 = (v: string) => Uint8Array.from(atob(v), c => c.charCodeAt(0));
+const asArrayBuffer = (bytes: Uint8Array): ArrayBuffer => { const copy = new Uint8Array(bytes.byteLength); copy.set(bytes); return copy.buffer; };
 type FuturesAsset = { asset?: string; walletBalance?: string | number; availableBalance?: string | number; marginBalance?: string | number };
 type FuturesPosition = { symbol?: string; positionSide?: string; positionAmt?: string | number; entryPrice?: string | number; markPrice?: string | number; unRealizedProfit?: string | number; leverage?: string | number };
 
@@ -32,7 +33,7 @@ async function signature(secret: string, query: string, keyType: string = "hmac"
     let der: Uint8Array;
     try { der = unb64(pem); } catch { throw new Error("binance_ed25519_private_key_invalid_pem"); }
     let privateKey: CryptoKey;
-    try { privateKey = await crypto.subtle.importKey("pkcs8", der, { name: "Ed25519" }, false, ["sign"]); }
+    try { privateKey = await crypto.subtle.importKey("pkcs8", asArrayBuffer(der), { name: "Ed25519" }, false, ["sign"]); }
     catch { throw new Error("binance_ed25519_private_key_invalid_pkcs8"); }
     const signed = await crypto.subtle.sign("Ed25519", privateKey, enc.encode(query));
     return b64(new Uint8Array(signed));
