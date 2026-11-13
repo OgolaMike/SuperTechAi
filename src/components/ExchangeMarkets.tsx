@@ -49,7 +49,7 @@ export function ExchangeMarkets({ aiModel, onNavigate }: Props) {
   useEffect(() => {
     if (!selected) return;
     let cancelled = false;
-    setChartLoading((current) => current || Object.keys(states).length === 0);
+    setChartLoading(true);
     setChartError(null);
     buildExchangeStates(exchange, selected.symbol)
       .then((next) => { if (!cancelled) setStates(next); })
