@@ -772,8 +772,13 @@ async function runScan(): Promise<Record<string, unknown>> {
     };
   } finally {
     feed?.close();
-    const { error: releaseError } = await db.rpc("release_scanner_lease", { p_lease_token: leaseToken });
-    if (releaseError) console.error("Scanner lease release failed:", releaseError.message);
+    try {
+      const { error: releaseError } = await db.rpc("release_scanner_lease", { p_lease_token: leaseToken });
+      if (releaseError) console.error("Scanner lease release failed:", releaseError.message);
+    } catch (releaseError) {
+      // The lease expires automatically if a transient database failure prevents release.
+      console.error("Scanner lease release failed:", messageOf(releaseError));
+    }
   }
 }
 
