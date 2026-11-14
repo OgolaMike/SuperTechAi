@@ -7,7 +7,6 @@ const enc=new TextEncoder();
 const asArrayBuffer=(bytes:Uint8Array):ArrayBuffer=>{const copy=new Uint8Array(bytes.byteLength);copy.set(bytes);return copy.buffer;};
 type PositionRow = { symbol?: string; positionAmt?: string | number };
 type AssetRow = { asset?: string; availableBalance?: string | number; walletBalance?: string | number };
-type IncomeRow = { income?: string | number; incomeType?: string };
 type ExchangeFilter = { filterType?: string; stepSize?: string; maxQty?: string; minQty?: string; tickSize?: string; notional?: string; minNotional?: string };
 type ExchangeSymbol = { symbol?: string; status?: string; filters?: ExchangeFilter[] };
 type ExchangeInfo = { symbols?: ExchangeSymbol[] };
@@ -99,26 +98,46 @@ Deno.serve(async req=>{
      if(memberPreflightError){skipped++;continue;}
      if(!memberSnapshot){
       try{
-       const utcStart=new Date();utcStart.setUTCHours(0,0,0,0);
-       const [account,mode,positions,income]=await Promise.all([
+       const [account,mode,positions]=await Promise.all([
         binance(key,secret,keyType,"/fapi/v2/account"),
         binance(key,secret,keyType,"/fapi/v1/positionSide/dual"),
-        binance(key,secret,keyType,"/fapi/v3/positionRisk"),
-        binance(key,secret,keyType,"/fapi/v1/income","GET",{startTime:String(utcStart.getTime()),limit:"1000"})
+        binance(key,secret,keyType,"/fapi/v3/positionRisk")
        ]);
        if(account.canTrade!==true||mode.dualSidePosition===true)throw Error("account_not_ready_or_hedge_mode");
        const usdt=((account.assets??[]) as AssetRow[]).find((x)=>x.asset==="USDT");
        const available=Number(usdt?.availableBalance??0),wallet=Number(usdt?.walletBalance??0);
-       if(!(available>0&&wallet>0))throw Error("insufficient_usdt_margin");
-       const realizedAndCostsToday=Array.isArray(income)
-        ?(income as IncomeRow[]).reduce((sum,row)=>{
-          const type=String(row.incomeType??"");
-          return ["REALIZED_PNL","COMMISSION","FUNDING_FEE"].includes(type)?sum+Number(row.income??0):sum;
-         },0):0;
-       const unrealizedNow=((positions??[]) as PositionRow[]).reduce((sum,row)=>sum+Number((row as PositionRow & {unRealizedProfit?:string|number}).unRealizedProfit??0),0);
-       const netDailyPnl=realizedAndCostsToday+unrealizedNow;
-       const dailyLossLimit=wallet*Number(cfg.max_daily_loss_pct)/100;
-       if(!Number.isFinite(netDailyPnl)||!Number.isFinite(dailyLossLimit)||dailyLossLimit<=0||netDailyPnl<=-dailyLossLimit)throw Error("daily_loss_limit_reached");
+       const currentEquity=Number(account.totalMarginBalance??NaN);
+       if(!(available>0&&wallet>0&&Number.isFinite(currentEquity)&&currentEquity>0))throw Error("futures_equity_or_margin_unavailable");
+
+       // Daily loss is measured against a persisted equity snapshot, not today's
+       // realized income plus all currently open PnL (which can miscount positions
+       // carried across midnight). The first run of a UTC day only establishes the
+       // baseline; execution resumes on the next scan after the baseline is confirmed.
+       const tradingDay=new Date().toISOString().slice(0,10);
+       let {data:dailyBaseline,error:baselineError}=await db.from("binance_futures_daily_equity")
+        .select("baseline_equity").eq("user_id",cfg.user_id).eq("trading_day",tradingDay).maybeSingle();
+       if(baselineError)throw Error("daily_equity_baseline_lookup_failed");
+       if(!dailyBaseline){
+        const {error:insertBaselineError}=await db.from("binance_futures_daily_equity").upsert({
+         user_id:cfg.user_id,trading_day:tradingDay,baseline_equity:currentEquity
+        },{onConflict:"user_id,trading_day",ignoreDuplicates:true});
+        if(insertBaselineError)throw Error("daily_equity_baseline_create_failed");
+        const reread=await db.from("binance_futures_daily_equity").select("baseline_equity")
+         .eq("user_id",cfg.user_id).eq("trading_day",tradingDay).maybeSingle();
+        if(reread.error||!reread.data)throw Error("daily_equity_baseline_unavailable");
+        dailyBaseline=reread.data;
+        memberPreflightError="daily_equity_baseline_initialized_retry_next_scan";
+        failed++;
+        await db.from("binance_futures_signal_intents").update({
+         payload:{...(it.payload??{}),execution_state:"baseline_initialized",execution_error:memberPreflightError}
+        }).eq("id",it.id).eq("user_id",cfg.user_id);
+        break;
+       }
+       const baselineEquity=Number(dailyBaseline.baseline_equity);
+       const dailyLossLimit=baselineEquity*Number(cfg.max_daily_loss_pct)/100;
+       const dailyDrawdown=baselineEquity-currentEquity;
+       if(!Number.isFinite(baselineEquity)||baselineEquity<=0||!Number.isFinite(dailyLossLimit)||dailyLossLimit<=0)throw Error("daily_equity_baseline_invalid");
+       if(dailyDrawdown>=dailyLossLimit)throw Error("daily_loss_limit_reached");
        if(!exchangeInfoSnapshot){
         const response=await fetch("https://fapi.binance.com/fapi/v1/exchangeInfo");
         if(!response.ok)throw Error("binance_exchange_info_unavailable");
