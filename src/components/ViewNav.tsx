@@ -62,7 +62,7 @@ function preloadView(view: View): void {
     admin: () => import('@/components/AdminPanel'),
     mt5: () => import('@/components/Mt5AutoTrading'),
     referrals: () => import('@/components/AccountHub'),
-    earnings: () => import('@/components/AccountHub'),
+    earnings: () => import('@/components/FinancePanel'),
     finance: () => import('@/components/FinancePanel'),
     binance: () => Promise.all([import('@/components/BinanceSpotAutomation'), import('@/components/BinanceFuturesAutomation')]),
     okx: () => import('@/components/OKXFuturesAutomation'),
@@ -104,7 +104,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
     <>
       <nav className="hidden w-full items-center gap-1 rounded-2xl border border-line/10 bg-surface/[0.035] p-1.5 lg:flex lg:w-auto" aria-label="Main navigation">
         {PRIMARY.map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" onPointerEnter={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
+          <button key={id} type="button" onPointerEnter={() => preloadView(id)} onPointerDown={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${primaryActive(id) ? 'glow-ring bg-surface/[0.12] text-ink shadow-sm' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
             <Icon className="h-4 w-4 shrink-0" /><span>{label}</span>
           </button>
