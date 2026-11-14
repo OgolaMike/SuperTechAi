@@ -120,7 +120,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
               return items.length ? <div key={group.title} className="mb-3 last:mb-0">
                 <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">{group.title}</p>
                 <div className="grid gap-1">{items.map(({ id, label: itemLabel, icon: ItemIcon }) => (
-                  <button key={id} type="button" onPointerEnter={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${view === id ? 'bg-surface/[0.12] text-ink' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
+                  <button key={id} type="button" onPointerEnter={() => preloadView(id)} onPointerDown={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${view === id ? 'bg-surface/[0.12] text-ink' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
                     <ItemIcon className="h-4 w-4" />{itemLabel}
                   </button>
                 ))}</div>
@@ -155,7 +155,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
             return items.length ? <div key={group.title} className="mb-4 last:mb-0">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">{group.title}</p>
               <div className="grid grid-cols-2 gap-2">{items.map(({ id, label: itemLabel, icon: ItemIcon }) => (
-                <button key={id} type="button" onPointerEnter={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} className={`flex min-h-12 items-center gap-2 rounded-xl border border-line/10 px-3 py-2 text-left text-xs font-medium ${view === id ? 'bg-surface/[0.12] text-ink' : 'bg-surface/[0.035] text-ink-2'}`}>
+                <button key={id} type="button" onPointerEnter={() => preloadView(id)} onPointerDown={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} className={`flex min-h-12 items-center gap-2 rounded-xl border border-line/10 px-3 py-2 text-left text-xs font-medium ${view === id ? 'bg-surface/[0.12] text-ink' : 'bg-surface/[0.035] text-ink-2'}`}>
                   <ItemIcon className="h-4 w-4 shrink-0" /><span>{itemLabel}</span>
                 </button>
               ))}</div>
