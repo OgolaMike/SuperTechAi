@@ -60,14 +60,6 @@ export async function exchangeGatewayFetch(
   const upstream = input instanceof URL ? input : new URL(input);
   validateTarget(provider, upstream);
 
-  const gatewayUrl = Deno.env.get("AUTOMATION_GATEWAY_URL")?.trim().replace(/\/+$/, "");
-  const sharedSecret = Deno.env.get("AUTOMATION_GATEWAY_SECRET");
-  if (!gatewayUrl || !sharedSecret || sharedSecret.length < 32) {
-    throw new Error("automation_gateway_not_configured");
-  }
-  const gateway = new URL(gatewayUrl);
-  if (gateway.protocol !== "https:") throw new Error("automation_gateway_https_required");
-
   const method = (init.method ?? "GET").toUpperCase();
   if (!["GET", "POST", "DELETE"].includes(method)) {
     throw new Error("exchange_gateway_method_not_allowed");
@@ -86,6 +78,14 @@ export async function exchangeGatewayFetch(
        !safeHeaders["ok-access-timestamp"] || !safeHeaders["ok-access-passphrase"])) {
     throw new Error("okx_authentication_headers_required");
   }
+
+  const gatewayUrl = Deno.env.get("AUTOMATION_GATEWAY_URL")?.trim().replace(/\/+$/, "");
+  const sharedSecret = Deno.env.get("AUTOMATION_GATEWAY_SECRET");
+  if (!gatewayUrl || !sharedSecret || sharedSecret.length < 32) {
+    throw new Error("automation_gateway_not_configured");
+  }
+  const gateway = new URL(gatewayUrl);
+  if (gateway.protocol !== "https:") throw new Error("automation_gateway_https_required");
 
   const textBody = bodyText(init.body);
   const payload = JSON.stringify({
