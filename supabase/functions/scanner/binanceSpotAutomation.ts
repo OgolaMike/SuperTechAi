@@ -332,7 +332,9 @@ export async function submitBinanceSpotLimitIntents(
       const totalRiskBudget = accountUsdtBalance * (riskPercent / 100);
       const selectedIntents = buyIntents.slice(0, Math.min(buyIntents.length, availableSlots));
       if (!selectedIntents.length || totalRiskBudget <= 0) { skipped += buyIntents.length; continue; }
-      const perOrderRiskBudget = totalRiskBudget;
+      // Split the account-level risk budget across every order selected in this batch;
+      // applying the full budget to each order would multiply the configured risk cap.
+      const perOrderRiskBudget = totalRiskBudget / selectedIntents.length;
       for (let index = 0; index < selectedIntents.length; index += 1) {
         const intent = selectedIntents[index];
         const entryPrice = floorToStep(intent.entry, priceTick);
