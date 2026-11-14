@@ -23,9 +23,9 @@ npm test
 ```sh
 cp .env.example .env
 # Set GATEWAY_SHARED_SECRET to a random value of at least 32 bytes.
-# Set GATEWAY_DOMAIN to localhost only for local Caddy-free testing.
+# Set GATEWAY_DOMAIN to the DNS name pointing at this VPS.
 docker compose up -d --build
-curl http://127.0.0.1:8080/healthz
+curl https://exchange-gateway.example.com/healthz
 ```
 
 For production, deploy on a Linux VPS with a reserved/static public IPv4 and use the included Caddy HTTPS reverse proxy. See [the unattended automation delivery guide](../docs/UNATTENDED_AUTOMATION_DELIVERY.md).
