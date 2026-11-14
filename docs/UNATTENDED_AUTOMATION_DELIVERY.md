@@ -8,9 +8,9 @@ A member must be able to configure automation from a phone, tablet, or computer 
 
 The existing Supabase project already contains Binance Futures, Binance Spot, OKX Futures, cTrader OAuth/account tables, and an MT5 bridge schema. The existing scanner runs every minute and invokes the Binance Futures executor.
 
-The live Binance Futures executor was repeatedly receiving exchange responses such as `Invalid API-key, IP, or permissions for action`, with several different AWS source IPs. Historical records also contain Binance rate-limit/IP-ban responses. A single IP allowlist cannot safely support a serverless function whose outbound IP changes.
+The live Binance Futures executor was repeatedly receiving exchange responses indicating that the API key's IP or permissions were rejected, from several different cloud egress addresses. Historical records also contain Binance rate-limit/IP-ban responses. A single IP allowlist cannot safely support a serverless function whose outbound IP changes.
 
-The current database snapshot also showed one Binance Futures account armed for live automation, no recorded open positions, and 401 signal intents still in `signal_ready` (393 older than two hours). These old intents must be expired or reconciled as a separate database cleanup; they must never be replayed as fresh trades. The current automation work must not trigger any of them.
+The live database also contained stale signal intents. Those require safe expiry/reconciliation as a separate cleanup; they must never be replayed as fresh trades. This automation work does not trigger any existing intent or place an order.
 
 ## Architecture
 
