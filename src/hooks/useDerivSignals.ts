@@ -167,10 +167,11 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       }
     };
 
-    const applyCandle = (symbol: string, granularity: number, candle: Candle) => {
-      if (!symbol || !watchedRef.current.has(symbol)) return;
-      pendingLastTickRef.current = candle.epoch;
-      pendingPricesRef.current[symbol] = candle.close;
+    const queueLatestPrice = (symbol: string, candles: Candle[]) => {
+      const latest = candles[candles.length - 1];
+      if (!symbol || !latest) return;
+      pendingLastTickRef.current = latest.epoch;
+      pendingPricesRef.current[symbol] = latest.close;
       if (!priceFlushTimerRef.current) {
         priceFlushTimerRef.current = setTimeout(() => {
           const updates = pendingPricesRef.current;
@@ -181,6 +182,11 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
           pendingLastTickRef.current = null;
         }, 350);
       }
+    };
+
+    const applyCandle = (symbol: string, granularity: number, candle: Candle) => {
+      if (!symbol || !watchedRef.current.has(symbol)) return;
+      queueLatestPrice(symbol, [candle]);
       candlesRef.current[symbol] ??= {};
       const nextCandles = mergeCandle(candlesRef.current[symbol][granularity] ?? [], candle);
       candlesRef.current[symbol][granularity] = nextCandles;
@@ -250,6 +256,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                 .then((candles) => {
                   candlesRef.current[symbol] ??= {};
                   candlesRef.current[symbol][M15_GRANULARITY] = candles;
+                  queueLatestPrice(symbol, candles);
                   const confirmedEpoch = latestConfirmedEpoch(candles, M15_GRANULARITY, Math.floor(Date.now() / 1000));
                   if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${M15_GRANULARITY}`] = confirmedEpoch;
                   recompute(symbol, M15_GRANULARITY);
@@ -262,6 +269,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                   .then((candles) => {
                     candlesRef.current[symbol] ??= {};
                     candlesRef.current[symbol][timeframe.granularity] = candles;
+              queueLatestPrice(symbol, candles);
                     const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
                     if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${timeframe.granularity}`] = confirmedEpoch;
                     recompute(symbol, timeframe.granularity);
@@ -283,6 +291,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               return client.subscribeCandles(symbol, granularity, historyCount).then((candles) => {
                 candlesRef.current[symbol] ??= {};
                 candlesRef.current[symbol][granularity] = candles;
+              queueLatestPrice(symbol, candles);
                 const confirmedEpoch = latestConfirmedEpoch(candles, granularity, Math.floor(Date.now() / 1000));
                 if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${granularity}`] = confirmedEpoch;
                 recompute(symbol, granularity);
@@ -330,6 +339,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
           if (stopped) return;
           candlesRef.current[asset.symbol] ??= {};
           candlesRef.current[asset.symbol][timeframe.granularity] = candles;
+          queueLatestPrice(asset.symbol, candles);
           const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
           if (confirmedEpoch !== null) computedConfirmedRef.current[`${asset.symbol}:${timeframe.granularity}`] = confirmedEpoch;
           recompute(asset.symbol, timeframe.granularity);
