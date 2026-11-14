@@ -64,6 +64,7 @@ on:
       - "supabase/functions/_shared/ctrader-margin-check_test.ts"
       - "supabase/functions/scanner/binanceSpotAutomation.ts"
       - "supabase/functions/scanner/index.ts"
+      - "supabase/functions/scanner/binance.ts"
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
       - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
