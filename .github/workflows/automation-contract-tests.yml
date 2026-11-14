@@ -29,6 +29,7 @@ on:
       - "supabase/functions/_shared/ctrader-account-margin.ts"
       - "supabase/functions/_shared/ctrader-account-margin_test.ts"
       - "supabase/functions/scanner/binanceSpotAutomation.ts"
+      - "supabase/functions/scanner/index.ts"
       - ".github/workflows/automation-contract-tests.yml"
       - "supabase/config.toml"
       - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
@@ -91,7 +92,7 @@ jobs:
         with:
           deno-version: v2.x
       - name: Type-check automation status and exchange executors
-        run: deno check supabase/functions/_shared/ctrader-account-margin.ts supabase/functions/_shared/ctrader-margin-check.ts supabase/functions/_shared/ctrader-risk-sizing.ts supabase/functions/_shared/ctrader-execution-preflight.ts supabase/functions/_shared/ctrader-order-payload.ts supabase/functions/ctrader-cloud-reconcile/index.ts supabase/functions/automation-status/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts
+        run: deno check supabase/functions/_shared/ctrader-account-margin.ts supabase/functions/_shared/ctrader-margin-check.ts supabase/functions/_shared/ctrader-risk-sizing.ts supabase/functions/_shared/ctrader-execution-preflight.ts supabase/functions/_shared/ctrader-order-payload.ts supabase/functions/ctrader-cloud-reconcile/index.ts supabase/functions/automation-status/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts supabase/functions/scanner/index.ts
       - name: Type-check exchange gateway client
         run: deno check supabase/functions/_shared/exchange-gateway.ts supabase/functions/_shared/exchange-gateway_test.ts supabase/functions/binance-futures/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/binance-spot/index.ts supabase/functions/okx-futures/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts
       - name: Run exchange gateway tests
