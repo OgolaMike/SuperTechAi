@@ -40,7 +40,7 @@ Member device (Android / iPhone / tablet / laptop)
 
 The gateway is a narrowly scoped network relay, not a general-purpose proxy and not a place where member exchange secrets are stored. The Edge Functions continue to sign Binance and OKX requests locally. The gateway receives only the already-signed request and the minimum exchange authentication headers needed to forward it (including the OKX passphrase header where required), plus a separate short-lived HMAC service signature. These headers are handled transiently in memory and are never persisted or logged. The gateway can reach only the hard-coded Binance Spot, Binance USD-M Futures, and OKX API origins. A small allowlist of public Binance market-data endpoints is also routed through the same fixed egress IP.
 
-The gateway does not retry an order request. A timeout can mean that the exchange accepted the order but the response was lost. The caller must reconcile by the deterministic client order ID before deciding what happened. It also applies conservative shared-IP and per-key request-weight budgets (below Binance's published IP limits), forwards exchange usage/Retry-After headers, and rejects excess requests with HTTP 429 rather than amplifying an IP ban. The gateway's local budget is a safety ceiling, not a replacement for reading the exchange's live rate-limit headers.
+The gateway does not retry an order request. A timeout can mean that the exchange accepted the order but the response was lost. The caller must reconcile by the deterministic client order ID before deciding what happened. It also applies conservative shared-IP and per-key request-weight budgets, forwards exchange usage/Retry-After headers, and rejects excess requests with HTTP 429 rather than amplifying an IP ban. Endpoint weights and limits can change, so the local budget is a safety ceiling, not a replacement for reading the exchange's live rate-limit headers.
 
 ## What this branch implements
 
@@ -58,7 +58,7 @@ Use a small Linux VPS with:
 - A reserved/static public IPv4 address that is also used for outbound IPv4 traffic.
 - Ubuntu 24.04 LTS or another supported Linux distribution.
 - Docker Engine and Docker Compose plugin.
-- A DNS name with an A record pointing to that IPv4.
+- A DNS name with an A record pointing to that IPv4. Select a region eligible for the exact Binance product and verify the actual VPS IP before use; a stable IP does not override exchange location restrictions.
 - Ports 80 and 443 open publicly; SSH restricted to administrator IPs.
 
 A single gateway instance is intentional for the first release. If it is later replicated, replay protection and rate limiting must move to shared storage and every egress IP must be added to exchange allowlists.
@@ -71,7 +71,7 @@ A single gateway instance is intentional for the first release. If it is later r
 4. Clone this repository and enter `gateway/`.
 5. Copy `.env.example` to `.env`. Generate a unique secret with at least 32 random bytes (for example, `openssl rand -hex 32`). Set it as `GATEWAY_SHARED_SECRET`; set `GATEWAY_DOMAIN` to the DNS name. Never commit `.env`.
 6. Start the service with `docker compose up -d --build`.
-7. Verify `https://exchange-gateway.your-domain.com/healthz` returns `{"ok":true,...}`.
+7. Verify `https://exchange-gateway.your-domain.com/healthz` returns `{"ok":true,...}`. From the VPS, also make read-only calls to the public Binance Spot and USD-M Futures exchange-info endpoints. If either returns HTTP 451 or another eligibility restriction, stop and choose a different eligible hosting region/provider; do not attempt to bypass the restriction.
 8. Add the VPS's static IPv4 to the IP restrictions for each member's Binance/OKX API key. Keep withdrawals disabled. Grant only the required Spot/Futures trading permissions.
 9. Set the Supabase Edge Function secrets:
    - `AUTOMATION_GATEWAY_URL=https://exchange-gateway.your-domain.com`
