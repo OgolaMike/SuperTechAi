@@ -44,6 +44,45 @@ const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
   ] },
 ];
 
+
+const preloadCache = new Map<View, Promise<unknown>>();
+
+function preloadView(view: View): void {
+  if (preloadCache.has(view)) return;
+  const loaders: Partial<Record<View, () => Promise<unknown>>> = {
+    dashboard: () => import('@/components/DashboardView'),
+    ctrader: () => import('@/components/CTraderAutoTrading'),
+    super: () => import('@/components/SuperSignalPanel'),
+    crypto: () => import('@/components/CryptoMovers'),
+    'deriv-market': () => import('@/components/DerivMarket'),
+    'exchange-markets': () => import('@/components/ExchangeMarkets'),
+    records: () => import('@/components/RecordsPanel'),
+    orders: () => import('@/components/PendingOrdersPanel'),
+    alerts: () => Promise.all([import('@/components/NotificationSettings'), import('@/components/ServiceHealth')]),
+    admin: () => import('@/components/AdminPanel'),
+    mt5: () => import('@/components/Mt5AutoTrading'),
+    referrals: () => import('@/components/AccountHub'),
+    earnings: () => import('@/components/AccountHub'),
+    finance: () => import('@/components/FinancePanel'),
+    binance: () => Promise.all([import('@/components/BinanceSpotAutomation'), import('@/components/BinanceFuturesAutomation')]),
+    okx: () => import('@/components/OKXFuturesAutomation'),
+    network: () => import('@/components/NetworkPanel'),
+    academy: () => import('@/components/SuperTechAcademy'),
+    governance: () => import('@/components/GovernancePanel'),
+    'break-retest': () => import('@/components/BreakRetestPanel'),
+    marketing: () => import('@/components/MarketingStudio'),
+    connections: () => import('@/components/AutomationConnections'),
+  };
+  const load = loaders[view];
+  if (!load) return;
+  const pending = load().catch((error) => {
+    preloadCache.delete(view);
+    throw error;
+  });
+  preloadCache.set(view, pending);
+  void pending.catch(() => undefined);
+}
+
 type Props = { view: View; isAdmin: boolean; onChange: (view: View) => void };
 
 export function ViewNav({ view, isAdmin, onChange }: Props) {
@@ -65,7 +104,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
     <>
       <nav className="hidden w-full items-center gap-1 rounded-2xl border border-line/10 bg-surface/[0.035] p-1.5 lg:flex lg:w-auto" aria-label="Main navigation">
         {PRIMARY.map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
+          <button key={id} type="button" onPointerEnter={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${primaryActive(id) ? 'glow-ring bg-surface/[0.12] text-ink shadow-sm' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
             <Icon className="h-4 w-4 shrink-0" /><span>{label}</span>
           </button>
@@ -81,7 +120,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
               return items.length ? <div key={group.title} className="mb-3 last:mb-0">
                 <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">{group.title}</p>
                 <div className="grid gap-1">{items.map(({ id, label: itemLabel, icon: ItemIcon }) => (
-                  <button key={id} type="button" onClick={() => choose(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${view === id ? 'bg-surface/[0.12] text-ink' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
+                  <button key={id} type="button" onPointerEnter={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${view === id ? 'bg-surface/[0.12] text-ink' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
                     <ItemIcon className="h-4 w-4" />{itemLabel}
                   </button>
                 ))}</div>
@@ -116,7 +155,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
             return items.length ? <div key={group.title} className="mb-4 last:mb-0">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">{group.title}</p>
               <div className="grid grid-cols-2 gap-2">{items.map(({ id, label: itemLabel, icon: ItemIcon }) => (
-                <button key={id} type="button" onClick={() => choose(id)} className={`flex min-h-12 items-center gap-2 rounded-xl border border-line/10 px-3 py-2 text-left text-xs font-medium ${view === id ? 'bg-surface/[0.12] text-ink' : 'bg-surface/[0.035] text-ink-2'}`}>
+                <button key={id} type="button" onPointerEnter={() => preloadView(id)} onFocus={() => preloadView(id)} onClick={() => choose(id)} className={`flex min-h-12 items-center gap-2 rounded-xl border border-line/10 px-3 py-2 text-left text-xs font-medium ${view === id ? 'bg-surface/[0.12] text-ink' : 'bg-surface/[0.035] text-ink-2'}`}>
                   <ItemIcon className="h-4 w-4 shrink-0" /><span>{itemLabel}</span>
                 </button>
               ))}</div>
