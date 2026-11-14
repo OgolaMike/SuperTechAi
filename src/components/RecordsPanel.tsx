@@ -29,7 +29,7 @@ export function RecordsPanel({ version }: Props) {
   useEffect(() => {
     let cancelled = false;
     setState((previous) => ({ ...previous, loading: true }));
-    fetchSignalRecords()
+    fetchSignalRecords({ force: reloadKey > 0 })
       .then((rows) => {
         if (!cancelled) setState({ rows, error: null, loading: false });
       })
