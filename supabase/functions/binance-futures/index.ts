@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { exchangeGatewayFetch } from "../_shared/exchange-gateway.ts";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -70,7 +71,7 @@ async function detectPemKeyType(privateKeyPem: string): Promise<"ed25519" | "rsa
 async function futuresAccount(apiKey: string, apiSecret: string, keyType = "hmac") {
   const params = new URLSearchParams({ timestamp: String(Date.now()), recvWindow: "5000" });
   const sig = await signature(apiSecret, params.toString(), keyType);
-  const response = await fetch("https://fapi.binance.com/fapi/v2/account?" + params + "&signature=" + encodeURIComponent(sig), { headers: { "X-MBX-APIKEY": apiKey } });
+  const response = await exchangeGatewayFetch("binance_futures", "https://fapi.binance.com/fapi/v2/account?" + params + "&signature=" + encodeURIComponent(sig), { headers: { "X-MBX-APIKEY": apiKey } });
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data?.msg === "string" ? data.msg : "binance_futures_account_check_failed");
   if (data?.canTrade !== true) throw new Error("binance_usdt_m_futures_trading_permission_not_enabled");
@@ -81,7 +82,7 @@ async function futuresAccount(apiKey: string, apiSecret: string, keyType = "hmac
 async function signedGet(apiKey: string, apiSecret: string, path: string, keyType = "hmac", extra: Record<string, string> = {}) {
   const params = new URLSearchParams({ ...extra, timestamp: String(Date.now()), recvWindow: "5000" });
   const sig = await signature(apiSecret, params.toString(), keyType);
-  const response = await fetch("https://fapi.binance.com" + path + "?" + params + "&signature=" + encodeURIComponent(sig), { headers: { "X-MBX-APIKEY": apiKey } });
+  const response = await exchangeGatewayFetch("binance_futures", "https://fapi.binance.com" + path + "?" + params + "&signature=" + encodeURIComponent(sig), { headers: { "X-MBX-APIKEY": apiKey } });
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data?.msg === "string" ? data.msg : "binance_futures_preflight_failed");
   return data;
@@ -201,7 +202,7 @@ Deno.serve(async req => {
     console.error("[binance-futures] request failed", { message, name: error instanceof Error ? error.name : "unknown" });
     const rejected = /invalid api-key, ip, or permissions/i.test(message);
     const userMessage = rejected
-      ? "Binance rejected this API key. Verify the API key and secret, confirm USDⓈ-M Futures permission is enabled, and check whether the key is restricted to trusted IPs. For cloud execution without a fixed IP allowlist, use a self-generated RSA key supported by USDⓈ-M Futures. Keep withdrawals disabled."
+      ? "Binance rejected this API key. Verify the API key and secret, confirm USDⓈ-M Futures permission is enabled, and allowlist only the static SuperTech execution-gateway IP supplied by the administrator. RSA keys do not replace IP allowlisting. Keep withdrawals disabled."
       : message.slice(0, 180);
     return json({ ok: false, code: rejected ? "binance_api_key_ip_or_permission_rejected" : "binance_futures_error", error: userMessage, message: userMessage }, 400);
   }

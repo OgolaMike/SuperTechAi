@@ -4,6 +4,12 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "gateway/**"
+      - "supabase/functions/_shared/exchange-gateway.ts"
+      - "supabase/functions/_shared/exchange-gateway_test.ts"
+      - "supabase/functions/binance-futures/index.ts"
+      - "supabase/functions/binance-spot/index.ts"
+      - "supabase/functions/okx-futures/index.ts"
       - "supabase/functions/_shared/execution-contract.ts"
       - "supabase/functions/_shared/execution-contract_test.ts"
       - "supabase/functions/_shared/automation-status.ts"
@@ -23,15 +29,24 @@ on:
       - "supabase/functions/_shared/ctrader-account-margin.ts"
       - "supabase/functions/_shared/ctrader-account-margin_test.ts"
       - "supabase/functions/scanner/binanceSpotAutomation.ts"
+      - "supabase/functions/scanner/index.ts"
+      - "supabase/functions/scanner/binance.ts"
       - ".github/workflows/automation-contract-tests.yml"
       - "supabase/config.toml"
       - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
+      - "docs/UNATTENDED_AUTOMATION_DELIVERY.md"
       - "src/**"
       - "package.json"
       - "package-lock.json"
   push:
-    branches: ["automation/unified-mobile-cloud"]
+    branches: ["automation/unified-mobile-cloud", "feat/cloud-execution-gateway"]
     paths:
+      - "gateway/**"
+      - "supabase/functions/_shared/exchange-gateway.ts"
+      - "supabase/functions/_shared/exchange-gateway_test.ts"
+      - "supabase/functions/binance-futures/index.ts"
+      - "supabase/functions/binance-spot/index.ts"
+      - "supabase/functions/okx-futures/index.ts"
       - "supabase/functions/_shared/execution-contract.ts"
       - "supabase/functions/_shared/execution-contract_test.ts"
       - "supabase/functions/_shared/automation-status.ts"
@@ -49,9 +64,12 @@ on:
       - "supabase/functions/_shared/ctrader-margin-check.ts"
       - "supabase/functions/_shared/ctrader-margin-check_test.ts"
       - "supabase/functions/scanner/binanceSpotAutomation.ts"
+      - "supabase/functions/scanner/index.ts"
+      - "supabase/functions/scanner/binance.ts"
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
       - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
+      - "docs/UNATTENDED_AUTOMATION_DELIVERY.md"
       - "src/**"
 
 permissions:
@@ -79,6 +97,14 @@ jobs:
         with:
           deno-version: v2.x
       - name: Type-check automation status and exchange executors
-        run: deno check supabase/functions/_shared/ctrader-account-margin.ts supabase/functions/_shared/ctrader-margin-check.ts supabase/functions/_shared/ctrader-risk-sizing.ts supabase/functions/_shared/ctrader-execution-preflight.ts supabase/functions/_shared/ctrader-order-payload.ts supabase/functions/ctrader-cloud-reconcile/index.ts supabase/functions/automation-status/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts
+        run: deno check supabase/functions/_shared/ctrader-account-margin.ts supabase/functions/_shared/ctrader-margin-check.ts supabase/functions/_shared/ctrader-risk-sizing.ts supabase/functions/_shared/ctrader-execution-preflight.ts supabase/functions/_shared/ctrader-order-payload.ts supabase/functions/ctrader-cloud-reconcile/index.ts supabase/functions/automation-status/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts supabase/functions/scanner/index.ts supabase/functions/scanner/binance.ts
+      - name: Type-check exchange gateway client
+        run: deno check supabase/functions/_shared/exchange-gateway.ts supabase/functions/_shared/exchange-gateway_test.ts supabase/functions/binance-futures/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/binance-spot/index.ts supabase/functions/okx-futures/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts
+      - name: Run exchange gateway tests
+        run: deno test --allow-env=AUTOMATION_GATEWAY_URL,AUTOMATION_GATEWAY_SECRET supabase/functions/_shared/exchange-gateway_test.ts
+      - name: Run gateway service tests
+        run: node --test gateway/server.test.mjs
+      - name: Build gateway container
+        run: docker build -t supertech-exchange-gateway ./gateway
       - name: Run execution contract tests
         run: deno test supabase/functions/_shared/execution-contract_test.ts supabase/functions/_shared/automation-status_test.ts supabase/functions/_shared/ctrader-risk-sizing_test.ts supabase/functions/_shared/ctrader-margin-check_test.ts supabase/functions/_shared/ctrader-account-margin_test.ts supabase/functions/_shared/ctrader-execution-preflight_test.ts supabase/functions/_shared/ctrader-order-payload_test.ts
