@@ -138,6 +138,9 @@ export function createGatewayServer({
     for (const [key, expiresAt] of usedNonces) {
       if (expiresAt <= now) usedNonces.delete(key);
     }
+    for (const [key, entry] of rateWindows) {
+      if (entry.windowStart + RATE_WINDOW_MS <= now) rateWindows.delete(key);
+    }
     if (usedNonces.has(nonce)) return writeJson(res, 409, { error: "gateway_replay_rejected" });
 
     const expectedSignature = signGatewayRequest(secret, {
