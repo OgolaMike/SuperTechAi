@@ -121,7 +121,7 @@ Deno.serve(async req=>{
        const dailyLossLimit=wallet*Number(cfg.max_daily_loss_pct)/100;
        if(!Number.isFinite(netDailyPnl)||!Number.isFinite(dailyLossLimit)||dailyLossLimit<=0||netDailyPnl<=-dailyLossLimit)throw Error("daily_loss_limit_reached");
        if(!exchangeInfoSnapshot){
-        const response=await fetch("https://fapi.binance.com/fapi/v1/exchangeInfo");
+        const response=await exchangeGatewayFetch("binance_futures","https://fapi.binance.com/fapi/v1/exchangeInfo");
         if(!response.ok)throw Error("binance_exchange_info_unavailable");
         const info=await response.json() as ExchangeInfo;
         if(!Array.isArray(info?.symbols))throw Error("binance_exchange_info_invalid");
