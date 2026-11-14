@@ -202,7 +202,7 @@ export function createGatewayServer({
     const accountUsed = accountWindow?.windowStart === windowStart ? accountWindow.used : 0;
     if (globalUsed + weight > globalLimit || accountUsed + weight > accountLimit) {
       const retryAfter = Math.max(1, Math.ceil((windowStart + RATE_WINDOW_MS - now) / 1000));
-      return writeJson(res, 429, { error: "gateway_rate_limit", retryAfterSeconds: retryAfter }, {
+      return writeJson(res, 429, { error: "gateway_rate_limit", code: "429", msg: "gateway_rate_limit", retryAfterSeconds: retryAfter }, {
         "retry-after": String(retryAfter),
       });
     }
