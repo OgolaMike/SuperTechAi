@@ -672,17 +672,6 @@ async function runScan(): Promise<Record<string, unknown>> {
               const { error: okxIntentError } = await db.from("okx_futures_signal_intents")
                 .upsert(okxIntentRows, { onConflict: "user_id,signal_key", ignoreDuplicates: true });
               if (okxIntentError) throw new Error("Could not save OKX Super Signal intents: " + okxIntentError.message);
-              const okxExecutorResponse = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/okx-futures-executor", {
-                method: "POST",
-                headers: { "Authorization": "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "execute_pending" })
-              });
-              if (!okxExecutorResponse.ok) {
-                const executorError = await okxExecutorResponse.text();
-                throw new Error("OKX Futures executor returned " + okxExecutorResponse.status + ": " + executorError.slice(0, 180));
-              }
-              const okxExecutionResult = await okxExecutorResponse.json();
-              if (okxExecutionResult?.failed > 0) console.error("OKX Futures executor reported failures", okxExecutionResult);
             }
             const signalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
             const { error: superEventError } = await db.from("push_events").upsert([{
@@ -741,6 +730,29 @@ async function runScan(): Promise<Record<string, unknown>> {
         if (executorResult?.failed > 0) console.error("Futures executor reported failures", executorResult);
       } catch (error) {
         lastError = `Futures executor: ${messageOf(error)}`;
+      }
+    }
+
+    // Run OKX once per scan, not once per matching contract. This also recovers
+    // uncertain submissions and drains queued intents when no new signal is emitted.
+    if ((okxAutomationRows ?? []).length > 0) {
+      try {
+        const executorResponse = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/okx-futures-executor", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ action: "execute_pending" })
+        });
+        if (!executorResponse.ok) {
+          const executorError = await executorResponse.text();
+          throw new Error("OKX Futures executor returned " + executorResponse.status + ": " + executorError.slice(0, 180));
+        }
+        const executorResult = await executorResponse.json();
+        if (executorResult?.failed > 0) console.error("OKX Futures executor reported failures", executorResult);
+      } catch (error) {
+        lastError = `OKX Futures executor: ${messageOf(error)}`;
       }
     }
 
