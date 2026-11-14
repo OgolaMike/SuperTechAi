@@ -27,13 +27,6 @@ const TIMEFRAMES = [
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
-// Keep the separate M1/M5/M15 execution-quality gate intact; M1 and M5 are not
-// members of the official eight-timeframe market-analysis or 8/8 grading set.
-const AUTOMATION_TIMEFRAMES: Timeframe[] = [
-  { granularity: 60, label: "M1", candleCount: 200 },
-  { granularity: 300, label: "M5", candleCount: 200 },
-  { granularity: 900, label: "M15", candleCount: 200 },
-];
 const SUPER_SIGNAL_FRESH_PRIMARY_SECONDS = 8 * 900;
 
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
@@ -103,7 +96,7 @@ async function loadTimeframeCandles(
 const TIME_BUDGET_MS = 100_000;
 const SCAN_CONCURRENCY = 1;
 // Bound CPU work per invocation. The scheduler advances through deterministic symbol batches.
-const SCAN_SYMBOLS_PER_RUN = 10;
+const SCAN_SYMBOLS_PER_RUN = 4;
 // Events are only created for candles confirmed within this many periods, so outages never replay old signals.
 const FRESH_CANDLES = 2;
 
@@ -543,14 +536,8 @@ async function runScan(): Promise<Record<string, unknown>> {
 
             if (isFreshSignal) {
               try {
-                // Automated-entry confluence is intentionally limited to M15, M5 and M1.
-                // Higher frames remain available for context but never veto execution setups.
-                for (const frame of AUTOMATION_TIMEFRAMES) {
-                  if (!candleCache.has(frame.granularity)) {
-                    await loadTimeframeCandles(feed, symbol, frame, nowEpoch, candleCache);
-                    fetchedCount += 1;
-                  }
-                }
+                // Limit proposals use the confirmed M15 setup only. M1 and M5 are retired
+                // and must not be fetched or used as hidden execution filters.
                 const limitIntents = buildBackendLimitIntent(symbol.symbol, candleCache, nowEpoch).filter((intent) => intent.signalEpoch === latestSignal.signalEpoch);
                 for (const limitIntent of limitIntents) {
                   const limitSignalKey = symbol.symbol + "|M15|" + limitIntent.signalEpoch + "|LIMIT";
