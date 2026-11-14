@@ -97,3 +97,35 @@ test("does not retry or disguise an uncertain upstream order result", async () =
     assert.equal(attempts, 1);
   });
 });
+
+test("applies shared-IP request-weight limits before forwarding", async () => {
+  let attempts = 0;
+  await withServer({
+    rateLimits: { binance_futures: 1, binance_futures_per_key: 1 },
+    fetchImpl: async () => {
+      attempts++;
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    },
+  }, async (base) => {
+    const makeRequest = async (nonce) => {
+      const payload = JSON.stringify({
+        provider: "binance_futures",
+        method: "POST",
+        path: "/fapi/v1/order",
+        headers: { "X-MBX-APIKEY": "test-api-key", "Content-Type": "application/x-www-form-urlencoded" },
+        body: "symbol=BTCUSDT&side=BUY&type=MARKET",
+      });
+      return fetch(base + "/v1/exchange-request", {
+        method: "POST", headers: signedHeaders(payload, nonce), body: payload,
+      });
+    };
+    const first = await makeRequest("rate-limit-nonce-0001");
+    const second = await makeRequest("rate-limit-nonce-0002");
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 429);
+    assert.equal(second.headers.get("retry-after") !== null, true);
+    assert.equal(attempts, 1);
+  });
+});
