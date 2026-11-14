@@ -270,20 +270,25 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               ),
             );
             const selectedSet = new Set(currentAssets);
-            const backgroundMarketTasks = allSymbols
-              .filter((symbol) => !selectedSet.has(symbol))
-              .flatMap((symbol) => NATIVE_TIMEFRAMES.map((timeframe) => () => {
-                const granularity = timeframe.granularity;
-                const historyCount = granularity === M15_GRANULARITY ? ALL_ASSET_M15_HISTORY : timeframe.candleCount;
-                return client.subscribeCandles(symbol, granularity, historyCount).then((candles) => {
-                  candlesRef.current[symbol] ??= {};
-                  candlesRef.current[symbol][granularity] = candles;
-                  const confirmedEpoch = latestConfirmedEpoch(candles, granularity, Math.floor(Date.now() / 1000));
-                  if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${granularity}`] = confirmedEpoch;
-                  recompute(symbol, granularity);
-                  if (granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, candles);
-                });
-              }));
+            const backgroundSymbols = allSymbols.filter((symbol) => !selectedSet.has(symbol));
+            // Load H1 across the whole market universe first: the watchlist ROC and
+            // daily movers depend on hourly history. Previously each symbol queued
+            // D1 before H1, delaying useful watchlist data behind the full scan.
+            const backgroundMarketTasks = [
+              ...NATIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity === HOURLY_GRANULARITY),
+              ...NATIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== HOURLY_GRANULARITY),
+            ].flatMap((timeframe) => backgroundSymbols.map((symbol) => () => {
+              const granularity = timeframe.granularity;
+              const historyCount = granularity === M15_GRANULARITY ? ALL_ASSET_M15_HISTORY : timeframe.candleCount;
+              return client.subscribeCandles(symbol, granularity, historyCount).then((candles) => {
+                candlesRef.current[symbol] ??= {};
+                candlesRef.current[symbol][granularity] = candles;
+                const confirmedEpoch = latestConfirmedEpoch(candles, granularity, Math.floor(Date.now() / 1000));
+                if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${granularity}`] = confirmedEpoch;
+                recompute(symbol, granularity);
+                if (granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, candles);
+              });
+            }));
 
             // Prioritise selected dashboard feeds; finish the all-market scan setup in the background.
             return client.staggerSubscriptions([
