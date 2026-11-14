@@ -29,6 +29,16 @@ const DEFAULT_RATE_LIMITS = {
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
+function isPublicBinanceRequest(provider, method, pathname) {
+  if (method !== "GET") return false;
+  const publicPaths = provider === "binance_futures"
+    ? new Set(["/fapi/v1/exchangeInfo", "/fapi/v1/klines", "/fapi/v1/ticker/24hr", "/fapi/v1/ticker/price"])
+    : provider === "binance_spot"
+    ? new Set(["/api/v3/exchangeInfo", "/api/v3/klines", "/api/v3/ticker/24hr"])
+    : new Set();
+  return publicPaths.has(pathname);
+}
+
 function estimateRequestWeight(provider, target, method) {
   const path = target.pathname;
   if (provider === "binance_futures") {
@@ -175,7 +185,9 @@ export function createGatewayServer({
       }
       upstreamHeaders.set(name, value);
     }
-    if (provider.startsWith("binance_") && !upstreamHeaders.has("x-mbx-apikey")) {
+    const publicBinanceRequest = provider.startsWith("binance_") &&
+      isPublicBinanceRequest(provider, method, target.pathname);
+    if (provider.startsWith("binance_") && !publicBinanceRequest && !upstreamHeaders.has("x-mbx-apikey")) {
       return writeJson(res, 400, { error: "binance_api_key_header_required" });
     }
     if (provider === "okx" &&
@@ -189,7 +201,7 @@ export function createGatewayServer({
     const apiKey = provider === "okx"
       ? upstreamHeaders.get("ok-access-key")
       : upstreamHeaders.get("x-mbx-apikey");
-    const keyHash = sha256(apiKey ?? "");
+    const keyHash = sha256(apiKey ?? ("public:" + provider));
     const windowStart = Math.floor(now / RATE_WINDOW_MS) * RATE_WINDOW_MS;
     const weight = provider === "okx" ? 1 : estimateRequestWeight(provider, target, method);
     const globalLimit = provider === "okx" ? Number.POSITIVE_INFINITY : Number(rateLimits[provider]);
