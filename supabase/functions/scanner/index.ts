@@ -103,7 +103,7 @@ async function loadTimeframeCandles(
 const TIME_BUDGET_MS = 100_000;
 const SCAN_CONCURRENCY = 1;
 // Bound CPU work per invocation. The scheduler advances through deterministic symbol batches.
-const SCAN_SYMBOLS_PER_RUN = 10;
+const SCAN_SYMBOLS_PER_RUN = 4;
 // Events are only created for candles confirmed within this many periods, so outages never replay old signals.
 const FRESH_CANDLES = 2;
 
