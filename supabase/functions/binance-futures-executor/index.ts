@@ -114,9 +114,10 @@ Deno.serve(async req=>{
        // carried across midnight). The first run of a UTC day only establishes the
        // baseline; execution resumes on the next scan after the baseline is confirmed.
        const tradingDay=new Date().toISOString().slice(0,10);
-       let {data:dailyBaseline,error:baselineError}=await db.from("binance_futures_daily_equity")
+       const {data:initialBaseline,error:baselineError}=await db.from("binance_futures_daily_equity")
         .select("baseline_equity").eq("user_id",cfg.user_id).eq("trading_day",tradingDay).maybeSingle();
        if(baselineError)throw Error("daily_equity_baseline_lookup_failed");
+       let dailyBaseline=initialBaseline;
        if(!dailyBaseline){
         const {error:insertBaselineError}=await db.from("binance_futures_daily_equity").upsert({
          user_id:cfg.user_id,trading_day:tradingDay,baseline_equity:currentEquity
