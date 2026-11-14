@@ -116,11 +116,11 @@ export async function exchangeGatewayFetch(
       redirect: "error",
     });
   } catch {
-    throw new Error(provider === "okx" ? "okx_network_outcome_uncertain" : "binance_network_outcome_uncertain");
+    throw new TypeError(provider === "okx" ? "okx_network_outcome_uncertain" : "binance_network_outcome_uncertain");
   }
 
   if (response.headers.get("x-stai-gateway-error") === "upstream_network_outcome_uncertain") {
-    throw new Error(provider === "okx" ? "okx_network_outcome_uncertain" : "binance_network_outcome_uncertain");
+    throw new TypeError(provider === "okx" ? "okx_network_outcome_uncertain" : "binance_network_outcome_uncertain");
   }
   return response;
 }
