@@ -95,7 +95,7 @@ jobs:
       - name: Type-check exchange gateway client
         run: deno check supabase/functions/_shared/exchange-gateway.ts supabase/functions/_shared/exchange-gateway_test.ts supabase/functions/binance-futures/index.ts supabase/functions/binance-futures-executor/index.ts supabase/functions/binance-spot/index.ts supabase/functions/okx-futures/index.ts supabase/functions/okx-futures-executor/index.ts supabase/functions/scanner/binanceSpotAutomation.ts
       - name: Run exchange gateway tests
-        run: deno test supabase/functions/_shared/exchange-gateway_test.ts
+        run: deno test --allow-env=AUTOMATION_GATEWAY_URL,AUTOMATION_GATEWAY_SECRET supabase/functions/_shared/exchange-gateway_test.ts
       - name: Run gateway service tests
         run: node --test gateway/server.test.mjs
       - name: Build gateway container
