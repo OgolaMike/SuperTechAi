@@ -18,8 +18,34 @@ const ALLOWED_HEADERS = new Set([
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_CLOCK_SKEW_MS = 30_000;
 const NONCE_TTL_MS = 120_000;
+const RATE_WINDOW_MS = 60_000;
+const DEFAULT_RATE_LIMITS = {
+  binance_spot: 4_500,
+  binance_futures: 1_800,
+  binance_spot_per_key: 1_500,
+  binance_futures_per_key: 600,
+  okx_per_key: 60,
+};
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+function estimateRequestWeight(provider, target, method) {
+  const path = target.pathname;
+  if (provider === "binance_futures") {
+    if (path.endsWith("/positionSide/dual") || path.endsWith("/income")) return 30;
+    if (path.endsWith("/openOrders") && !target.searchParams.has("symbol")) return 40;
+    if (path.endsWith("/account") || path.endsWith("/positionRisk")) return 5;
+    return 1;
+  }
+  if (provider === "binance_spot") {
+    if (path.endsWith("/account")) return 20;
+    if (path.endsWith("/openOrders") && !target.searchParams.has("symbol")) return 80;
+    if (path.endsWith("/orderList")) return 2;
+    if (path.endsWith("/order")) return 4;
+    return method === "GET" ? 5 : 1;
+  }
+  return 1;
+}
 
 export function signGatewayRequest(secret, { timestamp, nonce, method, pathname, body }) {
   const canonical = [timestamp, nonce, method.toUpperCase(), pathname, sha256(body)].join("\n");
@@ -76,11 +102,13 @@ export function createGatewayServer({
   fetchImpl = fetch,
   clock = () => Date.now(),
   timeoutMs = 12_000,
+  rateLimits = DEFAULT_RATE_LIMITS,
 } = {}) {
   if (typeof secret !== "string" || Buffer.byteLength(secret) < 32) {
     throw new Error("GATEWAY_SHARED_SECRET_must_be_at_least_32_bytes");
   }
   const usedNonces = new Map();
+  const rateWindows = new Map();
 
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://gateway.internal");
@@ -152,6 +180,33 @@ export function createGatewayServer({
          !upstreamHeaders.has("ok-access-timestamp") || !upstreamHeaders.has("ok-access-passphrase"))) {
       return writeJson(res, 400, { error: "okx_authentication_headers_required" });
     }
+
+    // Centralise request-weight budgets because every member now shares this
+    // gateway's public egress IP. Per-key budgets also protect provider account limits.
+    const apiKey = provider === "okx"
+      ? upstreamHeaders.get("ok-access-key")
+      : upstreamHeaders.get("x-mbx-apikey");
+    const keyHash = sha256(apiKey ?? "");
+    const windowStart = Math.floor(now / RATE_WINDOW_MS) * RATE_WINDOW_MS;
+    const weight = provider === "okx" ? 1 : estimateRequestWeight(provider, target, method);
+    const globalLimit = provider === "okx" ? Number.POSITIVE_INFINITY : Number(rateLimits[provider]);
+    const accountLimit = Number(rateLimits[provider + "_per_key"] ?? rateLimits.okx_per_key);
+    const globalKey = "global:" + provider;
+    const accountKey = "account:" + provider + ":" + keyHash;
+    const globalWindow = rateWindows.get(globalKey);
+    const accountWindow = rateWindows.get(accountKey);
+    const globalUsed = globalWindow?.windowStart === windowStart ? globalWindow.used : 0;
+    const accountUsed = accountWindow?.windowStart === windowStart ? accountWindow.used : 0;
+    if (globalUsed + weight > globalLimit || accountUsed + weight > accountLimit) {
+      const retryAfter = Math.max(1, Math.ceil((windowStart + RATE_WINDOW_MS - now) / 1000));
+      return writeJson(res, 429, { error: "gateway_rate_limit", retryAfterSeconds: retryAfter }, {
+        "retry-after": String(retryAfter),
+      });
+    }
+    if (Number.isFinite(globalLimit)) {
+      rateWindows.set(globalKey, { windowStart, used: globalUsed + weight });
+    }
+    rateWindows.set(accountKey, { windowStart, used: accountUsed + weight });
 
     const started = clock();
     try {
