@@ -76,6 +76,8 @@ test("rejects invalid signatures and replayed nonces", async () => {
     const second = await fetch(base + "/v1/exchange-request", { method: "POST", headers, body: payload });
     assert.equal(first.status, 200);
     assert.equal(second.status, 409);
+    await first.text();
+    await second.text();
   });
 });
 
@@ -94,6 +96,7 @@ test("does not retry or disguise an uncertain upstream order result", async () =
     });
     assert.equal(response.status, 502);
     assert.equal(response.headers.get("x-stai-gateway-error"), "upstream_network_outcome_uncertain");
+    await response.json();
     assert.equal(attempts, 1);
   });
 });
@@ -126,6 +129,8 @@ test("applies shared-IP request-weight limits before forwarding", async () => {
     assert.equal(first.status, 200);
     assert.equal(second.status, 429);
     assert.equal(second.headers.get("retry-after") !== null, true);
+    await first.json();
+    await second.json();
     assert.equal(attempts, 1);
   });
 });
@@ -152,5 +157,6 @@ test("allows only explicitly listed public Binance endpoints without an exchange
     });
     assert.equal(response.status, 200);
     assert.equal(forwardedUrl, "https://fapi.binance.com/fapi/v1/exchangeInfo");
+    await response.json();
   });
 });
