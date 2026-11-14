@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : "binance_spot_error";
     const rejected = /invalid api-key, ip, or permissions/i.test(message);
     const userMessage = rejected
-      ? "Binance rejected this API key. Verify the API key and secret, enable Spot trading permission, and check API Management IP restrictions. Recent SuperTech server logs show outbound IPs 35.180.109.45 and 15.237.127.167; confirm the active egress IP before allowlisting. Keep withdrawals disabled."
+      ? "Binance rejected this API key. Verify the API key and secret, enable Spot trading permission, and allowlist the static SuperTech execution-gateway IP supplied by the administrator. Do not allowlist changing cloud egress IPs. Keep withdrawals disabled."
       : message.slice(0, 180);
     return json({ code: rejected ? "binance_api_key_ip_or_permission_rejected" : "binance_spot_error", error: userMessage, message: userMessage }, 400);
   }
