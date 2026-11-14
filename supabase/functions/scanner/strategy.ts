@@ -46,10 +46,6 @@ function buildLevels(direction: Direction, mean: number, deviation: number, entr
 }
 
 function evaluateOutcome(direction: Direction, levels: Levels, after: Candle[]): Outcome {
-  const sign = direction === "BUY" ? 1 : -1;
-  const reachedTarget = (close: number, target: number) => sign * (close - target) >= 0;
-  const reachedStop = (close: number, stop: number) => sign * (close - stop) <= 0;
-
   let tp1Epoch: number | null = null;
   let tp2Epoch: number | null = null;
   let tp3Epoch: number | null = null;
@@ -57,10 +53,34 @@ function evaluateOutcome(direction: Direction, levels: Levels, after: Candle[]):
 
   for (const candle of after) {
     if (slEpoch !== null || tp3Epoch !== null) break;
-    if (tp1Epoch === null && reachedTarget(candle.close, levels.tp1)) tp1Epoch = candle.epoch;
-    if (tp2Epoch === null && reachedTarget(candle.close, levels.tp2)) tp2Epoch = candle.epoch;
-    if (tp3Epoch === null && reachedTarget(candle.close, levels.tp3)) tp3Epoch = candle.epoch;
-    if (tp3Epoch === null && reachedStop(candle.close, levels.stopLoss)) slEpoch = candle.epoch;
+    const high = candle.high ?? candle.close;
+    const low = candle.low ?? candle.close;
+    const stopTouched = direction === "BUY"
+      ? low <= levels.stopLoss
+      : high >= levels.stopLoss;
+    const tp1Touched = direction === "BUY"
+      ? high >= levels.tp1
+      : low <= levels.tp1;
+    const tp2Touched = direction === "BUY"
+      ? high >= levels.tp2
+      : low <= levels.tp2;
+    const tp3Touched = direction === "BUY"
+      ? high >= levels.tp3
+      : low <= levels.tp3;
+
+    // OHLC candles do not reveal intrabar ordering. If a candle touches both
+    // stop and a target, resolve conservatively as a stop and credit no new TP.
+    if (stopTouched && (tp1Touched || tp2Touched || tp3Touched)) {
+      slEpoch = candle.epoch;
+      break;
+    }
+    if (stopTouched) {
+      slEpoch = candle.epoch;
+      break;
+    }
+    if (tp1Epoch === null && tp1Touched) tp1Epoch = candle.epoch;
+    if (tp2Epoch === null && tp2Touched) tp2Epoch = candle.epoch;
+    if (tp3Touched) tp3Epoch = candle.epoch;
   }
 
   const status: SignalStatus =
