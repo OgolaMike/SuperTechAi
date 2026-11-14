@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { exchangeGatewayFetch } from "../_shared/exchange-gateway.ts";
 import { assertExecutionIntent, executionIdempotencyKey } from "./execution-contract.ts";
 
 type SpotIntent = {
@@ -59,7 +60,7 @@ async function signedBinance(
   const url = BASE + path + (method !== "POST" ? "?" + params.toString() + "&signature=" + encodeURIComponent(signature) : "");
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await exchangeGatewayFetch("binance_spot", url, {
       method,
       headers: {
         "X-MBX-APIKEY": apiKey,
