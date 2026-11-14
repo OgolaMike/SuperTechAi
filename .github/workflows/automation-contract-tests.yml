@@ -10,12 +10,6 @@ on:
       - "supabase/functions/binance-futures/index.ts"
       - "supabase/functions/binance-spot/index.ts"
       - "supabase/functions/okx-futures/index.ts"
-      - "gateway/**"
-      - "supabase/functions/_shared/exchange-gateway.ts"
-      - "supabase/functions/_shared/exchange-gateway_test.ts"
-      - "supabase/functions/binance-futures/index.ts"
-      - "supabase/functions/binance-spot/index.ts"
-      - "supabase/functions/okx-futures/index.ts"
       - "supabase/functions/_shared/execution-contract.ts"
       - "supabase/functions/_shared/execution-contract_test.ts"
       - "supabase/functions/_shared/automation-status.ts"
@@ -44,6 +38,12 @@ on:
   push:
     branches: ["automation/unified-mobile-cloud", "feat/cloud-execution-gateway"]
     paths:
+      - "gateway/**"
+      - "supabase/functions/_shared/exchange-gateway.ts"
+      - "supabase/functions/_shared/exchange-gateway_test.ts"
+      - "supabase/functions/binance-futures/index.ts"
+      - "supabase/functions/binance-spot/index.ts"
+      - "supabase/functions/okx-futures/index.ts"
       - "supabase/functions/_shared/execution-contract.ts"
       - "supabase/functions/_shared/execution-contract_test.ts"
       - "supabase/functions/_shared/automation-status.ts"
