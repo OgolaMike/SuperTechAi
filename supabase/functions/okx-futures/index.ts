@@ -43,7 +43,7 @@ async function decrypt(v:string){const b=Uint8Array.from(atob(v),c=>c.charCodeAt
 async function signature(secret:string,message:string){const k=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC",k,enc.encode(message)))));}
 async function okx(k:string,s:string,p:string,path:string,method="GET",body:Record<string,unknown>|null=null,demo=false){
  const ts=new Date().toISOString(),payload=body?JSON.stringify(body):"",sign=await signature(s,ts+method+path+payload);
- let r:Response;try{r=await exchangeGatewayFetch("okx","https://openapi.okx.com"+path,{method,headers:{"OK-ACCESS-KEY":k,"OK-ACCESS-SIGN":sign,"OK-ACCESS-TIMESTAMP":ts,"OK-ACCESS-PASSPHRASE":p,"Content-Type":"application/json",...(demo?{"x-simulated-trading":"1"}:{})},...(body?{body:payload}:{})});}catch{throw Error("okx_network_outcome_uncertain");}
+ let r:Response;try{r=await exchangeGatewayFetch("okx","https://openapi.okx.com"+path,{method,headers:{"OK-ACCESS-KEY":k,"OK-ACCESS-SIGN":sign,"OK-ACCESS-TIMESTAMP":ts,"OK-ACCESS-PASSPHRASE":p,"Content-Type":"application/json",...(demo?{"x-simulated-trading":"1"}:{})},...(body?{body:payload}:{})});}catch(error){if(error instanceof Error&&error.message==="automation_gateway_not_configured")throw error;throw Error("okx_network_outcome_uncertain");}
  const d=await r.json();if(!r.ok||d.code!=="0")throw Error("OKX "+(d.code??r.status)+": "+(d.msg??"API request rejected"));
  const bad=(d.data??[]).find((x:OkxRecord)=>typeof x.sCode==="string"&&x.sCode!=="0");if(bad)throw Error("OKX "+String(bad.sCode)+": "+String(bad.sMsg??"request rejected"));
  return d.data??[];
