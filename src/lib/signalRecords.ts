@@ -72,13 +72,40 @@ export async function upsertSignalRecords(rows: SignalRecordRow[]): Promise<void
   }
 }
 
-export async function fetchSignalRecords(): Promise<SignalRecordRow[]> {
-  const { data, error } = await supabase
-    .from('signal_records')
-    .select(RECORD_COLUMNS)
-    .order('signal_epoch', { ascending: false })
-    .limit(RECORD_LIMIT);
-  if (error) throw new Error(error.message);
-  if (!Array.isArray(data)) throw new Error('Unexpected response from the records service');
-  return data as SignalRecordRow[];
+const RECORD_CACHE_TTL_MS = 15_000;
+let cachedRecords: SignalRecordRow[] | null = null;
+let cachedRecordsAt = 0;
+let recordsRequest: Promise<SignalRecordRow[]> | null = null;
+
+/**
+ * Share the same short-lived result/request between the dashboard's AI model
+ * and the Records section. This avoids duplicate history reads on first visit
+ * and makes quick section revisits feel immediate. Manual refresh bypasses it.
+ */
+export async function fetchSignalRecords(options: { force?: boolean } = {}): Promise<SignalRecordRow[]> {
+  const force = options.force === true;
+  if (!force && cachedRecords && Date.now() - cachedRecordsAt < RECORD_CACHE_TTL_MS) {
+    return cachedRecords;
+  }
+  if (!force && recordsRequest) return recordsRequest;
+
+  const request = (async () => {
+    const { data, error } = await supabase
+      .from('signal_records')
+      .select(RECORD_COLUMNS)
+      .order('signal_epoch', { ascending: false })
+      .limit(RECORD_LIMIT);
+    if (error) throw new Error(error.message);
+    if (!Array.isArray(data)) throw new Error('Unexpected response from the records service');
+    cachedRecords = data as SignalRecordRow[];
+    cachedRecordsAt = Date.now();
+    return cachedRecords;
+  })();
+
+  recordsRequest = request;
+  try {
+    return await request;
+  } finally {
+    if (recordsRequest === request) recordsRequest = null;
+  }
 }
