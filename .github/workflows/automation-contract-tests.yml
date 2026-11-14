@@ -35,7 +35,6 @@ on:
       - "supabase/config.toml"
       - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
       - "docs/UNATTENDED_AUTOMATION_DELIVERY.md"
-      - "docs/UNATTENDED_AUTOMATION_DELIVERY.md"
       - "src/**"
       - "package.json"
       - "package-lock.json"
@@ -70,6 +69,7 @@ on:
       - "supabase/config.toml"
       - ".github/workflows/automation-contract-tests.yml"
       - "docs/UNIFIED_AUTOMATION_ARCHITECTURE.md"
+      - "docs/UNATTENDED_AUTOMATION_DELIVERY.md"
       - "src/**"
 
 permissions:
