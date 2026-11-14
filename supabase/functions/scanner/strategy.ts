@@ -80,11 +80,28 @@ export function computeSignals(
   nowEpoch: number,
 ): { signals: Signal[]; lastConfirmedEpoch: number | null } {
   const confirmed = candles.filter((candle) => candle.epoch + granularity <= nowEpoch);
+  // Rolling sums avoid rebuilding and reducing 60-element windows for every candle.
+  // This keeps CPU use bounded when the scanner processes several markets per invocation.
+  const rollingSum = new Array<number>(confirmed.length).fill(0);
+  const rollingSquareSum = new Array<number>(confirmed.length).fill(0);
+  let sum = 0;
+  let squareSum = 0;
+  for (let index = 0; index < confirmed.length; index += 1) {
+    const close = confirmed[index].close;
+    sum += close;
+    squareSum += close * close;
+    if (index >= SMA_PERIOD) {
+      const expired = confirmed[index - SMA_PERIOD].close;
+      sum -= expired;
+      squareSum -= expired * expired;
+    }
+    rollingSum[index] = sum;
+    rollingSquareSum[index] = squareSum;
+  }
   const stats = confirmed.map((_, index) => {
     if (index < SMA_PERIOD - 1) return null;
-    const window = confirmed.slice(index - SMA_PERIOD + 1, index + 1).map((candle) => candle.close);
-    const mean = window.reduce((sum, value) => sum + value, 0) / SMA_PERIOD;
-    const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / SMA_PERIOD;
+    const mean = rollingSum[index] / SMA_PERIOD;
+    const variance = Math.max(0, rollingSquareSum[index] / SMA_PERIOD - mean * mean);
     return { mean, deviation: Math.sqrt(variance) };
   });
 
