@@ -272,10 +272,12 @@ function App() {
         {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
-        <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>
-          <NotificationSettings assets={assets} />
-          {view === 'alerts' && <ServiceHealth />}
-        </section>
+        {view === 'alerts' && (
+          <section className="mt-8 grid gap-6 lg:grid-cols-2">
+            <NotificationSettings assets={assets} />
+            <ServiceHealth />
+          </section>
+        )}
 
         {view === 'network' && <NetworkPanel />}
         {view === 'referrals' && <AccountHub />}
