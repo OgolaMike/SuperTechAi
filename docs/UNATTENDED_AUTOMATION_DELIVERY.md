@@ -40,7 +40,7 @@ Member device (Android / iPhone / tablet / laptop)
 
 The gateway is a narrowly scoped network relay, not a general-purpose proxy and not a place where member exchange secrets are stored. The Edge Functions continue to sign Binance and OKX requests locally. Only the already-signed request, API-key header, and a separate short-lived HMAC service signature are sent to the gateway. The gateway can reach only the hard-coded Binance Spot, Binance USD-M Futures, and OKX API origins.
 
-The gateway does not retry an order request. A timeout can mean that the exchange accepted the order but the response was lost. The caller must reconcile by the deterministic client order ID before deciding what happened.
+The gateway does not retry an order request. A timeout can mean that the exchange accepted the order but the response was lost. The caller must reconcile by the deterministic client order ID before deciding what happened. It also applies conservative shared-IP and per-key request-weight budgets (below Binance's published IP limits), forwards exchange usage/Retry-After headers, and rejects excess requests with HTTP 429 rather than amplifying an IP ban. The gateway's local budget is a safety ceiling, not a replacement for reading the exchange's live rate-limit headers.
 
 ## What this branch implements
 
