@@ -202,7 +202,7 @@ Deno.serve(async req => {
     console.error("[binance-futures] request failed", { message, name: error instanceof Error ? error.name : "unknown" });
     const rejected = /invalid api-key, ip, or permissions/i.test(message);
     const userMessage = rejected
-      ? "Binance rejected this API key. Verify the API key and secret, confirm USDⓈ-M Futures permission is enabled, and check whether the key is restricted to trusted IPs. For cloud execution without a fixed IP allowlist, use a self-generated RSA key supported by USDⓈ-M Futures. Keep withdrawals disabled."
+      ? "Binance rejected this API key. Verify the API key and secret, confirm USDⓈ-M Futures permission is enabled, and allowlist only the static SuperTech execution-gateway IP supplied by the administrator. RSA keys do not replace IP allowlisting. Keep withdrawals disabled."
       : message.slice(0, 180);
     return json({ ok: false, code: rejected ? "binance_api_key_ip_or_permission_rejected" : "binance_futures_error", error: userMessage, message: userMessage }, 400);
   }
