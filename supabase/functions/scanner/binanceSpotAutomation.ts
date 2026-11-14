@@ -68,7 +68,8 @@ async function signedBinance(
       },
       ...(method === "POST" ? { body: params.toString() + "&signature=" + encodeURIComponent(signature) } : {}),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "automation_gateway_not_configured") throw error;
     throw new Error("binance_network_outcome_uncertain");
   }
   const data = await response.json().catch(() => ({}));
