@@ -7,7 +7,6 @@ const enc=new TextEncoder();
 const asArrayBuffer=(bytes:Uint8Array):ArrayBuffer=>{const copy=new Uint8Array(bytes.byteLength);copy.set(bytes);return copy.buffer;};
 type PositionRow = { symbol?: string; positionAmt?: string | number };
 type AssetRow = { asset?: string; availableBalance?: string | number; walletBalance?: string | number };
-type IncomeRow = { income?: string | number; incomeType?: string };
 type ExchangeFilter = { filterType?: string; stepSize?: string; maxQty?: string; minQty?: string; tickSize?: string; notional?: string; minNotional?: string };
 type ExchangeSymbol = { symbol?: string; status?: string; filters?: ExchangeFilter[] };
 type ExchangeInfo = { symbols?: ExchangeSymbol[] };
@@ -99,7 +98,6 @@ Deno.serve(async req=>{
      if(memberPreflightError){skipped++;continue;}
      if(!memberSnapshot){
       try{
-       const utcStart=new Date();utcStart.setUTCHours(0,0,0,0);
        const [account,mode,positions]=await Promise.all([
         binance(key,secret,keyType,"/fapi/v2/account"),
         binance(key,secret,keyType,"/fapi/v1/positionSide/dual"),
