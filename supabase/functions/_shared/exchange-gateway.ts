@@ -17,6 +17,14 @@ async function sha256(value: string): Promise<string> {
   return hex(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(value))));
 }
 
+function isPublicBinanceRequest(provider: ExchangeProvider, method: string, pathname: string): boolean {
+  if (method !== "GET" || !provider.startsWith("binance_")) return false;
+  const paths = provider === "binance_futures"
+    ? new Set(["/fapi/v1/exchangeInfo", "/fapi/v1/klines", "/fapi/v1/ticker/24hr", "/fapi/v1/ticker/price"])
+    : new Set(["/api/v3/exchangeInfo", "/api/v3/klines", "/api/v3/ticker/24hr"]);
+  return paths.has(pathname);
+}
+
 async function hmac(secret: string, value: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
@@ -70,7 +78,8 @@ export async function exchangeGatewayFetch(
     const lower = name.toLowerCase();
     if (ALLOWED_HEADERS.has(lower)) safeHeaders[lower] = value;
   });
-  if (provider.startsWith("binance_") && !safeHeaders["x-mbx-apikey"]) {
+  const publicBinanceRequest = isPublicBinanceRequest(provider, method, upstream.pathname);
+  if (provider.startsWith("binance_") && !publicBinanceRequest && !safeHeaders["x-mbx-apikey"]) {
     throw new Error("binance_api_key_header_required");
   }
   if (provider === "okx" &&
