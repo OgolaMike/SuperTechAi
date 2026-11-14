@@ -129,3 +129,28 @@ test("applies shared-IP request-weight limits before forwarding", async () => {
     assert.equal(attempts, 1);
   });
 });
+
+test("allows only explicitly listed public Binance endpoints without an exchange key", async () => {
+  let forwardedUrl = "";
+  await withServer({
+    fetchImpl: async (url) => {
+      forwardedUrl = String(url);
+      return new Response(JSON.stringify({ symbols: [] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    },
+  }, async (base) => {
+    const payload = JSON.stringify({
+      provider: "binance_futures",
+      method: "GET",
+      path: "/fapi/v1/exchangeInfo",
+      headers: {},
+      body: null,
+    });
+    const response = await fetch(base + "/v1/exchange-request", {
+      method: "POST", headers: signedHeaders(payload, "public-market-nonce-001"), body: payload,
+    });
+    assert.equal(response.status, 200);
+    assert.equal(forwardedUrl, "https://fapi.binance.com/fapi/v1/exchangeInfo");
+  });
+});
