@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { exchangeGatewayFetch } from "./exchange-gateway.ts";
 
 Deno.test("exchange gateway fails closed when not configured", async () => {
