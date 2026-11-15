@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Bot, Send, Sparkles, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { TIMEFRAMES, isStale, type Asset, type TfState } from '@/lib/sma';
@@ -22,6 +22,37 @@ export function MarketCopilot({ assets, states, prices, selectedSymbols }: Props
   const [messages, setMessages] = useState<Message[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const loadHistory = async () => {
+      try {
+        const { data, error: loadError } = await supabase.functions.invoke('academy-ai', {
+          body: { action: 'list-market-assistant' },
+        });
+        if (!active) return;
+        if (loadError || data?.error) {
+          setError(data?.error || 'Your saved conversation could not be loaded.');
+          return;
+        }
+        if (Array.isArray(data?.messages)) {
+          const restored = data.messages.filter((item: unknown): item is Message => {
+            if (!item || typeof item !== 'object') return false;
+            const row = item as Record<string, unknown>;
+            return (row.role === 'user' || row.role === 'assistant') && typeof row.content === 'string';
+          });
+          setMessages(restored.slice(-40));
+        }
+      } catch {
+        if (active) setError('Your saved conversation could not be loaded. You can still start a new question.');
+      } finally {
+        if (active) setHistoryLoading(false);
+      }
+    };
+    void loadHistory();
+    return () => { active = false; };
+  }, []);
 
   const marketSnapshot = useMemo(() => {
     const now = Math.floor(Date.now() / 1000);
@@ -103,7 +134,9 @@ export function MarketCopilot({ assets, states, prices, selectedSymbols }: Props
       </header>
 
       <div className="rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
-        {messages.length === 0 ? (
+        {historyLoading ? (
+          <p className="py-8 text-center text-sm text-ink-3">Restoring your previous conversation…</p>
+        ) : messages.length === 0 ? (
           <div className="space-y-3 py-2">
             <p className="text-sm font-semibold text-ink">Try asking</p>
             {SUGGESTIONS.map((suggestion) => (
