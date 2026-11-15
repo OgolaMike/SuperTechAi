@@ -21,6 +21,8 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
   const [chartOpen, setChartOpen] = useState(false);
   const signal = tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
+  const isWeekend = [0, 6].includes(new Date().getDay());
+  const marketClosed = asset.exchange === 'DERIV' && isWeekend && asset.market !== 'synthetic_index';
   const isBuy = signal?.direction === 'BUY';
   const isSell = signal?.direction === 'SELL';
   const aiScore = signal ? getAiPatternScore(aiModel, tf.granularity, signal.direction, signal.levels) : null;
@@ -107,14 +109,16 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
             </div>
           )}
         </>
+      ) : tf.granularity === 86400 && marketClosed ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center"><div className="text-base font-semibold text-ink-2">Market closed</div><div className="text-sm text-ink-3">This market is closed for the weekend. Signals will update when it reopens.</div></div>
       ) : tf.granularity === 86400 ? (
         <DailyCandlesEmptyState candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} assetName={asset.fullName} digits={asset.digits} loading={loading} livePrice={price} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
           {loading ? <Loader2 className="h-6 w-6 animate-spin text-ink-3" /> : <Minus className="h-6 w-6 text-ink-3" />}
-          <div className="text-base font-semibold text-ink-2">{loading ? 'Loading market data' : 'No new signal'}</div>
+          <div className="text-base font-semibold text-ink-2">{marketClosed ? 'Market closed' : loading ? 'Loading market data' : 'No new signal'}</div>
           <div className="text-sm text-ink-3">
-            {loading ? 'Waiting for recent price data.' : 'A signal appears when price crosses its average after a candle closes.'}
+            {marketClosed ? 'This market is closed for the weekend. Signals will update when it reopens.' : loading ? 'Waiting for recent price data.' : 'No crossover has closed yet.'}
           </div>
         </div>
       )}
