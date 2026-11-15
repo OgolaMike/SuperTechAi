@@ -74,7 +74,7 @@ export function findMarketStructureMarkers(candles: Candle[]): StructureMarker[]
 
   const markers: StructureMarker[] = [];
   highs.forEach((pivot, index) => {
-    if (index === 0) return;
+    if (index === 0 || pivot.price === highs[index - 1].price) return;
     markers.push({
       epoch: candles[pivot.index].epoch,
       price: pivot.price,
@@ -82,7 +82,7 @@ export function findMarketStructureMarkers(candles: Candle[]): StructureMarker[]
     });
   });
   lows.forEach((pivot, index) => {
-    if (index === 0) return;
+    if (index === 0 || pivot.price === lows[index - 1].price) return;
     markers.push({
       epoch: candles[pivot.index].epoch,
       price: pivot.price,
