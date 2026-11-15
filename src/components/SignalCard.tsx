@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target, X } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
-import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
+import { formatDateTime, isStale, type Asset, type TfState } from '@/lib/sma';
 import type { Signal } from '@/lib/signals';
 import type { Candle } from '@/lib/deriv';
 import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
@@ -21,6 +21,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
   const [chartOpen, setChartOpen] = useState(false);
   const signal = tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
+  const stale = !loading && isStale(tf, Math.floor(Date.now() / 1000));
   const isWeekend = [0, 6].includes(new Date().getDay());
   const marketGroup = (asset.market ?? '').toLowerCase();
   const weekendTrading = marketGroup.includes('synthetic') || marketGroup.includes('crypto');
@@ -62,6 +63,11 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
         <div role="status" className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
           <div className="text-base font-semibold text-ink-2">Market closed</div>
           <div className="max-w-md text-sm leading-relaxed text-ink-3">This market does not trade over the weekend. Live signals will resume when it reopens.</div>
+        </div>
+      ) : stale ? (
+        <div role="status" className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
+          <div className="text-base font-semibold text-ink-2">Signal data is out of date</div>
+          <div className="max-w-md text-sm leading-relaxed text-ink-3">We are waiting for fresh market data. This older signal is hidden until the feed updates.</div>
         </div>
       ) : signal ? (
         <>
