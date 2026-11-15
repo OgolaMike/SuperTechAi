@@ -233,6 +233,12 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
                 <button type="button" onClick={() => setVisibleCount((value) => Math.max(30, value - 20))} className="rounded-lg border border-line/15 px-2 py-1 text-xs text-ink-2">Zoom in</button>
               </div>
             </div>
+            {timeframe.granularity === 900 && showSarStructure && <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-ink-3">
+              <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-sky-400" />SAR below candle</span>
+              <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400" />SAR above candle</span>
+              <span><span className="mr-1 font-bold text-up">HH / HL</span> rising swings</span>
+              <span><span className="mr-1 font-bold text-down">LH / LL</span> falling swings</span>
+            </div>}
             <label className="mb-3 flex items-center gap-3 text-xs text-ink-2">
               <span className="shrink-0">Candle spacing</span>
               <input type="range" min="5" max="24" step="1" value={spacing} onChange={(event) => setSpacing(Number(event.target.value))} className="min-w-0 flex-1 accent-accent" />
