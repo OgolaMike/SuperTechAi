@@ -23,93 +23,8 @@ export type PendingOrderIdea = {
   strengthScore: number;
 };
 
-const PRIMARY_GRANULARITY = 300;
+const PRIMARY_GRANULARITY = 900;
 const SIGNAL_MAX_AGE_BARS = 8;
-const M5_GRANULARITY = 300;
-const M5_LOOKBACK = 5;
-const M5_MIN_DIRECTIONAL_CANDLES = 4;
-const M5_MIN_EFFICIENCY = 0.62;
-const M5_MIN_BODY_RATIO = 0.5;
-const M5_MIN_NORMALIZED_MOVE = 0.3;
-const M5_SIGNAL_MAX_AGE_BARS = 6;
-const LIMIT_MIN_AI_SCORE = 40;
-
-type M5LimitGate = {
-  approved: boolean;
-  aiScore: number | null;
-  momentumScore: number | null;
-  reason: string;
-};
-
-function evaluateM5LimitGate(
-  state: TfState | undefined,
-  direction: Direction,
-  aiModel: SignalLearningModel,
-  nowEpoch: number,
-): M5LimitGate {
-  const reject = (reason: string): M5LimitGate => ({
-    approved: false,
-    aiScore: null,
-    momentumScore: null,
-    reason,
-  });
-
-  if (!state || isStale(state, nowEpoch)) return reject('M5 data is missing or stale.');
-  const signal = state.latestSignal;
-  if (!signal || signal.direction !== direction || signal.outcome.closed) {
-    return reject('M5 has no active signal in the same direction.');
-  }
-  if (nowEpoch - signal.signalEpoch > M5_SIGNAL_MAX_AGE_BARS * M5_GRANULARITY) {
-    return reject('The M5 signal is too old.');
-  }
-
-  const candles = state.candles.slice(-M5_LOOKBACK);
-  if (candles.length < M5_LOOKBACK || state.stdDev == null || state.stdDev <= 0) {
-    return reject('Not enough confirmed M5 candles to measure momentum.');
-  }
-
-  const sign = direction === 'BUY' ? 1 : -1;
-  let alignedBodies = 0;
-  let totalBody = 0;
-  let totalRange = 0;
-  let path = 0;
-  for (let index = 0; index < candles.length; index += 1) {
-    const candle = candles[index];
-    const body = candle.close - candle.open;
-    if (sign * body > 0) alignedBodies += 1;
-    totalBody += Math.abs(body);
-    totalRange += Math.max(0, candle.high - candle.low);
-    if (index > 0) path += Math.abs(candle.close - candles[index - 1].close);
-  }
-
-  const netMove = sign * (candles[candles.length - 1].close - candles[0].open);
-  const efficiency = path > 0 ? Math.abs(candles[candles.length - 1].close - candles[0].open) / path : 0;
-  const bodyRatio = totalRange > 0 ? totalBody / totalRange : 0;
-  const normalizedMove = netMove / state.stdDev;
-  const momentumScore = Math.round(
-    Math.min(1, efficiency / 0.8) * 35
-    + Math.min(1, bodyRatio / 0.7) * 30
-    + Math.min(1, Math.max(0, normalizedMove) / 0.6) * 35,
-  );
-
-  if (alignedBodies < M5_MIN_DIRECTIONAL_CANDLES) {
-    return { ...reject('M5 candle bodies are not consistently moving in the trade direction.'), momentumScore };
-  }
-  if (efficiency < M5_MIN_EFFICIENCY) {
-    return { ...reject('M5 price movement is choppy, not clean momentum.'), momentumScore };
-  }
-  if (bodyRatio < M5_MIN_BODY_RATIO) {
-    return { ...reject('M5 candles show too much hesitation or wick activity.'), momentumScore };
-  }
-  if (normalizedMove < M5_MIN_NORMALIZED_MOVE) {
-    return { ...reject('M5 directional movement is too weak compared with its normal range.'), momentumScore };
-  }
-
-  const aiScore = getAiPatternScore(aiModel, M5_GRANULARITY, direction, signal.levels);
-  if (momentumScore < LIMIT_MIN_AI_SCORE) return { approved: false, aiScore, momentumScore, reason: 'M5 momentum strength is below the 40/100 minimum.' };
-  if (aiScore != null && aiScore < LIMIT_MIN_AI_SCORE) return { approved: false, aiScore, momentumScore, reason: 'AI historical-pattern score is below 40/100.' };
-  return { approved: true, aiScore, momentumScore, reason: aiScore == null ? 'M5 momentum passed 40/100. Historical AI scoring is still learning, so strength is explained using live candle evidence.' : 'M5 momentum and AI confirmation passed 40/100.' };
-}
 
 function timeframeBias(state: TfState): Direction | null {
   if (state.lastClose == null || state.currentSma == null || state.stdDev == null) return null;
@@ -129,8 +44,9 @@ function makeLevels(direction: Direction, entry: number, deviation: number): Pic
 }
 
 /**
- * Creates educational pending-order ideas from existing candle and signal data.
- * It never submits, modifies, or cancels a broker order.
+ * Creates pending-order ideas from the official eight-timeframe analysis set.
+ * The primary trigger is always a confirmed 15-minute crossover. It never
+ * requests or uses any timeframe outside TIMEFRAMES and never places an order.
  */
 export function buildPendingOrderIdeas(
   assets: Asset[],
@@ -151,41 +67,33 @@ export function buildPendingOrderIdeas(
       if (!state || isStale(state, nowEpoch)) return null;
       return timeframeBias(state);
     });
-
-    // Pending orders are suggested only when all eight active timeframe trends agree.
     if (readings.length !== TIMEFRAMES.length) continue;
+
     const direction = readings[0];
     if (direction == null || !readings.every((bias) => bias === direction)) continue;
 
     const primary = states[PRIMARY_GRANULARITY];
-    const m5LimitGate = evaluateM5LimitGate(states[M5_GRANULARITY], direction, aiModel, nowEpoch);
     const triggerSignal = primary?.latestSignal;
     if (!primary || !triggerSignal || triggerSignal.direction !== direction || triggerSignal.outcome.closed) continue;
     if (nowEpoch - triggerSignal.signalEpoch > SIGNAL_MAX_AGE_BARS * PRIMARY_GRANULARITY) continue;
     if (primary.stdDev == null || primary.stdDev <= 0 || primary.currentSma == null) continue;
 
     const candidates: Array<{ type: PendingOrderType; entry: number; reason: string }> = [];
-    if (direction === 'BUY') {
-      if (primary.currentSma < currentPrice) {
-        candidates.push({
-          type: 'BUY LIMIT',
-          entry: primary.currentSma,
-          reason: 'The market is moving up. This order waits for price to pull back to its recent average.',
-        });
-      }
-    } else {
-      if (primary.currentSma > currentPrice) {
-        candidates.push({
-          type: 'SELL LIMIT',
-          entry: primary.currentSma,
-          reason: 'The market is moving down. This order waits for price to pull back to its recent average.',
-        });
-      }
+    if (direction === 'BUY' && primary.currentSma < currentPrice) {
+      candidates.push({
+        type: 'BUY LIMIT',
+        entry: primary.currentSma,
+        reason: 'The market is moving up. This order waits for price to pull back to its recent average.',
+      });
+    } else if (direction === 'SELL' && primary.currentSma > currentPrice) {
+      candidates.push({
+        type: 'SELL LIMIT',
+        entry: primary.currentSma,
+        reason: 'The market is moving down. This order waits for price to pull back to its recent average.',
+      });
     }
 
     for (const candidate of candidates) {
-      // Stop-entry orders are disabled. The M5/AI gate continues to qualify limit orders only.
-      if (candidate.type.endsWith('LIMIT') && !m5LimitGate.approved) continue;
       const levels = makeLevels(direction, candidate.entry, primary.stdDev);
       const scoreLevels: SignalLevels = {
         mean: primary.currentSma,
@@ -196,6 +104,7 @@ export function buildPendingOrderIdeas(
         tp2: candidate.entry + (direction === 'BUY' ? 2 : -2) * primary.stdDev,
         tp3: levels.tp3,
       };
+      const aiScore = getAiPatternScore(aiModel, PRIMARY_GRANULARITY, direction, scoreLevels);
       ideas.push({
         id: `${asset.symbol}|${candidate.type}|${triggerSignal.signalEpoch}`,
         symbol: asset.symbol,
@@ -207,16 +116,12 @@ export function buildPendingOrderIdeas(
         stopLoss: levels.stopLoss,
         takeProfit: levels.tp3,
         currentPrice,
-        aiScore: candidate.type.endsWith('LIMIT')
-          ? m5LimitGate.aiScore
-          : getAiPatternScore(aiModel, PRIMARY_GRANULARITY, direction, scoreLevels),
-        momentumScore: candidate.type.endsWith('LIMIT') ? m5LimitGate.momentumScore : null,
-        reason: candidate.type.endsWith('LIMIT')
-          ? `${candidate.reason} M5 momentum and AI confirmation passed.`
-          : candidate.reason,
+        aiScore,
+        momentumScore: null,
+        reason: candidate.reason,
         timeframeAgreement: TIMEFRAMES.length,
         signalEpoch: triggerSignal.signalEpoch,
-        strengthScore: Math.round((m5LimitGate.momentumScore ?? 0) * 0.7 + (m5LimitGate.aiScore ?? m5LimitGate.momentumScore ?? 0) * 0.3),
+        strengthScore: aiScore ?? 0,
       });
     }
   }
