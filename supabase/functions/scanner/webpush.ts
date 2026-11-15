@@ -22,7 +22,7 @@ export type PushSubscriptionRow = {
 export type PushEventRow = {
   event_key: string;
   signal_key: string;
-  kind: "signal" | "target" | "stop" | "limit_order" | "pending_order" | "super_signal" | "income" | "business" | "high_roc_stop";
+  kind: "signal" | "target" | "stop" | "limit_order" | "pending_order" | "super_signal" | "income" | "business" | "high_roc_stop" | "market_structure_sar";
   payload: EventPayload;
   recipient_user_id?: string | null;
 };
@@ -54,6 +54,13 @@ export type EventPayload = {
   roc12?: number;
   strength?: string;
   expiryEpoch?: number;
+  sarValue?: number;
+  atrValue?: number;
+  previousSar?: number;
+  trailingStop?: number;
+  structure?: "HH_HL" | "LL_LH";
+  swingHighs?: [number, number];
+  swingLows?: [number, number];
 };
 
 const encoder = new TextEncoder();
@@ -167,7 +174,7 @@ function wantsEvent(sub: PushSubscriptionRow, event: PushEventRow): boolean {
   if (event.kind === 'business') return sub.notify_business;
   if (sub.symbols && !sub.symbols.includes(event.payload.symbol)) return false;
   if (event.kind === "super_signal") return sub.notify_super_signals;
-  if (event.kind === "high_roc_stop") return sub.notify_pending_orders;
+  if (event.kind === "high_roc_stop" || event.kind === "market_structure_sar") return sub.notify_pending_orders;
   if (event.kind === "signal") return sub.notify_signals;
   if (event.kind === "target") return sub.notify_targets;
   if (event.kind === "stop") return sub.notify_stops;
@@ -199,6 +206,9 @@ function buildMessage(event: PushEventRow): string {
   } else if (event.kind === "stop") {
     title = `${p.assetName} ${p.timeframe}: Stop-loss hit`;
     body = `Price ${price(p.price)} · Entry ${price(p.entry)} · Confirmed ${formatTime(p.eventEpoch)}`;
+  } else if (event.kind === "market_structure_sar") {
+    title = `MARKET STRUCTURE SAR ${p.direction} · ${p.assetName}`;
+    body = `${p.structure === "HH_HL" ? "Higher highs and higher lows" : "Lower lows and lower highs"} · SAR ${price(p.sarValue ?? 0)} · Entry ${price(p.entry)} · Initial SL ${price(p.stopLoss)} · Trail ${price(p.trailingStop ?? p.tp1)} · M15 confirmed · Signal only`;
   } else if (event.kind === "high_roc_stop") {
     title = `HIGH ROC ${p.orderType ?? p.label} · ${p.assetName}`;
     body = `Momentum ${p.strength ?? "HIGH"} · ROC 3/6/12: ${(p.roc3 ?? 0).toFixed(2)}% / ${(p.roc6 ?? 0).toFixed(2)}% / ${(p.roc12 ?? 0).toFixed(2)}% · Stop entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP ${price(p.tp1)} · Expires ${formatTime(p.expiryEpoch ?? p.signalEpoch + 3600)}`;
