@@ -9,7 +9,7 @@ type Card = {
 };
 type Member = { id: string; email: string; displayName: string };
 type CommunityEvent = { id: string; event_code: string; title: string; starts_at: string | null; ends_at: string | null; status: string; created_at: string };
-type NfcPayload = { card?: Card | null; token?: string | null; cards?: Card[]; members?: Member[]; events?: CommunityEvent[]; event?: CommunityEvent; alreadyIssued?: boolean; error?: string };
+type NfcPayload = { card?: Card | null; token?: string | null; cards?: Card[]; members?: Member[]; events?: CommunityEvent[]; event?: CommunityEvent; alreadyIssued?: boolean; referralCode?: string | null; error?: string };
 
 async function nfcRequest(body: Record<string, unknown>): Promise<NfcPayload> {
   const { data, error } = await supabase.functions.invoke('nfc-community', { body });
@@ -21,6 +21,10 @@ async function nfcRequest(body: Record<string, unknown>): Promise<NfcPayload> {
   if (data?.error) throw new Error(data.error);
   return data as NfcPayload;
 }
+type NdefRecordLike = { recordType: string; data: DataView | null; toURL?: () => string | null };
+type NdefReadingEvent = { message: { records: NdefRecordLike[] } };
+type NdefReaderLike = { onreading: ((event: NdefReadingEvent) => void) | null; scan: () => Promise<void>; abort: () => Promise<void> };
+
 const statusClass = (status: string) => status === 'active'
   ? 'border-up/30 bg-up/10 text-up'
   : status === 'suspended' ? 'border-warn/30 bg-warn/10 text-warn' : 'border-line/15 bg-surface/[0.06] text-ink-3';
@@ -33,6 +37,9 @@ export function SmartCommunity() {
   const [events, setEvents] = useState<CommunityEvent[]>([]);
   const [selectedMember, setSelectedMember] = useState('');
   const [eventTitle, setEventTitle] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [selectedEventCode, setSelectedEventCode] = useState('');
+  const [scanning, setScanning] = useState(false);
   const [tapToken, setTapToken] = useState<string | null>(() => localStorage.getItem(`supertech-nfc-token:${session.user.id}`));
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -40,12 +47,14 @@ export function SmartCommunity() {
   const [notice, setNotice] = useState('');
 
   const tapUrl = useMemo(() => tapToken ? `${window.location.origin}/tap/${tapToken}` : '', [tapToken]);
+  const referralUrl = useMemo(() => referralCode ? `${window.location.origin}/?ref=${encodeURIComponent(referralCode)}` : '', [referralCode]);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
       const mine = await nfcRequest({ action: 'my-card' });
       setMyCard(mine.card ?? null);
+      setReferralCode(mine.referralCode ?? '');
       if (isAdmin) {
         const [cardRows, memberRows, eventRows] = await Promise.all([
           nfcRequest({ action: 'list-cards' }),
@@ -67,6 +76,7 @@ export function SmartCommunity() {
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await nfcRequest({ action: 'issue-self' });
+      setReferralCode(result.referralCode ?? '');
       if (result.token) {
         setTapToken(result.token);
         localStorage.setItem(`supertech-nfc-token:${session.user.id}`, result.token);
@@ -102,6 +112,38 @@ export function SmartCommunity() {
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : 'Card status could not be updated.'); }
     finally { setBusy(false); }
+  };
+
+  const startNfcCheckIn = async () => {
+    if (!selectedEventCode) { setError('Choose an event before scanning a member card.'); return; }
+    const Reader = (window as Window & { NDEFReader?: new () => NdefReaderLike }).NDEFReader;
+    if (!Reader) { setError('This browser cannot scan NFC cards directly. Use an NFC-enabled Android phone with Chrome, or use NFC Tools to read the card and ask an administrator to record attendance.'); return; }
+    setBusy(true); setScanning(false); setError(''); setNotice('');
+    try {
+      const reader = new Reader();
+      reader.onreading = (event) => {
+        const record = event.message.records.find((item) => item.recordType === 'url');
+        const url = record?.toURL?.() ?? (record?.data ? new TextDecoder().decode(record.data) : '');
+        const match = url.match(/\\/tap\\/([a-f0-9]{64})/i);
+        if (!match) {
+          setError('This NFC card does not contain a valid SuperTechAi tap link.');
+          setScanning(false); setBusy(false);
+          void reader.abort().catch(() => undefined);
+          return;
+        }
+        void nfcRequest({ action: 'check-in', token: match[1], eventCode: selectedEventCode })
+          .then((result) => { setNotice(result.error ?? 'Attendance recorded successfully.'); })
+          .catch((err) => setError(err instanceof Error ? err.message : 'Attendance could not be recorded.'))
+          .finally(() => { setScanning(false); setBusy(false); void reader.abort().catch(() => undefined); });
+      };
+      await reader.scan();
+      setScanning(true);
+      setNotice('Ready. Hold a member NFC card against the back of this phone.');
+      setBusy(false);
+    } catch (err) {
+      setScanning(false); setBusy(false);
+      setError(err instanceof Error ? err.message : 'NFC scanning could not start. Check browser permissions.');
+    }
   };
 
   const createEvent = async () => {
@@ -170,6 +212,7 @@ export function SmartCommunity() {
           <div className="space-y-2">
             {!myCard ? <button type="button" onClick={() => void issueSelf()} disabled={busy || loading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />} Create my membership card</button> : tapUrl ? <button type="button" onClick={() => void copy(tapUrl, 'NFC tap link')} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white"><Copy className="h-4 w-4" /> Copy NFC tap link</button> : <p className="rounded-xl border border-warn/25 bg-warn/5 p-3 text-xs leading-relaxed text-ink-2">Your card is active, but its one-time programming link is not stored on this device. Ask an administrator to replace it if it has not yet been programmed.</p>}
             {tapUrl && <a href={tapUrl} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line/15 px-4 py-2.5 text-sm font-medium text-ink-2">Preview your public card <ExternalLink className="h-4 w-4" /></a>}
+            {referralUrl && <button type="button" onClick={() => void copy(referralUrl, 'Your referral link')} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line/15 px-4 py-2.5 text-sm font-medium text-ink-2"><Users className="h-4 w-4" /> Copy your referral link</button>}
           </div>
         </div>
       </div>
@@ -199,6 +242,11 @@ export function SmartCommunity() {
           <div className="rounded-2xl border border-line/10 bg-surface/[0.025] p-4">
             <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-accent" /><h4 className="text-sm font-semibold text-ink">Community events</h4></div>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} placeholder="Event or training name" className="min-w-0 flex-1 rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink outline-none focus:border-accent/50" /><button type="button" onClick={() => void createEvent()} disabled={busy || !eventTitle.trim()} className="rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Create event</button></div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <select value={selectedEventCode} onChange={(e) => setSelectedEventCode(e.target.value)} className="min-w-0 rounded-xl border border-line/15 bg-canvas px-3 py-3 text-sm text-ink"><option value="">Select event for check-in</option>{events.filter((event) => ['scheduled','active'].includes(event.status)).map((event) => <option key={event.id} value={event.event_code}>{event.title}</option>)}</select>
+              <button type="button" onClick={() => void startNfcCheckIn()} disabled={busy || !selectedEventCode || scanning} className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm font-semibold text-accent disabled:opacity-40"><Wifi className="mr-1 inline h-4 w-4" /> {scanning ? 'Waiting for card…' : 'Scan member card'}</button>
+            </div>
+            <p className="mt-2 text-xs text-ink-3">On a compatible Android phone using Chrome, select an event and tap Scan member card. Hold each member's NFC card against the phone to record attendance.</p>
             <div className="mt-3 space-y-2">{events.map((event) => <div key={event.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface/[0.04] p-3"><div><p className="text-sm font-medium text-ink">{event.title}</p><p className="mt-1 font-mono text-xs text-ink-3">{event.event_code}</p></div><button type="button" onClick={() => void copy(event.event_code, 'Event check-in code')} className="rounded-lg border border-line/15 px-3 py-2 text-xs text-ink-2"><Copy className="mr-1 inline h-3 w-3" /> Copy code</button></div>)}{events.length === 0 && <p className="text-xs text-ink-3">No events created yet.</p>}</div>
           </div>
         </div>
@@ -210,7 +258,7 @@ export function SmartCommunity() {
 export function NfcPublicProfile() {
   const token = window.location.pathname.split('/').filter(Boolean)[1] ?? '';
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<{ verified: boolean; cardStatus: string; membershipStatus: string; cardCode: string; displayName: string; memberSince: string } | null>(null);
+  const [profile, setProfile] = useState<{ verified: boolean; cardStatus: string; membershipStatus: string; cardCode: string; displayName: string; memberSince: string; referralCode?: string | null } | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
     let cancelled = false;
@@ -241,7 +289,7 @@ export function NfcPublicProfile() {
             <p className="mt-2 font-mono text-xs tracking-[0.18em] text-white/45">{profile.cardCode}</p>
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-left text-sm"><div className="flex justify-between gap-3"><span className="text-white/50">Card status</span><span className="capitalize">{profile.cardStatus}</span></div><div className="mt-3 flex justify-between gap-3"><span className="text-white/50">Membership</span><span className="capitalize">{profile.membershipStatus}</span></div><div className="mt-3 flex justify-between gap-3"><span className="text-white/50">Member since</span><span>{new Date(profile.memberSince).toLocaleDateString()}</span></div></div>
           </> : null}
-          <a href="/" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#c8a45c] px-4 py-3 text-sm font-semibold text-[#08101d]">Explore SuperTechAi <ExternalLink className="h-4 w-4" /></a>
+          <a href={profile?.referralCode ? `/?ref=${encodeURIComponent(profile.referralCode)}` : '/'} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#c8a45c] px-4 py-3 text-sm font-semibold text-[#08101d]">Explore SuperTechAi <ExternalLink className="h-4 w-4" /></a>
           <p className="mt-4 text-[10px] leading-relaxed text-white/35">This page confirms card and membership status only. Private account information and trading access are never displayed here.</p>
         </div>
       </section>
