@@ -56,11 +56,16 @@ async function issueCard(userId: string, issuedBy: string, name: string, replace
   if (!allowed) throw Object.assign(new Error("This account does not currently have active SuperTechAi membership."), { status: 403 });
   const { data: existing, error: existingError } = await db.from("nfc_member_cards")
     .select("id,card_code,display_name,status,created_at,last_tapped_at")
-    .eq("owner_user_id", userId).eq("status", "active").maybeSingle();
+    .eq("owner_user_id", userId).in("status", ["active", "suspended", "revoked"])
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (existingError) throw existingError;
-  if (existing && !replace) return { card: existing, token: null, alreadyIssued: true };
+  if (existing?.status === "active" && !replace) return { card: existing, token: null, alreadyIssued: true };
+  if (existing && existing.status !== "active" && !replace) {
+    throw Object.assign(new Error("A previous card is suspended or revoked. Please contact a SuperTechAi administrator for a replacement."), { status: 403 });
+  }
   if (existing && replace) {
-    const { error } = await db.from("nfc_member_cards").update({ status: "replaced", updated_at: new Date().toISOString() }).eq("id", existing.id);
+    const { error } = await db.from("nfc_member_cards").update({ status: "replaced", updated_at: new Date().toISOString() })
+      .eq("owner_user_id", userId).in("status", ["active", "suspended"]);
     if (error) throw error;
   }
   const token = randomHex(32);
@@ -111,11 +116,12 @@ Deno.serve(async (req) => {
       if (!allowed) return json({ error: "Your SuperTechAi membership is not active yet." }, 403);
       const { data: card, error } = await db.from("nfc_member_cards")
         .select("id,card_code,display_name,status,created_at,last_tapped_at")
-        .eq("owner_user_id", user.id).eq("status", "active").maybeSingle();
+        .eq("owner_user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (error) throw error;
       return json({ card: card ?? null, referralCode: await getReferralCode(user.id) });
     }
     if (action === "issue-self") {
+      if (body?.replace === true && !(await isAdmin(user.id))) return json({ error: "Only an administrator can replace a suspended or previously issued card." }, 403);
       const result = await issueCard(user.id, user.id, displayName(user), body?.replace === true);
       return json({ ...result, referralCode: await getReferralCode(user.id) }, result.alreadyIssued ? 200 : 201);
     }
