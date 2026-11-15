@@ -25,6 +25,22 @@ type NdefRecordLike = { recordType: string; data: DataView | null; toURL?: () =>
 type NdefReadingEvent = { message: { records: NdefRecordLike[] } };
 type NdefReaderLike = { onreading: ((event: NdefReadingEvent) => void) | null; scan: () => Promise<void>; abort: () => Promise<void> };
 
+function readNfcTapToken(record: NdefRecordLike | undefined): string {
+  if (!record || record.recordType !== 'url') return '';
+  let url = record.toURL?.() ?? '';
+  if (!url && record.data) {
+    const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+    const prefixes: Record<number, string> = { 0x00: '', 0x01: 'http://www.', 0x02: 'https://www.', 0x03: 'http://', 0x04: 'https://' };
+    url = (prefixes[bytes[0]] ?? '') + new TextDecoder().decode(bytes.slice(1));
+  }
+  try {
+    const parts = new URL(url).pathname.split('/').filter(Boolean);
+    return parts.length === 2 && parts[0] === 'tap' && /^[a-f0-9]{64}$/i.test(parts[1]) ? parts[1] : '';
+  } catch {
+    return '';
+  }
+}
+
 const statusClass = (status: string) => status === 'active'
   ? 'border-up/30 bg-up/10 text-up'
   : status === 'suspended' ? 'border-warn/30 bg-warn/10 text-warn' : 'border-line/15 bg-surface/[0.06] text-ink-3';
@@ -123,9 +139,7 @@ export function SmartCommunity() {
       const reader = new Reader();
       reader.onreading = (event) => {
         const record = event.message.records.find((item) => item.recordType === 'url');
-        const url = record?.toURL?.() ?? (record?.data ? new TextDecoder().decode(record.data) : '');
-        const parts = url ? new URL(url).pathname.split('/').filter(Boolean) : [];
-        const token = parts.length === 2 && parts[0] === 'tap' && /^[a-f0-9]{64}$/i.test(parts[1]) ? parts[1] : '';
+        const token = readNfcTapToken(record);
         if (!token) {
           setError('This NFC card does not contain a valid SuperTechAi tap link.');
           setScanning(false); setBusy(false);
