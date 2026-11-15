@@ -3,7 +3,7 @@ import { Activity, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import type { Asset, TfState, Timeframe } from '@/lib/sma';
-import { TIMEFRAMES, formatPrice } from '@/lib/sma';
+import { TIMEFRAMES, formatPrice, isStale } from '@/lib/sma';
 
 type Props = {
   assets: Asset[];
@@ -22,7 +22,11 @@ function eatDate(epoch: number): string {
 }
 
 function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['prices'], date: string, today: string): Mover {
-  const hourly = states[asset.symbol]?.[3600]?.candles ?? [];
+  const hourlyState = states[asset.symbol]?.[3600];
+  const hourly = hourlyState?.candles ?? [];
+  if (date === today && (!hourlyState || isStale(hourlyState, Math.floor(Date.now() / 1000)))) {
+    return { asset, price: prices[asset.symbol] ?? null, changePct: null, candles: hourly.length };
+  }
   const dayCandles = hourly.filter((candle) => eatDate(candle.epoch) === date);
   const priorCandles = hourly.filter((candle) => eatDate(candle.epoch) < date);
   const dayLast = dayCandles[dayCandles.length - 1];
@@ -35,7 +39,11 @@ function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['price
 }
 
 function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']): Mover {
-  const hourly = states[asset.symbol]?.[3600]?.candles ?? [];
+  const hourlyState = states[asset.symbol]?.[3600];
+  const hourly = hourlyState?.candles ?? [];
+  if (!hourlyState || isStale(hourlyState, Math.floor(Date.now() / 1000))) {
+    return { asset, price: prices[asset.symbol] ?? null, changePct: null, candles: hourly.length };
+  }
   const latest = hourly[hourly.length - 1];
   const previous = hourly[hourly.length - 25];
   const price = prices[asset.symbol] ?? latest?.close ?? null;
