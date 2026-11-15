@@ -53,7 +53,7 @@ export function usePendingOrderAlerts(ideas: M15StopIdea[], loaded: boolean, sou
         id: `pending:${key}`, tag: `pending:${key}`,
         kind: category === 'pendingOrders' ? 'signal' : 'hit',
         tone, direction: idea.direction, symbol: idea.symbol, assetName: idea.assetName,
-        timeframe: 'M15', granularity: 900, digits: idea.digits,
+        timeframe: idea.timeframeLabel, granularity: idea.granularity, digits: idea.digits,
         message, price, levels, at: now,
       });
       if (mode === 'full') {
