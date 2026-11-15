@@ -4,7 +4,7 @@ import { Just4YouBonus } from '@/components/Just4YouBonus';
 import { DailyMarketBriefing } from '@/components/DailyMarketBriefing';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
-import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
+import { TIMEFRAMES, emptyTfState, isStale, type Asset } from '@/lib/sma';
 import type { View } from '@/components/ViewNav';
 
 type Props = {
@@ -19,9 +19,12 @@ type Props = {
 };
 
 export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, onNavigate }: Props) {
+  const nowEpoch = Math.floor(Date.now() / 1000);
   const signalSummary = selectedSymbols.reduce((summary, symbol) => {
     for (const timeframe of TIMEFRAMES) {
-      const direction = states[symbol]?.[timeframe.granularity]?.latestSignal?.direction;
+      const timeframeState = states[symbol]?.[timeframe.granularity];
+      if (!timeframeState || isStale(timeframeState, nowEpoch)) continue;
+      const direction = timeframeState.latestSignal?.direction;
       if (direction === 'BUY') summary.buy += 1;
       if (direction === 'SELL') summary.sell += 1;
     }
@@ -122,7 +125,10 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                 const tf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
                 const direction = tf.latestSignal?.direction;
                 const confluenceCount = direction
-                  ? TIMEFRAMES.filter((item) => assetStates[item.granularity]?.latestSignal?.direction === direction).length
+                  ? TIMEFRAMES.filter((item) => {
+                    const otherState = assetStates[item.granularity];
+                    return Boolean(otherState && !isStale(otherState, nowEpoch) && otherState.latestSignal?.direction === direction);
+                  }).length
                   : undefined;
                 return (
                   <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0">
