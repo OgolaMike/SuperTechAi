@@ -122,16 +122,12 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
       item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '',
     ).filter(Boolean).join(' ');
     const visibleIndex = new Map(visible.map((candle, index) => [candle.epoch, index]));
-    const sarPath = visibleSar.map((point) => {
-      const index = visibleIndex.get(point.epoch);
-      return index == null ? '' : `M ${x(index)} ${y(point.value)} h 0.1`;
-    }).filter(Boolean).join(' ');
     const markerPoints = visibleMarkers.map((point) => ({
       ...point,
       index: visibleIndex.get(point.epoch)!,
       y: y(point.price),
     }));
-    return { width, height, min, max, x, y, path, stats, sarPath, markerPoints, visibleSar,
+    return { width, height, min, max, x, y, path, stats, markerPoints, visibleSar,
       bodyWidth: Math.max(2, Math.min(28, spacing * 0.72)) };
   }, [visible, candles, spacing, showSma, showBands, showSarStructure, timeframe.granularity, sarStructure]);
 
@@ -255,7 +251,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
                   {showSarStructure && timeframe.granularity === 900 && <>
                     {chart.visibleSar.map((point) => {
                       const index = visible.findIndex((candle) => candle.epoch === point.epoch);
-                      return index < 0 ? null : <circle key={point.epoch} cx={chart.x(index)} cy={chart.y(point.value)} r="2.8" fill={point.value < (visible[index].low + visible[index].high) / 2 ? '#38bdf8' : '#f59e0b'} stroke="#0b1220" strokeWidth="0.7" />;
+                      return index < 0 ? null : <circle key={point.epoch} cx={chart.x(index)} cy={chart.y(point.value)} r="2.8" fill={point.value < visible[index].low ? '#38bdf8' : point.value > visible[index].high ? '#f59e0b' : '#a78bfa'} stroke="#0b1220" strokeWidth="0.7" />;
                     })}
                     {chart.markerPoints.map((point) => {
                       const isHigh = point.label === 'HH' || point.label === 'LH';
