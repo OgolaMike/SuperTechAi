@@ -1,5 +1,5 @@
 import type { Candle } from './deriv';
-import type { Asset, TfState } from './sma';
+import { TIMEFRAMES, type Asset, type TfState } from './sma';
 
 export type Direction = 'BUY' | 'SELL';
 export type SignalStatus = 'Open' | 'TP1' | 'TP2' | 'TP3' | 'Stopped';
@@ -119,6 +119,10 @@ export function flattenSignals(
   for (const [symbol, byGranularity] of Object.entries(states)) {
     const asset = assetBySymbol.get(symbol);
     for (const state of Object.values(byGranularity)) {
+      const officialTimeframe = TIMEFRAMES.find((timeframe) =>
+        timeframe.granularity === state.granularity && timeframe.label === state.label,
+      );
+      if (!officialTimeframe) continue;
       for (const signal of state.signals) {
         views.push({
           key: signalKey(symbol, state.granularity, signal),
