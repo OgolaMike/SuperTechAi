@@ -10,6 +10,7 @@ const AccountHub = lazy(() => import('@/components/AccountHub').then((module) =>
 import { AssetSelector } from '@/components/AssetSelector';
 import { AmbientBackground } from '@/components/AmbientBackground';
 const DashboardView = lazy(() => import('@/components/DashboardView').then((module) => ({ default: module.DashboardView })));
+const MarketCopilot = lazy(() => import('@/components/MarketCopilot').then((module) => ({ default: module.MarketCopilot })));
 const NotificationSettings = lazy(() => import('@/components/NotificationSettings').then((module) => ({ default: module.NotificationSettings })));
 const Mt5AutoTrading = lazy(() => import('@/components/Mt5AutoTrading').then((module) => ({ default: module.Mt5AutoTrading })));
 const AutomationConnections = lazy(() => import('@/components/AutomationConnections').then((module) => ({ default: module.AutomationConnections })));
@@ -200,6 +201,8 @@ function App() {
         <Suspense fallback={<div className="mt-8 min-h-[40vh] animate-pulse rounded-2xl border border-line/15 bg-surface/[0.025]" aria-label="Loading section" />}>
         <div key={view} className="view-transition">
         {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
+
+        {view === 'copilot' && <MarketCopilot assets={assets} states={states} prices={prices} selectedSymbols={selectedSymbols} />}
 
         {view === 'dashboard' && (
           <DashboardView
