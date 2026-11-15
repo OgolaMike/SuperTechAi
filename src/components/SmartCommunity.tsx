@@ -124,14 +124,15 @@ export function SmartCommunity() {
       reader.onreading = (event) => {
         const record = event.message.records.find((item) => item.recordType === 'url');
         const url = record?.toURL?.() ?? (record?.data ? new TextDecoder().decode(record.data) : '');
-        const match = url.match(/\\/tap\\/([a-f0-9]{64})/i);
-        if (!match) {
+        const parts = url ? new URL(url).pathname.split('/').filter(Boolean) : [];
+        const token = parts.length === 2 && parts[0] === 'tap' && /^[a-f0-9]{64}$/i.test(parts[1]) ? parts[1] : '';
+        if (!token) {
           setError('This NFC card does not contain a valid SuperTechAi tap link.');
           setScanning(false); setBusy(false);
           void reader.abort().catch(() => undefined);
           return;
         }
-        void nfcRequest({ action: 'check-in', token: match[1], eventCode: selectedEventCode })
+        void nfcRequest({ action: 'check-in', token, eventCode: selectedEventCode })
           .then((result) => { setNotice(result.error ?? 'Attendance recorded successfully.'); })
           .catch((err) => setError(err instanceof Error ? err.message : 'Attendance could not be recorded.'))
           .finally(() => { setScanning(false); setBusy(false); void reader.abort().catch(() => undefined); });
