@@ -536,8 +536,7 @@ async function runScan(): Promise<Record<string, unknown>> {
 
             if (isFreshSignal) {
               try {
-                // Limit proposals use the confirmed M15 setup only. M1 and M5 are retired
-                // and must not be fetched or used as hidden execution filters.
+                // Limit proposals use the confirmed M15 setup only.
                 const limitIntents = buildBackendLimitIntent(symbol.symbol, candleCache, nowEpoch).filter((intent) => intent.signalEpoch === latestSignal.signalEpoch);
                 for (const limitIntent of limitIntents) {
                   const limitSignalKey = symbol.symbol + "|M15|" + limitIntent.signalEpoch + "|LIMIT";
