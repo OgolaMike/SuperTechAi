@@ -235,6 +235,19 @@ function App() {
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">Price forms two confirmed swing lows around a similar support zone. SuperTech AI watches for a third return to that zone and tracks a possible BUY limit setup.</p>
                 <p className="mt-3 text-xs leading-relaxed text-ink-3">The stop is placed beyond the opposite edge of the support zone; the target is planned at 3 times the risk distance (3R). A third test can still break support.</p>
               </article>
+              <article className="rounded-2xl border border-accent/30 bg-accent/[0.045] p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-accent">04 · Market Structure SAR</p>
+                  <span className="rounded-full border border-accent/25 px-2.5 py-1 text-[10px] font-semibold text-accent">M15 strategy</span>
+                </div>
+                <h3 className="mt-2 text-lg font-semibold text-ink">Follow confirmed swings with Parabolic SAR</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-2">This setup looks for two confirmed rising swing highs and two rising swing lows before considering a BUY. For a SELL, it looks for falling swing lows and falling swing highs. Parabolic SAR must also switch sides on a completed candle before an alert is created.</p>
+                <div className="mt-3 grid gap-2 text-xs leading-relaxed text-ink-3 sm:grid-cols-2">
+                  <p><span className="font-semibold text-up">BUY:</span> Higher High + Higher Low, then SAR flips below price.</p>
+                  <p><span className="font-semibold text-down">SELL:</span> Lower Low + Lower High, then SAR flips above price.</p>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-ink-3">Protection reference: initial stop 2 × ATR(14); trailing reference combines SAR with a 1.5 × ATR buffer. Swing points need two candles to confirm, so entries can arrive later. Signals only for now—no broker order is placed and no live stop is modified.</p>
+              </article>
               <article className="rounded-2xl border border-line/20 bg-surface/[0.035] p-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-down">03 · Triple Top</p>
                 <h3 className="mt-2 text-lg font-semibold text-ink">Three tests of resistance</h3>
