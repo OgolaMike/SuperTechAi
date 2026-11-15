@@ -174,7 +174,8 @@ function wantsEvent(sub: PushSubscriptionRow, event: PushEventRow): boolean {
   if (event.kind === 'business') return sub.notify_business;
   if (sub.symbols && !sub.symbols.includes(event.payload.symbol)) return false;
   if (event.kind === "super_signal") return sub.notify_super_signals;
-  if (event.kind === "high_roc_stop" || event.kind === "market_structure_sar") return sub.notify_pending_orders;
+  if (event.kind === "high_roc_stop") return sub.notify_pending_orders;
+  if (event.kind === "market_structure_sar") return sub.notify_signals;
   if (event.kind === "signal") return sub.notify_signals;
   if (event.kind === "target") return sub.notify_targets;
   if (event.kind === "stop") return sub.notify_stops;
