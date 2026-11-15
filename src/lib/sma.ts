@@ -60,6 +60,7 @@ export type Asset = {
   fullName: string;
   digits: number;
   exchange?: 'DERIV' | 'BINANCE';
+  market?: string;
 };
 
 export const DEFAULT_ASSET = 'R_25';
