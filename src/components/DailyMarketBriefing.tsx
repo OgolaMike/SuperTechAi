@@ -1,5 +1,5 @@
 import { ArrowRight, BrainCircuit, CircleDot, Sparkles } from 'lucide-react';
-import { TIMEFRAMES } from '@/lib/sma';
+import { TIMEFRAMES, isStale } from '@/lib/sma';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { View } from '@/components/ViewNav';
 
@@ -11,11 +11,14 @@ type Props = {
 };
 
 export function DailyMarketBriefing({ selectedSymbols, states, loaded, onNavigate }: Props) {
+  const nowEpoch = Math.floor(Date.now() / 1000);
   const summary = selectedSymbols.reduce((result, symbol) => {
     for (const timeframe of TIMEFRAMES) {
-      const signal = states[symbol]?.[timeframe.granularity]?.latestSignal;
-      if (signal?.direction === 'BUY') result.buy += 1;
-      if (signal?.direction === 'SELL') result.sell += 1;
+      const timeframeState = states[symbol]?.[timeframe.granularity];
+      const signal = timeframeState?.latestSignal;
+      if (!timeframeState || isStale(timeframeState, nowEpoch) || !signal) continue;
+      if (signal.direction === 'BUY') result.buy += 1;
+      if (signal.direction === 'SELL') result.sell += 1;
     }
     return result;
   }, { buy: 0, sell: 0 });
