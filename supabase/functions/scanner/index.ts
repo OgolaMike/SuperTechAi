@@ -449,7 +449,7 @@ async function runScan(): Promise<Record<string, unknown>> {
         symbol: string; signalEpoch: number; direction: "BUY" | "SELL";
         orderType: "BUY_LIMIT" | "SELL_LIMIT";
         entry: number; stopLoss: number; takeProfit: number; currentPrice: number;
-        timeframeAgreement: 3; strategyVersion: string; idempotencyKey: string;
+        timeframeAgreement: 1; strategyVersion: string; idempotencyKey: string;
       },
       source: "server_scanner_limit",
       strengthScore?: number,

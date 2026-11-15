@@ -7,6 +7,7 @@ const GovernancePanel = lazy(() => import('@/components/GovernancePanel').then((
 const FinancePanel = lazy(() => import('@/components/FinancePanel').then((module) => ({ default: module.FinancePanel })));
 const NetworkPanel = lazy(() => import('@/components/NetworkPanel').then((module) => ({ default: module.NetworkPanel })));
 const AccountHub = lazy(() => import('@/components/AccountHub').then((module) => ({ default: module.AccountHub })));
+const SmartCommunity = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.SmartCommunity })));
 import { AssetSelector } from '@/components/AssetSelector';
 import { AmbientBackground } from '@/components/AmbientBackground';
 const DashboardView = lazy(() => import('@/components/DashboardView').then((module) => ({ default: module.DashboardView })));
@@ -277,6 +278,7 @@ function App() {
           {view === 'alerts' && <ServiceHealth />}
         </section>
 
+        {view === 'smart-community' && <SmartCommunity />}
         {view === 'network' && <NetworkPanel />}
         {view === 'referrals' && <AccountHub />}
         {view === 'earnings' && <FinancePanel initialTab="wallet" />}

@@ -2,11 +2,11 @@ import { useState } from 'react';
 import {
   Activity, BarChart3, Bell, Bot, Cable, ChevronUp,
   GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
-  Megaphone, MoreHorizontal, Repeat2, Sparkles, Users,
+  Megaphone, MoreHorizontal, Repeat2, Sparkles, Users, CreditCard,
   UserRoundPlus, X,
 } from 'lucide-react';
 
-export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections';
+export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections' | 'smart-community';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -35,6 +35,7 @@ const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
   ] },
   { title: 'Your space', items: [
     { id: 'alerts', label: 'Alerts & service health', icon: Bell },
+    { id: 'smart-community', label: 'Smart Membership', icon: CreditCard },
   ] },
   { title: 'Owner tools', items: [
     { id: 'governance', label: 'Owners Centre', icon: Gavel, adminOnly: true },

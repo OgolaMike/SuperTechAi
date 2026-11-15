@@ -1,19 +1,20 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { AuthGate } from '@/components/AuthGate';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+const NfcPublicProfile = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.NfcPublicProfile })));
 import './index.css';
 
 const rootElement = document.getElementById('root');
+const pathParts = window.location.pathname.split('/').filter(Boolean);
+const isNfcTap = pathParts.length === 2 && pathParts[0] === 'tap' && /^[a-f0-9]{64}$/i.test(pathParts[1]);
 
 if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <AppErrorBoundary>
-        <AuthGate>
-          <App />
-        </AuthGate>
+        {isNfcTap ? <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#050914] text-sm text-white/60">Verifying membership…</div>}><NfcPublicProfile /></Suspense> : <AuthGate><App /></AuthGate>}
       </AppErrorBoundary>
     </StrictMode>,
   );
