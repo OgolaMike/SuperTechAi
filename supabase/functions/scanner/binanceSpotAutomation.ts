@@ -369,7 +369,7 @@ export async function submitBinanceSpotLimitIntents(
             quote_notional_usdt: notional,
             list_client_order_id: listClientOrderId,
             working_client_order_id: workingClientOrderId,
-            strategy: "M15-M5-M1-LIMIT-OTOCO",
+            strategy: "M15-LIMIT-OTOCO",
           },
         }).select("id").single();
         if (insertError) {
