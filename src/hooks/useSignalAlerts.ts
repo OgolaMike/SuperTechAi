@@ -235,8 +235,16 @@ export function useSignalAlerts(
         `${toast.message} Entry ${formatPrice(toast.levels.entry, toast.digits)}, stop-loss ${formatPrice(toast.levels.stopLoss, toast.digits)}`,
       ).catch(() => undefined);
     }
-    const fullHit = visible.find((toast) => toast.kind === 'hit' && getAlertMode(toast.tone === 'STOP' ? 'stops' : 'targets', toast.symbol, userId) === 'full');
-    if (soundsEnabled && fullHit) playAlertTone(fullHit.tone);
+    const fullHits = visible.filter((toast) => toast.kind === 'hit' && getAlertMode(toast.tone === 'STOP' ? 'stops' : 'targets', toast.symbol, userId) === 'full');
+    if (soundsEnabled && fullHits.length > 0) playAlertTone(fullHits[0].tone);
+    for (const toast of fullHits) {
+      const isStop = toast.tone === 'STOP';
+      void showSignalNotification(
+        toast.tag,
+        `${isStop ? 'STOP-LOSS HIT' : 'TARGET REACHED'}: ${toast.assetName} ${toast.timeframe}`,
+        `${toast.message}. Price ${formatPrice(toast.price, toast.digits)}.`,
+      ).catch(() => undefined);
+    }
   }, [views, loaded, soundsEnabled, userId]);
 
   return { toasts, dismiss };
