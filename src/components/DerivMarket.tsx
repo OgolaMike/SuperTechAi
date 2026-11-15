@@ -12,6 +12,7 @@ type Props = {
   selectedSymbols: string[];
   onMonitorAsset: (symbol: string) => void;
   aiModel: SignalLearningModel;
+  loaded: boolean;
 };
 
 type Mover = { asset: Asset; price: number | null; changePct: number | null; candles: number };
@@ -44,7 +45,7 @@ function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']):
   return { asset, price, changePct, candles: hourly.length };
 }
 
-export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel }: Props) {
+export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel, loaded }: Props) {
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M15') ?? TIMEFRAMES[0]);
   const [visibleCount, setVisibleCount] = useState(60);
@@ -107,6 +108,16 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
 
   const rocText = (value: number | null) => value == null ? 'Building data' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 
+  if (loaded && derivAssets.length === 0) {
+    return (
+      <section className="mt-8 rounded-2xl border border-line/10 bg-surface/[0.03] p-6 sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Deriv market</p>
+        <h2 className="mt-2 text-xl font-semibold text-ink">No Deriv markets were returned</h2>
+        <p className="mt-2 max-w-xl text-sm text-ink-2">The Deriv feed is connected, but it has not supplied any available markets. Please refresh in a moment. Your other markets are unaffected.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="mt-8 flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -136,7 +147,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
             <MoverList title="Top losers" tone="down" items={losers} selected={active?.symbol ?? ''} onSelect={setSelectedSymbol} format={rocText} />
           </div>
         ) : (
-          <div className="rounded-xl border border-line/10 p-5 text-sm text-ink-2">Loading Deriv market history and calculating momentum…</div>
+          <div role="status" className="rounded-xl border border-line/10 p-5 text-sm text-ink-2">{loaded ? 'Market history is still building. Rankings will appear when enough confirmed candles are available.' : 'Connecting to Deriv and loading market history…'}</div>
         )}
       </div>
 
@@ -238,7 +249,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
           </div>}
         </section>
       ) : (
-        <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-8 text-sm text-ink-2">Deriv assets are still loading. The market list will appear when the public feed is ready.</div>
+        <div role="status" className="rounded-2xl border border-line/10 bg-surface/[0.03] p-8 text-sm text-ink-2">{loaded ? 'No Deriv market is currently available to analyse. Try refreshing the market feed.' : 'Connecting to Deriv. Your market list will appear as soon as the public feed responds.'}</div>
       )}
 
       <section className="overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.03]">
