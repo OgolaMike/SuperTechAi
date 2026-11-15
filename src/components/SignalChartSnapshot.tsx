@@ -43,7 +43,7 @@ function timeLabel(epoch: number, granularity: number) {
     : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 300, digits, assetName, symbol, anchorId, livePrice }: Props) {
+export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 900, digits, assetName, symbol, anchorId, livePrice }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
