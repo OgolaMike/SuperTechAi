@@ -42,7 +42,9 @@ function buildLevels(direction: Direction, mean: number, deviation: number, entr
     tp2: mean + sign * TP2_SIGMA * deviation,
     tp3: mean + sign * TP3_SIGMA * deviation,
   };
-  return sign * (levels.tp1 - entry) > 0 ? levels : null;
+  // Every confirmed candle-close crossover must be recorded, even if price has
+  // already moved beyond TP1. The next opposite crossover is a separate signal.
+  return levels;
 }
 
 function evaluateOutcome(direction: Direction, levels: Levels, after: Candle[]): Outcome {
