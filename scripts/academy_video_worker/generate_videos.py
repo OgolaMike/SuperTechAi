@@ -6,6 +6,7 @@ then records a guided browser walkthrough, adds Kokoro narration, and publishes 
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import subprocess
@@ -25,6 +26,11 @@ WORK = Path(tempfile.mkdtemp(prefix="supertech-academy-"))
 MODEL_DIR = Path(os.environ.get("KOKORO_MODEL_DIR", ROOT / ".cache" / "kokoro"))
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
+ACADEMY_APP_URL = os.environ["ACADEMY_APP_URL"].rstrip("/")
+try:
+    PLAYWRIGHT_STORAGE_STATE = json.loads(base64.b64decode(os.environ["ACADEMY_PLAYWRIGHT_STORAGE_STATE_BASE64"]).decode("utf-8"))
+except (KeyError, ValueError, json.JSONDecodeError) as error:
+    raise RuntimeError("ACADEMY_PLAYWRIGHT_STORAGE_STATE_BASE64 must contain a valid Playwright storage-state JSON for a dedicated Academy recording account.") from error
 SERVICE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 HEADERS = {"apikey": SERVICE_KEY, "Authorization": f"Bearer {SERVICE_KEY}"}
 
@@ -84,15 +90,53 @@ def render_lesson(tts: Kokoro, lesson: dict, output: Path, browser):
     video_dir = WORK / f"recording-{lesson['id']}"
     video_dir.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(
+        storage_state=PLAYWRIGHT_STORAGE_STATE,
         viewport={"width": 1440, "height": 900},
         device_scale_factor=1,
         record_video_dir=str(video_dir),
         record_video_size={"width": 1440, "height": 900},
     )
     page = context.new_page()
-    page.goto(f"http://127.0.0.1:4173/academy-demo.html?lesson={lesson['id']}", wait_until="networkidle")
-    page.wait_for_timeout(1200)
-    page.wait_for_timeout(max(1000, int((duration - 1.2) * 1000)))
+    page.goto(ACADEMY_APP_URL, wait_until="domcontentloaded", timeout=90000)
+    navigation = page.locator('nav[aria-label="Main navigation"]').first
+    try:
+        navigation.wait_for(state="visible", timeout=60000)
+    except Exception as error:
+        raise RuntimeError("The real SuperTechAi app did not reach its authenticated main navigation. Check ACADEMY_APP_URL and the dedicated recording account storage state; refusing to record the login screen.") from error
+
+    # Record the real production application and its actual React sections.
+    # The account used here must be a dedicated, non-member recording account.
+    destinations = {
+        "dashboard": ("Home", False),
+        "welcome": ("Home", False),
+        "signals": ("Super Signals", False),
+        "super": ("Super Signals", False),
+        "crypto": ("Crypto Market", False),
+        "market-basics": ("Home", False),
+        "market-types": ("Home", False),
+        "quotes-spread": ("Home", False),
+        "candles": ("Home", False),
+        "timeframes": ("Home", False),
+        "trend-structure": ("Home", False),
+        "automation": ("Automated Trading", False),
+        "network": ("Account", False),
+        "wallet": ("Account", False),
+        "deriv-market": ("Deriv Market", False),
+        "exchange-markets": ("Exchange Markets", False),
+        "orders": ("Pending Orders", True),
+        "strategies": ("Strategies", True),
+    }
+    label, in_more = destinations.get(lesson["id"], ("Home", False))
+    if in_more:
+        page.get_by_role("button", name="More", exact=True).first.click()
+        page.get_by_role("button", name=label, exact=True).first.click()
+    else:
+        navigation.get_by_role("button", name=label, exact=True).first.click()
+    page.wait_for_timeout(1800)
+    # Fail closed if the app navigated away or authentication expired.
+    if not page.locator('nav[aria-label="Main navigation"]').count():
+        raise RuntimeError("The authenticated application navigation disappeared during recording.")
+    page.wait_for_timeout(max(1000, int((duration - 1.8) * 1000)))
     context.close()
     recordings = list(video_dir.glob("*.webm"))
     if not recordings:
@@ -135,9 +179,6 @@ def main():
         raise RuntimeError("No Academy admin account was found for the publisher record.")
     publisher_id = admins[0]["user_id"]
     failures = []
-    server = subprocess.Popen(["python", "-m", "http.server", "4173", "--directory", str(ROOT / "dist")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    import time
-    time.sleep(2)
     playwright = sync_playwright().start()
     browser = playwright.chromium.launch(headless=True)
     for index, lesson in enumerate(LESSONS, start=1):
@@ -201,8 +242,6 @@ def main():
             print(f"FAILED: {lesson_id}: {error}", flush=True)
     browser.close()
     playwright.stop()
-    server.terminate()
-    server.wait(timeout=15)
     print(f"Academy publisher finished: {len(completed)}/{len(LESSONS)} lessons published.", flush=True)
     if failures:
         details = "; ".join(f"{lesson_id}: {reason}" for lesson_id, reason in failures)
