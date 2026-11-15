@@ -61,23 +61,30 @@ export function MarketCopilot({ assets, states, prices, selectedSymbols }: Props
     setQuestion('');
     setBusy(true);
     setError('');
-    const { data, error: invokeError } = await supabase.functions.invoke('academy-ai', {
-      body: {
-        action: 'market-assistant',
-        question: prompt,
-        marketSnapshot,
-        history: messages.slice(-8),
-      },
-    });
-    const answer = data?.discussion?.ai_response;
-    if (invokeError || data?.error || typeof answer !== 'string' || !answer.trim()) {
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('academy-ai', {
+        body: {
+          action: 'market-assistant',
+          question: prompt,
+          marketSnapshot,
+          history: messages.slice(-8),
+        },
+      });
+      const answer = data?.discussion?.ai_response;
+      if (invokeError || data?.error || typeof answer !== 'string' || !answer.trim()) {
+        setMessages(messages);
+        setQuestion(prompt);
+        setError(data?.error || 'Your assistant is unavailable right now. Please try again.');
+      } else {
+        setMessages([...nextMessages, { role: 'assistant', content: answer }]);
+      }
+    } catch {
       setMessages(messages);
       setQuestion(prompt);
-      setError(data?.error || 'Your assistant is unavailable right now. Please try again.');
-    } else {
-      setMessages([...nextMessages, { role: 'assistant', content: answer }]);
+      setError('Your assistant could not connect. Please try again.');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   return (
