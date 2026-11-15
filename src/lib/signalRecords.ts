@@ -71,18 +71,54 @@ export async function upsertSignalRecords(rows: SignalRecordRow[]): Promise<void
       );
     if (error) throw new Error(error.message);
   }
+  invalidateSignalRecordsCache();
 }
 
-export async function fetchSignalRecords(): Promise<SignalRecordRow[]> {
-  const { data, error } = await supabase
-    .from('signal_records')
-    .select(RECORD_COLUMNS)
-    .in('timeframe', TIMEFRAMES.map((timeframe) => timeframe.label))
-    .in('granularity', TIMEFRAMES.map((timeframe) => timeframe.granularity))
-    .order('signal_epoch', { ascending: false })
-    .limit(RECORD_LIMIT);
-  if (error) throw new Error(error.message);
-  if (!Array.isArray(data)) throw new Error('Unexpected response from the records service');
-  const official = new Map(TIMEFRAMES.map((timeframe) => [timeframe.label, timeframe.granularity]));
-  return (data as SignalRecordRow[]).filter((row) => official.get(row.timeframe) === row.granularity);
+const RECORD_CACHE_TTL_MS = 15_000;
+let cachedRecords: SignalRecordRow[] | null = null;
+let cachedRecordsAt = 0;
+let recordsRequest: Promise<SignalRecordRow[]> | null = null;
+let recordsRequestVersion = 0;
+
+function invalidateSignalRecordsCache(): void {
+  cachedRecords = null;
+  cachedRecordsAt = 0;
+  recordsRequestVersion += 1;
+  recordsRequest = null;
+}
+
+export async function fetchSignalRecords(options: { force?: boolean } = {}): Promise<SignalRecordRow[]> {
+  const force = options.force === true;
+  if (force) invalidateSignalRecordsCache();
+  if (!force && cachedRecords && Date.now() - cachedRecordsAt < RECORD_CACHE_TTL_MS) {
+    return cachedRecords;
+  }
+  if (!force && recordsRequest) return recordsRequest;
+
+  const version = recordsRequestVersion;
+  const request = (async () => {
+    const { data, error } = await supabase
+      .from('signal_records')
+      .select(RECORD_COLUMNS)
+      .in('timeframe', TIMEFRAMES.map((timeframe) => timeframe.label))
+      .in('granularity', TIMEFRAMES.map((timeframe) => timeframe.granularity))
+      .order('signal_epoch', { ascending: false })
+      .limit(RECORD_LIMIT);
+    if (error) throw new Error(error.message);
+    if (!Array.isArray(data)) throw new Error('Unexpected response from the records service');
+    const official = new Map(TIMEFRAMES.map((timeframe) => [timeframe.label, timeframe.granularity]));
+    const rows = (data as SignalRecordRow[]).filter((row) => official.get(row.timeframe) === row.granularity);
+    if (version === recordsRequestVersion) {
+      cachedRecords = rows;
+      cachedRecordsAt = Date.now();
+    }
+    return rows;
+  })();
+
+  recordsRequest = request;
+  try {
+    return await request;
+  } finally {
+    if (recordsRequest === request) recordsRequest = null;
+  }
 }
