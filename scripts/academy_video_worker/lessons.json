@@ -162,16 +162,16 @@
   {
     "id": "timeframes",
     "title": "Timeframes: from minutes to days",
-    "summary": "Understand M5, M15, H1, H4 and daily charts, and how they fit together.",
+    "summary": "Understand the eight SuperTech AI analysis timeframes and how they fit together.",
     "objective": "Use higher and lower timeframes without confusing short-term movement with the bigger picture.",
     "steps": [
-      "A timeframe tells you how much time one candle represents. M5 is five minutes, H1 is one hour and D1 is one day.",
+      "A timeframe tells you how much time one candle represents. SuperTech AI analyses M15, M30, H1, H2, H3, H4, H8 and D1.",
       "Higher timeframes show broader market movement but may produce fewer signals. Lower timeframes show more detail and more noise.",
       "Start with a higher timeframe to understand the broad direction and major price areas.",
       "Use a lower timeframe to study a possible entry, but do not let a tiny move make you ignore the bigger picture.",
       "A candle on a higher timeframe is not complete until that full period ends."
     ],
-    "narration": "Think of timeframes like maps. A daily chart is a map of the wider journey. A five-minute chart is a close-up of one small section. Both can be useful, but they answer different questions. First understand the wider picture, then zoom in only if your plan needs a more precise entry."
+    "narration": "Think of timeframes like maps. A daily chart shows the wider journey, while the 15-minute chart gives the closest view used by SuperTech AI. Each timeframe answers a different question. Start with the wider picture, then use the official analysis set to confirm direction."
   },
   {
     "id": "trend-structure",
