@@ -137,6 +137,22 @@ Deno.serve(async (req: Request) => {
       return json({ discussions: data || [] });
     }
 
+    if (action === "list-market-assistant") {
+      if (!isMember && !isAdmin) return json({ error: "An approved SuperTech AI membership is required." }, 403);
+      const { data, error } = await db.from("academy_ai_discussions")
+        .select("id,question,ai_response,created_at")
+        .eq("user_id", user.id)
+        .is("lesson_id", null)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      const discussions = (data || []).reverse().flatMap((row: { question: string; ai_response: string }) => [
+        { role: "user", content: row.question },
+        { role: "assistant", content: row.ai_response },
+      ]);
+      return json({ messages: discussions });
+    }
+
     if (action === "market-assistant") {
       if (!isMember && !isAdmin) return json({ error: "An approved SuperTech AI membership is required." }, 403);
       const question = clean(body.question, 1600);
