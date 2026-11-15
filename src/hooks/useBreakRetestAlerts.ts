@@ -47,8 +47,6 @@ export function useBreakRetestAlerts(
 
     const created: Toast[] = [];
     for (const item of setups) {
-      // M1 remains calculated in the background, but all member-facing M1 alerts stay muted.
-      if (item.granularity === 60) continue;
       const current = currentPrices.get(item.symbol);
       const previous = previousPrices.current.get(item.symbol);
       if (current === undefined || previous === undefined || current === previous) continue;
