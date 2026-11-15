@@ -178,7 +178,7 @@ export function SmartCommunity() {
     catch { setError('Copy was blocked by your browser. Select and copy the link manually.'); }
   };
 
-  const selectedHasCard = cards.some((card) => card.owner_user_id === selectedMember && card.status === 'active');
+  const selectedHasCard = cards.some((card) => card.owner_user_id === selectedMember && ['active', 'suspended', 'revoked'].includes(card.status));
 
   return (
     <section className="mt-8 space-y-6">
