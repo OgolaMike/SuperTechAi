@@ -45,7 +45,7 @@ const TP2_DEVIATIONS = 2;
 const TP3_DEVIATIONS = 2.5;
 const STOP_DEVIATIONS = 1;
 
-// Levels are fixed on the signal candle. Returns null when entry is already beyond TP1.
+// Levels are fixed on the signal candle. A confirmed crossover is never suppressed because price has moved beyond TP1.
 export function buildLevels(
   direction: Direction,
   mean: number,
