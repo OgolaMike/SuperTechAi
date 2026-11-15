@@ -4,6 +4,7 @@ import { fetchBinanceCandles, loadBinanceSymbols, fetchBinanceFuturesCandles, lo
 import { computeSignals, type Signal } from "./strategy.ts";
 import { buildBackendLimitIntent } from "./pendingIntents.ts";
 import { buildHighRocStopSignal } from "./highRocSignals.ts";
+import { buildMarketStructureSarSignal } from "./marketStructureSar.ts";
 import { reconcileBinanceSpotOrders, submitBinanceSpotLimitIntents } from "./binanceSpotAutomation.ts";
 import { dispatchPending, loadVapid, type EventPayload, type PushEventRow } from "./webpush.ts";
 
@@ -533,6 +534,45 @@ async function runScan(): Promise<Record<string, unknown>> {
                 if (highRocEventError) throw new Error("Could not queue High ROC signal: " + highRocEventError.message);
               }
             } catch (error) { lastError = "High ROC signal " + symbol.symbol + ": " + messageOf(error); }
+
+            // Independent Market Structure SAR strategy: confirmed HH/HL or LL/LH plus a fresh SAR flip.
+            // Signal-only until a separately tested, strategy-owned execution path is approved.
+            try {
+              const structureSar = buildMarketStructureSarSignal(symbol.symbol, candleCache.get(900) ?? [], nowEpoch);
+              if (structureSar && structureSar.signalEpoch === latestClosed) {
+                const signalKey = structureSar.idempotencyKey;
+                const { error: structureSarError } = await db.from("push_events").upsert([{
+                  event_key: signalKey + "|signal",
+                  signal_key: signalKey,
+                  kind: "market_structure_sar",
+                  payload: {
+                    label: structureSar.structure,
+                    strategy: "MARKET STRUCTURE SAR",
+                    strategyVersion: structureSar.strategyVersion,
+                    symbol: symbol.symbol,
+                    assetName: symbol.name,
+                    timeframe: "M15",
+                    direction: structureSar.direction,
+                    digits: symbol.digits,
+                    signalEpoch: structureSar.signalEpoch,
+                    entry: structureSar.entry,
+                    stopLoss: structureSar.stopLoss,
+                    price: structureSar.entry,
+                    eventEpoch: nowEpoch,
+                    sarValue: structureSar.sar,
+                    atrValue: structureSar.atr,
+                    previousSar: structureSar.previousSar,
+                    trailingStop: structureSar.trailingStop,
+                    swingHighs: structureSar.swingHighs,
+                    swingLows: structureSar.swingLows,
+                    structure: structureSar.structure,
+                    executionMode: "SIGNAL_ONLY",
+                    note: "Market structure and SAR confirmation. No broker order has been placed."
+                  }
+                }], { onConflict: "event_key", ignoreDuplicates: true });
+                if (structureSarError) throw new Error("Could not queue Market Structure SAR signal: " + structureSarError.message);
+              }
+            } catch (error) { lastError = "Market Structure SAR " + symbol.symbol + ": " + messageOf(error); }
 
             if (isFreshSignal) {
               try {
