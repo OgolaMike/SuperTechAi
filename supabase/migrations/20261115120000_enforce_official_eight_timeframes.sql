@@ -7,8 +7,16 @@ DELETE FROM public.scanner_candle_marks
 WHERE granularity NOT IN (900, 1800, 3600, 7200, 10800, 14400, 28800, 86400);
 
 DELETE FROM public.signal_records
-WHERE granularity NOT IN (900, 1800, 3600, 7200, 10800, 14400, 28800, 86400)
-   OR timeframe NOT IN ('D1','H8','H4','H3','H2','H1','M30','M15');
+WHERE NOT (
+  (timeframe = 'D1' AND granularity = 86400) OR
+  (timeframe = 'H8' AND granularity = 28800) OR
+  (timeframe = 'H4' AND granularity = 14400) OR
+  (timeframe = 'H3' AND granularity = 10800) OR
+  (timeframe = 'H2' AND granularity = 7200) OR
+  (timeframe = 'H1' AND granularity = 3600) OR
+  (timeframe = 'M30' AND granularity = 1800) OR
+  (timeframe = 'M15' AND granularity = 900)
+);
 
 DELETE FROM public.mt5_signal_intents
 WHERE timeframe NOT IN ('D1','H8','H4','H3','H2','H1','M30','M15');
