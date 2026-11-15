@@ -142,7 +142,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await db.from("academy_ai_discussions")
         .select("id,question,ai_response,created_at")
         .eq("user_id", user.id)
-        .is("lesson_id", null)
+        .eq("model", "supertech-market-copilot")
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
@@ -169,7 +169,7 @@ Deno.serve(async (req: Request) => {
         { question, market_snapshot: snapshot, recent_conversation: history },
       );
       const { data: saved, error } = await db.from("academy_ai_discussions").insert({
-        user_id: user.id, lesson_id: null, question, ai_response: answer, model: "gpt-4.1-mini",
+        user_id: user.id, lesson_id: null, question, ai_response: answer, model: "supertech-market-copilot",
       }).select("id,question,ai_response,created_at").single();
       if (error) throw error;
       return json({ discussion: saved });
