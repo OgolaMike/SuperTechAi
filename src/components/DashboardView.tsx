@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, Bot, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import { Just4YouBonus } from '@/components/Just4YouBonus';
 import { DailyMarketBriefing } from '@/components/DailyMarketBriefing';
@@ -33,6 +33,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
   const totalSignals = signalSummary.buy + signalSummary.sell;
 
   const shortcuts: { label: string; detail: string; view: View; icon: typeof Compass }[] = [
+    { label: 'AI Copilot', detail: 'Ask about your live markets', view: 'copilot', icon: Bot },
     { label: 'All signals', detail: 'Explore every timeframe', view: 'records', icon: BarChart3 },
     { label: 'Crypto markets', detail: 'Movers and opportunities', view: 'crypto', icon: Compass },
     { label: 'Trading accounts', detail: 'Connect or manage trading', view: 'binance', icon: CircleDot },
