@@ -22,7 +22,9 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
   const signal = tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
   const isWeekend = [0, 6].includes(new Date().getDay());
-  const marketClosed = asset.exchange === 'DERIV' && isWeekend && asset.market !== 'synthetic_index';
+  const marketGroup = (asset.market ?? '').toLowerCase();
+  const weekendTrading = marketGroup.includes('synthetic') || marketGroup.includes('crypto');
+  const marketClosed = asset.exchange === 'DERIV' && isWeekend && !weekendTrading;
   const isBuy = signal?.direction === 'BUY';
   const isSell = signal?.direction === 'SELL';
   const aiScore = signal ? getAiPatternScore(aiModel, tf.granularity, signal.direction, signal.levels) : null;
