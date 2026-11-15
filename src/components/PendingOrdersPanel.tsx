@@ -5,7 +5,7 @@ import { LevelList } from '@/components/SignalParts';
 import { PendingOrderChart } from '@/components/PendingOrderChart';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
-import type { Asset } from '@/lib/sma';
+import { TIMEFRAMES, type Asset } from '@/lib/sma';
 import { formatDateTime, formatPrice } from '@/lib/sma';
 
 const STORAGE_KEY = 'supertech-price-action-pending-history-v2';
@@ -22,6 +22,7 @@ function loadTrackedOrders(): M15StopIdea[] {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
     return Array.isArray(stored) ? stored.filter((order: M15StopIdea) =>
+      TIMEFRAMES.some((timeframe) => timeframe.granularity === order.granularity && timeframe.label === order.timeframeLabel) &&
       (order.patternType === 'TRIPLE BOTTOM' || order.patternType === 'TRIPLE TOP') &&
       Number.isFinite(order.entry) && Number.isFinite(order.stopLoss) && Number.isFinite(order.takeProfit)) : [];
   } catch { return []; }
@@ -122,7 +123,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
 
               <div className="mt-3 grid min-w-0 grid-cols-2 gap-2 sm:gap-3">
                 <Price label="Live price" value={idea.currentPrice} digits={idea.digits} />
-                <Price label="Timeframe" value={idea.granularity / 60} digits={0} suffix=" min" />
+                <Price label="Timeframe" value={idea.timeframeLabel} digits={0} />
               </div>
               <div className="mt-4">
                 <PendingOrderChart
@@ -168,6 +169,7 @@ function StatusPill({ status }: { status: M15StopIdea['status'] }) {
     : 'border-line/40 bg-surface/[0.04] text-ink-2';
   return <span className={`max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-left text-xs font-semibold ${tone}`}>{label}</span>;
 }
-function Price({ label, value, digits, suffix = '' }: { label: string; value: number; digits: number; suffix?: string }) {
-  return <div className="min-w-0 rounded-xl border border-line/25 bg-surface/[0.02] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 break-all font-mono text-base font-semibold tabular-nums text-ink">{digits === 0 ? value : formatPrice(value, digits)}{suffix}</p></div>;
+function Price({ label, value, digits, suffix = '' }: { label: string; value: number | string; digits: number; suffix?: string }) {
+  const display = typeof value === 'number' ? (digits === 0 ? value : formatPrice(value, digits)) : value;
+  return <div className="min-w-0 rounded-xl border border-line/25 bg-surface/[0.02] p-3"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 break-all font-mono text-base font-semibold tabular-nums text-ink">{display}{suffix}</p></div>;
 }
