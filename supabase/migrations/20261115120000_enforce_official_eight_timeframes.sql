@@ -1,8 +1,7 @@
 -- Enforce the single supported SuperTech AI timeframe set across stored signals and scanner state.
 BEGIN;
 
--- Remove legacy short-interval scanner progress and signal rows so they cannot be
--- reloaded into charts, records, alerts, or account execution proposals.
+-- Remove legacy short-interval scanner progress so unsupported feeds cannot resume.
 DELETE FROM public.scanner_candle_marks
 WHERE granularity NOT IN (900, 1800, 3600, 7200, 10800, 14400, 28800, 86400);
 
