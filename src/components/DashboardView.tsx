@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import { Just4YouBonus } from '@/components/Just4YouBonus';
+import { DailyMarketBriefing } from '@/components/DailyMarketBriefing';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
@@ -38,6 +39,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
   return (
     <>
       <Just4YouBonus />
+      <DailyMarketBriefing selectedSymbols={selectedSymbols} states={states} loaded={loaded} onNavigate={onNavigate} />
       <section className="mt-7 overflow-hidden rounded-3xl border border-line/15 bg-gradient-to-br from-accent/[0.13] via-surface/[0.055] to-surface/[0.015] p-5 shadow-lg sm:p-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
