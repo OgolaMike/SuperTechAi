@@ -63,7 +63,9 @@ export function buildLevels(
     tp2: mean + sign * TP2_DEVIATIONS * deviation,
     tp3: mean + sign * TP3_DEVIATIONS * deviation,
   };
-  return sign * (levels.tp1 - entry) > 0 ? levels : null;
+  // Match the backend scanner: every confirmed candle-close crossover is a signal,
+  // even when its entry has already moved beyond TP1. The next opposite cross is separate.
+  return levels;
 }
 
 // Checks confirmed candle closes only, in time order. The stop or TP3 closes the record.
