@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
         cardCode: card.card_code,
         displayName: card.display_name,
         memberSince: card.created_at,
-        referralCode: await getReferralCode(card.owner_user_id),
+        referralCode: card.status === "active" && activeMember ? await getReferralCode(card.owner_user_id) : null,
       });
     }
 
