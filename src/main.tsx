@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { AuthGate } from '@/components/AuthGate';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+import { NfcPublicProfile } from '@/components/SmartCommunity';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -11,9 +12,7 @@ if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <AppErrorBoundary>
-        <AuthGate>
-          <App />
-        </AuthGate>
+        {/^\\/tap\\/[a-f0-9]{64}$/i.test(window.location.pathname) ? <NfcPublicProfile /> : <AuthGate><App /></AuthGate>}
       </AppErrorBoundary>
     </StrictMode>,
   );
