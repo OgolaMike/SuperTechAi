@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target, X } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
-import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
+import { formatDateTime, isStale, type Asset, type TfState } from '@/lib/sma';
 import type { Signal } from '@/lib/signals';
 import type { Candle } from '@/lib/deriv';
 import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
@@ -21,6 +21,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
   const [chartOpen, setChartOpen] = useState(false);
   const signal = tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
+  const stale = !loading && isStale(tf, Math.floor(Date.now() / 1000));
   const isWeekend = [0, 6].includes(new Date().getDay());
   const marketGroup = (asset.market ?? '').toLowerCase();
   const weekendTrading = marketGroup.includes('synthetic') || marketGroup.includes('crypto');
@@ -58,7 +59,17 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
         )}
       </div>
 
-      {signal ? (
+      {marketClosed ? (
+        <div role="status" className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
+          <div className="text-base font-semibold text-ink-2">Market closed</div>
+          <div className="max-w-md text-sm leading-relaxed text-ink-3">This market does not trade over the weekend. Live signals will resume when it reopens.</div>
+        </div>
+      ) : stale ? (
+        <div role="status" className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
+          <div className="text-base font-semibold text-ink-2">Signal data is out of date</div>
+          <div className="max-w-md text-sm leading-relaxed text-ink-3">We are waiting for fresh market data. This older signal is hidden until the feed updates.</div>
+        </div>
+      ) : signal ? (
         <>
           <div className="flex min-w-0 items-start gap-3">
             <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border ${
@@ -111,16 +122,14 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
             </div>
           )}
         </>
-      ) : tf.granularity === 86400 && marketClosed ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center"><div className="text-base font-semibold text-ink-2">Market closed</div><div className="text-sm text-ink-3">This market is closed for the weekend. Signals will update when it reopens.</div></div>
       ) : tf.granularity === 86400 ? (
         <DailyCandlesEmptyState candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} assetName={asset.fullName} digits={asset.digits} loading={loading} livePrice={price} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
           {loading ? <Loader2 className="h-6 w-6 animate-spin text-ink-3" /> : <Minus className="h-6 w-6 text-ink-3" />}
-          <div className="text-base font-semibold text-ink-2">{marketClosed ? 'Market closed' : loading ? 'Loading market data' : 'No new signal'}</div>
+          <div className="text-base font-semibold text-ink-2">{loading ? 'Loading market data' : 'No new signal'}</div>
           <div className="text-sm text-ink-3">
-            {marketClosed ? 'This market is closed for the weekend. Signals will update when it reopens.' : loading ? 'Waiting for recent price data.' : 'No crossover has closed yet.'}
+            {loading ? 'Waiting for recent price data.' : 'No crossover has closed yet.'}
           </div>
         </div>
       )}

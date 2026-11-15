@@ -10,6 +10,7 @@ const AccountHub = lazy(() => import('@/components/AccountHub').then((module) =>
 import { AssetSelector } from '@/components/AssetSelector';
 import { AmbientBackground } from '@/components/AmbientBackground';
 const DashboardView = lazy(() => import('@/components/DashboardView').then((module) => ({ default: module.DashboardView })));
+const MarketCopilot = lazy(() => import('@/components/MarketCopilot').then((module) => ({ default: module.MarketCopilot })));
 const NotificationSettings = lazy(() => import('@/components/NotificationSettings').then((module) => ({ default: module.NotificationSettings })));
 const Mt5AutoTrading = lazy(() => import('@/components/Mt5AutoTrading').then((module) => ({ default: module.Mt5AutoTrading })));
 const AutomationConnections = lazy(() => import('@/components/AutomationConnections').then((module) => ({ default: module.AutomationConnections })));
@@ -201,6 +202,8 @@ function App() {
         <div key={view} className="view-transition">
         {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
 
+        {view === 'copilot' && <MarketCopilot assets={assets} states={states} prices={prices} selectedSymbols={selectedSymbols} />}
+
         {view === 'dashboard' && (
           <DashboardView
             selectedSymbols={selectedSymbols}
@@ -269,7 +272,7 @@ function App() {
         {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'exchange-markets' && <ExchangeMarkets aiModel={aiModel} onNavigate={setView} />}
-        {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
+        {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} loaded={loaded} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
 
         <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>

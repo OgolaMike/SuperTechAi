@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useSession } from '@/lib/sessionContext';
 import { AcademyAIHub } from './AcademyAIHub';
 import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video } from 'lucide-react';
 
@@ -111,12 +112,26 @@ type AcademyVideo = {
 
 const CATEGORIES = ['All lessons', 'Getting started', 'Trading foundations', 'Chart reading', 'Risk management', 'Trading practice', 'Advanced trading', 'Trading intelligence', 'Crypto', 'Automation', 'Membership'];
 export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
+  const { session } = useSession();
+  const progressStorageKey = `supertech-academy-completed:${session.user.id}`;
   const [category, setCategory] = useState('All lessons');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState('welcome');
-  const [completed, setCompleted] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('supertech-academy-completed') ?? '[]'); } catch { return []; }
-  });
+  const [completed, setCompleted] = useState<string[]>([]);
+  const [progressLoaded, setProgressLoaded] = useState(false);
+
+  // Keep lesson progress private to the signed-in member on shared devices.
+  useEffect(() => {
+    setProgressLoaded(false);
+    try {
+      const stored = JSON.parse(localStorage.getItem(progressStorageKey) ?? '[]');
+      setCompleted(Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : []);
+    } catch {
+      setCompleted([]);
+    } finally {
+      setProgressLoaded(true);
+    }
+  }, [progressStorageKey]);
   const [answer, setAnswer] = useState<number | null>(null);
   const [videos, setVideos] = useState<AcademyVideo[]>([]);
   const [videoError, setVideoError] = useState('');
@@ -163,7 +178,8 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
   const markComplete = () => {
     const next = completed.includes(selected.id) ? completed : [...completed, selected.id];
     setCompleted(next);
-    localStorage.setItem('supertech-academy-completed', JSON.stringify(next));
+    if (!progressLoaded) return;
+    localStorage.setItem(progressStorageKey, JSON.stringify(next));
   };
 
 

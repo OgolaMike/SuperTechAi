@@ -1,9 +1,10 @@
-import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, Bot, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import { Just4YouBonus } from '@/components/Just4YouBonus';
+import { DailyMarketBriefing } from '@/components/DailyMarketBriefing';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
-import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
+import { TIMEFRAMES, emptyTfState, isStale, type Asset } from '@/lib/sma';
 import type { View } from '@/components/ViewNav';
 
 type Props = {
@@ -18,9 +19,12 @@ type Props = {
 };
 
 export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, onNavigate }: Props) {
+  const nowEpoch = Math.floor(Date.now() / 1000);
   const signalSummary = selectedSymbols.reduce((summary, symbol) => {
     for (const timeframe of TIMEFRAMES) {
-      const direction = states[symbol]?.[timeframe.granularity]?.latestSignal?.direction;
+      const timeframeState = states[symbol]?.[timeframe.granularity];
+      if (!timeframeState || isStale(timeframeState, nowEpoch)) continue;
+      const direction = timeframeState.latestSignal?.direction;
       if (direction === 'BUY') summary.buy += 1;
       if (direction === 'SELL') summary.sell += 1;
     }
@@ -29,6 +33,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
   const totalSignals = signalSummary.buy + signalSummary.sell;
 
   const shortcuts: { label: string; detail: string; view: View; icon: typeof Compass }[] = [
+    { label: 'AI Copilot', detail: 'Ask about your live markets', view: 'copilot', icon: Bot },
     { label: 'All signals', detail: 'Explore every timeframe', view: 'records', icon: BarChart3 },
     { label: 'Crypto markets', detail: 'Movers and opportunities', view: 'crypto', icon: Compass },
     { label: 'Trading accounts', detail: 'Connect or manage trading', view: 'binance', icon: CircleDot },
@@ -38,6 +43,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
   return (
     <>
       <Just4YouBonus />
+      <DailyMarketBriefing selectedSymbols={selectedSymbols} states={states} loaded={loaded} onNavigate={onNavigate} />
       <section className="mt-7 overflow-hidden rounded-3xl border border-line/15 bg-gradient-to-br from-accent/[0.13] via-surface/[0.055] to-surface/[0.015] p-5 shadow-lg sm:p-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
@@ -120,7 +126,10 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                 const tf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
                 const direction = tf.latestSignal?.direction;
                 const confluenceCount = direction
-                  ? TIMEFRAMES.filter((item) => assetStates[item.granularity]?.latestSignal?.direction === direction).length
+                  ? TIMEFRAMES.filter((item) => {
+                    const otherState = assetStates[item.granularity];
+                    return Boolean(otherState && !isStale(otherState, nowEpoch) && otherState.latestSignal?.direction === direction);
+                  }).length
                   : undefined;
                 return (
                   <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0">

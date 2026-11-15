@@ -137,6 +137,44 @@ Deno.serve(async (req: Request) => {
       return json({ discussions: data || [] });
     }
 
+    if (action === "list-market-assistant") {
+      if (!isMember && !isAdmin) return json({ error: "An approved SuperTech AI membership is required." }, 403);
+      const { data, error } = await db.from("academy_ai_discussions")
+        .select("id,question,ai_response,created_at")
+        .eq("user_id", user.id)
+        .eq("model", "supertech-market-copilot")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      const discussions = (data || []).reverse().flatMap((row: { question: string; ai_response: string }) => [
+        { role: "user", content: row.question },
+        { role: "assistant", content: row.ai_response },
+      ]);
+      return json({ messages: discussions });
+    }
+
+    if (action === "market-assistant") {
+      if (!isMember && !isAdmin) return json({ error: "An approved SuperTech AI membership is required." }, 403);
+      const question = clean(body.question, 1600);
+      if (question.length < 2) return json({ error: "Write a question for your SuperTech AI assistant." }, 400);
+      const snapshot = JSON.stringify(body.marketSnapshot ?? {}).slice(0, 7000);
+      const history = Array.isArray(body.history)
+        ? body.history.slice(-8).map((item: unknown) => {
+            const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
+            return { role: row.role === "assistant" ? "assistant" : "user", content: clean(row.content, 1200) };
+          }).filter((item: { content: string }) => item.content.length > 0)
+        : [];
+      const answer = await askOpenAI(
+        "You are the SuperTech AI market assistant. Speak in clear, simple English. Use only the supplied live market snapshot for claims about current assets, prices, signals, timeframes and market status. If a value is absent, stale, or not supplied, say you cannot verify it; never invent prices, signals, performance, broker status or trade outcomes. Explain the platform's crossover signals plainly, distinguish information from financial advice, remind users that signals are not guarantees, and never place trades or claim to have done so. Do not request passwords, API secrets, recovery codes or other credentials. Keep the answer concise and practical.",
+        { question, market_snapshot: snapshot, recent_conversation: history },
+      );
+      const { data: saved, error } = await db.from("academy_ai_discussions").insert({
+        user_id: user.id, lesson_id: null, question, ai_response: answer, model: "supertech-market-copilot",
+      }).select("id,question,ai_response,created_at").single();
+      if (error) throw error;
+      return json({ discussion: saved });
+    }
+
     if (action === "ask") {
       if (!isMember && !isAdmin) return json({ error: "An approved Academy membership is required." }, 403);
       const question = clean(body.question, 1600);

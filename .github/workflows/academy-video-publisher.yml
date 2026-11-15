@@ -64,7 +64,13 @@ jobs:
           npm run build
 
       - name: Capture real app screens and publish Academy videos
+        if: env.ACADEMY_DEMO_EMAIL != '' && env.ACADEMY_DEMO_PASSWORD != ''
         run: node scripts/academy-video-worker.mjs
+
+      - name: Explain why Academy publishing was skipped
+        if: env.ACADEMY_DEMO_EMAIL == '' || env.ACADEMY_DEMO_PASSWORD == ''
+        run: |
+          echo "::notice title=Academy publishing skipped::Configure ACADEMY_DEMO_EMAIL and ACADEMY_DEMO_PASSWORD as repository Actions secrets to enable the read-only demo-member publishing worker. No account credentials are stored in source code."
 
       - name: Save Academy publishing report
         if: always()

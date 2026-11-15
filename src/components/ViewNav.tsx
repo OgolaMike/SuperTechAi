@@ -6,7 +6,7 @@ import {
   UserRoundPlus, X,
 } from 'lucide-react';
 
-export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections';
+export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections' | 'copilot';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -22,6 +22,7 @@ const PRIMARY: NavItem[] = [
 
 const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
   { title: 'Intelligence', items: [
+    { id: 'copilot', label: 'AI Copilot', icon: Bot },
     { id: 'strategies', label: 'Strategies', icon: BarChart3 },
     { id: 'break-retest', label: 'Break & Retest', icon: Repeat2 },
     { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
