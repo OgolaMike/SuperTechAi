@@ -18,7 +18,7 @@ export type MarketStructureSarSignal = {
   idempotencyKey: string;
 };
 
-type Pivot = { index: number; price: number };
+export type ConfirmedPivot = { index: number; price: number };
 const SAR_STEP = 0.02;
 const SAR_MAX = 0.2;
 const ATR_PERIOD = 14;
@@ -32,7 +32,7 @@ function trueRange(c: Candle, previousClose: number): number {
 
 function atr(candles: Candle[]): number | null {
   if (candles.length < ATR_PERIOD + 1) return null;
-  const ranges = candles.slice(-ATR_PERIOD).map((c, i, a) => {
+  const ranges = candles.slice(-ATR_PERIOD).map((c, i) => {
     const absoluteIndex = candles.length - ATR_PERIOD + i;
     const previousClose = absoluteIndex > 0 ? candles[absoluteIndex - 1].close : (c.open ?? c.close);
     return trueRange(c, previousClose);
@@ -41,8 +41,9 @@ function atr(candles: Candle[]): number | null {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
-function findPivots(candles: Candle[], highSide: boolean): Pivot[] {
-  const pivots: Pivot[] = [];
+/** Returns only pivots with two completed candles on both sides. */
+export function findConfirmedPivots(candles: Candle[], highSide: boolean): ConfirmedPivot[] {
+  const pivots: ConfirmedPivot[] = [];
   for (let i = PIVOT_SIDE; i < candles.length - PIVOT_SIDE; i += 1) {
     const price = highSide ? (candles[i].high ?? candles[i].close) : (candles[i].low ?? candles[i].close);
     let isPivot = true;
@@ -59,8 +60,9 @@ function findPivots(candles: Candle[], highSide: boolean): Pivot[] {
   return pivots;
 }
 
-function calculateSar(candles: Candle[]): number[] {
-  const result = new Array<number>(candles.length).fill(0);
+/** Parabolic SAR series using the strategy's 0.02 step and 0.20 maximum acceleration. */
+export function calculateParabolicSar(candles: Candle[]): number[] {
+  const result = new Array<number>(candles.length).fill(Number.NaN);
   if (candles.length < 3) return result;
   const firstUp = (candles[1].high ?? candles[1].close) >= (candles[0].high ?? candles[0].close);
   let uptrend = firstUp;
@@ -74,10 +76,8 @@ function calculateSar(candles: Candle[]): number[] {
   result[1] = sar;
 
   for (let i = 2; i < candles.length; i += 1) {
-    const previous = candles[i - 1];
     const current = candles[i];
-    const priorSar = sar;
-    sar = priorSar + af * (extreme - priorSar);
+    sar += af * (extreme - sar);
     if (uptrend) {
       sar = Math.min(sar, candles[i - 1].low ?? candles[i - 1].close, candles[i - 2].low ?? candles[i - 2].close);
       if ((current.low ?? current.close) < sar) {
@@ -123,8 +123,8 @@ export function buildMarketStructureSarSignal(
   const latest = closed[closed.length - 1];
   if (nowEpoch - (latest.epoch + 900) > 1800) return null;
 
-  const highs = findPivots(closed, true).slice(-2);
-  const lows = findPivots(closed, false).slice(-2);
+  const highs = findConfirmedPivots(closed, true).slice(-2);
+  const lows = findConfirmedPivots(closed, false).slice(-2);
   if (highs.length !== 2 || lows.length !== 2) return null;
 
   const higherHigh = highs[1].price > highs[0].price;
@@ -135,7 +135,7 @@ export function buildMarketStructureSarSignal(
   const bearishStructure = lowerLow && lowerHigh;
   if (!bullishStructure && !bearishStructure) return null;
 
-  const sarValues = calculateSar(closed);
+  const sarValues = calculateParabolicSar(closed);
   const lastIndex = closed.length - 1;
   const previousClose = closed[lastIndex - 1].close;
   const currentClose = latest.close;
@@ -152,7 +152,6 @@ export function buildMarketStructureSarSignal(
   const entry = currentClose;
   const initialRisk = currentAtr * 2;
   const stopLoss = direction === "BUY" ? entry - initialRisk : entry + initialRisk;
-  // The active trail is conservative: it respects the SAR and remains at least 1.5 ATR from price.
   const trailingStop = direction === "BUY"
     ? Math.max(sar, currentClose - currentAtr * 1.5)
     : Math.min(sar, currentClose + currentAtr * 1.5);
