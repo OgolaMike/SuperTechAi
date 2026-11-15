@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { SignalStatus, SignalView } from './signals';
+import { TIMEFRAMES } from './sma';
 
 export type SignalRecordRow = {
   signal_key: string;
@@ -76,9 +77,12 @@ export async function fetchSignalRecords(): Promise<SignalRecordRow[]> {
   const { data, error } = await supabase
     .from('signal_records')
     .select(RECORD_COLUMNS)
+    .in('timeframe', TIMEFRAMES.map((timeframe) => timeframe.label))
+    .in('granularity', TIMEFRAMES.map((timeframe) => timeframe.granularity))
     .order('signal_epoch', { ascending: false })
     .limit(RECORD_LIMIT);
   if (error) throw new Error(error.message);
   if (!Array.isArray(data)) throw new Error('Unexpected response from the records service');
-  return data as SignalRecordRow[];
+  const official = new Map(TIMEFRAMES.map((timeframe) => [timeframe.label, timeframe.granularity]));
+  return (data as SignalRecordRow[]).filter((row) => official.get(row.timeframe) === row.granularity);
 }
