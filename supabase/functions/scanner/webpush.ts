@@ -269,8 +269,9 @@ export async function dispatchPending(
   const subscriptions = (subs ?? []) as PushSubscriptionRow[];
 
   for (const event of events as PushEventRow[]) {
-    // Never deliver a delayed High ROC stop alert after its signal has expired.
-    if (event.kind === "high_roc_stop" && Number(event.payload.expiryEpoch ?? 0) <= Math.floor(Date.now() / 1000)) {
+    // Never deliver delayed strategy alerts after their confirmation window has expired.
+    if ((event.kind === "high_roc_stop" && Number(event.payload.expiryEpoch ?? 0) <= Math.floor(Date.now() / 1000)) ||
+        (event.kind === "market_structure_sar" && event.payload.signalEpoch + 2 * 900 <= Math.floor(Date.now() / 1000))) {
       const { error: expiredError } = await db.from("push_events")
         .update({ dispatched_at: new Date().toISOString() }).eq("event_key", event.event_key);
       if (expiredError) throw new Error("Could not retire expired High ROC event: " + expiredError.message);
