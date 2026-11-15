@@ -48,6 +48,7 @@ function toAsset(symbol: DerivSymbol): Asset {
     fullName: symbol.displayName,
     digits: symbol.digits,
     exchange: 'DERIV',
+    market: symbol.market,
   };
 }
 
