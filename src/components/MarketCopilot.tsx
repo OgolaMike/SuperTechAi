@@ -59,6 +59,9 @@ export function MarketCopilot({ assets, states, prices, selectedSymbols }: Props
     const assetMap = new Map(assets.map((asset) => [asset.symbol, asset]));
     return selectedSymbols.map((symbol) => {
       const asset = assetMap.get(symbol);
+      const freshStates = TIMEFRAMES
+        .map((timeframe) => states[symbol]?.[timeframe.granularity])
+        .filter((state): state is TfState => Boolean(state) && !isStale(state as TfState, now));
       const readings = TIMEFRAMES.map((timeframe) => {
         const state = states[symbol]?.[timeframe.granularity];
         if (!state) return { timeframe: timeframe.label, status: 'not loaded' };
@@ -78,7 +81,9 @@ export function MarketCopilot({ assets, states, prices, selectedSymbols }: Props
         symbol,
         name: asset?.name ?? symbol,
         exchange: asset?.exchange ?? 'unknown',
-        price: prices[symbol] ?? null,
+        // Never pass a cached quote to the assistant when every timeframe is stale.
+        price: freshStates.length > 0 ? prices[symbol] ?? null : null,
+        marketDataStatus: freshStates.length > 0 ? 'fresh timeframe data available' : 'all timeframe data is stale or unavailable',
         readings,
       };
     });
