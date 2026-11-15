@@ -7,12 +7,14 @@ import { NfcPublicProfile } from '@/components/SmartCommunity';
 import './index.css';
 
 const rootElement = document.getElementById('root');
+const pathParts = window.location.pathname.split('/').filter(Boolean);
+const isNfcTap = pathParts.length === 2 && pathParts[0] === 'tap' && /^[a-f0-9]{64}$/i.test(pathParts[1]);
 
 if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <AppErrorBoundary>
-        {/^\\/tap\\/[a-f0-9]{64}$/i.test(window.location.pathname) ? <NfcPublicProfile /> : <AuthGate><App /></AuthGate>}
+        {isNfcTap ? <NfcPublicProfile /> : <AuthGate><App /></AuthGate>}
       </AppErrorBoundary>
     </StrictMode>,
   );
