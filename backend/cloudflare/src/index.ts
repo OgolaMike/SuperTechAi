@@ -10,13 +10,15 @@ const jsonHeaders = { "content-type": "application/json; charset=utf-8" };
 
 function corsHeaders(request: Request, env: Env): HeadersInit {
   const origin = request.headers.get("Origin");
-  const allowed = env.APP_ORIGIN && origin === env.APP_ORIGIN ? origin : "";
-  return {
-    "Access-Control-Allow-Origin": allowed,
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Vary": "Origin",
   };
+  if (origin && env.APP_ORIGIN && origin === env.APP_ORIGIN) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
 }
 
 function respond(request: Request, env: Env, body: unknown, status = 200): Response {
@@ -46,7 +48,7 @@ export default {
 
       try {
         const sql = neon(env.DATABASE_URL);
-        const rows = await sql("select now() as database_time");
+        const rows = await sql.query("select now() as database_time");
         return respond(request, env, {
           ok: true,
           service: "supertechai-api",
