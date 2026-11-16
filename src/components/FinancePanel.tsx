@@ -106,15 +106,15 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
   useEffect(() => { setTab(initialTab); }, [initialTab]);
   useEffect(() => { void load(); }, [load]);
 
-  const createPayment = async () => {
+  const createPayment = async (amount: 300 | 500 = membershipAmount) => {
     setBusy(true); setError(null); setNotice(null);
     try {
       await financeCall<{ order: { id: string }; treasury_address: string }>({
         action: 'create-payment',
         referral_code: referralCode.trim().toUpperCase() || null,
-        amount: membershipAmount,
+        amount,
       });
-      setNotice(`Payment order created. Send exactly ${membershipAmount} USDT using the TRC20 network, then enter the transaction hash below.`);
+      setNotice(`Payment order created. Send exactly ${amount} USDT using the TRC20 network, then enter the transaction hash below.`);
       await load(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create payment order.');
@@ -300,9 +300,9 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
         </div>
       )}
       {dashboard?.membershipActive && (
-        <div className="flex items-center gap-3 rounded-2xl border border-up/25 bg-up/5 p-4 text-sm text-up">
-          <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-          <div><p className="font-semibold">Membership active</p><p className="mt-0.5 text-xs opacity-80">Your {dashboard.membershipTier === 'premium' ? '$500 Premium' : '$300 Standard'} membership is active. Automated trading {dashboard.automationAccess ? 'is included when released.' : 'is not included.'}</p></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-up/25 bg-up/5 p-4 text-sm text-up">
+          <div className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 flex-shrink-0" /><div><p className="font-semibold">{dashboard.membershipTier === 'premium' ? 'Premium membership active' : 'Standard membership active'}</p><p className="mt-0.5 text-xs opacity-80">Automated trading {dashboard.automationAccess ? 'is included when released.' : 'is not included in your current membership.'}</p></div></div>
+          {dashboard.membershipTier !== 'premium' && <button type="button" onClick={() => void createPayment(500)} disabled={busy || !!pendingOrder} className="rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{busy ? 'Preparing…' : 'Upgrade to Premium · $500'}</button>}
         </div>
       )}
 
