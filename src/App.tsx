@@ -319,6 +319,7 @@ function App() {
         {view === 'admin' && isAdmin && <AdminPanel />}
         {view === 'marketing' && isAdmin && <MarketingStudio />}
         {view === 'governance' && isAdmin && <GovernancePanel />}
+        </>}
         </div>
         </Suspense>
 
