@@ -41,7 +41,7 @@ function buildLevels(direction: Direction, mean: number, deviation: number, entr
     tp3: mean + sign * TARGET_SIGMA * deviation,
   };
   // Every confirmed candle-close crossover must be recorded, even if price has
-  // already moved beyond TP1. The next opposite crossover is a separate signal.
+  // already moved beyond the target. The next opposite crossover is a separate signal.
   return levels;
 }
 
@@ -69,7 +69,7 @@ function evaluateOutcome(direction: Direction, levels: Levels, after: Candle[]):
   return { tp1Epoch, tp2Epoch, tp3Epoch, slEpoch, status, closed: tp3Epoch !== null || slEpoch !== null };
 }
 
-// Same SMA 60 / Bollinger 2.5 crossover rules as the browser engine. Only closed candles count.
+// Same SMA 60 / Bollinger 1.5 crossover rules as the browser engine. Only closed candles count.
 export function computeSignals(
   candles: Candle[],
   granularity: number,
