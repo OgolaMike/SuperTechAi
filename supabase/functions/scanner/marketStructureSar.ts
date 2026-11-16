@@ -32,7 +32,7 @@ function trueRange(c: Candle, previousClose: number): number {
 
 function atr(candles: Candle[]): number | null {
   if (candles.length < ATR_PERIOD + 1) return null;
-  const ranges = candles.slice(-ATR_PERIOD).map((c, i, a) => {
+  const ranges = candles.slice(-ATR_PERIOD).map((c, i) => {
     const absoluteIndex = candles.length - ATR_PERIOD + i;
     const previousClose = absoluteIndex > 0 ? candles[absoluteIndex - 1].close : (c.open ?? c.close);
     return trueRange(c, previousClose);
@@ -74,7 +74,6 @@ function calculateSar(candles: Candle[]): number[] {
   result[1] = sar;
 
   for (let i = 2; i < candles.length; i += 1) {
-    const previous = candles[i - 1];
     const current = candles[i];
     const priorSar = sar;
     sar = priorSar + af * (extreme - priorSar);
