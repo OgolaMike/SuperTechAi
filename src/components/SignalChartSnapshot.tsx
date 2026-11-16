@@ -139,9 +139,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const levelsToDraw = levels ? [
     { label: 'ENTRY', value: levels.entry, color: '#f8fafc', dash: '7 5', width: 1.8 },
     { label: 'STOP LOSS', value: levels.stopLoss, color: '#fb7185', dash: '5 5', width: 1.5 },
-    { label: 'TAKE PROFIT 1', value: levels.tp1, color: '#4ade80', dash: '5 5', width: 1.4 },
-    { label: 'TAKE PROFIT 2', value: levels.tp2, color: '#22c55e', dash: '5 5', width: 1.4 },
-    { label: 'TAKE PROFIT 3', value: levels.tp3, color: '#16a34a', dash: '5 5', width: 1.4 },
+    { label: 'TAKE PROFIT', value: levels.tp3, color: '#16a34a', dash: '5 5', width: 1.6 },
   ] : [];
 
   return (
