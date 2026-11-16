@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
         db.from("finance_payment_orders").select("id,amount,network,status,tx_hash,created_at,expires_at,confirmed_at,treasury_address").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
         db.from("finance_withdrawal_requests").select("*").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(30),
         db.from("finance_owner_accounts").select("owner_slot,display_name,payout_address").eq("user_id", user.id).eq("active", true).maybeSingle(),
-        db.from("member_access").select("user_id").eq("user_id", user.id).maybeSingle(),
+        db.from("member_access").select("user_id,membership_tier").eq("user_id", user.id).maybeSingle(),
       ]);
       if (ordersError) throw ordersError;
       if (withdrawalsError) throw withdrawalsError;
@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
       const unilevelBalance = Number(unilevelValue ?? 0);
       const { count: referralCount, error: referralError } = await db.from("finance_member_profiles").select("user_id", { count: "exact", head: true }).eq("sponsor_user_id", user.id);
       if (referralError) throw referralError;
-      return reply({ profile, orders: orders ?? [], ledger: ownEntries ?? [], withdrawals: withdrawals ?? [], balance, unilevelBalance, accountCode, ownerAccount: owner ?? null, directReferrals: referralCount ?? 0, membershipPrice: 300, withdrawalFeePct: 15, membershipActive: !!access });
+      return reply({ profile, orders: orders ?? [], ledger: ownEntries ?? [], withdrawals: withdrawals ?? [], balance, unilevelBalance, accountCode, ownerAccount: owner ?? null, directReferrals: referralCount ?? 0, membershipPrice: 300, withdrawalFeePct: 15, membershipActive: !!access, membershipTier: access?.membership_tier ?? null, automationAccess: access?.membership_tier === "premium" || await isAdmin(user.id) });
     }
 
     if (method === "POST" && action === "create-payment") {
