@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless";
+import { Client } from "@neondatabase/serverless";
 
 interface Env {
   DATABASE_URL?: string;
@@ -46,14 +46,15 @@ export default {
         }, 503);
       }
 
+      const client = new Client(env.DATABASE_URL);
       try {
-        const sql = neon(env.DATABASE_URL);
-        const rows = await sql.query("select now() as database_time");
+        await client.connect();
+        const result = await client.query("select now() as database_time");
         return respond(request, env, {
           ok: true,
           service: "supertechai-api",
           database: "connected",
-          databaseTime: rows[0]?.database_time ?? null,
+          databaseTime: result.rows[0]?.database_time ?? null,
           environment: env.ENVIRONMENT ?? "unconfigured",
         });
       } catch {
@@ -63,6 +64,8 @@ export default {
           database: "connection_failed",
           environment: env.ENVIRONMENT ?? "unconfigured",
         }, 503);
+      } finally {
+        try { await client.end(); } catch { /* connection may not have opened */ }
       }
     }
 
