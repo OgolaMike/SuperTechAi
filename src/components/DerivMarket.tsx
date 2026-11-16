@@ -85,7 +85,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
       const mean = closes.reduce((sum, value) => sum + value, 0) / 60;
       const variance = closes.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
       const deviation = Math.sqrt(variance);
-      return { mean, upper: mean + 2.5 * deviation, lower: mean - 2.5 * deviation };
+      return { mean, upper: mean + 1.5 * deviation, lower: mean - 1.5 * deviation };
     });
     const values = visible.flatMap((candle, index) => [
       candle.high, candle.low,
@@ -198,7 +198,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-2">
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={showSma} onChange={(event) => setShowSma(event.target.checked)} /> SMA 60</label>
-                <label className="flex items-center gap-1.5"><input type="checkbox" checked={showBands} onChange={(event) => setShowBands(event.target.checked)} /> Bollinger ±2.5σ</label>
+                <label className="flex items-center gap-1.5"><input type="checkbox" checked={showBands} onChange={(event) => setShowBands(event.target.checked)} /> Bollinger ±1.5σ</label>
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setVisibleCount((value) => Math.min(200, value + 20))} className="rounded-lg border border-line/15 px-2 py-1 text-xs text-ink-2">Zoom out</button>
