@@ -41,4 +41,4 @@ Do not copy, delete, or overwrite production records. Do not expose secrets in f
 - Existing production URL remains available until cutover is explicitly approved.
 
 ## Current status
-Planning branch only. No backend has been deployed, no credentials have been configured, no production environment has been changed, and no new app URL exists yet.
+A draft pull request now contains the isolated Cloudflare Worker scaffold, Neon connectivity health route, environment configuration, local-secret ignore rules and a tracker for all 23 Edge Function responsibilities. This is foundation work only: no Neon project or Cloudflare Worker has been provisioned, no credentials have been configured, no app routes or authentication have been migrated, no production environment has been changed, and no new app URL exists yet. Build/typecheck and deployment verification remain pending.
