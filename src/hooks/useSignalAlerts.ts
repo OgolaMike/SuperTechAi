@@ -32,11 +32,11 @@ export type Toast = {
 const MAX_TOASTS = 4;
 const FRESH_CANDLES = 2;
 
-type HitLabel = 'TP1' | 'TP2' | 'TP3' | 'SL';
+type HitLabel = 'TP3' | 'SL';
 
 function outcomeFields(view: SignalView): Record<HitLabel, number | null> {
   const { outcome } = view.signal;
-  return { TP1: outcome.tp1Epoch, TP2: outcome.tp2Epoch, TP3: outcome.tp3Epoch, SL: outcome.slEpoch };
+  return { TP3: outcome.tp3Epoch, SL: outcome.slEpoch };
 }
 
 function isFresh(epoch: number, granularity: number, nowEpoch: number): boolean {
@@ -46,15 +46,12 @@ function isFresh(epoch: number, granularity: number, nowEpoch: number): boolean 
 
 function hitMessage(hit: HitLabel): string {
   if (hit === 'SL') return 'Stop-loss hit';
-  if (hit === 'TP3') return 'Target 3 reached. Close the position';
-  return `${hit === 'TP1' ? 'Target 1' : 'Target 2'} reached`;
+  return 'Take-profit target reached. Close the position';
 }
 
 function hitPrice(view: SignalView, hit: HitLabel): number {
   const { levels } = view.signal;
   if (hit === 'SL') return levels.stopLoss;
-  if (hit === 'TP1') return levels.tp1;
-  if (hit === 'TP2') return levels.tp2;
   return levels.tp3;
 }
 
