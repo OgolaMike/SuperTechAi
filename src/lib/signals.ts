@@ -43,7 +43,7 @@ export type SignalView = {
 const TARGET_DEVIATIONS = 1.5;
 const STOP_DEVIATIONS = 1;
 
-// Levels are fixed on the signal candle. A confirmed crossover is never suppressed because price has moved beyond TP1.
+// Levels are fixed on the signal candle. A confirmed crossover is never suppressed because price has moved beyond the target.
 export function buildLevels(
   direction: Direction,
   mean: number,
