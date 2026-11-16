@@ -1,7 +1,7 @@
 import type { Candle } from "./deriv.ts";
 
 export type Direction = "BUY" | "SELL";
-export type SignalStatus = "Open" | "TP1" | "TP2" | "TP3" | "Stopped";
+export type SignalStatus = "Open" | "TP3" | "Stopped";
 
 export type Levels = {
   mean: number;
@@ -25,9 +25,7 @@ export type Outcome = {
 export type Signal = { direction: Direction; signalEpoch: number; levels: Levels; outcome: Outcome };
 
 const SMA_PERIOD = 60;
-const TP1_SIGMA = 1;
-const TP2_SIGMA = 2;
-const TP3_SIGMA = 2.5;
+const TARGET_SIGMA = 1.5;
 const STOP_SIGMA = 1;
 
 function buildLevels(direction: Direction, mean: number, deviation: number, entry: number): Levels | null {
@@ -38,9 +36,9 @@ function buildLevels(direction: Direction, mean: number, deviation: number, entr
     deviation,
     entry,
     stopLoss: mean - sign * STOP_SIGMA * deviation,
-    tp1: mean + sign * TP1_SIGMA * deviation,
-    tp2: mean + sign * TP2_SIGMA * deviation,
-    tp3: mean + sign * TP3_SIGMA * deviation,
+    tp1: mean + sign * TARGET_SIGMA * deviation,
+    tp2: mean + sign * TARGET_SIGMA * deviation,
+    tp3: mean + sign * TARGET_SIGMA * deviation,
   };
   // Every confirmed candle-close crossover must be recorded, even if price has
   // already moved beyond TP1. The next opposite crossover is a separate signal.
@@ -59,16 +57,12 @@ function evaluateOutcome(direction: Direction, levels: Levels, after: Candle[]):
 
   for (const candle of after) {
     if (slEpoch !== null || tp3Epoch !== null) break;
-    if (tp1Epoch === null && reachedTarget(candle.close, levels.tp1)) tp1Epoch = candle.epoch;
-    if (tp2Epoch === null && reachedTarget(candle.close, levels.tp2)) tp2Epoch = candle.epoch;
-    if (tp3Epoch === null && reachedTarget(candle.close, levels.tp3)) tp3Epoch = candle.epoch;
-    if (tp3Epoch === null && reachedStop(candle.close, levels.stopLoss)) slEpoch = candle.epoch;
+    if (reachedTarget(candle.close, levels.tp3)) tp3Epoch = candle.epoch;
+    else if (reachedStop(candle.close, levels.stopLoss)) slEpoch = candle.epoch;
   }
 
   const status: SignalStatus =
     tp3Epoch !== null ? "TP3"
-    : tp2Epoch !== null ? "TP2"
-    : tp1Epoch !== null ? "TP1"
     : slEpoch !== null ? "Stopped"
     : "Open";
 
