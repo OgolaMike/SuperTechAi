@@ -67,7 +67,7 @@ export const DEFAULT_ASSET = 'R_25';
 export const MAX_MONITORED_ASSETS = 10;
 
 const SMA_PERIOD = 60;
-const BB_DEVIATION = 2.5;
+const BB_DEVIATION = 1.5;
 
 export type TfState = {
   granularity: number;
