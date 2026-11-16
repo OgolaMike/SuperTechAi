@@ -49,6 +49,7 @@ import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET, MAX_MONITORED_ASSETS } from '@/lib/sma';
 import { loadMemberAlertModes } from '@/lib/alertPreferences';
+import { supabase } from '@/lib/supabase';
 
 const ASSET_STORAGE_KEY = 'supertech-selected-assets';
 const SOUND_STORAGE_KEY = 'supertech-signal-sounds';
@@ -71,6 +72,8 @@ function currentEpoch(): number {
 
 function App() {
   const { isAdmin, session } = useSession();
+  const [automationAccess, setAutomationAccess] = useState(isAdmin);
+  const [membershipLoaded, setMembershipLoaded] = useState(isAdmin);
   const [alertPreferencesReady, setAlertPreferencesReady] = useState(false);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
@@ -86,6 +89,15 @@ function App() {
     [assets, states, prices, aiModel, now],
   );
   const { toasts: pendingToasts, dismiss: dismissPendingToast } = usePendingOrderAlerts(pendingOrderIdeas, loaded && alertPreferencesReady, soundsEnabled);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (isAdmin) { setAutomationAccess(true); setMembershipLoaded(true); return () => { cancelled = true; }; }
+    setMembershipLoaded(false);
+    supabase.from('member_access').select('membership_tier').eq('user_id', session.user.id).maybeSingle()
+      .then(({ data, error }) => { if (!cancelled) { setAutomationAccess(!error && data?.membership_tier === 'premium'); setMembershipLoaded(true); } });
+    return () => { cancelled = true; };
+  }, [isAdmin, session.user.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,7 +189,7 @@ function App() {
             </div>
           </div>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <ViewNav view={view} isAdmin={isAdmin} onChange={setView} />
+            <ViewNav view={view} isAdmin={isAdmin} hasAutomationAccess={automationAccess} onChange={setView} />
             <AssetSelector
               assets={assets}
               selected={selectedSymbols}
@@ -200,6 +212,14 @@ function App() {
 
         <Suspense fallback={<div className="mt-8 min-h-[40vh] animate-pulse rounded-2xl border border-line/15 bg-surface/[0.025]" aria-label="Loading section" />}>
         <div key={view} className="view-transition">
+        {['connections', 'ctrader', 'mt5', 'binance', 'okx'].includes(view) && !isAdmin && !automationAccess ? (
+          <section className="mt-8 rounded-2xl border border-accent/25 bg-surface/[0.04] p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Premium membership</p>
+            <h2 className="mt-2 text-xl font-semibold text-ink">Automated trading is not included in Standard</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">Your current $300 membership includes signals, market intelligence and education. Automated trading is reserved for the $500 Premium membership and will become available when the automation service is officially released.</p>
+            <p className="mt-3 text-xs text-ink-3">{membershipLoaded ? 'Your membership access has been checked.' : 'Checking your membership…'}</p>
+          </section>
+        ) : <>
         {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
 
         {view === 'dashboard' && (
