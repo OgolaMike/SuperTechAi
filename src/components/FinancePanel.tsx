@@ -17,6 +17,8 @@ type FinanceResult = {
   membershipPrice: number;
   withdrawalFeePct: number;
   membershipActive?: boolean;
+  membershipTier?: 'standard' | 'premium' | null;
+  automationAccess?: boolean;
 };
 type AdminResult = {
   settings: { treasury_address: string | null; network: string; membership_price: number; withdrawal_fee_pct: number; usdt_contract: string };
@@ -65,6 +67,7 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState(() => new URLSearchParams(window.location.search).get('ref') ?? window.localStorage.getItem('supertech-referral-code') ?? '');
+  const [membershipAmount, setMembershipAmount] = useState<300 | 500>(300);
   const [txHash, setTxHash] = useState('');
   const [pollingHash, setPollingHash] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -103,14 +106,15 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
   useEffect(() => { setTab(initialTab); }, [initialTab]);
   useEffect(() => { void load(); }, [load]);
 
-  const createPayment = async () => {
+  const createPayment = async (amount: 300 | 500 = membershipAmount) => {
     setBusy(true); setError(null); setNotice(null);
     try {
       await financeCall<{ order: { id: string }; treasury_address: string }>({
         action: 'create-payment',
         referral_code: referralCode.trim().toUpperCase() || null,
+        amount,
       });
-      setNotice('Payment order created. Send exactly 300 USDT using the TRC20 network, then enter the transaction hash below.');
+      setNotice(`Payment order created. Send exactly ${amount} USDT using the TRC20 network, then enter the transaction hash below.`);
       await load(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create payment order.');
@@ -256,19 +260,25 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Membership activation</p>
               <h3 className="mt-1 text-xl font-semibold text-ink">Unlock SuperTech AI</h3>
-              <p className="mt-1 text-sm text-ink-2">One-time membership: <strong className="text-ink">300 USDT</strong> on TRC20.</p>
+              <p className="mt-1 text-sm text-ink-2">Choose the membership that suits you. Payment is one-time and uses USDT on TRC20.</p>
             </div>
             <span className="rounded-full border border-line/10 px-3 py-1 text-xs text-ink-2">TRC20 · USDT</span>
           </div>
           {!pendingOrder ? (
+            <>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => setMembershipAmount(300)} className={`rounded-xl border p-4 text-left ${membershipAmount === 300 ? 'border-accent bg-accent/10' : 'border-line/15 bg-surface/[0.03]'}`}><span className="block text-sm font-semibold text-ink">Standard · $300</span><span className="mt-1 block text-xs text-ink-2">Signals, market intelligence and Academy. Automated trading not included.</span></button>
+              <button type="button" onClick={() => setMembershipAmount(500)} className={`rounded-xl border p-4 text-left ${membershipAmount === 500 ? 'border-accent bg-accent/10' : 'border-line/15 bg-surface/[0.03]'}`}><span className="block text-sm font-semibold text-ink">Premium · $500</span><span className="mt-1 block text-xs text-ink-2">Everything in Standard, plus automation entitlement when released.</span></button>
+            </div>
             <button onClick={() => void createPayment()} disabled={busy} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />} Create payment instructions
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />} Create {membershipAmount} USDT payment instructions
             </button>
+            </>
           ) : (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <div className="rounded-xl bg-surface/[0.05] p-4">
                 <p className="text-xs text-ink-3">Send exactly</p>
-                <p className="mt-1 text-2xl font-semibold text-ink">300.00 USDT</p>
+                <p className="mt-1 text-2xl font-semibold text-ink">{Number(pendingOrder.amount).toFixed(2)} USDT</p>
                 <p className="mt-1 text-xs text-ink-3">Network: TRON (TRC20). Do not send USDT on ERC20, BEP20 or another network.</p>
                 <p className="mt-3 break-all rounded-lg bg-canvas p-3 text-sm text-ink">{pendingOrder.treasury_address}</p>
                 <button onClick={() => void copy(pendingOrder.treasury_address ?? '', 'Treasury address')} className="mt-2 inline-flex items-center gap-2 rounded-lg border border-line/10 px-3 py-2 text-xs font-semibold text-ink"><Copy className="h-3.5 w-3.5" /> Copy wallet address</button>
@@ -290,9 +300,9 @@ export function FinancePanel({ initialTab = 'wallet' }: Props) {
         </div>
       )}
       {dashboard?.membershipActive && (
-        <div className="flex items-center gap-3 rounded-2xl border border-up/25 bg-up/5 p-4 text-sm text-up">
-          <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-          <div><p className="font-semibold">Membership active</p><p className="mt-0.5 text-xs opacity-80">Your $300 USDT payment has been confirmed and your SuperTech AI access is enabled.</p></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-up/25 bg-up/5 p-4 text-sm text-up">
+          <div className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 flex-shrink-0" /><div><p className="font-semibold">{dashboard.membershipTier === 'premium' ? 'Premium membership active' : 'Standard membership active'}</p><p className="mt-0.5 text-xs opacity-80">Automated trading {dashboard.automationAccess ? 'is included when released.' : 'is not included in your current membership.'}</p></div></div>
+          {dashboard.membershipTier !== 'premium' && <button type="button" onClick={() => void createPayment(500)} disabled={busy || !!pendingOrder} className="rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{busy ? 'Preparing…' : 'Upgrade to Premium · $500'}</button>}
         </div>
       )}
 

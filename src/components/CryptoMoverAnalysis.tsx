@@ -38,11 +38,11 @@ function describeMarket(state: TfState) {
   const recent = state.candles.slice(-6);
   const first = recent[0]?.close ?? price;
   const momentumPct = first !== 0 ? ((price - first) / first) * 100 : 0;
-  const upper = sma + deviation * 2.5;
-  const lower = sma - deviation * 2.5;
+  const upper = sma + deviation * 1.5;
+  const lower = sma - deviation * 1.5;
   const bias = price > sma ? 'Bullish bias' : price < sma ? 'Bearish bias' : 'Neutral bias';
   const band = price >= upper ? 'At / above upper band' : price <= lower ? 'At / below lower band' : 'Inside Bollinger Bands';
-  const volatilityPct = price !== 0 ? (deviation * 2.5 / price) * 100 : 0;
+  const volatilityPct = price !== 0 ? (deviation * 1.5 / price) * 100 : 0;
   const structureCandles = state.candles.slice(-20);
   const support = Math.min(...structureCandles.map((candle) => candle.low));
   const resistance = Math.max(...structureCandles.map((candle) => candle.high));
@@ -123,7 +123,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
       const mean = window.reduce((sum, value) => sum + value, 0) / 60;
       const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
       const deviation = Math.sqrt(variance);
-      return { mean, upper: mean + 2.5 * deviation, lower: mean - 2.5 * deviation };
+      return { mean, upper: mean + 1.5 * deviation, lower: mean - 1.5 * deviation };
     });
   }, [state.candles]);
   const visibleStats = useMemo(() => stats.slice(-data.length), [stats, data.length]);
@@ -224,7 +224,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-2">
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={showSma} onChange={(event) => setShowSma(event.target.checked)} /> SMA 60</label>
-                <label className="flex items-center gap-1.5"><input type="checkbox" checked={showBands} onChange={(event) => setShowBands(event.target.checked)} /> Bollinger ±2.5σ</label>
+                <label className="flex items-center gap-1.5"><input type="checkbox" checked={showBands} onChange={(event) => setShowBands(event.target.checked)} /> Bollinger ±1.5σ</label>
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setVisibleCount((value) => Math.min(200, value + 20))} className="rounded-lg border border-line/15 px-2 py-1 text-xs text-ink-2">Zoom out</button>

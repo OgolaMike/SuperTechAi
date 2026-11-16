@@ -7,7 +7,7 @@ export const ALERT_CATEGORIES: { key: AlertCategory; label: string; description:
   { key: 'signals', label: 'BUY and SELL signals', description: 'New confirmed signals and reversals.' },
   { key: 'limitOrders', label: 'Strategy setups', description: 'Break & Retest and other strategy confirmations.' },
   { key: 'pendingOrders', label: 'Pending orders', description: 'New setups, entries and order outcomes.' },
-  { key: 'targets', label: 'Take-profit updates', description: 'TP1, TP2 and TP3 reached.' },
+  { key: 'targets', label: 'Take-profit updates', description: 'The single take-profit target is reached.' },
   { key: 'stops', label: 'Stop-loss updates', description: 'Stop-loss reached or updated.' },
   { key: 'income', label: 'Income updates', description: 'Commissions and earnings credited.' },
   { key: 'business', label: 'Business updates', description: 'Referrals and membership activity.' },

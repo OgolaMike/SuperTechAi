@@ -242,8 +242,6 @@ function eventsFor(row: SignalRow, previousMark: number, nowEpoch: number): Push
     });
   }
   const hits: [string, number | null, PushEventRow["kind"], number][] = [
-    ["TP1", row.tp1_hit_epoch, "target", row.tp1],
-    ["TP2", row.tp2_hit_epoch, "target", row.tp2],
     ["TP3", row.tp3_hit_epoch, "target", row.tp3],
     ["SL", row.sl_hit_epoch, "stop", row.stop_loss],
   ];

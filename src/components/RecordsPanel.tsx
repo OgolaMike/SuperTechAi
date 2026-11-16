@@ -109,9 +109,7 @@ export function RecordsPanel({ version }: Props) {
                 <th className="px-3 py-3 font-semibold">Side</th>
                 <th className="px-3 py-3 font-semibold">Entry</th>
                 <th className="px-3 py-3 font-semibold">Stop-loss</th>
-                <th className="px-3 py-3 font-semibold">TP 1</th>
-                <th className="px-3 py-3 font-semibold">TP 2</th>
-                <th className="px-3 py-3 font-semibold">TP 3</th>
+                <th className="px-3 py-3 font-semibold">Take-profit</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
               </tr>
             </thead>
@@ -137,8 +135,6 @@ function RecordRow({ row }: { row: SignalRecordRow }) {
       <td className={`px-3 py-3 font-bold ${isBuy ? 'text-up' : 'text-down'}`}>{row.direction}</td>
       <td className="px-3 py-3 font-mono tabular-nums text-ink">{formatPrice(row.entry, row.digits)}</td>
       <td className="px-3 py-3"><HitCell price={row.stop_loss} digits={row.digits} hitEpoch={row.sl_hit_epoch} tone="text-down" /></td>
-      <td className="px-3 py-3"><HitCell price={row.tp1} digits={row.digits} hitEpoch={row.tp1_hit_epoch} tone="text-up" /></td>
-      <td className="px-3 py-3"><HitCell price={row.tp2} digits={row.digits} hitEpoch={row.tp2_hit_epoch} tone="text-up" /></td>
       <td className="px-3 py-3"><HitCell price={row.tp3} digits={row.digits} hitEpoch={row.tp3_hit_epoch} tone="text-up" /></td>
       <td className="px-4 py-3">
         <StatusBadge status={row.status} closed={row.closed} />
@@ -171,7 +167,7 @@ function StatusBadge({ status, closed }: { status: SignalRecordRow['status']; cl
   return (
     <div className="flex flex-col gap-1">
       <span className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${tone}`}>
-        {status === 'Open' ? 'Open' : status === 'Stopped' ? 'Stopped' : `${status} reached`}
+        {status === 'Open' ? 'Open' : status === 'Stopped' ? 'Stopped' : 'Target reached'}
       </span>
       <span className="text-xs text-ink-3">{closed ? 'Closed' : 'Running'}</span>
     </div>

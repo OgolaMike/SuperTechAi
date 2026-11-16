@@ -33,7 +33,7 @@ function rolling(values: number[], index: number) {
   const mean = window.reduce((sum, value) => sum + value, 0) / PERIOD;
   const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / PERIOD;
   const deviation = Math.sqrt(variance);
-  return { mean, upper: mean + deviation * 2.5, lower: mean - deviation * 2.5 };
+  return { mean, upper: mean + deviation * 1.5, lower: mean - deviation * 1.5 };
 }
 
 function timeLabel(epoch: number, granularity: number) {
@@ -139,9 +139,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const levelsToDraw = levels ? [
     { label: 'ENTRY', value: levels.entry, color: '#f8fafc', dash: '7 5', width: 1.8 },
     { label: 'STOP LOSS', value: levels.stopLoss, color: '#fb7185', dash: '5 5', width: 1.5 },
-    { label: 'TAKE PROFIT 1', value: levels.tp1, color: '#4ade80', dash: '5 5', width: 1.4 },
-    { label: 'TAKE PROFIT 2', value: levels.tp2, color: '#22c55e', dash: '5 5', width: 1.4 },
-    { label: 'TAKE PROFIT 3', value: levels.tp3, color: '#16a34a', dash: '5 5', width: 1.4 },
+    { label: 'TAKE PROFIT', value: levels.tp3, color: '#16a34a', dash: '5 5', width: 1.6 },
   ] : [];
 
   return (
@@ -150,7 +148,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : direction === 'SELL' ? 'bg-rose-400' : 'bg-cyan-300'} shadow-[0_0_12px_currentColor]`} />
           <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · {direction ? 'MARKET STRUCTURE' : 'LIVE MARKET · NO CROSS SIGNAL'}</span>
-          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±2.5σ</span>
+          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±1.5σ</span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Live price and current candle countdown">

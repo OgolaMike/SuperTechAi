@@ -4,9 +4,7 @@ import type { Direction, SignalStatus } from '@/lib/signals';
 
 export const STATUS_TEXT: Record<SignalStatus, string> = {
   Open: 'Trade is open',
-  TP1: 'First profit level reached',
-  TP2: 'Second profit level reached',
-  TP3: 'TAKE PROFIT 3 reached',
+  TP3: 'Take-profit target reached',
   Stopped: 'Stop-loss reached',
 };
 

@@ -52,7 +52,7 @@ async function ensureProfile(userId: string) {
 }
 type TronTransfer = { transaction_id?: string; token_info?: { decimals?: number; address?: string }; value?: string; block_timestamp?: number | string; confirmed?: boolean; is_confirmed?: boolean; to?: string; from?: string; block?: number | string };
 
-async function verifyTrc20Transfer(address: string, txHash: string, createdAt: string, expiresAt: string) {
+async function verifyTrc20Transfer(address: string, txHash: string, createdAt: string, expiresAt: string, expectedAmount: number) {
   const params = new URLSearchParams({
     only_confirmed: "true",
     only_to: "true",
@@ -82,7 +82,7 @@ async function verifyTrc20Transfer(address: string, txHash: string, createdAt: s
   const confirmed = tx.confirmed === true || tx.is_confirmed === true || params.get("only_confirmed") === "true";
   if (String(tx.token_info?.address ?? "") !== USDT_CONTRACT) throw new Error("The transaction did not use the official USDT TRC20 contract.");
   if (String(tx.to ?? "") !== address) throw new Error("The transaction was not sent to the SuperTech AI treasury address.");
-  if (amount !== 300) throw new Error("The transaction amount must be exactly 300 USDT.");
+  if (amount !== expectedAmount) throw new Error(`The transaction amount must be exactly ${expectedAmount} USDT for this membership.`);
   if (blockTime < new Date(createdAt).getTime() || blockTime > new Date(expiresAt).getTime()) throw new Error("The payment was outside this payment order's validity window.");
   if (!confirmed) return null;
   return {
@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
         db.from("finance_payment_orders").select("id,amount,network,status,tx_hash,created_at,expires_at,confirmed_at,treasury_address").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
         db.from("finance_withdrawal_requests").select("*").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(30),
         db.from("finance_owner_accounts").select("owner_slot,display_name,payout_address").eq("user_id", user.id).eq("active", true).maybeSingle(),
-        db.from("member_access").select("user_id").eq("user_id", user.id).maybeSingle(),
+        db.from("member_access").select("user_id,membership_tier").eq("user_id", user.id).maybeSingle(),
       ]);
       if (ordersError) throw ordersError;
       if (withdrawalsError) throw withdrawalsError;
@@ -219,12 +219,14 @@ Deno.serve(async (req) => {
       const unilevelBalance = Number(unilevelValue ?? 0);
       const { count: referralCount, error: referralError } = await db.from("finance_member_profiles").select("user_id", { count: "exact", head: true }).eq("sponsor_user_id", user.id);
       if (referralError) throw referralError;
-      return reply({ profile, orders: orders ?? [], ledger: ownEntries ?? [], withdrawals: withdrawals ?? [], balance, unilevelBalance, accountCode, ownerAccount: owner ?? null, directReferrals: referralCount ?? 0, membershipPrice: 300, withdrawalFeePct: 15, membershipActive: !!access });
+      return reply({ profile, orders: orders ?? [], ledger: ownEntries ?? [], withdrawals: withdrawals ?? [], balance, unilevelBalance, accountCode, ownerAccount: owner ?? null, directReferrals: referralCount ?? 0, membershipPrice: 300, withdrawalFeePct: 15, membershipActive: !!access, membershipTier: access?.membership_tier ?? null, automationAccess: access?.membership_tier === "premium" || await isAdmin(user.id) });
     }
 
     if (method === "POST" && action === "create-payment") {
       const settings = await getSettings();
       if (!isTronAddress(settings.treasury_address)) return reply({ error: "SuperTech AI's TRC20 treasury wallet has not been configured yet. Please contact support." }, 409);
+      const amount = Number(body.amount ?? 300);
+      if (![300, 500].includes(amount)) return reply({ error: "Choose either the 300 USDT Standard or 500 USDT Premium membership." }, 400);
       const profile = await ensureProfile(user.id);
       let sponsorId = profile.sponsor_user_id;
       let sponsorAccountCode = profile.sponsor_account_code ?? null;
@@ -257,18 +259,18 @@ Deno.serve(async (req) => {
       if (!sponsorId && !sponsorAccountCode) {
         return reply({ error: "A referral link is required. The company code is available only for the initial ten memberships; everyone joining afterward must use an existing member's referral link." }, 403);
       }
-      const { data: existing, error: existingError } = await db.from("finance_payment_orders").select("*").eq("user_id", user.id).eq("status", "pending").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: existing, error: existingError } = await db.from("finance_payment_orders").select("*").eq("user_id", user.id).eq("amount", amount).eq("status", "pending").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (existingError) throw existingError;
-      if (existing) return reply({ order: existing, treasury_address: existing.treasury_address, amount: 300, network: "TRC20", token_contract: USDT_CONTRACT });
+      if (existing) return reply({ order: existing, treasury_address: existing.treasury_address, amount, membership_tier: amount === 500 ? "premium" : "standard", network: "TRC20", token_contract: USDT_CONTRACT });
       const expiresAt = new Date(Date.now() + Number(settings.payment_expiry_minutes ?? 120) * 60_000).toISOString();
       const { data: order, error: insertError } = await db.from("finance_payment_orders").insert({
         user_id: user.id, sponsor_user_id: sponsorId, sponsor_account_code: sponsorAccountCode,
         referral_code: referralCode || null,
-        amount: 300, network: "TRC20", token_contract: USDT_CONTRACT,
+        amount, network: "TRC20", token_contract: USDT_CONTRACT,
         treasury_address: settings.treasury_address, expires_at: expiresAt,
       }).select("*").single();
       if (insertError) throw insertError;
-      return reply({ order, treasury_address: settings.treasury_address, amount: 300, network: "TRC20", token_contract: USDT_CONTRACT });
+      return reply({ order, treasury_address: settings.treasury_address, amount, membership_tier: amount === 500 ? "premium" : "standard", network: "TRC20", token_contract: USDT_CONTRACT });
     }
 
     if (method === "POST" && action === "verify-payment") {
@@ -280,7 +282,7 @@ Deno.serve(async (req) => {
       if (!order) return reply({ error: "Payment order not found." }, 404);
       if (order.status === "confirmed") return reply({ ok: true, status: "confirmed", activated: true });
       if (order.status !== "pending") return reply({ error: `This payment order is ${order.status}.` }, 409);
-      const transfer = await verifyTrc20Transfer(order.treasury_address, txHash, order.created_at, order.expires_at);
+      const transfer = await verifyTrc20Transfer(order.treasury_address, txHash, order.created_at, order.expires_at, Number(order.amount));
       if (!transfer) return reply({ ok: true, status: "pending", message: "The transaction has not reached confirmed TRON state yet. We will keep checking." }, 202);
       const { data: settled, error: settleError } = await db.rpc("finance_settle_membership", {
         p_order_id: order.id, p_tx_hash: txHash.toLowerCase(), p_chain_payload: transfer,

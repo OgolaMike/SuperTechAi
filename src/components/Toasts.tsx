@@ -96,7 +96,7 @@ function HitDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toast; 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <Detail label="Hit price" value={formatPrice(toast.price, toast.digits)} tone={toast.tone === 'STOP' ? 'text-down' : 'text-up'} />
         <Detail label="Entry" value={formatPrice(toast.levels.entry, toast.digits)} />
-        {toast.kind === 'break-retest' ? <><Detail label="Retest boundary" value={formatPrice(toast.levels.stopLoss, toast.digits)} /><Detail label="Previous swing target" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" /></> : <><Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" /><Detail label="Take-profit 1" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" /><Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" /><Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" /></>}
+        {toast.kind === 'break-retest' ? <><Detail label="Retest boundary" value={formatPrice(toast.levels.stopLoss, toast.digits)} /><Detail label="Previous swing target" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" /></> : <><Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" /><Detail label="Take-profit" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" /></>}
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2">
         <button type="button" onClick={() => { onDismiss(); onClose(); }} className="min-w-0 rounded-xl border border-line/25 bg-surface/10 px-3 py-3 text-sm font-bold text-ink">Close</button>
@@ -120,9 +120,7 @@ function SignalDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toas
           <Detail label="Confirmation" value={toast.direction === 'BUY' ? 'Higher high' : 'Lower low'} />
         </> : <>
           <Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" />
-          <Detail label="Take-profit 1" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" />
-          <Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" />
-          <Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" />
+          <Detail label="Take-profit" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" />
         </>}
         <Detail label="Signal time" value={formatDateTime(toast.at)} />
       </div>

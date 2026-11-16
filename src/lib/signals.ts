@@ -2,7 +2,7 @@ import type { Candle } from './deriv';
 import { TIMEFRAMES, type Asset, type TfState } from './sma';
 
 export type Direction = 'BUY' | 'SELL';
-export type SignalStatus = 'Open' | 'TP1' | 'TP2' | 'TP3' | 'Stopped';
+export type SignalStatus = 'Open' | 'TP3' | 'Stopped';
 
 export type SignalLevels = {
   mean: number;
@@ -40,12 +40,10 @@ export type SignalView = {
   signal: Signal;
 };
 
-const TP1_DEVIATIONS = 1;
-const TP2_DEVIATIONS = 2;
-const TP3_DEVIATIONS = 2.5;
+const TARGET_DEVIATIONS = 1.5;
 const STOP_DEVIATIONS = 1;
 
-// Levels are fixed on the signal candle. A confirmed crossover is never suppressed because price has moved beyond TP1.
+// Levels are fixed on the signal candle. A confirmed crossover is never suppressed because price has moved beyond the target.
 export function buildLevels(
   direction: Direction,
   mean: number,
@@ -59,14 +57,14 @@ export function buildLevels(
     deviation,
     entry,
     stopLoss: mean - sign * STOP_DEVIATIONS * deviation,
-    tp1: mean + sign * TP1_DEVIATIONS * deviation,
-    tp2: mean + sign * TP2_DEVIATIONS * deviation,
-    tp3: mean + sign * TP3_DEVIATIONS * deviation,
+    tp1: mean + sign * TARGET_DEVIATIONS * deviation,
+    tp2: mean + sign * TARGET_DEVIATIONS * deviation,
+    tp3: mean + sign * TARGET_DEVIATIONS * deviation,
   };
   return sign * (levels.tp1 - entry) > 0 ? levels : null;
 }
 
-// Checks confirmed candle closes only, in time order. The stop or TP3 closes the record.
+// Checks confirmed candle closes only. One target at +1.5 deviation or stop at -1 deviation closes the record.
 export function evaluateOutcome(
   direction: Direction,
   levels: SignalLevels,
@@ -83,16 +81,12 @@ export function evaluateOutcome(
 
   for (const candle of candlesAfter) {
     if (slEpoch !== null || tp3Epoch !== null) break;
-    if (tp1Epoch === null && reachedTarget(candle.close, levels.tp1)) tp1Epoch = candle.epoch;
-    if (tp2Epoch === null && reachedTarget(candle.close, levels.tp2)) tp2Epoch = candle.epoch;
-    if (tp3Epoch === null && reachedTarget(candle.close, levels.tp3)) tp3Epoch = candle.epoch;
-    if (tp3Epoch === null && reachedStop(candle.close, levels.stopLoss)) slEpoch = candle.epoch;
+    if (reachedTarget(candle.close, levels.tp3)) tp3Epoch = candle.epoch;
+    else if (reachedStop(candle.close, levels.stopLoss)) slEpoch = candle.epoch;
   }
 
   const status: SignalStatus =
     tp3Epoch !== null ? 'TP3'
-    : tp2Epoch !== null ? 'TP2'
-    : tp1Epoch !== null ? 'TP1'
     : slEpoch !== null ? 'Stopped'
     : 'Open';
 

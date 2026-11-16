@@ -107,7 +107,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
               <Target className="h-4 w-4 flex-shrink-0" />
-              <span>TAKE PROFIT 3 reached at {formatDateTime(signal.outcome.tp3Epoch)}. This signal is complete.</span>
+              <span>TAKE PROFIT reached at {formatDateTime(signal.outcome.tp3Epoch)}. This signal is complete.</span>
             </div>
           )}
         </>
@@ -142,11 +142,10 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
               <button type="button" onClick={() => setChartOpen(false)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" aria-label="Close live signal chart"><X className="h-4 w-4" /> Close</button>
             </div>
             <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-detail-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-white/10 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-slate-400">Entry</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.entry.toFixed(asset.digits)}</p></div>
               <div className="rounded-xl border border-rose-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-rose-300">Stop loss</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.stopLoss.toFixed(asset.digits)}</p></div>
-              <div className="rounded-xl border border-emerald-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-emerald-300">Take profit 1</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.tp1.toFixed(asset.digits)}</p></div>
-              <div className="rounded-xl border border-emerald-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-emerald-300">Take profit 3</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.tp3.toFixed(asset.digits)}</p></div>
+              <div className="rounded-xl border border-emerald-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-emerald-300">Take profit</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.tp3.toFixed(asset.digits)}</p></div>
             </div>
             <p className="pb-4 text-center text-xs leading-relaxed text-slate-400">Live market data updates as new prices and candles arrive. A signal is not a guarantee of profit.</p>
           </div>
@@ -161,9 +160,7 @@ function buildRows(signal: Signal) {
   return [
     { label: 'Suggested entry', hint: 'Price where the signal started.', value: levels.entry, hitEpoch: null, tone: 'text-ink' },
     { label: 'Stop-loss', hint: 'Exit here to limit the loss.', value: levels.stopLoss, hitEpoch: outcome.slEpoch, tone: 'text-down' },
-    { label: 'Take-profit 1', hint: 'First profit level.', value: levels.tp1, hitEpoch: outcome.tp1Epoch, tone: 'text-up' },
-    { label: 'Take-profit 2', hint: 'Second profit level.', value: levels.tp2, hitEpoch: outcome.tp2Epoch, tone: 'text-up' },
-    { label: 'TAKE PROFIT 3', hint: 'Third profit target.', value: levels.tp3, hitEpoch: outcome.tp3Epoch, tone: 'text-up' },
+    { label: 'TAKE PROFIT', hint: 'Single profit target at +1.5 deviation.', value: levels.tp3, hitEpoch: outcome.tp3Epoch, tone: 'text-up' },
   ];
 }
 

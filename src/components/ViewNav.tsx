@@ -8,7 +8,7 @@ import {
 
 export type View = 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections' | 'smart-community';
 
-type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
+type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean; premiumOnly?: boolean };
 
 const PRIMARY: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
@@ -16,7 +16,7 @@ const PRIMARY: NavItem[] = [
   { id: 'crypto', label: 'Crypto Market', mobileLabel: 'Crypto', icon: BarChart3 },
   { id: 'deriv-market', label: 'Deriv Market', mobileLabel: 'Deriv', icon: Activity },
   { id: 'exchange-markets', label: 'Exchange Markets', mobileLabel: 'Exchanges', icon: BarChart3 },
-  { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot },
+  { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot, premiumOnly: true },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
 
@@ -29,9 +29,9 @@ const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
   ] },
   { title: 'Trading connections', items: [
     { id: 'connections', label: 'Connections', icon: Link2 },
-    { id: 'ctrader', label: 'Connect cTrader', icon: Cable },
-    { id: 'mt5', label: 'Connect MT5', icon: Cable },
-    { id: 'okx', label: 'OKX Futures', icon: Activity },
+    { id: 'ctrader', label: 'Connect cTrader', icon: Cable, premiumOnly: true },
+    { id: 'mt5', label: 'Connect MT5', icon: Cable, premiumOnly: true },
+    { id: 'okx', label: 'OKX Futures', icon: Activity, premiumOnly: true },
   ] },
   { title: 'Your space', items: [
     { id: 'alerts', label: 'Alerts & service health', icon: Bell },
@@ -45,16 +45,16 @@ const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
   ] },
 ];
 
-type Props = { view: View; isAdmin: boolean; onChange: (view: View) => void };
+type Props = { view: View; isAdmin: boolean; hasAutomationAccess?: boolean; onChange: (view: View) => void };
 
-export function ViewNav({ view, isAdmin, onChange }: Props) {
+export function ViewNav({ view, isAdmin, hasAutomationAccess = false, onChange }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const accountViews: View[] = ['referrals', 'earnings', 'network'];
   const tradeViews: View[] = ['binance', 'ctrader', 'mt5', 'okx', 'orders'];
   const primaryActive = (id: View) => id === 'referrals'
     ? accountViews.includes(view)
     : id === 'binance' ? tradeViews.includes(view) : view === id;
-  const moreItems = MORE_GROUPS.flatMap((group) => group.items).filter((item) => !item.adminOnly || isAdmin);
+  const moreItems = MORE_GROUPS.flatMap((group) => group.items).filter((item) => (!item.adminOnly || isAdmin) && (!item.premiumOnly || isAdmin || hasAutomationAccess));
   const isMoreActive = moreItems.some((item) => item.id === view) && !PRIMARY.some((item) => primaryActive(item.id));
 
   const choose = (id: View) => {
@@ -65,7 +65,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
   return (
     <>
       <nav className="hidden w-full items-center gap-1 rounded-2xl border border-line/10 bg-surface/[0.035] p-1.5 lg:flex lg:w-auto" aria-label="Main navigation">
-        {PRIMARY.map(({ id, label, icon: Icon }) => (
+        {PRIMARY.filter(item => !item.premiumOnly || isAdmin || hasAutomationAccess).map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${primaryActive(id) ? 'glow-ring bg-surface/[0.12] text-ink shadow-sm' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
             <Icon className="h-4 w-4 shrink-0" /><span>{label}</span>
@@ -78,7 +78,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
           </button>
           {moreOpen && <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-2xl border border-line/15 bg-canvas p-3 shadow-2xl">
             {MORE_GROUPS.map((group) => {
-              const items = group.items.filter((item) => !item.adminOnly || isAdmin);
+              const items = group.items.filter((item) => (!item.adminOnly || isAdmin) && (!item.premiumOnly || isAdmin || hasAutomationAccess));
               return items.length ? <div key={group.title} className="mb-3 last:mb-0">
                 <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">{group.title}</p>
                 <div className="grid gap-1">{items.map(({ id, label: itemLabel, icon: ItemIcon }) => (

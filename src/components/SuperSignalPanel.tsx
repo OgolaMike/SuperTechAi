@@ -186,9 +186,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
   const levels = [
     { label: 'Entry', value: record.entry, tone: 'text-ink', hit: null },
     { label: 'Stop-loss', value: record.stop_loss, tone: 'text-down', hit: record.sl_hit_epoch },
-    { label: 'Take-profit 1', value: record.tp1, tone: 'text-up', hit: record.tp1_hit_epoch },
-    { label: 'Take-profit 2', value: record.tp2, tone: 'text-up', hit: record.tp2_hit_epoch },
-    { label: 'Take-profit 3', value: record.tp3, tone: 'text-up', hit: record.tp3_hit_epoch },
+    { label: 'Take-profit', value: record.tp3, tone: 'text-up', hit: record.tp3_hit_epoch },
   ];
   const score = getAiPatternScore(aiModel, 900, record.direction, {
     entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3,
@@ -256,7 +254,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function OutcomeBadge({ status, closed }: { status: SuperSignalRecord['status']; closed: boolean }) {
-  const tone = status === 'TP1' || status === 'TP2' || status === 'TP3'
+  const tone = status === 'TP3'
     ? 'border-up/25 bg-up/10 text-up'
     : status === 'Stopped' ? 'border-down/25 bg-down/10 text-down'
     : 'border-accent/25 bg-accent/10 text-accent';

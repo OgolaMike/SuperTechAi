@@ -39,7 +39,7 @@ function makeLevels(direction: Direction, entry: number, deviation: number): Pic
   const sign = direction === 'BUY' ? 1 : -1;
   return {
     stopLoss: entry - sign * deviation,
-    tp3: entry + sign * deviation * 2.5,
+    tp3: entry + sign * deviation * 1.5,
   };
 }
 
@@ -100,8 +100,8 @@ export function buildPendingOrderIdeas(
         deviation: primary.stdDev,
         entry: candidate.entry,
         stopLoss: levels.stopLoss,
-        tp1: candidate.entry + (direction === 'BUY' ? 1 : -1) * primary.stdDev,
-        tp2: candidate.entry + (direction === 'BUY' ? 2 : -2) * primary.stdDev,
+        tp1: levels.tp3,
+        tp2: levels.tp3,
         tp3: levels.tp3,
       };
       const aiScore = getAiPatternScore(aiModel, PRIMARY_GRANULARITY, direction, scoreLevels);
