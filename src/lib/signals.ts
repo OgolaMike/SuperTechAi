@@ -40,10 +40,10 @@ export type SignalView = {
   signal: Signal;
 };
 
-const TP1_DEVIATIONS = 1;
-const TP2_DEVIATIONS = 2;
-const TP3_DEVIATIONS = 2.5;
-const STOP_DEVIATIONS = 1;
+const TP1_DEVIATIONS = 1.5;
+const TP2_DEVIATIONS = 2.5;
+const TP3_DEVIATIONS = 3;
+const STOP_DEVIATIONS = 0.5;
 
 // Levels are fixed on the signal candle. A confirmed crossover is never suppressed because price has moved beyond TP1.
 export function buildLevels(
@@ -119,6 +119,7 @@ export function flattenSignals(
   for (const [symbol, byGranularity] of Object.entries(states)) {
     const asset = assetBySymbol.get(symbol);
     for (const state of Object.values(byGranularity)) {
+      if (state.granularity !== 14400 || state.label !== 'H4') continue;
       const officialTimeframe = TIMEFRAMES.find((timeframe) =>
         timeframe.granularity === state.granularity && timeframe.label === state.label,
       );

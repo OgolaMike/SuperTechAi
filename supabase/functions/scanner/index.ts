@@ -14,7 +14,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
-// Official analysis, charts and 8/8 grading share this exact high-to-low sequence.
+// All eight timeframes remain available for analysis; H4 alone owns the primary signal.
 // H2 and H3 are built from complete hourly candles so Deriv and Binance use matching bars.
 const TIMEFRAMES = [
   { granularity: 86400, label: "D1", candleCount: 366 },
@@ -27,8 +27,6 @@ const TIMEFRAMES = [
   { granularity: 900, label: "M15", candleCount: 200 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
-
-const SUPER_SIGNAL_FRESH_PRIMARY_SECONDS = 8 * 900;
 
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
   return Math.floor(nowEpoch / granularity) * granularity - granularity;
@@ -277,7 +275,9 @@ async function processTimeframe(
   }
 
   if (previousMark !== undefined) {
-    const events = rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch));
+    const events = timeframe.granularity === 14400
+      ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch)).filter((event) => event.kind !== "signal")
+      : [];
     if (events.length > 0) {
       const { error } = await db
         .from("push_events")
@@ -292,12 +292,25 @@ async function processTimeframe(
 function evaluateSuperSignal(
   candlesByFrame: Map<number, Candle[]>,
   nowEpoch: number,
-): { direction: "BUY" | "SELL"; signalEpoch: number; entry: number; stopLoss: number; tp1: number; tp2: number; tp3: number } | null {
-  const expectedFrames = TIMEFRAMES;
-  const biases: string[] = [];
-  let primary: ReturnType<typeof computeSignals>["signals"][number] | null = null;
+): { direction: "BUY" | "SELL"; signalEpoch: number; entry: number; stopLoss: number; tp1: number; tp2: number; tp3: number; timeframeAgreement: number; supportingAligned: number } | null {
+  const primaryFrame = TIMEFRAMES.find((frame) => frame.granularity === 14400)!;
+  const primaryCandles = (candlesByFrame.get(primaryFrame.granularity) ?? [])
+    .filter((candle) => candle.epoch + primaryFrame.granularity <= nowEpoch)
+    .sort((a, b) => a.epoch - b.epoch);
+  if (primaryCandles.length < 60) return null;
+  const latestPrimary = primaryCandles[primaryCandles.length - 1];
+  if (nowEpoch - (latestPrimary.epoch + primaryFrame.granularity) > 2 * primaryFrame.granularity) return null;
 
-  for (const frame of expectedFrames) {
+  const primarySignals = computeSignals(primaryCandles, primaryFrame.granularity, nowEpoch).signals;
+  const primary = primarySignals[primarySignals.length - 1] ?? null;
+  if (!primary || primary.outcome.closed || nowEpoch - primary.signalEpoch > 8 * primaryFrame.granularity) return null;
+
+  const expected = primary.direction;
+  const supporting = TIMEFRAMES.filter((frame) => frame.granularity !== primaryFrame.granularity);
+  let supportingAligned = 0;
+  let higherTimeframeOpposes = false;
+
+  for (const frame of supporting) {
     const candles = (candlesByFrame.get(frame.granularity) ?? [])
       .filter((candle) => candle.epoch + frame.granularity <= nowEpoch)
       .sort((a, b) => a.epoch - b.epoch);
@@ -309,15 +322,15 @@ function evaluateSuperSignal(
     const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
     const deviation = Math.sqrt(variance);
     const gap = latest.close - mean;
-    biases.push(gap > deviation * 0.1 ? "BUY" : gap < -deviation * 0.1 ? "SELL" : "NEUTRAL");
-    if (frame.granularity === 900) {
-      const computed = computeSignals(candles, frame.granularity, nowEpoch).signals;
-      primary = computed[computed.length - 1] ?? null;
+    const bias = gap > deviation * 0.1 ? "BUY" : gap < -deviation * 0.1 ? "SELL" : "NEUTRAL";
+    if (bias === expected) supportingAligned += 1;
+    if ((frame.label === "D1" || frame.label === "H8") && bias !== "NEUTRAL" && bias !== expected) {
+      higherTimeframeOpposes = true;
     }
   }
 
-  if (!primary || primary.outcome.closed || nowEpoch - primary.signalEpoch > SUPER_SIGNAL_FRESH_PRIMARY_SECONDS) return null;
-  if (!biases.every((bias) => bias === primary!.direction)) return null;
+  // Supporting frames may delay entry, but can never replace or reverse the H4 direction.
+  if (supportingAligned < 4 || higherTimeframeOpposes) return null;
   return {
     direction: primary.direction,
     signalEpoch: primary.signalEpoch,
@@ -326,6 +339,8 @@ function evaluateSuperSignal(
     tp1: primary.levels.tp1,
     tp2: primary.levels.tp2,
     tp3: primary.levels.tp3,
+    timeframeAgreement: supportingAligned + 1,
+    supportingAligned,
   };
 }
 
@@ -507,7 +522,7 @@ async function runScan(): Promise<Record<string, unknown>> {
           const result = await processTimeframe(symbol, timeframe, candles, nowEpoch, previousMark);
           rowsWritten += result.rowsWritten;
 
-          // Create review-only backend LIMIT proposals when a fresh M15 signal appears.
+          // Create review-only backend LIMIT proposals from the separate M15 entry-pattern strategy.
           if (timeframe.granularity === 900 && result.lastEpoch !== null &&
               (previousMark === undefined || result.lastEpoch > previousMark)) {
             const m15Signals = result.signals;
@@ -624,7 +639,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       }
 
       // Super Signal push events are generated server-side for subscribed assets only.
-      // The same 8-frame freshness, SMA(60) bias and live M15 signal rules used by the app apply.
+      // H4 generates the primary signal; seven fresh timeframes provide supporting confirmation.
       if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol) || futuresAutomationSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
         try {
           for (const frame of TIMEFRAMES) {
@@ -635,7 +650,7 @@ async function runScan(): Promise<Record<string, unknown>> {
           }
           const superSignal = evaluateSuperSignal(candleCache, nowEpoch);
           if (superSignal) {
-            // Binance Futures receives only fresh, confirmed 8/8 Super Signals.
+            // Binance Futures receives fresh H4 signals after the supporting-timeframe entry gate passes.
             // This creates a member-specific signal intent; it does not place an exchange order.
             if (symbol.exchange === "BINANCE_FUTURES") {
               const { data: futuresAccounts, error: futuresAccountsError } = await db
@@ -651,13 +666,13 @@ async function runScan(): Promise<Record<string, unknown>> {
                 account.allowed_symbols.includes(symbol.symbol)
               );
               if (eligible.length) {
-                const futuresSignalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
+                const futuresSignalKey = `${symbol.symbol}|14400|${superSignal.signalEpoch}|${superSignal.direction}`;
                 const intentRows = eligible.map((account) => ({
                   user_id: account.user_id,
                   signal_key: futuresSignalKey,
                   symbol: symbol.symbol,
                   side: superSignal.direction,
-                  timeframe_agreement: 8,
+                  timeframe_agreement: superSignal.timeframeAgreement,
                   signal_epoch: superSignal.signalEpoch,
                   entry_price: superSignal.entry,
                   stop_loss: superSignal.stopLoss,
@@ -670,7 +685,8 @@ async function runScan(): Promise<Record<string, unknown>> {
                     max_open_positions: account.max_open_positions,
                     live_execution_requested: account.live_execution_enabled === true,
                     execution_state: "signal_only_live_execution_not_armed",
-                    timeframe_agreement: 8,
+                    timeframe_agreement: superSignal.timeframeAgreement,
+                    primary_timeframe: "H4", supporting_aligned: superSignal.supportingAligned,
                     source: "scanner_super_signal"
                   }
                 }));
@@ -684,16 +700,16 @@ async function runScan(): Promise<Record<string, unknown>> {
             if (symbol.exchange === "BINANCE_FUTURES" && (okxAutomationRows ?? []).length > 0 && symbol.symbol.endsWith("USDT")) {
               const okxIntentRows = (okxAutomationRows ?? []).map((account) => ({
                 user_id: account.user_id,
-                signal_key: `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`,
+                signal_key: `${symbol.symbol}|14400|${superSignal.signalEpoch}|${superSignal.direction}`,
                 inst_id: symbol.symbol.replace(/USDT$/, "-USDT-SWAP"),
                 side: superSignal.direction === "BUY" ? "buy" : "sell",
-                timeframe_agreement: 8,
+                timeframe_agreement: superSignal.timeframeAgreement,
                 signal_epoch: superSignal.signalEpoch,
                 entry_price: superSignal.entry,
                 stop_loss: superSignal.stopLoss,
                 take_profit: superSignal.tp3,
                 status: "signal_ready",
-                payload: { source: "scanner_super_signal", timeframe_agreement: 8, execution_exchange: "OKX", demo_trading: account.demo_trading === true }
+                payload: { source: "scanner_super_signal", primary_timeframe: "H4", supporting_aligned: superSignal.supportingAligned, timeframe_agreement: superSignal.timeframeAgreement, execution_exchange: "OKX", demo_trading: account.demo_trading === true }
               }));
               const { error: okxIntentError } = await db.from("okx_futures_signal_intents")
                 .upsert(okxIntentRows, { onConflict: "user_id,signal_key", ignoreDuplicates: true });
@@ -710,17 +726,17 @@ async function runScan(): Promise<Record<string, unknown>> {
               const okxExecutionResult = await okxExecutorResponse.json();
               if (okxExecutionResult?.failed > 0) console.error("OKX Futures executor reported failures", okxExecutionResult);
             }
-            const signalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
+            const signalKey = `${symbol.symbol}|14400|${superSignal.signalEpoch}|${superSignal.direction}`;
             const { error: superEventError } = await db.from("push_events").upsert([{
               event_key: `${signalKey}|super_signal`,
               signal_key: signalKey,
               kind: "super_signal",
               payload: {
-                label: "SUPER SIGNAL", symbol: symbol.symbol, assetName: symbol.name, timeframe: "8/8",
+                label: "SUPER SIGNAL", symbol: symbol.symbol, assetName: symbol.name, timeframe: "H4",
                 direction: superSignal.direction, digits: symbol.digits, signalEpoch: superSignal.signalEpoch,
                 entry: superSignal.entry, stopLoss: superSignal.stopLoss,
                 tp1: superSignal.tp1, tp2: superSignal.tp2, tp3: superSignal.tp3,
-                price: superSignal.entry, eventEpoch: nowEpoch, timeframeAgreement: 8,
+                price: superSignal.entry, eventEpoch: nowEpoch, timeframeAgreement: superSignal.timeframeAgreement,
               },
             }], { onConflict: "event_key", ignoreDuplicates: true });
             if (superEventError) throw new Error("Could not queue Super Signal push event: " + superEventError.message);
@@ -748,7 +764,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     await Promise.all(workers);
 
     // Run the Futures executor once after all symbols have been scanned and all fresh
-    // 8/8 intents have been persisted. This avoids repeated Binance account REST bursts.
+    // H4-led intents have been persisted. This avoids repeated Binance account REST bursts.
     if ((futuresAutomationRows ?? []).length > 0) {
       try {
         const executorResponse = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/binance-futures-executor", {

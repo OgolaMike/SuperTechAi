@@ -25,10 +25,10 @@ export type Outcome = {
 export type Signal = { direction: Direction; signalEpoch: number; levels: Levels; outcome: Outcome };
 
 const SMA_PERIOD = 60;
-const TP1_SIGMA = 1;
-const TP2_SIGMA = 2;
-const TP3_SIGMA = 2.5;
-const STOP_SIGMA = 1;
+const TP1_SIGMA = 1.5;
+const TP2_SIGMA = 2.5;
+const TP3_SIGMA = 3;
+const STOP_SIGMA = 0.5;
 
 function buildLevels(direction: Direction, mean: number, deviation: number, entry: number): Levels | null {
   if (!(deviation > 0)) return null;
