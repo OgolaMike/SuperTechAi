@@ -28,8 +28,6 @@ const TIMEFRAMES = [
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
-const SUPER_SIGNAL_FRESH_PRIMARY_SECONDS = 8 * 14400;
-
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
   return Math.floor(nowEpoch / granularity) * granularity - granularity;
 }
