@@ -133,14 +133,14 @@ Because `push_events` and `signal_records` account for most observed storage, fi
 
 - [x] Isolated migration branch exists.
 - [x] Live Supabase table/function/migration inventory inspected read-only.
-- [x] Baseline D1 schema draft for 74 public tables committed.
+- [x] D1 schema for 74 public tables regenerated from live metadata with outgoing foreign keys corrected (still requires SQLite execution validation).
 - [x] R2 archive catalog and initial hot-window policy committed.
 - [x] Shadow Worker health endpoint and Wrangler binding scaffold committed.
 - [ ] D1 database and private R2 bucket created in the user's Cloudflare account.
 - [ ] Local SQLite schema validation and full index/constraint translation.
-- [ ] Validate and repair baseline schema before applying; implement resumable export/import and archive verification pipeline.
+- [ ] Execute SQLite validation; translate all indexes and authorization rules; implement resumable export/import and R2 archive verification pipeline.
 - [ ] Worker service parity and authorization tests.
 - [ ] Pages preview deployment.
 - [ ] Production cutover (not authorized; do not perform).
 
-No production data has been copied yet. No Cloudflare account credentials or D1 database binding were available in this session.
+The archive catalog and initial retention policy are committed, but the R2 export/upload/retrieval pipeline is not implemented yet. No production data has been copied yet. No Cloudflare account credentials or D1 database binding were available in this session.
