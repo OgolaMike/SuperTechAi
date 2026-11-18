@@ -37,13 +37,14 @@ Connected Supabase project: `jtfsqhewotinvlrcadwq`, region `eu-west-2`, status `
 - 74 public tables; all 74 have Row Level Security enabled.
 - 23 active Edge Functions.
 - 97 recorded database migrations.
+- 195 public indexes, 89 RLS policies, 11 public triggers, 33 public SQL functions, zero public views, and two Storage buckets.
 - 13 auth users. User identities must be mapped; password hashes and recovery/session tokens are not copied into D1.
 - Database size: approximately 318 MB.
 - `signal_records`: 356,303 rows, approximately 106 MB.
 - `push_events`: 180,949 rows, approximately 177 MB.
 - Other notable tables: `scanner_candle_marks` 5,356 rows; `crypto_daily_movers` 1,655; `super_signal_records` 294; `academy_videos` 76; `binance_futures_signal_intents` 832.
 
-The 318 MB PostgreSQL database size is a planning estimate, not the eventual D1 size. PostgreSQL table/index storage, SQLite encoding, and D1 indexes differ. Measure the imported D1 database before deciding that all history fits.
+The 318 MB PostgreSQL database size is a planning estimate, not the eventual D1 size. The 89 RLS policies and 33 SQL functions are not automatically carried over by the generated SQLite schema; each authorization rule and business function must be ported and tested. PostgreSQL table/index storage, SQLite encoding, and D1 indexes differ. Measure the imported D1 database before deciding that all history fits.
 
 ## Important D1 capacity risks
 
