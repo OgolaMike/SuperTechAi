@@ -77,6 +77,21 @@ Do not copy password hashes, access/refresh tokens, recovery tokens, Binance/OKX
 
 All authorization must be enforced server-side in Workers. Translate RLS policies into explicit ownership, role and tenant checks and test IDOR cases. Never trust client-supplied admin/member roles.
 
+## Historical data retention: D1 + private R2
+
+The chosen design is not to discard history. Keep recent/high-query records in D1 and place older immutable history in a private R2 bucket as gzip-compressed, date-partitioned NDJSON. Keep a D1 archive manifest for discovery and integrity checks.
+
+Initial shadow hot windows:
+- `signal_records`: 90 days in D1; older partitions archive to R2.
+- `push_events`: 90 days in D1; older event payloads archive to R2.
+- `scanner_candle_marks`: 30 days hot, archive before expiry.
+- `crypto_daily_movers` and `super_signal_records`: 365 days hot.
+- Finance and governance audit/ledger history: never expire; archive older partitions but retain full retrieval.
+
+These are shadow-system policies only. Supabase is not modified. A D1 row is eligible for removal only after the R2 object is uploaded, parsed/decompressed, row-count verified, SHA-256 verified, and its manifest marked verified. The first implementation must not delete any rows at all. R2 remains private; reads go through authenticated Worker routes. Do not archive credentials, password material, refresh tokens, broker keys, VAPID private keys or other secrets.
+
+Added `cloudflare/d1/migrations/0002_archive_catalog.sql` with table policy and archive-job manifest structures. Added an R2 binding placeholder to Wrangler configuration. No Cloudflare resource has yet been created and no data has been exported or moved.
+
 ## Data-copy plan
 
 1. Back up and inventory Supabase tables, columns, constraints, indexes, policies, views, functions, triggers, buckets, objects, Auth configuration, cron jobs and secrets.
@@ -118,11 +133,12 @@ Because `push_events` and `signal_records` account for most observed storage, fi
 
 - [x] Isolated migration branch exists.
 - [x] Live Supabase table/function/migration inventory inspected read-only.
-- [x] Baseline D1 schema for 74 public tables committed.
+- [x] Baseline D1 schema draft for 74 public tables committed.
+- [x] R2 archive catalog and initial hot-window policy committed.
 - [x] Shadow Worker health endpoint and Wrangler binding scaffold committed.
-- [ ] D1 database created in the user's Cloudflare account.
+- [ ] D1 database and private R2 bucket created in the user's Cloudflare account.
 - [ ] Local SQLite schema validation and full index/constraint translation.
-- [ ] Data export/import scripts and row-by-row copy.
+- [ ] Validate and repair baseline schema before applying; implement resumable export/import and archive verification pipeline.
 - [ ] Worker service parity and authorization tests.
 - [ ] Pages preview deployment.
 - [ ] Production cutover (not authorized; do not perform).
