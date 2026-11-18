@@ -14,7 +14,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
-// Official analysis, charts and 8/8 grading share this exact high-to-low sequence.
+// All eight timeframes remain available for analysis; H4 alone owns the primary signal.
 // H2 and H3 are built from complete hourly candles so Deriv and Binance use matching bars.
 const TIMEFRAMES = [
   { granularity: 86400, label: "D1", candleCount: 366 },
@@ -28,7 +28,7 @@ const TIMEFRAMES = [
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
-const SUPER_SIGNAL_FRESH_PRIMARY_SECONDS = 8 * 900;
+const SUPER_SIGNAL_FRESH_PRIMARY_SECONDS = 8 * 14400;
 
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
   return Math.floor(nowEpoch / granularity) * granularity - granularity;
@@ -641,7 +641,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       }
 
       // Super Signal push events are generated server-side for subscribed assets only.
-      // The same 8-frame freshness, SMA(60) bias and live M15 signal rules used by the app apply.
+      // H4 generates the primary signal; seven fresh timeframes provide supporting confirmation.
       if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol) || futuresAutomationSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
         try {
           for (const frame of TIMEFRAMES) {
@@ -652,7 +652,7 @@ async function runScan(): Promise<Record<string, unknown>> {
           }
           const superSignal = evaluateSuperSignal(candleCache, nowEpoch);
           if (superSignal) {
-            // Binance Futures receives only fresh, confirmed 8/8 Super Signals.
+            // Binance Futures receives fresh H4 signals after the supporting-timeframe entry gate passes.
             // This creates a member-specific signal intent; it does not place an exchange order.
             if (symbol.exchange === "BINANCE_FUTURES") {
               const { data: futuresAccounts, error: futuresAccountsError } = await db
@@ -711,7 +711,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                 stop_loss: superSignal.stopLoss,
                 take_profit: superSignal.tp3,
                 status: "signal_ready",
-                payload: { source: "scanner_super_signal", timeframe_agreement: superSignal.timeframeAgreement, execution_exchange: "OKX", demo_trading: account.demo_trading === true }
+                payload: { source: "scanner_super_signal", primary_timeframe: "H4", supporting_aligned: superSignal.supportingAligned, timeframe_agreement: superSignal.timeframeAgreement, execution_exchange: "OKX", demo_trading: account.demo_trading === true }
               }));
               const { error: okxIntentError } = await db.from("okx_futures_signal_intents")
                 .upsert(okxIntentRows, { onConflict: "user_id,signal_key", ignoreDuplicates: true });
@@ -766,7 +766,7 @@ async function runScan(): Promise<Record<string, unknown>> {
     await Promise.all(workers);
 
     // Run the Futures executor once after all symbols have been scanned and all fresh
-    // 8/8 intents have been persisted. This avoids repeated Binance account REST bursts.
+    // H4-led intents have been persisted. This avoids repeated Binance account REST bursts.
     if ((futuresAutomationRows ?? []).length > 0) {
       try {
         const executorResponse = await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/binance-futures-executor", {
