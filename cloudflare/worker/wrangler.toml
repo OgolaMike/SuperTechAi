@@ -1,0 +1,10 @@
+name = "supertechai-shadow-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-18"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "supertechai-shadow"
+database_id = "CREATE_D1_DATABASE_AND_REPLACE_THIS_ID"
+migrations_dir = "../d1/migrations"
