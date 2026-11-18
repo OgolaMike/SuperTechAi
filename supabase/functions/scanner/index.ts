@@ -276,7 +276,7 @@ async function processTimeframe(
 
   if (previousMark !== undefined) {
     const events = timeframe.granularity === 14400
-      ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch))
+      ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch)).filter((event) => event.kind !== "signal")
       : [];
     if (events.length > 0) {
       const { error } = await db
