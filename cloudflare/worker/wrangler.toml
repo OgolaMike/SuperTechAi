@@ -8,3 +8,7 @@ binding = "DB"
 database_name = "supertechai-shadow"
 database_id = "CREATE_D1_DATABASE_AND_REPLACE_THIS_ID"
 migrations_dir = "../d1/migrations"
+
+[[r2_buckets]]
+binding = "ARCHIVES"
+bucket_name = "REPLACE_WITH_PRIVATE_SUPERTECHAI_ARCHIVES_BUCKET"
