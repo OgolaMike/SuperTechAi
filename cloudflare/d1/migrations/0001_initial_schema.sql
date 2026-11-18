@@ -1,6 +1,7 @@
--- Generated from the live Supabase public schema on 2026-11-18.
--- SHADOW DATABASE ONLY. Does not contain production rows, auth passwords, or secrets.
--- UUIDs/timestamps/JSON/arrays are stored as TEXT; financial numeric values are TEXT to preserve decimal precision.
+-- Regenerated from the live Supabase public schema inventory on 2026-11-18.
+-- SHADOW ONLY: no production data, credentials, or auth secrets are included.
+-- Outgoing foreign keys only; auth.users references map to non-secret app_users identities.
+-- UUIDs, timestamps, JSON and exact financial decimals are stored as TEXT.
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS app_users (
@@ -14,7 +15,7 @@ CREATE TABLE IF NOT EXISTS app_users (
 );
 
 CREATE TABLE IF NOT EXISTS "signal_records" (
-  "signal_key" TEXT PRIMARY KEY,
+  "signal_key" TEXT NOT NULL,
   "symbol" TEXT NOT NULL,
   "asset_name" TEXT NOT NULL,
   "timeframe" TEXT NOT NULL,
@@ -37,19 +38,21 @@ CREATE TABLE IF NOT EXISTS "signal_records" (
   "closed" INTEGER NOT NULL DEFAULT 0,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  "reversed_epoch" INTEGER
+  "reversed_epoch" INTEGER,
+  PRIMARY KEY ("signal_key")
 );
 
 CREATE TABLE IF NOT EXISTS "scanner_state" (
-  "id" TEXT PRIMARY KEY,
-  "connection_status" TEXT NOT NULL,
+  "id" TEXT NOT NULL,
+  "connection_status" TEXT NOT NULL DEFAULT 'idle',
   "last_run_at" TEXT,
   "last_success_at" TEXT,
   "last_scan_symbols" INTEGER NOT NULL DEFAULT 0,
   "last_scan_signals" INTEGER NOT NULL DEFAULT 0,
   "last_error" TEXT,
   "last_error_at" TEXT,
-  "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "scanner_candle_marks" (
@@ -61,14 +64,15 @@ CREATE TABLE IF NOT EXISTS "scanner_candle_marks" (
 );
 
 CREATE TABLE IF NOT EXISTS "push_config" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "public_key" TEXT NOT NULL,
   "private_jwk" TEXT NOT NULL,
-  "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "push_subscriptions" (
-  "endpoint" TEXT PRIMARY KEY,
+  "endpoint" TEXT NOT NULL,
   "p256dh" TEXT NOT NULL,
   "auth" TEXT NOT NULL,
   "notify_signals" INTEGER NOT NULL DEFAULT 1,
@@ -87,17 +91,19 @@ CREATE TABLE IF NOT EXISTS "push_subscriptions" (
   "notify_income" INTEGER NOT NULL DEFAULT 1,
   "notify_business" INTEGER NOT NULL DEFAULT 1,
   "user_id" TEXT,
+  PRIMARY KEY ("endpoint"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "push_events" (
-  "event_key" TEXT PRIMARY KEY,
+  "event_key" TEXT NOT NULL,
   "signal_key" TEXT NOT NULL,
   "kind" TEXT NOT NULL,
   "payload" TEXT NOT NULL,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "dispatched_at" TEXT,
   "recipient_user_id" TEXT,
+  PRIMARY KEY ("event_key"),
   FOREIGN KEY ("recipient_user_id") REFERENCES "app_users" ("id")
 );
 
@@ -117,25 +123,27 @@ CREATE TABLE IF NOT EXISTS "crypto_daily_movers" (
 );
 
 CREATE TABLE IF NOT EXISTS "admin_users" (
-  "user_id" TEXT PRIMARY KEY,
+  "user_id" TEXT NOT NULL,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "member_access" (
-  "user_id" TEXT PRIMARY KEY,
+  "user_id" TEXT NOT NULL,
   "approved_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "mt5_account_settings" (
-  "user_id" TEXT PRIMARY KEY,
+  "user_id" TEXT NOT NULL,
   "login" TEXT NOT NULL,
   "server" TEXT NOT NULL,
   "auto_trade_enabled" INTEGER NOT NULL DEFAULT 0,
   "adopt_pending_orders" INTEGER NOT NULL DEFAULT 0,
   "manage_existing_positions" INTEGER NOT NULL DEFAULT 0,
-  "bridge_status" TEXT NOT NULL,
+  "bridge_status" TEXT NOT NULL DEFAULT 'not_connected',
   "last_seen_at" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -149,38 +157,31 @@ CREATE TABLE IF NOT EXISTS "mt5_account_settings" (
   "live_execution_enabled" INTEGER NOT NULL DEFAULT 0,
   "emergency_stop" INTEGER NOT NULL DEFAULT 1,
   "unattended_execution_enabled" INTEGER NOT NULL DEFAULT 0,
-  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
-  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
-  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
-  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
-  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
-  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
-  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "mt5_bridge_workers" (
-  "worker_id" TEXT PRIMARY KEY,
+  "worker_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'offline',
   "version" TEXT,
   "last_seen_at" TEXT,
   "last_error_code" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "worker_token_hash" TEXT,
-  FOREIGN KEY ("worker_id") REFERENCES "mt5_bridge_workers" ("worker_id"),
-  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
-  FOREIGN KEY ("claimed_by") REFERENCES "mt5_bridge_workers" ("worker_id")
+  PRIMARY KEY ("worker_id"),
+  FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id")
 );
 
 CREATE TABLE IF NOT EXISTS "mt5_bridge_commands" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "idempotency_key" TEXT NOT NULL,
   "command_type" TEXT NOT NULL,
-  "payload" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "payload" TEXT NOT NULL DEFAULT '{}',
+  "status" TEXT NOT NULL DEFAULT 'queued',
   "claimed_by" TEXT,
   "claimed_at" TEXT,
   "lease_expires_at" TEXT,
@@ -189,19 +190,20 @@ CREATE TABLE IF NOT EXISTS "mt5_bridge_commands" (
   "error_code" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "completed_at" TEXT,
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
-  FOREIGN KEY ("claimed_by") REFERENCES "mt5_bridge_workers" ("worker_id"),
-  FOREIGN KEY ("command_id") REFERENCES "mt5_bridge_commands" ("id")
+  FOREIGN KEY ("claimed_by") REFERENCES "mt5_bridge_workers" ("worker_id")
 );
 
 CREATE TABLE IF NOT EXISTS "mt5_execution_audit" (
-  "id" INTEGER PRIMARY KEY,
+  "id" INTEGER NOT NULL,
   "user_id" TEXT NOT NULL,
   "worker_id" TEXT,
   "event_type" TEXT NOT NULL,
   "idempotency_key" TEXT,
-  "details" TEXT NOT NULL,
+  "details" TEXT NOT NULL DEFAULT '{}',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id")
 );
 
@@ -225,7 +227,7 @@ CREATE TABLE IF NOT EXISTS "mt5_daily_risk_snapshots" (
 );
 
 CREATE TABLE IF NOT EXISTS "mt5_trade_inventory" (
-  "id" INTEGER PRIMARY KEY,
+  "id" INTEGER NOT NULL,
   "user_id" TEXT NOT NULL,
   "account_login" TEXT NOT NULL,
   "account_server" TEXT NOT NULL,
@@ -242,16 +244,17 @@ CREATE TABLE IF NOT EXISTS "mt5_trade_inventory" (
   "profit" TEXT,
   "magic_number" INTEGER NOT NULL DEFAULT 0,
   "broker_reason" INTEGER,
-  "broker_comment" TEXT NOT NULL,
-  "ownership_status" TEXT NOT NULL,
+  "broker_comment" TEXT NOT NULL DEFAULT '',
+  "ownership_status" TEXT NOT NULL DEFAULT 'discovered_unowned',
   "first_seen_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "last_seen_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "last_sync_id" TEXT,
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id")
 );
 
 CREATE TABLE IF NOT EXISTS "mt5_trade_adoption_audit" (
-  "id" INTEGER PRIMARY KEY,
+  "id" INTEGER NOT NULL,
   "user_id" TEXT NOT NULL,
   "account_login" TEXT NOT NULL,
   "account_server" TEXT NOT NULL,
@@ -261,11 +264,12 @@ CREATE TABLE IF NOT EXISTS "mt5_trade_adoption_audit" (
   "previous_status" TEXT NOT NULL,
   "new_status" TEXT NOT NULL,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "mt5_execution_attempts" (
-  "command_id" TEXT PRIMARY KEY,
+  "command_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "worker_id" TEXT NOT NULL,
   "state" TEXT NOT NULL,
@@ -278,13 +282,14 @@ CREATE TABLE IF NOT EXISTS "mt5_execution_attempts" (
   "broker_message" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("command_id"),
   FOREIGN KEY ("worker_id") REFERENCES "mt5_bridge_workers" ("worker_id"),
   FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id"),
   FOREIGN KEY ("command_id") REFERENCES "mt5_bridge_commands" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "mt5_signal_intents" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "account_login" TEXT NOT NULL,
   "account_server" TEXT NOT NULL,
@@ -299,17 +304,18 @@ CREATE TABLE IF NOT EXISTS "mt5_signal_intents" (
   "stop_loss" TEXT NOT NULL,
   "take_profit" TEXT NOT NULL,
   "idempotency_key" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
-  "payload" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'pending_review',
+  "payload" TEXT NOT NULL DEFAULT '{}',
   "expires_at" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "mt5_account_settings" ("user_id")
 );
 
 CREATE TABLE IF NOT EXISTS "finance_settings" (
-  "id" INTEGER PRIMARY KEY DEFAULT 1,
-  "network" TEXT NOT NULL,
+  "id" INTEGER NOT NULL DEFAULT 1,
+  "network" TEXT NOT NULL DEFAULT 'TRC20',
   "membership_price" TEXT NOT NULL DEFAULT 300,
   "withdrawal_fee_pct" TEXT NOT NULL DEFAULT 15,
   "owner_share_pct" TEXT NOT NULL DEFAULT 35,
@@ -319,61 +325,62 @@ CREATE TABLE IF NOT EXISTS "finance_settings" (
   "lucky_pct" TEXT NOT NULL DEFAULT 5,
   "third_plus_direct_pct" TEXT NOT NULL DEFAULT 50,
   "treasury_address" TEXT,
-  "usdt_contract" TEXT NOT NULL,
+  "usdt_contract" TEXT NOT NULL DEFAULT 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
   "payment_expiry_minutes" INTEGER NOT NULL DEFAULT 120,
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  "company_referral_code" TEXT NOT NULL
+  "company_referral_code" TEXT NOT NULL DEFAULT 'SUPERTECHAI',
+  PRIMARY KEY ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "finance_owner_accounts" (
-  "owner_slot" INTEGER PRIMARY KEY,
+  "owner_slot" INTEGER NOT NULL,
   "display_name" TEXT NOT NULL,
   "user_id" TEXT,
   "payout_address" TEXT,
   "active" INTEGER NOT NULL DEFAULT 1,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  FOREIGN KEY ("owner_slot") REFERENCES "finance_owner_accounts" ("owner_slot"),
-  FOREIGN KEY ("owner_slot") REFERENCES "finance_owner_accounts" ("owner_slot"),
+  PRIMARY KEY ("owner_slot"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "finance_member_profiles" (
-  "user_id" TEXT PRIMARY KEY,
-  "referral_code" TEXT NOT NULL UNIQUE,
+  "user_id" TEXT NOT NULL,
+  "referral_code" TEXT NOT NULL,
   "sponsor_user_id" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "sponsor_account_code" TEXT,
   "payout_tron_address" TEXT,
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
   FOREIGN KEY ("sponsor_user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "finance_payment_orders" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "sponsor_user_id" TEXT,
   "referral_code" TEXT,
   "amount" TEXT NOT NULL DEFAULT 300,
-  "network" TEXT NOT NULL,
-  "token_contract" TEXT NOT NULL,
+  "network" TEXT NOT NULL DEFAULT 'TRC20',
+  "token_contract" TEXT NOT NULL DEFAULT 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
   "treasury_address" TEXT NOT NULL,
   "payer_address" TEXT,
-  "tx_hash" TEXT UNIQUE,
-  "status" TEXT NOT NULL,
+  "tx_hash" TEXT,
+  "status" TEXT NOT NULL DEFAULT 'pending',
   "chain_payload" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "expires_at" TEXT NOT NULL,
   "confirmed_at" TEXT,
   "sponsor_account_code" TEXT,
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("payment_order_id") REFERENCES "finance_payment_orders" ("id"),
   FOREIGN KEY ("sponsor_user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "finance_ledger_entries" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "account_code" TEXT NOT NULL,
   "user_id" TEXT,
   "owner_slot" INTEGER,
@@ -381,17 +388,18 @@ CREATE TABLE IF NOT EXISTS "finance_ledger_entries" (
   "withdrawal_id" TEXT,
   "entry_type" TEXT NOT NULL,
   "amount" TEXT NOT NULL,
-  "currency" TEXT NOT NULL,
-  "idempotency_key" TEXT NOT NULL UNIQUE,
-  "metadata" TEXT NOT NULL,
+  "currency" TEXT NOT NULL DEFAULT 'USDT',
+  "idempotency_key" TEXT NOT NULL,
+  "metadata" TEXT NOT NULL DEFAULT '{}',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("owner_slot") REFERENCES "finance_owner_accounts" ("owner_slot"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
   FOREIGN KEY ("payment_order_id") REFERENCES "finance_payment_orders" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "finance_withdrawal_requests" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT,
   "owner_slot" INTEGER,
   "account_code" TEXT NOT NULL,
@@ -399,48 +407,51 @@ CREATE TABLE IF NOT EXISTS "finance_withdrawal_requests" (
   "fee_amount" TEXT NOT NULL,
   "net_amount" TEXT NOT NULL,
   "destination_address" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
-  "tx_hash" TEXT UNIQUE,
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "tx_hash" TEXT,
   "rejection_reason" TEXT,
   "requested_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "processed_at" TEXT,
   "processed_by" TEXT,
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("processed_by") REFERENCES "app_users" ("id"),
   FOREIGN KEY ("owner_slot") REFERENCES "finance_owner_accounts" ("owner_slot"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "finance_audit_log" (
-  "id" INTEGER PRIMARY KEY,
+  "id" INTEGER NOT NULL,
   "actor_user_id" TEXT,
   "event_type" TEXT NOT NULL,
   "entity_type" TEXT NOT NULL,
   "entity_id" TEXT,
-  "details" TEXT NOT NULL,
+  "details" TEXT NOT NULL DEFAULT '{}',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("actor_user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "founding_cohort" (
-  "email" TEXT PRIMARY KEY,
+  "email" TEXT NOT NULL,
   "intended_role" TEXT NOT NULL,
   "auth_user_id" TEXT,
-  "account_status" TEXT NOT NULL,
+  "account_status" TEXT NOT NULL DEFAULT 'awaiting_account_recovery',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("email"),
   FOREIGN KEY ("auth_user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "ctrader_connections" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "ctrader_account_id" TEXT NOT NULL,
   "environment" TEXT NOT NULL,
-  "broker_name" TEXT NOT NULL,
+  "broker_name" TEXT NOT NULL DEFAULT 'Deriv',
   "account_label" TEXT,
   "account_currency" TEXT,
   "leverage" TEXT,
-  "connection_status" TEXT NOT NULL,
+  "connection_status" TEXT NOT NULL DEFAULT 'pending',
   "access_token_secret_ref" TEXT,
   "refresh_token_secret_ref" TEXT,
   "token_expires_at" TEXT,
@@ -450,17 +461,12 @@ CREATE TABLE IF NOT EXISTS "ctrader_connections" (
   "last_error_code" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id"),
-  FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id"),
-  FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id"),
-  FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("connection_id", "user_id") REFERENCES "ctrader_connections" ("id", "user_id"),
-  FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id"),
-  FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id")
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "ctrader_execution_settings" (
-  "connection_id" TEXT PRIMARY KEY,
+  "connection_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "automation_enabled" INTEGER NOT NULL DEFAULT 0,
   "unattended_execution_enabled" INTEGER NOT NULL DEFAULT 0,
@@ -470,24 +476,26 @@ CREATE TABLE IF NOT EXISTS "ctrader_execution_settings" (
   "max_open_positions" INTEGER NOT NULL DEFAULT 1,
   "max_spread_pips" TEXT NOT NULL DEFAULT 0,
   "allowed_symbols" TEXT NOT NULL,
-  "strategy_version" TEXT NOT NULL,
+  "strategy_version" TEXT NOT NULL DEFAULT 'supertech-ai-v1',
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("connection_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
   FOREIGN KEY ("connection_id", "user_id") REFERENCES "ctrader_connections" ("id", "user_id")
 );
 
 CREATE TABLE IF NOT EXISTS "ctrader_oauth_states" (
-  "state_hash" TEXT PRIMARY KEY,
+  "state_hash" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
-  "redirect_path" TEXT NOT NULL,
+  "redirect_path" TEXT NOT NULL DEFAULT '/',
   "expires_at" TEXT NOT NULL,
   "consumed_at" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("state_hash"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "ctrader_execution_intents" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "connection_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "source_signal_key" TEXT NOT NULL,
@@ -502,12 +510,12 @@ CREATE TABLE IF NOT EXISTS "ctrader_execution_intents" (
   "take_profit" TEXT NOT NULL,
   "risk_percent" TEXT NOT NULL,
   "idempotency_key" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'queued',
   "broker_order_id" TEXT,
   "broker_position_id" TEXT,
   "expires_at" TEXT,
-  "request_payload" TEXT NOT NULL,
-  "result_payload" TEXT NOT NULL,
+  "request_payload" TEXT NOT NULL DEFAULT '{}',
+  "result_payload" TEXT NOT NULL DEFAULT '{}',
   "last_error_code" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -516,14 +524,13 @@ CREATE TABLE IF NOT EXISTS "ctrader_execution_intents" (
   "execution_lease_expires_at" TEXT,
   "attempt_count" INTEGER NOT NULL DEFAULT 0,
   "last_attempt_at" TEXT,
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("intent_id") REFERENCES "ctrader_execution_intents" ("id"),
-  FOREIGN KEY ("intent_id") REFERENCES "ctrader_execution_intents" ("id"),
   FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "ctrader_positions" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "connection_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "broker_position_id" TEXT NOT NULL,
@@ -535,23 +542,25 @@ CREATE TABLE IF NOT EXISTS "ctrader_positions" (
   "entry_price" TEXT NOT NULL,
   "stop_loss" TEXT,
   "take_profit" TEXT,
-  "position_status" TEXT NOT NULL,
+  "position_status" TEXT NOT NULL DEFAULT 'open',
   "strategy_owned" INTEGER NOT NULL DEFAULT 0,
   "opened_at" TEXT,
   "closed_at" TEXT,
   "broker_updated_at" TEXT,
-  "sanitized_snapshot" TEXT NOT NULL,
+  "sanitized_snapshot" TEXT NOT NULL DEFAULT '{}',
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id"),
   FOREIGN KEY ("intent_id") REFERENCES "ctrader_execution_intents" ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "ctrader_runtime_leases" (
-  "connection_id" TEXT PRIMARY KEY,
+  "connection_id" TEXT NOT NULL,
   "lease_owner" TEXT NOT NULL,
   "lease_expires_at" TEXT NOT NULL,
   "heartbeat_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("connection_id"),
   FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id")
 );
 
@@ -569,39 +578,41 @@ CREATE TABLE IF NOT EXISTS "ctrader_daily_risk_snapshots" (
 );
 
 CREATE TABLE IF NOT EXISTS "ctrader_execution_events" (
-  "id" INTEGER PRIMARY KEY,
+  "id" INTEGER NOT NULL,
   "connection_id" TEXT,
   "user_id" TEXT,
   "intent_id" TEXT,
   "event_type" TEXT NOT NULL,
   "idempotency_key" TEXT,
-  "details" TEXT NOT NULL,
+  "details" TEXT NOT NULL DEFAULT '{}',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("intent_id") REFERENCES "ctrader_execution_intents" ("id"),
   FOREIGN KEY ("connection_id") REFERENCES "ctrader_connections" ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "ctrader_oauth_grants" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "encrypted_access_token" TEXT NOT NULL,
   "encrypted_refresh_token" TEXT NOT NULL,
   "token_expires_at" TEXT NOT NULL,
   "granted_scopes" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'account_discovery_pending',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_spot_settings" (
-  "user_id" TEXT PRIMARY KEY,
-  "connection_status" TEXT NOT NULL,
+  "user_id" TEXT NOT NULL,
+  "connection_status" TEXT NOT NULL DEFAULT 'not_connected',
   "auto_trade_enabled" INTEGER NOT NULL DEFAULT 0,
   "live_execution_enabled" INTEGER NOT NULL DEFAULT 0,
   "emergency_stop" INTEGER NOT NULL DEFAULT 1,
-  "quote_asset" TEXT NOT NULL,
+  "quote_asset" TEXT NOT NULL DEFAULT 'USDT',
   "max_trade_usdt" TEXT NOT NULL DEFAULT 25,
   "max_open_positions" INTEGER NOT NULL DEFAULT 3,
   "allowed_symbols" TEXT NOT NULL,
@@ -612,11 +623,12 @@ CREATE TABLE IF NOT EXISTS "binance_spot_settings" (
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "risk_percent" TEXT NOT NULL DEFAULT 3,
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_spot_orders" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "symbol" TEXT NOT NULL,
   "side" TEXT NOT NULL,
@@ -627,56 +639,58 @@ CREATE TABLE IF NOT EXISTS "binance_spot_orders" (
   "take_profit" TEXT,
   "signal_key" TEXT NOT NULL,
   "idempotency_key" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'queued',
   "broker_order_id" TEXT,
   "broker_order_list_id" TEXT,
   "client_order_id" TEXT NOT NULL,
-  "request_payload" TEXT NOT NULL,
-  "result_payload" TEXT NOT NULL,
+  "request_payload" TEXT NOT NULL DEFAULT '{}',
+  "result_payload" TEXT NOT NULL DEFAULT '{}',
   "last_error_code" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "completed_at" TEXT,
   "expires_at" TEXT,
-  FOREIGN KEY ("entry_order_id") REFERENCES "binance_spot_orders" ("id"),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_spot_positions" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "symbol" TEXT NOT NULL,
   "base_asset" TEXT NOT NULL,
-  "quote_asset" TEXT NOT NULL,
+  "quote_asset" TEXT NOT NULL DEFAULT 'USDT',
   "quantity" TEXT NOT NULL,
   "entry_price" TEXT NOT NULL,
   "stop_loss" TEXT,
   "take_profit" TEXT,
   "entry_order_id" TEXT,
   "exit_order_list_id" TEXT,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'open',
   "strategy_owned" INTEGER NOT NULL DEFAULT 1,
   "opened_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "closed_at" TEXT,
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
   FOREIGN KEY ("entry_order_id") REFERENCES "binance_spot_orders" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_spot_credentials" (
-  "user_id" TEXT PRIMARY KEY,
+  "user_id" TEXT NOT NULL,
   "encrypted_api_key" TEXT NOT NULL,
   "encrypted_api_secret" TEXT NOT NULL,
   "api_key_last4" TEXT NOT NULL,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  "key_type" TEXT NOT NULL,
+  "key_type" TEXT NOT NULL DEFAULT 'hmac',
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "just4you_weekly_draws" (
-  "id" TEXT PRIMARY KEY,
-  "week_start" TEXT NOT NULL UNIQUE,
+  "id" TEXT NOT NULL,
+  "week_start" TEXT NOT NULL,
   "week_end" TEXT NOT NULL,
   "qualifying_sales" TEXT NOT NULL,
   "prize_amount" TEXT NOT NULL,
@@ -684,48 +698,51 @@ CREATE TABLE IF NOT EXISTS "just4you_weekly_draws" (
   "winner_user_id" TEXT,
   "winner_display_name" TEXT,
   "drawn_at" TEXT,
-  "payout_status" TEXT NOT NULL,
+  "payout_status" TEXT NOT NULL DEFAULT 'pending',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("winner_user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "unilevel_auto_payouts" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "payout_month" TEXT NOT NULL,
   "gross_amount" TEXT NOT NULL,
   "fee_amount" TEXT NOT NULL,
   "net_amount" TEXT NOT NULL,
   "destination_address" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
-  "tx_hash" TEXT UNIQUE,
+  "status" TEXT NOT NULL DEFAULT 'queued',
+  "tx_hash" TEXT,
   "attempts" INTEGER NOT NULL DEFAULT 0,
   "last_error" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "paid_at" TEXT,
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "academy_videos" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "lesson_id" TEXT NOT NULL,
   "lesson_title" TEXT NOT NULL,
-  "provider_session_id" TEXT UNIQUE,
+  "provider_session_id" TEXT,
   "provider_video_id" TEXT,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'pending',
   "video_url" TEXT,
   "thumbnail_url" TEXT,
   "failure_reason" TEXT,
   "created_by" TEXT NOT NULL,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  "screenshots" TEXT NOT NULL,
+  "screenshots" TEXT NOT NULL DEFAULT '[]',
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("created_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "super_signal_records" (
-  "signal_key" TEXT PRIMARY KEY,
+  "signal_key" TEXT NOT NULL,
   "symbol" TEXT NOT NULL,
   "asset_name" TEXT NOT NULL,
   "digits" INTEGER NOT NULL DEFAULT 4,
@@ -736,10 +753,10 @@ CREATE TABLE IF NOT EXISTS "super_signal_records" (
   "tp1" REAL NOT NULL,
   "tp2" REAL NOT NULL,
   "tp3" REAL NOT NULL,
-  "daily_bias" TEXT NOT NULL,
-  "reads" TEXT NOT NULL,
-  "explanation" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "daily_bias" TEXT NOT NULL DEFAULT 'No data',
+  "reads" TEXT NOT NULL DEFAULT '[]',
+  "explanation" TEXT NOT NULL DEFAULT '',
+  "status" TEXT NOT NULL DEFAULT 'Open',
   "tp1_hit_epoch" INTEGER,
   "tp2_hit_epoch" INTEGER,
   "tp3_hit_epoch" INTEGER,
@@ -751,23 +768,25 @@ CREATE TABLE IF NOT EXISTS "super_signal_records" (
   "band_deviation" REAL NOT NULL DEFAULT 0,
   "grade_percent" INTEGER,
   "confirmation_timeframe" TEXT,
-  "confirmation_epoch" INTEGER
+  "confirmation_epoch" INTEGER,
+  PRIMARY KEY ("signal_key")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_futures_credentials" (
-  "user_id" TEXT PRIMARY KEY,
+  "user_id" TEXT NOT NULL,
   "encrypted_api_key" TEXT NOT NULL,
   "encrypted_api_secret" TEXT NOT NULL,
   "api_key_last4" TEXT NOT NULL,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  "key_type" TEXT NOT NULL,
+  "key_type" TEXT NOT NULL DEFAULT 'hmac',
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_futures_settings" (
-  "user_id" TEXT PRIMARY KEY,
-  "connection_status" TEXT NOT NULL,
+  "user_id" TEXT NOT NULL,
+  "connection_status" TEXT NOT NULL DEFAULT 'not_connected',
   "auto_trade_enabled" INTEGER NOT NULL DEFAULT 0,
   "live_execution_enabled" INTEGER NOT NULL DEFAULT 0,
   "emergency_stop" INTEGER NOT NULL DEFAULT 1,
@@ -782,11 +801,12 @@ CREATE TABLE IF NOT EXISTS "binance_futures_settings" (
   "last_error_code" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_futures_orders" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "signal_key" TEXT NOT NULL,
   "symbol" TEXT NOT NULL,
@@ -797,22 +817,23 @@ CREATE TABLE IF NOT EXISTS "binance_futures_orders" (
   "stop_loss" TEXT NOT NULL,
   "take_profit" TEXT NOT NULL,
   "risk_usdt" TEXT,
-  "client_order_id" TEXT NOT NULL UNIQUE,
+  "client_order_id" TEXT NOT NULL,
   "exchange_order_id" TEXT,
   "stop_order_id" TEXT,
   "take_profit_order_id" TEXT,
-  "status" TEXT NOT NULL,
-  "request_payload" TEXT NOT NULL,
-  "result_payload" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'queued',
+  "request_payload" TEXT NOT NULL DEFAULT '{}',
+  "result_payload" TEXT NOT NULL DEFAULT '{}',
   "last_error_code" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "completed_at" TEXT,
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_futures_positions" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "symbol" TEXT NOT NULL,
   "side" TEXT NOT NULL,
@@ -824,10 +845,11 @@ CREATE TABLE IF NOT EXISTS "binance_futures_positions" (
   "stop_loss" TEXT,
   "take_profit" TEXT,
   "source_signal_key" TEXT,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'open',
   "opened_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "closed_at" TEXT,
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
@@ -841,7 +863,7 @@ CREATE TABLE IF NOT EXISTS "binance_futures_daily_risk" (
 );
 
 CREATE TABLE IF NOT EXISTS "binance_futures_signal_intents" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "signal_key" TEXT NOT NULL,
   "symbol" TEXT NOT NULL,
@@ -851,70 +873,73 @@ CREATE TABLE IF NOT EXISTS "binance_futures_signal_intents" (
   "entry_price" TEXT NOT NULL,
   "stop_loss" TEXT NOT NULL,
   "take_profit" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
-  "payload" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'signal_ready',
+  "payload" TEXT NOT NULL DEFAULT '{}',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "governance_owners" (
-  "user_id" TEXT PRIMARY KEY,
+  "user_id" TEXT NOT NULL,
   "display_name" TEXT NOT NULL,
-  "role" TEXT NOT NULL,
+  "role" TEXT NOT NULL DEFAULT 'owner',
   "active" INTEGER NOT NULL DEFAULT 1,
   "added_by" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
   FOREIGN KEY ("added_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "governance_proposals" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "description" TEXT NOT NULL,
-  "category" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "category" TEXT NOT NULL DEFAULT 'general',
+  "status" TEXT NOT NULL DEFAULT 'open',
   "created_by" TEXT NOT NULL,
   "closes_at" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  FOREIGN KEY ("proposal_id") REFERENCES "governance_proposals" ("id"),
-  FOREIGN KEY ("created_by") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("proposal_id") REFERENCES "governance_proposals" ("id")
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("created_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "governance_votes" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "proposal_id" TEXT NOT NULL,
   "voter_id" TEXT NOT NULL,
   "choice" TEXT NOT NULL,
   "rationale" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("proposal_id") REFERENCES "governance_proposals" ("id"),
   FOREIGN KEY ("voter_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "governance_discussions" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "proposal_id" TEXT,
   "body" TEXT NOT NULL,
   "created_by" TEXT NOT NULL,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("created_by") REFERENCES "app_users" ("id"),
   FOREIGN KEY ("proposal_id") REFERENCES "governance_proposals" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "governance_announcements" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "body" TEXT NOT NULL,
   "published_by" TEXT NOT NULL,
   "published_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "archived_at" TEXT,
-  FOREIGN KEY ("published_by") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("announcement_id") REFERENCES "governance_announcements" ("id")
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("published_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "governance_announcement_reads" (
@@ -927,29 +952,31 @@ CREATE TABLE IF NOT EXISTS "governance_announcement_reads" (
 );
 
 CREATE TABLE IF NOT EXISTS "governance_audit_log" (
-  "id" INTEGER PRIMARY KEY,
+  "id" INTEGER NOT NULL,
   "actor_id" TEXT,
   "action" TEXT NOT NULL,
   "entity_type" TEXT NOT NULL,
   "entity_id" TEXT,
-  "details" TEXT NOT NULL,
+  "details" TEXT NOT NULL DEFAULT '{}',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("actor_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "okx_futures_credentials" (
-  "user_id" TEXT PRIMARY KEY,
+  "user_id" TEXT NOT NULL,
   "encrypted_api_key" TEXT NOT NULL,
   "encrypted_api_secret" TEXT NOT NULL,
   "encrypted_passphrase" TEXT NOT NULL,
   "api_key_last4" TEXT NOT NULL,
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "okx_futures_settings" (
-  "user_id" TEXT PRIMARY KEY,
-  "connection_status" TEXT NOT NULL,
+  "user_id" TEXT NOT NULL,
+  "connection_status" TEXT NOT NULL DEFAULT 'not_connected',
   "demo_trading" INTEGER NOT NULL DEFAULT 1,
   "auto_trade_enabled" INTEGER NOT NULL DEFAULT 0,
   "live_execution_enabled" INTEGER NOT NULL DEFAULT 0,
@@ -964,11 +991,12 @@ CREATE TABLE IF NOT EXISTS "okx_futures_settings" (
   "last_checked_at" TEXT,
   "last_error_code" TEXT,
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "academy_trade_reviews" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "symbol" TEXT NOT NULL,
   "direction" TEXT NOT NULL,
@@ -988,22 +1016,23 @@ CREATE TABLE IF NOT EXISTS "academy_trade_reviews" (
   "verified_by" TEXT,
   "published" INTEGER NOT NULL DEFAULT 0,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  FOREIGN KEY ("verified_by") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("review_id") REFERENCES "academy_trade_reviews" ("id")
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("verified_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "academy_trade_discussions" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "review_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "comment" TEXT NOT NULL,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("review_id") REFERENCES "academy_trade_reviews" ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "okx_futures_signal_intents" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "signal_key" TEXT NOT NULL,
   "inst_id" TEXT NOT NULL,
@@ -1013,19 +1042,19 @@ CREATE TABLE IF NOT EXISTS "okx_futures_signal_intents" (
   "entry_price" TEXT NOT NULL,
   "stop_loss" TEXT NOT NULL,
   "take_profit" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
-  "payload" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'signal_ready',
+  "payload" TEXT NOT NULL DEFAULT '{}',
   "exchange_order_id" TEXT,
   "exchange_algo_id" TEXT,
   "failure_reason" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("intent_id") REFERENCES "okx_futures_signal_intents" ("id")
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "okx_futures_orders" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "intent_id" TEXT,
   "signal_key" TEXT NOT NULL,
@@ -1038,10 +1067,11 @@ CREATE TABLE IF NOT EXISTS "okx_futures_orders" (
   "leverage" INTEGER NOT NULL,
   "exchange_order_id" TEXT NOT NULL,
   "exchange_algo_id" TEXT,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'submitted',
   "demo_trading" INTEGER NOT NULL DEFAULT 1,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("intent_id") REFERENCES "okx_futures_signal_intents" ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
@@ -1056,83 +1086,88 @@ CREATE TABLE IF NOT EXISTS "okx_futures_daily_risk" (
 );
 
 CREATE TABLE IF NOT EXISTS "marketing_campaigns" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "title" TEXT NOT NULL,
-  "campaign_type" TEXT NOT NULL,
+  "campaign_type" TEXT NOT NULL DEFAULT 'product',
   "headline" TEXT NOT NULL,
-  "details" TEXT NOT NULL,
+  "details" TEXT NOT NULL DEFAULT '',
   "event_date" TEXT,
   "event_time" TEXT,
   "venue" TEXT,
-  "call_to_action" TEXT NOT NULL,
-  "caption" TEXT NOT NULL,
+  "call_to_action" TEXT NOT NULL DEFAULT '',
+  "caption" TEXT NOT NULL DEFAULT '',
   "creative_url" TEXT,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'draft',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "member_alert_preferences" (
-  "user_id" TEXT PRIMARY KEY,
-  "categories" TEXT NOT NULL,
-  "assets" TEXT NOT NULL,
-  "default_asset_mode" TEXT NOT NULL,
+  "user_id" TEXT NOT NULL,
+  "categories" TEXT NOT NULL DEFAULT '{}',
+  "assets" TEXT NOT NULL DEFAULT '{}',
+  "default_asset_mode" TEXT NOT NULL DEFAULT 'bubble',
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "academy_ai_lessons" (
-  "id" TEXT PRIMARY KEY,
-  "slug" TEXT NOT NULL UNIQUE,
+  "id" TEXT NOT NULL,
+  "slug" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "category" TEXT NOT NULL,
-  "level" TEXT NOT NULL,
+  "level" TEXT NOT NULL DEFAULT 'Beginner',
   "duration_minutes" INTEGER NOT NULL DEFAULT 5,
   "content" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
-  "model" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'draft',
+  "model" TEXT NOT NULL DEFAULT 'gpt-4.1-mini',
   "generated_by" TEXT,
   "published_at" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  FOREIGN KEY ("generated_by") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("lesson_id") REFERENCES "academy_ai_lessons" ("id")
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("generated_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "academy_ai_discussions" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "lesson_id" TEXT,
   "question" TEXT NOT NULL,
   "ai_response" TEXT NOT NULL,
-  "model" TEXT NOT NULL,
+  "model" TEXT NOT NULL DEFAULT 'gpt-4.1-mini',
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id"),
   FOREIGN KEY ("lesson_id") REFERENCES "academy_ai_lessons" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "academy_ai_discussion_topics" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "category" TEXT NOT NULL,
   "discussion_prompt" TEXT NOT NULL,
   "context" TEXT NOT NULL,
-  "talking_points" TEXT NOT NULL,
-  "follow_up_questions" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
-  "model" TEXT NOT NULL,
+  "talking_points" TEXT NOT NULL DEFAULT '[]',
+  "follow_up_questions" TEXT NOT NULL DEFAULT '[]',
+  "status" TEXT NOT NULL DEFAULT 'draft',
+  "model" TEXT NOT NULL DEFAULT 'gpt-4.1-mini',
   "generated_by" TEXT,
   "published_at" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("generated_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "scanner_execution_leases" (
-  "lease_name" TEXT PRIMARY KEY,
+  "lease_name" TEXT NOT NULL,
   "lease_token" TEXT NOT NULL,
   "lease_until" TEXT NOT NULL,
-  "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("lease_name")
 );
 
 CREATE TABLE IF NOT EXISTS "binance_futures_daily_equity" (
@@ -1145,51 +1180,52 @@ CREATE TABLE IF NOT EXISTS "binance_futures_daily_equity" (
 );
 
 CREATE TABLE IF NOT EXISTS "nfc_member_cards" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "owner_user_id" TEXT NOT NULL,
-  "token_hash" TEXT NOT NULL UNIQUE,
-  "card_code" TEXT NOT NULL UNIQUE,
+  "token_hash" TEXT NOT NULL,
+  "card_code" TEXT NOT NULL,
   "display_name" TEXT NOT NULL,
-  "card_type" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "card_type" TEXT NOT NULL DEFAULT 'standard',
+  "status" TEXT NOT NULL DEFAULT 'active',
   "issued_by" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "last_tapped_at" TEXT,
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("owner_user_id") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("issued_by") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("card_id") REFERENCES "nfc_member_cards" ("id"),
-  FOREIGN KEY ("card_id") REFERENCES "nfc_member_cards" ("id")
+  FOREIGN KEY ("issued_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "nfc_tap_events" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "card_id" TEXT NOT NULL,
   "event_type" TEXT NOT NULL,
   "event_id" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("card_id") REFERENCES "nfc_member_cards" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "nfc_community_events" (
-  "id" TEXT PRIMARY KEY,
-  "event_code" TEXT NOT NULL UNIQUE,
+  "id" TEXT NOT NULL,
+  "event_code" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "starts_at" TEXT,
   "ends_at" TEXT,
-  "status" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'scheduled',
   "created_by" TEXT,
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  FOREIGN KEY ("created_by") REFERENCES "app_users" ("id"),
-  FOREIGN KEY ("event_id") REFERENCES "nfc_community_events" ("id")
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("created_by") REFERENCES "app_users" ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "nfc_event_attendance" (
-  "id" TEXT PRIMARY KEY,
+  "id" TEXT NOT NULL,
   "event_id" TEXT NOT NULL,
   "card_id" TEXT NOT NULL,
   "member_user_id" TEXT NOT NULL,
   "checked_in_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("id"),
   FOREIGN KEY ("event_id") REFERENCES "nfc_community_events" ("id"),
   FOREIGN KEY ("card_id") REFERENCES "nfc_member_cards" ("id"),
   FOREIGN KEY ("member_user_id") REFERENCES "app_users" ("id")
