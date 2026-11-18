@@ -666,7 +666,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                 account.allowed_symbols.includes(symbol.symbol)
               );
               if (eligible.length) {
-                const futuresSignalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
+                const futuresSignalKey = `${symbol.symbol}|14400|${superSignal.signalEpoch}|${superSignal.direction}`;
                 const intentRows = eligible.map((account) => ({
                   user_id: account.user_id,
                   signal_key: futuresSignalKey,
@@ -700,7 +700,7 @@ async function runScan(): Promise<Record<string, unknown>> {
             if (symbol.exchange === "BINANCE_FUTURES" && (okxAutomationRows ?? []).length > 0 && symbol.symbol.endsWith("USDT")) {
               const okxIntentRows = (okxAutomationRows ?? []).map((account) => ({
                 user_id: account.user_id,
-                signal_key: `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`,
+                signal_key: `${symbol.symbol}|14400|${superSignal.signalEpoch}|${superSignal.direction}`,
                 inst_id: symbol.symbol.replace(/USDT$/, "-USDT-SWAP"),
                 side: superSignal.direction === "BUY" ? "buy" : "sell",
                 timeframe_agreement: superSignal.timeframeAgreement,
@@ -726,7 +726,7 @@ async function runScan(): Promise<Record<string, unknown>> {
               const okxExecutionResult = await okxExecutorResponse.json();
               if (okxExecutionResult?.failed > 0) console.error("OKX Futures executor reported failures", okxExecutionResult);
             }
-            const signalKey = `${symbol.symbol}|900|${superSignal.signalEpoch}|${superSignal.direction}`;
+            const signalKey = `${symbol.symbol}|14400|${superSignal.signalEpoch}|${superSignal.direction}`;
             const { error: superEventError } = await db.from("push_events").upsert([{
               event_key: `${signalKey}|super_signal`,
               signal_key: signalKey,
