@@ -40,10 +40,6 @@ const SMA_PERIOD = 60;
 
 // H4 owns the signal. Supporting frames contribute confirmation, never a competing direction.
 const MIN_SUPPORTING_ALIGNMENT = 4;
-const CONFIRMATION_GRADES: Record<string, number> = {
-  D1: 65, H8: 70, H4: 100, H3: 75, H2: 80, H1: 85, M30: 90, M15: 95,
-};
-
 const CLASSIFICATION_RANK: Record<Classification, number> = {
   'Strong alignment': 0,
   'Moderate alignment': 1,
@@ -144,7 +140,7 @@ function evaluateSymbol(
   const higherTimeframeOpposes = higherTimeframes.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
   // Keep H4 authoritative. Entry waits for at least four supporting frames and no higher-timeframe reversal warning.
-  if (supportingReads.length !== 7 || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
+  if (supportingReads.length !== 7 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
 
   const confirmations = TIMEFRAMES.map((timeframe) => {
     const state = states[timeframe.granularity];
