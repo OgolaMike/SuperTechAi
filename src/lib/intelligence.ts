@@ -33,21 +33,15 @@ export type SuperSignal = {
   confirmationEpoch: number;
 };
 
-const PRIMARY_LABEL = 'M15';
+const PRIMARY_LABEL = 'H4';
 const FRESH_PRIMARY_CANDLES = 8;
 const NEUTRAL_BAND = 0.1;
 const SMA_PERIOD = 60;
 
-// Grade weights follow the official high-to-low sequence. M15 is last and carries the highest weight.
+// H4 owns the signal. Supporting frames contribute confirmation, never a competing direction.
+const MIN_SUPPORTING_ALIGNMENT = 4;
 const CONFIRMATION_GRADES: Record<string, number> = {
-  D1: 65,
-  H8: 70,
-  H4: 75,
-  H3: 80,
-  H2: 85,
-  H1: 90,
-  M30: 95,
-  M15: 100,
+  D1: 65, H8: 70, H4: 100, H3: 75, H2: 80, H1: 85, M30: 90, M15: 95,
 };
 
 const CLASSIFICATION_RANK: Record<Classification, number> = {
@@ -144,12 +138,13 @@ function evaluateSymbol(
 
   const { direction, levels } = signal;
   const expected = expectedBias(direction);
-  const allTimeframesAgree =
-    readings.length === TIMEFRAMES.length &&
-    readings.every((reading) => reading.valid && reading.bias === expected);
+  const supportingReads = readings.filter((reading) => reading.label !== PRIMARY_LABEL);
+  const supportingAligned = supportingReads.filter((reading) => reading.valid && reading.bias === expected).length;
+  const higherTimeframes = supportingReads.filter((reading) => reading.label === 'D1' || reading.label === 'H8');
+  const higherTimeframeOpposes = higherTimeframes.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
-  // Super Signals are only published on complete, fresh 8/8 confluence.
-  if (!allTimeframesAgree) return null;
+  // Keep H4 authoritative. Entry waits for at least four supporting frames and no higher-timeframe reversal warning.
+  if (supportingReads.length !== 7 || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
 
   const confirmations = TIMEFRAMES.map((timeframe) => {
     const state = states[timeframe.granularity];
@@ -170,14 +165,14 @@ function evaluateSymbol(
   );
   const confirmationTimeframe = latestConfirmation.label;
   const confirmationEpoch = latestConfirmation.epoch;
-  const gradePercent = CONFIRMATION_GRADES[confirmationTimeframe] ?? 65;
+  const gradePercent = Math.round((supportingAligned / 7) * 100);
 
-  const classification: Classification = 'Strong alignment';
+  const classification: Classification = supportingAligned >= 6 ? 'Strong alignment' : 'Moderate alignment';
   const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
   const explanation = [
-    `Price crossed ${direction === 'BUY' ? 'above' : 'below'} its recent average on the 15-minute chart ${describeAge(nowEpoch - signal.signalEpoch)}.`,
-    `All ${TIMEFRAMES.length} timeframes confirm this direction.`,
-    `${confirmationTimeframe} was the latest timeframe to join alignment, giving this Super Signal a ${gradePercent}% confirmation grade.`,
+    `H4 generated the primary ${direction} signal ${describeAge(nowEpoch - signal.signalEpoch)}.`,
+    `${supportingAligned} of 7 supporting timeframes confirm H4; D1 and H8 are not opposing the direction.`,
+    `${confirmationTimeframe} was the latest timeframe to join alignment, giving this H4 signal a ${gradePercent}% support grade.`,
   ].join(' ');
 
   return {
@@ -188,7 +183,7 @@ function evaluateSymbol(
     classification,
     levels,
     dailyBias,
-    agreeing: TIMEFRAMES.length,
+    agreeing: supportingAligned + 1,
     validReads: TIMEFRAMES.length,
     reads: readings.map((reading) => ({
       label: reading.label,
