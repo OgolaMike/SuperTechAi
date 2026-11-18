@@ -84,8 +84,8 @@ Deno.serve(async req=>{
    }
    if(haltNewOrders)continue;
    const nowEpoch=Math.floor(Date.now()/1000);
-   const freshCutoff=nowEpoch-7200;
-   const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").eq("timeframe_agreement",8).gte("signal_epoch",freshCutoff).lte("signal_epoch",nowEpoch).order("signal_epoch",{ascending:false}).limit(25);
+   const freshCutoff=nowEpoch-8*14400;
+   const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").gte("timeframe_agreement",5).gte("signal_epoch",freshCutoff).lte("signal_epoch",nowEpoch).order("signal_epoch",{ascending:false}).limit(25);
    if(ie){failed++;continue;}
    if(!(intents??[]).length)continue;
    let memberSnapshot:{available:number;wallet:number;active:PositionRow[];exchangeSymbols:ExchangeSymbol[]}|null=null;
