@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: h4-signal-readiness-${{ github.ref }}
+  group: h4-signal-readiness-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
