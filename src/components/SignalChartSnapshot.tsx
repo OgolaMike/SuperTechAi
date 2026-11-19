@@ -58,7 +58,11 @@ export function SignalChartSnapshot({ candles, displayCandles, levels, signalEpo
     : candles;
   const historyCloses = history.map((item) => item.close);
   const visibleStart = Math.max(0, history.length - PERIOD);
-  const data = displayCandles ?? history.slice(visibleStart);
+  const data = displayCandles
+    ? displayCandles.map((candle, index) => index === displayCandles.length - 1 && livePrice != null && Number.isFinite(livePrice)
+      ? { ...candle, close: livePrice, high: Math.max(candle.high, livePrice), low: Math.min(candle.low, livePrice) }
+      : candle)
+    : history.slice(visibleStart);
   // Mixed-window candles get indicator values only when their timestamp exists in the native warm-up history.
   const stats = data.map((candle) => {
     const historyIndex = history.findIndex((item) => item.epoch === candle.epoch);
