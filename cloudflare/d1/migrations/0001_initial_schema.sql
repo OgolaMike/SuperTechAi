@@ -462,6 +462,7 @@ CREATE TABLE IF NOT EXISTS "ctrader_connections" (
   "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   "updated_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   PRIMARY KEY ("id"),
+  UNIQUE ("id", "user_id"),
   FOREIGN KEY ("user_id") REFERENCES "app_users" ("id")
 );
 
