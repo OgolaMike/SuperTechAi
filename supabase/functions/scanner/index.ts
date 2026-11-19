@@ -15,12 +15,12 @@ const corsHeaders = {
 };
 
 // All eight timeframes remain available for analysis; H4 alone owns the primary signal.
-// H2 and H3 are built from complete hourly candles so Deriv and Binance use matching bars.
+// H2 is built from complete hourly candles; M5 is fetched natively for precise entry context.
 const TIMEFRAMES = [
   { granularity: 86400, label: "D1", candleCount: 366 },
   { granularity: 28800, label: "H8", candleCount: 200 },
   { granularity: 14400, label: "H4", candleCount: 200 },
-  { granularity: 10800, label: "H3", candleCount: 200 },
+  { granularity: 300, label: "M5", candleCount: 200 },
   { granularity: 7200, label: "H2", candleCount: 200 },
   { granularity: 3600, label: "H1", candleCount: 603 },
   { granularity: 1800, label: "M30", candleCount: 200 },
@@ -66,8 +66,8 @@ async function loadTimeframeCandles(
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
 
-  // H2/H3 use fully formed UTC hourly buckets across Deriv, Binance Spot and Futures.
-  if (timeframe.granularity === 7200 || timeframe.granularity === 10800) {
+  // H2 uses fully formed UTC hourly buckets across Deriv, Binance Spot and Futures.
+  if (timeframe.granularity === 7200) {
     const hoursPerCandle = timeframe.granularity / 3600;
     const hourlyFrame = TIMEFRAMES.find((frame) => frame.granularity === 3600)!;
     const hourlyCount = Math.min(1000, Math.max(hourlyFrame.candleCount, timeframe.candleCount * hoursPerCandle + hoursPerCandle));
