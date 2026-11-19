@@ -123,6 +123,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
             {marketClosed ? 'This market is closed for the weekend. Signals will update when it reopens.' : loading ? 'Waiting for recent price data.' : 'No crossover has closed yet.'}
           </div>
         </div>
+        <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line/10 pt-3 text-xs leading-relaxed text-ink-2">
