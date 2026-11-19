@@ -149,16 +149,17 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
               {TIMEFRAMES.map((timeframe) => {
                 const sourceTf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
                 const synchronizedCandles = synchronizedH4Window(timeframe.granularity, assetStates, Math.floor(Date.now() / 1000));
-                const tf = synchronizedCandles
-                  ? { ...sourceTf, chartCandles: synchronizedCandles }
-                  : sourceTf;
+                const tf = sourceTf;
+                const indicatorCandles = timeframe.granularity === 86400
+                  ? assetStates[14400]?.chartCandles
+                  : sourceTf.chartCandles;
                 const direction = tf.latestSignal?.direction;
                 const confluenceCount = direction
                   ? TIMEFRAMES.filter((item) => assetStates[item.granularity]?.latestSignal?.direction === direction).length
                   : undefined;
                 return (
                   <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0">
-                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
+                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} displayCandles={synchronizedCandles ?? undefined} indicatorCandles={indicatorCandles} />
                   </div>
                 );
               })}
