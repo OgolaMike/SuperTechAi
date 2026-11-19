@@ -4,7 +4,7 @@ const REST_BASE = 'https://data-api.binance.vision/api/v3';
 const EXCLUDED_BASES = new Set(['USDC','USDT','BUSD','TUSD','FDUSD','DAI','USDP','EUR','GBP','AEUR','PAXG']);
 const LEVERAGED_SUFFIX = /(UP|DOWN|BULL|BEAR)$/;
 const INTERVALS: Record<number, string> = {
-  900: '15m', 1800: '30m',
+  300: '5m', 900: '15m', 1800: '30m',
   3600: '1h', 14400: '4h', 28800: '8h', 86400: '1d',
 };
 

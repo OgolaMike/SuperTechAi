@@ -1,0 +1,54 @@
+name: H4 signal readiness
+
+on:
+  push:
+    branches:
+      - feature/h4-synchronized-chart-windows
+  pull_request:
+    branches:
+      - migration/cloudflare-d1-parallel
+    paths:
+      - "src/**"
+      - "supabase/functions/scanner/**"
+      - "supabase/migrations/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/h4-signal-readiness.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: h4-signal-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend typecheck, lint and production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+
+  scanner:
+    name: Scanner static validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check H4 master signal engine
+        run: deno check --node-modules-dir=auto supabase/functions/scanner/index.ts

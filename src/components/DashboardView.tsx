@@ -17,6 +17,48 @@ type Props = {
   onNavigate: (view: View) => void;
 };
 
+function synchronizedH4Window(granularity: number, states: TimeframeStates, nowEpoch: number): import('@/lib/deriv').Candle[] | null {
+  const H4 = 4 * 60 * 60;
+  const DAY = 24 * 60 * 60;
+  const h4Candles = states[H4]?.chartCandles ?? [];
+
+  if ([300, 900, 1800, 3600, 7200].includes(granularity)) {
+    const currentH4Start = Math.floor(nowEpoch / H4) * H4;
+    const previousClosedH4 = h4Candles
+      .filter((candle) => candle.epoch + H4 <= currentH4Start)
+      .slice(-1)[0];
+    const currentH4SubCandles = (states[granularity]?.chartCandles ?? [])
+      .filter((candle) => candle.epoch >= currentH4Start && candle.epoch < currentH4Start + H4)
+      .sort((a, b) => a.epoch - b.epoch);
+    return previousClosedH4 ? [previousClosedH4, ...currentH4SubCandles] : currentH4SubCandles;
+  }
+
+  if (granularity === 28800) {
+    const H8 = 8 * 60 * 60;
+    const currentH8Start = Math.floor(nowEpoch / H8) * H8;
+    const previousClosedH8 = (states[H8]?.chartCandles ?? [])
+      .filter((candle) => candle.epoch + H8 <= currentH8Start)
+      .slice(-1)[0];
+    const currentH4Candles = h4Candles
+      .filter((candle) => candle.epoch >= currentH8Start && candle.epoch < currentH8Start + H8)
+      .sort((a, b) => a.epoch - b.epoch);
+    return previousClosedH8 ? [previousClosedH8, ...currentH4Candles] : currentH4Candles;
+  }
+
+  if (granularity === DAY) {
+    const currentDayStart = Math.floor(nowEpoch / DAY) * DAY;
+    const previousClosedDay = (states[DAY]?.chartCandles ?? [])
+      .filter((candle) => candle.epoch + DAY <= currentDayStart)
+      .slice(-1)[0];
+    const todaysH4Candles = h4Candles
+      .filter((candle) => candle.epoch >= currentDayStart && candle.epoch < currentDayStart + DAY)
+      .sort((a, b) => a.epoch - b.epoch);
+    return previousClosedDay ? [previousClosedDay, ...todaysH4Candles] : todaysH4Candles;
+  }
+
+  return null;
+}
+
 export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, onNavigate }: Props) {
   const signalSummary = selectedSymbols.reduce((summary, symbol) => {
     for (const timeframe of TIMEFRAMES) {
@@ -117,14 +159,19 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1 xl:gap-6">
               {TIMEFRAMES.map((timeframe) => {
-                const tf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
+                const sourceTf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
+                const synchronizedCandles = synchronizedH4Window(timeframe.granularity, assetStates, Math.floor(Date.now() / 1000));
+                const tf = sourceTf;
+                const indicatorCandles = [28800, 86400].includes(timeframe.granularity)
+                  ? assetStates[14400]?.chartCandles
+                  : sourceTf.chartCandles;
                 const direction = tf.latestSignal?.direction;
                 const confluenceCount = direction
                   ? TIMEFRAMES.filter((item) => assetStates[item.granularity]?.latestSignal?.direction === direction).length
                   : undefined;
                 return (
                   <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0">
-                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
+                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} displayCandles={synchronizedCandles ?? undefined} indicatorCandles={indicatorCandles} />
                   </div>
                 );
               })}
