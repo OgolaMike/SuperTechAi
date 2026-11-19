@@ -20,11 +20,11 @@ const TIMEFRAMES = [
   { granularity: 86400, label: "D1", candleCount: 366 },
   { granularity: 28800, label: "H8", candleCount: 200 },
   { granularity: 14400, label: "H4", candleCount: 200 },
-  { granularity: 300, label: "M5", candleCount: 200 },
   { granularity: 7200, label: "H2", candleCount: 200 },
   { granularity: 3600, label: "H1", candleCount: 603 },
   { granularity: 1800, label: "M30", candleCount: 200 },
   { granularity: 900, label: "M15", candleCount: 200 },
+  { granularity: 300, label: "M5", candleCount: 200 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
