@@ -134,8 +134,8 @@ export function SignalChartSnapshot({ candles, displayCandles, levels, signalEpo
   const leftRegime = direction === 'BUY' ? '#ef4444' : '#2563eb';
   const rightRegime = direction === 'BUY' ? '#2563eb' : '#ef4444';
   const latest = data[data.length - 1];
-  const isH4Synchronized = ['M5', 'M15', 'M30', 'H1', 'H2', 'D1'].includes(timeframe);
-  const displayGranularity = timeframe === 'D1' ? 14400 : granularity;
+  const isH4Synchronized = ['M5', 'M15', 'M30', 'H1', 'H2', 'H8', 'D1'].includes(timeframe);
+  const displayGranularity = ['D1', 'H8'].includes(timeframe) ? 14400 : granularity;
   const currentPrice = livePrice ?? latest.close;
   const secondsRemaining = Math.max(0, latest.epoch + displayGranularity - clockEpoch);
   const days = Math.floor(secondsRemaining / 86400);
