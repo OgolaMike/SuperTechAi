@@ -26,7 +26,7 @@ function synchronizedH4Window(granularity: number, states: TimeframeStates, nowE
     const currentH4Start = Math.floor(nowEpoch / H4) * H4;
     const previousClosedH4 = h4Candles
       .filter((candle) => candle.epoch + H4 <= currentH4Start)
-      .at(-1);
+      .slice(-1)[0];
     const currentH4SubCandles = (states[granularity]?.chartCandles ?? [])
       .filter((candle) => candle.epoch >= currentH4Start && candle.epoch < currentH4Start + H4)
       .sort((a, b) => a.epoch - b.epoch);
@@ -38,10 +38,10 @@ function synchronizedH4Window(granularity: number, states: TimeframeStates, nowE
     const previousClosedDay = (states[DAY]?.chartCandles ?? [])
       .filter((candle) => candle.epoch + DAY <= currentDayStart)
       .at(-1);
-    const today'sH4Candles = h4Candles
+    const todaysH4Candles = h4Candles
       .filter((candle) => candle.epoch >= currentDayStart && candle.epoch < currentDayStart + DAY)
       .sort((a, b) => a.epoch - b.epoch);
-    return previousClosedDay ? [previousClosedDay, ...today'sH4Candles] : today'sH4Candles;
+    return previousClosedDay ? [previousClosedDay, ...todaysH4Candles] : todaysH4Candles;
   }
 
   return null;
