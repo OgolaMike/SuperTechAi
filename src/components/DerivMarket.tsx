@@ -4,6 +4,7 @@ import { SignalCard } from '@/components/SignalCard';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import type { Asset, TfState, Timeframe } from '@/lib/sma';
 import { TIMEFRAMES, formatPrice } from '@/lib/sma';
+import { calculateMarketStructureSar, findMarketStructureMarkers } from '@/lib/marketStructureSarChart';
 
 type Props = {
   assets: Asset[];
@@ -51,6 +52,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
   const [spacing, setSpacing] = useState(12);
   const [showSma, setShowSma] = useState(true);
   const [showBands, setShowBands] = useState(true);
+  const [showSarStructure, setShowSarStructure] = useState(true);
   const [query, setQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -75,6 +77,15 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
   const hourlyMove = active ? movers.find((item) => item.asset.symbol === active.symbol) : null;
   const candles = activeState?.chartCandles ?? activeState?.candles ?? [];
   const visible = candles.slice(-Math.min(visibleCount, candles.length));
+  // The strategy overlay is calculated only from completed M15 candles.
+  const sarStructure = useMemo(() => {
+    if (timeframe.granularity !== 900 || !activeState) return { sar: [], markers: [] };
+    const confirmed = activeState.candles;
+    return {
+      sar: calculateMarketStructureSar(confirmed),
+      markers: findMarketStructureMarkers(confirmed),
+    };
+  }, [timeframe.granularity, activeState]);
 
   const chart = useMemo(() => {
     if (visible.length < 2) return null;
@@ -92,6 +103,14 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
       ...(showBands && stats[index] ? [stats[index]!.upper, stats[index]!.lower] : []),
       ...(showSma && stats[index] ? [stats[index]!.mean] : []),
     ]);
+    const visibleEpochs = new Set(visible.map((candle) => candle.epoch));
+    const visibleSar = showSarStructure && timeframe.granularity === 900
+      ? sarStructure.sar.filter((point) => visibleEpochs.has(point.epoch))
+      : [];
+    const visibleMarkers = showSarStructure && timeframe.granularity === 900
+      ? sarStructure.markers.filter((point) => visibleEpochs.has(point.epoch))
+      : [];
+    values.push(...visibleSar.map((point) => point.value), ...visibleMarkers.map((point) => point.price));
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.000001);
@@ -102,8 +121,15 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
     const path = (key: 'mean' | 'upper' | 'lower') => stats.map((item, index) =>
       item ? `${index === 0 || !stats[index - 1] ? 'M' : 'L'} ${x(index)} ${y(item[key])}` : '',
     ).filter(Boolean).join(' ');
-    return { width, height, min, max, x, y, path, stats, bodyWidth: Math.max(2, Math.min(28, spacing * 0.72)) };
-  }, [visible, candles, spacing, showSma, showBands]);
+    const visibleIndex = new Map(visible.map((candle, index) => [candle.epoch, index]));
+    const markerPoints = visibleMarkers.map((point) => ({
+      ...point,
+      index: visibleIndex.get(point.epoch)!,
+      y: y(point.price),
+    }));
+    return { width, height, min, max, x, y, path, stats, markerPoints, visibleSar,
+      bodyWidth: Math.max(2, Math.min(28, spacing * 0.72)) };
+  }, [visible, candles, spacing, showSma, showBands, showSarStructure, timeframe.granularity, sarStructure]);
 
   const rocText = (value: number | null) => value == null ? 'Building data' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 
@@ -199,6 +225,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-2">
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={showSma} onChange={(event) => setShowSma(event.target.checked)} /> SMA 60</label>
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={showBands} onChange={(event) => setShowBands(event.target.checked)} /> Bollinger ±2.5σ</label>
+                <label className={`flex items-center gap-1.5 ${timeframe.granularity !== 900 ? 'opacity-40' : ''}`}><input type="checkbox" checked={showSarStructure} disabled={timeframe.granularity !== 900} onChange={(event) => setShowSarStructure(event.target.checked)} /> SAR + market structure <span className="text-[10px] text-ink-3">(M15)</span></label>
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setVisibleCount((value) => Math.min(200, value + 20))} className="rounded-lg border border-line/15 px-2 py-1 text-xs text-ink-2">Zoom out</button>
@@ -206,6 +233,12 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
                 <button type="button" onClick={() => setVisibleCount((value) => Math.max(30, value - 20))} className="rounded-lg border border-line/15 px-2 py-1 text-xs text-ink-2">Zoom in</button>
               </div>
             </div>
+            {timeframe.granularity === 900 && showSarStructure && <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-ink-3">
+              <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-sky-400" />SAR below candle</span>
+              <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400" />SAR above candle</span>
+              <span><span className="mr-1 font-bold text-up">HH / HL</span> rising swings</span>
+              <span><span className="mr-1 font-bold text-down">LH / LL</span> falling swings</span>
+            </div>}
             <label className="mb-3 flex items-center gap-3 text-xs text-ink-2">
               <span className="shrink-0">Candle spacing</span>
               <input type="range" min="5" max="24" step="1" value={spacing} onChange={(event) => setSpacing(Number(event.target.value))} className="min-w-0 flex-1 accent-accent" />
@@ -221,6 +254,21 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
                   })}
                   {showBands && <><path d={chart.path('upper')} fill="none" stroke="#ef7777" strokeWidth="2" /><path d={chart.path('lower')} fill="none" stroke="#60a5fa" strokeWidth="2" /></>}
                   {showSma && <path d={chart.path('mean')} fill="none" stroke="#eab308" strokeWidth="2" />}
+                  {showSarStructure && timeframe.granularity === 900 && <>
+                    {chart.visibleSar.map((point) => {
+                      const index = visible.findIndex((candle) => candle.epoch === point.epoch);
+                      return index < 0 ? null : <circle key={point.epoch} cx={chart.x(index)} cy={chart.y(point.value)} r="2.8" fill={point.value < visible[index].low ? '#38bdf8' : point.value > visible[index].high ? '#f59e0b' : '#a78bfa'} stroke="#0b1220" strokeWidth="0.7" />;
+                    })}
+                    {chart.markerPoints.map((point) => {
+                      const isHigh = point.label === 'HH' || point.label === 'LH';
+                      const labelY = Math.max(12, Math.min(chart.height - 8, point.y + (isHigh ? -11 : 17)));
+                      const color = point.label === 'HH' || point.label === 'HL' ? '#22c55e' : '#f43f5e';
+                      return <g key={`${point.epoch}-${point.label}`}>
+                        <circle cx={chart.x(point.index)} cy={point.y} r="3.5" fill={color} stroke="#0b1220" strokeWidth="1" />
+                        <text x={chart.x(point.index)} y={labelY} textAnchor="middle" fill={color} fontSize="10" fontWeight="800">{point.label}</text>
+                      </g>;
+                    })}
+                  </>}
                   {visible.map((candle, index) => {
                     const up = candle.close >= candle.open;
                     const color = up ? '#22c55e' : '#f43f5e';
