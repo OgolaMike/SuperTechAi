@@ -33,6 +33,18 @@ function synchronizedH4Window(granularity: number, states: TimeframeStates, nowE
     return previousClosedH4 ? [previousClosedH4, ...currentH4SubCandles] : currentH4SubCandles;
   }
 
+  if (granularity === 28800) {
+    const H8 = 8 * 60 * 60;
+    const currentH8Start = Math.floor(nowEpoch / H8) * H8;
+    const previousClosedH8 = (states[H8]?.chartCandles ?? [])
+      .filter((candle) => candle.epoch + H8 <= currentH8Start)
+      .slice(-1)[0];
+    const currentH4Candles = h4Candles
+      .filter((candle) => candle.epoch >= currentH8Start && candle.epoch < currentH8Start + H8)
+      .sort((a, b) => a.epoch - b.epoch);
+    return previousClosedH8 ? [previousClosedH8, ...currentH4Candles] : currentH4Candles;
+  }
+
   if (granularity === DAY) {
     const currentDayStart = Math.floor(nowEpoch / DAY) * DAY;
     const previousClosedDay = (states[DAY]?.chartCandles ?? [])
@@ -150,7 +162,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                 const sourceTf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
                 const synchronizedCandles = synchronizedH4Window(timeframe.granularity, assetStates, Math.floor(Date.now() / 1000));
                 const tf = sourceTf;
-                const indicatorCandles = timeframe.granularity === 86400
+                const indicatorCandles = [28800, 86400].includes(timeframe.granularity)
                   ? assetStates[14400]?.chartCandles
                   : sourceTf.chartCandles;
                 const direction = tf.latestSignal?.direction;
