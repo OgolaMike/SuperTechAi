@@ -18,7 +18,7 @@ export type ExchangeId = typeof EXCHANGE_OPTIONS[number]['id'];
 export type ExchangeTicker = { exchange: ExchangeId; symbol: string; base: string; quote: string; price: number; open24h: number; changePct: number; quoteVolume: number };
 export type ExchangeAssetState = { ticker: ExchangeTicker; candles: Candle[]; states: Record<number, TfState> };
 
-const INTERVALS: Record<number, string> = { 900: '15m', 1800: '30m', 3600: '1h', 14400: '4h', 28800: '8h', 86400: '1d' };
+const INTERVALS: Record<number, string> = { 300: '5m', 900: '15m', 1800: '30m', 3600: '1h', 14400: '4h', 28800: '8h', 86400: '1d' };
 const clean = (v: unknown) => typeof v === 'string' ? v : String(v ?? '');
 const num = (v: unknown) => Number(v);
 const valid = (v: number) => Number.isFinite(v) && v > 0;
@@ -164,7 +164,7 @@ async function buildExchangeStatesUncached(exchange: ExchangeId, symbol: string)
   const all: Record<number, Candle[]> = { ...byGranularity };
   all[28800] = aggregateHourlyCandles(hourly, 28800);
   all[7200] = aggregateHourlyCandles(hourly, 7200);
-  all[10800] = aggregateHourlyCandles(hourly, 10800);
+  // M5 is fetched natively alongside the existing native intervals.
   const now = Math.floor(Date.now() / 1000);
   return Object.fromEntries(TIMEFRAMES.map((tf) => [tf.granularity, computeTfState(tf, all[tf.granularity] ?? [], now)]));
 }
