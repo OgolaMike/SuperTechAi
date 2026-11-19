@@ -40,6 +40,6 @@ ALTER TABLE public.mt5_signal_intents
   DROP CONSTRAINT IF EXISTS mt5_signal_intents_timeframe_check;
 ALTER TABLE public.mt5_signal_intents
   ADD CONSTRAINT mt5_signal_intents_timeframe_check
-  CHECK (timeframe = ANY (ARRAY['D1','H8','H4','H2','H1','M30','M15','M5']::text[]));
+  CHECK (timeframe = ANY (ARRAY['D1','H8','H4','H2','H1','M30','M15','M5']::text[])) NOT VALID;
 
 COMMIT;
