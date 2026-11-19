@@ -86,6 +86,31 @@ def main() -> None:
     if violations:
         fail(f"Foreign-key check failed: {violations[:10]}")
 
+    # Verify the operational indexes needed for signal feeds, push dispatch,
+    # and order execution are present in the SQLite shadow schema.
+    required_indexes = {
+        "signal_records_signal_epoch_idx",
+        "signal_records_symbol_idx",
+        "super_signal_records_epoch_idx",
+        "super_signal_records_symbol_epoch_idx",
+        "push_events_pending_idx",
+        "push_events_recipient_pending_idx",
+        "ctrader_intents_dispatch_idx",
+        "ctrader_intents_lease_idx",
+        "ctrader_positions_open_idx",
+        "binance_futures_orders_user_created_idx",
+        "binance_futures_signal_intents_symbol_epoch_idx",
+        "okx_futures_intents_pending_idx",
+    }
+    actual_indexes = {
+        row[0] for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'"
+        )
+    }
+    missing_indexes = required_indexes - actual_indexes
+    if missing_indexes:
+        fail(f"Required operational indexes are missing: {sorted(missing_indexes)}")
+
     # All migrations must be safe to replay without changing schema objects.
     before = schema_objects(conn)
     for path in migrations:
