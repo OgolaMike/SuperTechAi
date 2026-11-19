@@ -5,6 +5,7 @@ import type { SignalLevels } from '@/lib/signals';
 
 type Props = {
   candles: Candle[];
+  displayCandles?: Candle[];
   levels?: SignalLevels;
   signalEpoch?: number;
   direction?: 'BUY' | 'SELL';
@@ -43,13 +44,13 @@ function timeLabel(epoch: number, granularity: number) {
     : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 900, digits, assetName, symbol, anchorId, livePrice }: Props) {
+export function SignalChartSnapshot({ candles, displayCandles, levels, signalEpoch, direction, timeframe, granularity = 900, digits, assetName, symbol, anchorId, livePrice }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
   const chartViewportRef = useRef<HTMLDivElement>(null);
 
-  // Retain the full candle history for SMA/BB warm-up; display the latest 60 candles.
+  // Keep full native history for SMA/BB warm-up while allowing a synchronized mixed-timeframe display window.
   const history = livePrice != null && Number.isFinite(livePrice) && candles.length > 0
     ? candles.map((candle, index) => index === candles.length - 1
       ? { ...candle, close: livePrice, high: Math.max(candle.high, livePrice), low: Math.min(candle.low, livePrice) }
@@ -57,9 +58,12 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     : candles;
   const historyCloses = history.map((item) => item.close);
   const visibleStart = Math.max(0, history.length - PERIOD);
-  const data = history.slice(visibleStart);
-  // Recalculate only the visible candles; the preceding history is used solely for SMA warm-up.
-  const stats = data.map((_, index) => rolling(historyCloses, visibleStart + index));
+  const data = displayCandles ?? history.slice(visibleStart);
+  // Mixed-window candles get indicator values only when their timestamp exists in the native warm-up history.
+  const stats = data.map((candle) => {
+    const historyIndex = history.findIndex((item) => item.epoch === candle.epoch);
+    return historyIndex >= 0 ? rolling(historyCloses, historyIndex) : null;
+  });
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockEpoch(Math.floor(Date.now() / 1000)), 1000);
