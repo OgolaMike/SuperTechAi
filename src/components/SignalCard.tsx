@@ -115,8 +115,6 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
         </>
       ) : tf.granularity === 86400 && marketClosed ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center"><div className="text-base font-semibold text-ink-2">Market closed</div><div className="text-sm text-ink-3">This market is closed for the weekend. Signals will update when it reopens.</div></div>
-      ) : tf.granularity === 86400 ? (
-        <DailyCandlesEmptyState candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} assetName={asset.fullName} digits={asset.digits} loading={loading} livePrice={price} />
       ) : (
         <>
           <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
@@ -173,31 +171,3 @@ function buildRows(signal: Signal) {
 }
 
 
-function DailyCandlesEmptyState({ candles, assetName, digits, loading, livePrice }: {
-  candles: Candle[];
-  assetName: string;
-  digits: number;
-  loading: boolean;
-  livePrice?: number;
-}) {
-  if (candles.length < 2) {
-    return (
-      <div className="rounded-xl border border-line/20 bg-surface/[0.03] px-4 py-8 text-center text-xs text-ink-3">
-        {loading ? 'Loading daily candle history…' : 'Daily candle history is not available yet.'}
-      </div>
-    );
-  }
-
-  return (
-    <SignalChartSnapshot
-      candles={candles}
-      timeframe="D1"
-      granularity={86400}
-      digits={digits}
-      assetName={assetName}
-      symbol=""
-      anchorId={`daily-chart-${encodeURIComponent(assetName)}`}
-      livePrice={livePrice}
-    />
-  );
-}
