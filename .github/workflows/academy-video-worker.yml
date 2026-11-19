@@ -1,15 +1,9 @@
 name: SuperTechAi Academy video publisher
 
 on:
-  push:
-    paths:
-      - "scripts/academy_video_worker/**"
-      - "public/academy-demo.html"
-      - ".github/workflows/academy-video-worker.yml"
   pull_request:
     paths:
       - "scripts/academy_video_worker/**"
-      - "public/academy-demo.html"
       - ".github/workflows/academy-video-worker.yml"
   workflow_dispatch:
 
@@ -27,17 +21,6 @@ jobs:
     steps:
       - name: Check out Academy lesson scripts
         uses: actions/checkout@v4
-
-      - name: Set up Node for the Academy demo build
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Build SuperTechAi demo assets
-        run: |
-          npm ci
-          npm run build
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -72,18 +55,22 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ACADEMY_APP_URL: ${{ secrets.ACADEMY_APP_URL }}
+          ACADEMY_PLAYWRIGHT_STORAGE_STATE_BASE64: ${{ secrets.ACADEMY_PLAYWRIGHT_STORAGE_STATE_BASE64 }}
         run: |
-          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$ACADEMY_APP_URL" ] && [ -n "$ACADEMY_PLAYWRIGHT_STORAGE_STATE_BASE64" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in repository Actions secrets to enable automatic video publishing."
+            echo "::warning::Configure SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ACADEMY_APP_URL and ACADEMY_PLAYWRIGHT_STORAGE_STATE_BASE64 in repository Actions secrets before manually publishing."
           fi
 
       - name: Generate and publish missing Academy lessons
-        if: ${{ github.event_name != 'pull_request' && steps.publisher_credentials.outputs.ready == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && steps.publisher_credentials.outputs.ready == 'true' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           KOKORO_MODEL_DIR: .cache/kokoro
+          ACADEMY_APP_URL: ${{ secrets.ACADEMY_APP_URL }}
+          ACADEMY_PLAYWRIGHT_STORAGE_STATE_BASE64: ${{ secrets.ACADEMY_PLAYWRIGHT_STORAGE_STATE_BASE64 }}
         run: python scripts/academy_video_worker/generate_videos.py
