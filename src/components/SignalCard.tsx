@@ -118,14 +118,16 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
       ) : tf.granularity === 86400 ? (
         <DailyCandlesEmptyState candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} assetName={asset.fullName} digits={asset.digits} loading={loading} livePrice={price} />
       ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
-          {loading ? <Loader2 className="h-6 w-6 animate-spin text-ink-3" /> : <Minus className="h-6 w-6 text-ink-3" />}
-          <div className="text-base font-semibold text-ink-2">{marketClosed ? 'Market closed' : loading ? 'Loading market data' : 'No new signal'}</div>
-          <div className="text-sm text-ink-3">
-            {marketClosed ? 'This market is closed for the weekend. Signals will update when it reopens.' : loading ? 'Waiting for recent price data.' : 'No crossover has closed yet.'}
+        <>
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
+            {loading ? <Loader2 className="h-6 w-6 animate-spin text-ink-3" /> : <Minus className="h-6 w-6 text-ink-3" />}
+            <div className="text-base font-semibold text-ink-2">{marketClosed ? 'Market closed' : loading ? 'Loading market data' : 'No new signal'}</div>
+            <div className="text-sm text-ink-3">
+              {marketClosed ? 'This market is closed for the weekend. Signals will update when it reopens.' : loading ? 'Waiting for recent price data.' : 'No crossover has closed yet.'}
+            </div>
           </div>
-        </div>
-        <SignalChartSnapshot candles={indicatorCandles ?? tf.chartCandles ?? tf.candles} displayCandles={displayCandles} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+          <SignalChartSnapshot candles={indicatorCandles ?? tf.chartCandles ?? tf.candles} displayCandles={displayCandles} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+        </>
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line/10 pt-3 text-xs leading-relaxed text-ink-2">
