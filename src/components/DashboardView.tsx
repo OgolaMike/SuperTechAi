@@ -22,7 +22,7 @@ function synchronizedH4Window(granularity: number, states: TimeframeStates, nowE
   const DAY = 24 * 60 * 60;
   const h4Candles = states[H4]?.chartCandles ?? [];
 
-  if ([900, 1800, 3600, 7200].includes(granularity)) {
+  if ([300, 900, 1800, 3600, 7200].includes(granularity)) {
     const currentH4Start = Math.floor(nowEpoch / H4) * H4;
     const previousClosedH4 = h4Candles
       .filter((candle) => candle.epoch + H4 <= currentH4Start)
