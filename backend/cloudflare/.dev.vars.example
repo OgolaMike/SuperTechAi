@@ -1,0 +1,4 @@
+# Copy to .dev.vars locally; never commit real values.
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require
+APP_ORIGIN=https://deriv-sma-signal-das-04us.bolt.host
+ENVIRONMENT=local

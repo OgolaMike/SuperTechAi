@@ -1,0 +1,24 @@
+name = "supertechai-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-16"
+workers_dev = true
+
+[vars]
+APP_ORIGIN = "https://deriv-sma-signal-das-04us.bolt.host"
+
+[env.staging]
+name = "supertechai-api-staging"
+workers_dev = true
+[env.staging.vars]
+APP_ORIGIN = "https://deriv-sma-signal-das-04us.bolt.host"
+ENVIRONMENT = "staging"
+
+[env.production]
+name = "supertechai-api"
+workers_dev = true
+[env.production.vars]
+APP_ORIGIN = "https://deriv-sma-signal-das-04us.bolt.host"
+ENVIRONMENT = "production"
+
+# Configure DATABASE_URL and AUTH_SECRET using wrangler secret put.
+# Never commit credentials or put them in [vars].
