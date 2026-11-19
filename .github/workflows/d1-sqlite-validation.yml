@@ -1,0 +1,32 @@
+name: Cloudflare D1 SQLite migration validation
+
+on:
+  push:
+    branches:
+      - migration/cloudflare-d1-parallel
+    paths:
+      - "cloudflare/d1/migrations/**"
+      - "cloudflare/d1/tests/**"
+      - ".github/workflows/d1-sqlite-validation.yml"
+  pull_request:
+    paths:
+      - "cloudflare/d1/migrations/**"
+      - "cloudflare/d1/tests/**"
+      - ".github/workflows/d1-sqlite-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-d1-sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate D1 migrations with SQLite
+        run: python cloudflare/d1/tests/validate_migrations.py
