@@ -27,12 +27,28 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 async function checkAccess(userId: string): Promise<{ isAdmin: boolean; isApproved: boolean }> {
+  // Start the member lookup while the admin lookup is in flight. Standard members
+  // previously waited for these two independent read-only requests one after another.
+  // Capture a rejected request so an admin can still use the existing admin bypass.
+  const memberPromise = supabase
+    .from('member_access')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+    .then(
+      (result) => ({ result, thrownError: null as unknown }),
+      (thrownError: unknown) => ({ result: null, thrownError }),
+    );
+
   const admin = await supabase.from('admin_users').select('user_id').eq('user_id', userId).maybeSingle();
   if (admin.error) throw admin.error;
   if (admin.data) return { isAdmin: true, isApproved: true };
-  const member = await supabase.from('member_access').select('user_id').eq('user_id', userId).maybeSingle();
-  if (member.error) throw member.error;
-  return { isAdmin: false, isApproved: member.data !== null };
+
+  const memberLookup = await memberPromise;
+  if (memberLookup.thrownError !== null) throw memberLookup.thrownError;
+  if (!memberLookup.result) throw new Error('Member access lookup failed');
+  if (memberLookup.result.error) throw memberLookup.result.error;
+  return { isAdmin: false, isApproved: memberLookup.result.data !== null };
 }
 
 export function useAuthSession(): AuthState {
