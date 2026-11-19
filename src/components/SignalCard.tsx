@@ -15,9 +15,11 @@ type Props = {
   price: number | undefined;
   aiModel: SignalLearningModel;
   confluenceCount?: number;
+  displayCandles?: Candle[];
+  indicatorCandles?: Candle[];
 };
 
-export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount }: Props) {
+export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount, displayCandles, indicatorCandles }: Props) {
   const [chartOpen, setChartOpen] = useState(false);
   const signal = tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
@@ -102,7 +104,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           <EntryTime epoch={signal.signalEpoch} direction={signal.direction} />
           <CurrentPrice price={price} entry={signal.levels.entry} direction={signal.direction} digits={asset.digits} />
           <LevelList rows={buildRows(signal)} digits={asset.digits} />
-          <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+          <SignalChartSnapshot candles={indicatorCandles ?? tf.chartCandles ?? tf.candles} displayCandles={displayCandles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
 
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
@@ -123,7 +125,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
             {marketClosed ? 'This market is closed for the weekend. Signals will update when it reopens.' : loading ? 'Waiting for recent price data.' : 'No crossover has closed yet.'}
           </div>
         </div>
-        <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+        <SignalChartSnapshot candles={indicatorCandles ?? tf.chartCandles ?? tf.candles} displayCandles={displayCandles} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line/10 pt-3 text-xs leading-relaxed text-ink-2">
@@ -142,7 +144,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
               </div>
               <button type="button" onClick={() => setChartOpen(false)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" aria-label="Close live signal chart"><X className="h-4 w-4" /> Close</button>
             </div>
-            <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-detail-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+            <SignalChartSnapshot candles={indicatorCandles ?? tf.chartCandles ?? tf.candles} displayCandles={displayCandles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-detail-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl border border-white/10 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-slate-400">Entry</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.entry.toFixed(asset.digits)}</p></div>
               <div className="rounded-xl border border-rose-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-rose-300">Stop loss</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.stopLoss.toFixed(asset.digits)}</p></div>
