@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Check, Clock3, Info, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { formatDateTime, formatPrice } from '@/lib/sma';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import type { SuperSignal } from '@/lib/intelligence';
 import type { SuperSignalRecord } from '@/hooks/useSuperSignalRecords';
 import type { TfState } from '@/lib/sma';
-import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
+const SignalChartSnapshot = lazy(() => import('@/components/SignalChartSnapshot').then((module) => ({ default: module.SignalChartSnapshot })));
 
 type Props = {
   selectedSignalKey?: string;
@@ -152,7 +152,7 @@ export function SuperSignalPanel({
                     </button>
                     {isSelected && chartCandles.length > 0 && (
                       <div className="min-w-0 overflow-hidden rounded-xl border border-accent/25 bg-surface/[0.025] p-2">
-                        <SignalChartSnapshot candles={chartCandles} livePrice={prices[record.symbol]} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
+                        <Suspense fallback={<div className="flex min-h-[320px] items-center justify-center rounded-xl border border-line/10 bg-surface/[0.03] text-sm text-ink-3">Loading chart…</div>}><SignalChartSnapshot candles={chartCandles} livePrice={prices[record.symbol]} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} /></Suspense>
                       </div>
                     )}
                   </div>
