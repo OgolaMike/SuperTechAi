@@ -126,8 +126,10 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const leftRegime = direction === 'BUY' ? '#ef4444' : '#2563eb';
   const rightRegime = direction === 'BUY' ? '#2563eb' : '#ef4444';
   const latest = data[data.length - 1];
+  const isH4Synchronized = ['M15', 'M30', 'H1', 'H2', 'D1'].includes(timeframe);
+  const displayGranularity = timeframe === 'D1' ? 14400 : granularity;
   const currentPrice = livePrice ?? latest.close;
-  const secondsRemaining = Math.max(0, latest.epoch + granularity - clockEpoch);
+  const secondsRemaining = Math.max(0, latest.epoch + displayGranularity - clockEpoch);
   const days = Math.floor(secondsRemaining / 86400);
   const hours = Math.floor((secondsRemaining % 86400) / 3600);
   const minutes = Math.floor((secondsRemaining % 3600) / 60);
@@ -151,6 +153,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
           <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : direction === 'SELL' ? 'bg-rose-400' : 'bg-cyan-300'} shadow-[0_0_12px_currentColor]`} />
           <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · {direction ? 'MARKET STRUCTURE' : 'LIVE MARKET · NO CROSS SIGNAL'}</span>
           <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±2.5σ</span>
+          {isH4Synchronized && <span className="rounded-md border border-cyan-300/30 bg-cyan-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-cyan-200">H4 SYNC WINDOW</span>}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Live price and current candle countdown">
@@ -237,7 +240,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             const index = Math.round((data.length - 1) * step / 4);
             return <g key={step}>
               <line x1={x(index)} x2={x(index)} y1={HEIGHT - PAD.bottom} y2={HEIGHT - PAD.bottom + 5} stroke="#94a3b8" strokeOpacity="0.6" />
-              <text x={x(index)} y={HEIGHT - 14} textAnchor="middle" fill="#94a3b8" fontSize="12">{timeLabel(data[index].epoch, granularity)}</text>
+              <text x={x(index)} y={HEIGHT - 14} textAnchor="middle" fill="#94a3b8" fontSize="12">{timeLabel(data[index].epoch, displayGranularity)}</text>
             </g>;
           })}
           <text x={PAD.left + 2} y={HEIGHT - 14} fill="#cbd5e1" fontSize="10" fontWeight="700" letterSpacing="1.4">SUPERTECH AI · MARKET INTELLIGENCE</text>
