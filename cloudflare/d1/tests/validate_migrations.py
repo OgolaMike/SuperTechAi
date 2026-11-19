@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Validate the Cloudflare D1 SQLite migrations without connecting to production.
+"""Validate Cloudflare D1 migrations locally using only Python's sqlite3 module.
 
-Uses Python's standard-library sqlite3 module. Runs every migration twice against
-an in-memory database, then checks table creation, foreign-key declarations,
-foreign-key integrity, and SQLite syntax/feature compatibility.
+No network access, Cloudflare credentials, or production database connection is used.
 """
 from __future__ import annotations
 
@@ -13,7 +11,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "migrations"
-EXPECTED_INITIAL_TABLES = 75  # 74 mirrored public tables + app_users identity map
+EXPECTED_INITIAL_TABLES = 75  # 74 Supabase public tables plus app_users
 
 
 def fail(message: str) -> None:
@@ -21,33 +19,55 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
-def migration_files() -> list[pathlib.Path]:
-    files = sorted(MIGRATIONS.glob("*.sql"))
-    if not files:
+def files() -> list[pathlib.Path]:
+    result = sorted(MIGRATIONS.glob("*.sql"))
+    if not result:
         fail(f"No SQL migrations found in {MIGRATIONS}")
-    return files
+    return result
 
 
-def run_migrations(conn: sqlite3.Connection, files: list[pathlib.Path]) -> None:
-    for path in files:
-        sql = path.read_text(encoding="utf-8")
-        try:
-            conn.executescript(sql)
-        except sqlite3.Error as exc:
-            fail(f"{path.name} failed: {exc}")
+def apply(conn: sqlite3.Connection, path: pathlib.Path) -> None:
+    try:
+        conn.executescript(path.read_text(encoding="utf-8"))
+    except sqlite3.Error as exc:
+        fail(f"{path.name} failed: {exc}")
+
+
+def schema_objects(conn: sqlite3.Connection) -> set[tuple[str, str, str]]:
+    return {
+        (row[0], row[1], row[2])
+        for row in conn.execute(
+            "SELECT type, name, tbl_name FROM sqlite_master "
+            "WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
+        )
+    }
 
 
 def main() -> None:
-    files = migration_files()
+    migrations = files()
     conn = sqlite3.connect(":memory:")
     conn.execute("PRAGMA foreign_keys = ON")
 
-    version = sqlite3.sqlite_version
-    print(f"SQLite runtime: {version}")
+    print(f"SQLite runtime: {sqlite3.sqlite_version}")
     if sqlite3.sqlite_version_info < (3, 25, 0):
-        fail("SQLite 3.25.0+ is required for the project's supported SQL features")
+        fail("SQLite 3.25.0 or newer is required")
 
-    run_migrations(conn, files)
+    # Validate the base schema count independently of later catalog tables.
+    apply(conn, migrations[0])
+    base_tables = {
+        row[0]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+    }
+    if len(base_tables) != EXPECTED_INITIAL_TABLES:
+        fail(
+            f"Base migration should create {EXPECTED_INITIAL_TABLES} tables; "
+            f"created {len(base_tables)}"
+        )
+
+    for path in migrations[1:]:
+        apply(conn, path)
 
     tables = {
         row[0]
@@ -55,61 +75,43 @@ def main() -> None:
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         )
     }
-    initial_tables = {
-        row[0]
-        for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        )
-    }
-    if len(initial_tables) < EXPECTED_INITIAL_TABLES:
-        fail(
-            f"Expected at least {EXPECTED_INITIAL_TABLES} mirrored tables; "
-            f"found {len(initial_tables)} after all migrations"
-        )
-
-    # Every declared FK must point to a table that exists in the resulting schema.
     fk_count = 0
     for table in sorted(tables):
         for fk in conn.execute(f'PRAGMA foreign_key_list("{table}")'):
             fk_count += 1
             if fk[2] not in tables:
-                fail(f"{table} has a foreign key to missing table {fk[2]}")
+                fail(f"{table} references missing table {fk[2]}")
 
     violations = list(conn.execute("PRAGMA foreign_key_check"))
     if violations:
-        fail(f"Foreign-key check returned violations: {violations[:10]}")
+        fail(f"Foreign-key check failed: {violations[:10]}")
 
-    # Reapplying every migration must be safe and leave the schema intact.
-    before = {
-        (row[0], row[1], row[2])
-        for row in conn.execute(
-            "SELECT type, name, tbl_name FROM sqlite_master "
-            "WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
-        )
-    }
-    run_migrations(conn, files)
-    after = {
-        (row[0], row[1], row[2])
-        for row in conn.execute(
-            "SELECT type, name, tbl_name FROM sqlite_master "
-            "WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
-        )
-    }
-    if before != after:
-        fail("Rerunning migrations changed the schema objects")
+    # All migrations must be safe to replay without changing schema objects.
+    before = schema_objects(conn)
+    for path in migrations:
+        apply(conn, path)
+    if schema_objects(conn) != before:
+        fail("Reapplying migrations changed the schema objects")
 
-    # Check D1-relevant SQLite features used by these migrations.
-    conn.execute("SELECT json_valid('{""ok"":true}')").fetchone()
-    conn.execute("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')").fetchone()
-    conn.execute("PRAGMA integrity_check")
+    # Exercise SQLite features used by the migrations.
+    json_result = conn.execute("SELECT json_valid(?)", ('{"ok":true}',)).fetchone()[0]
+    if json_result != 1:
+        fail("SQLite JSON validation function is unavailable or returned an unexpected result")
+    timestamp = conn.execute(
+        "SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+    ).fetchone()[0]
+    if not timestamp:
+        fail("SQLite strftime timestamp expression returned NULL")
+
     integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
     if integrity != "ok":
         fail(f"SQLite integrity_check returned: {integrity}")
 
-    print(f"PASS: {len(files)} migration files executed twice")
-    print(f"PASS: {len(tables)} tables created; {fk_count} foreign keys declared")
-    print("PASS: all foreign-key targets exist; foreign_key_check is clean")
-    print("PASS: migration rerun is idempotent; SQLite integrity_check is clean")
+    print(f"PASS: {len(migrations)} migration files applied successfully")
+    print(f"PASS: base schema contains {len(base_tables)} tables")
+    print(f"PASS: {len(tables)} total tables and {fk_count} declared foreign keys")
+    print("PASS: all foreign-key targets exist and foreign_key_check is clean")
+    print("PASS: migrations are rerunnable; JSON, timestamp, and integrity checks pass")
 
 
 if __name__ == "__main__":
