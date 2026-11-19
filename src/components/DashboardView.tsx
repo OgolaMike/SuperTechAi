@@ -37,7 +37,7 @@ function synchronizedH4Window(granularity: number, states: TimeframeStates, nowE
     const currentDayStart = Math.floor(nowEpoch / DAY) * DAY;
     const previousClosedDay = (states[DAY]?.chartCandles ?? [])
       .filter((candle) => candle.epoch + DAY <= currentDayStart)
-      .at(-1);
+      .slice(-1)[0];
     const todaysH4Candles = h4Candles
       .filter((candle) => candle.epoch >= currentDayStart && candle.epoch < currentDayStart + DAY)
       .sort((a, b) => a.epoch - b.epoch);
