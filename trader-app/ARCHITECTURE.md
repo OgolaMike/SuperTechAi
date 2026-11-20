@@ -40,3 +40,8 @@ Responses should include a concise source/time context and explicitly say when e
 - Implement signal ingestion and member policy evaluation before worker auto-execution.
 - Run full demo-account tests, including duplicate delivery, partial broker response, network loss, worker restart, rejected orders, stop-loss/take-profit verification and emergency stop.
 - Live trading remains disabled until a separate explicit owner/member authorization and a verified demo sign-off.
+
+
+## Deterministic policy evaluator
+
+A pure evaluator and focused Deno tests now live in `supabase/functions/_shared/signal-policy.ts` and `signal-policy.test.ts`. It requires closed H4 and M15 candles, fresh signal timestamps, correct BUY/SELL price geometry, a paired member, a fresh worker heartbeat, explicit live/new-order permissions, emergency stop off, symbol allow-list approval, current daily risk baseline/history, and bounded risk settings. It returns a reason-coded allow/deny decision only. It does not create bridge commands and is not yet connected to the execution path. A passing decision never replaces the existing bridge and worker's independent broker-side checks.
