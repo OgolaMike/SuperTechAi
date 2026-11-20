@@ -31,7 +31,7 @@ async function callBinance(action: string, payload: Record<string, unknown> = {}
       try { detail = JSON.parse(raw); } catch { /* Keep the HTTP response as the fallback. */ }
       const reason = detail?.error ?? detail?.message ?? ((raw && raw.length < 240 ? raw : '') || error.message || `Binance Spot request failed (${response.status}).`);
       if (/invalid api-key, ip, or permissions/i.test(reason)) {
-        throw new Error('Binance rejected this API key. Check that the key and secret are correct and Spot trading permission is enabled. If IP restrictions are enabled, whitelist the SuperTech server egress IPs; recent connection logs have shown 35.180.109.45 and 15.237.127.167. Never enable withdrawals.');
+        throw new Error('Binance rejected this API key. Check that the key and secret are correct and Spot trading permission is enabled. If IP restrictions are enabled, whitelist only the static SuperTech execution-gateway IP supplied by the administrator. Do not add changing cloud egress IPs. Never enable withdrawals.');
       }
       throw new Error(reason);
     }

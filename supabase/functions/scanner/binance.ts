@@ -1,4 +1,5 @@
 import type { Candle, SymbolInfo } from './deriv.ts';
+import { exchangeGatewayFetch } from '../_shared/exchange-gateway.ts';
 
 const REST_BASE = 'https://data-api.binance.vision/api/v3';
 const EXCLUDED_BASES = new Set(['USDC','USDT','BUSD','TUSD','FDUSD','DAI','USDP','EUR','GBP','AEUR','PAXG']);
@@ -87,7 +88,7 @@ type FuturesExchangeSymbol = {
 };
 
 export async function loadBinanceFuturesSymbols(): Promise<SymbolInfo[]> {
-  const response = await fetch(`${FUTURES_REST_BASE}/fapi/v1/exchangeInfo`);
+  const response = await exchangeGatewayFetch("binance_futures", `${FUTURES_REST_BASE}/fapi/v1/exchangeInfo`);
   if (!response.ok) throw new Error(`Binance USD-M Futures catalogue returned ${response.status}`);
   const exchangeInfo: unknown = await response.json();
   if (typeof exchangeInfo !== 'object' || exchangeInfo === null ||
@@ -114,7 +115,7 @@ export async function loadBinanceFuturesSymbols(): Promise<SymbolInfo[]> {
 export async function fetchBinanceFuturesCandles(symbol: string, granularity: number, count: number): Promise<Candle[]> {
   const interval = INTERVALS[granularity];
   if (!interval) throw new Error(`Unsupported Binance Futures interval: ${granularity}`);
-  const response = await fetch(`${FUTURES_REST_BASE}/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${Math.min(1000, count)}`);
+  const response = await exchangeGatewayFetch("binance_futures", `${FUTURES_REST_BASE}/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${Math.min(1000, count)}`);
   if (!response.ok) throw new Error(`Binance Futures candle request failed for ${symbol}: ${response.status}`);
   const rows: unknown = await response.json();
   if (!Array.isArray(rows)) throw new Error(`Binance returned invalid Futures candles for ${symbol}`);
