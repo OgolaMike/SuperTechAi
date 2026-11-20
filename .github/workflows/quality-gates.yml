@@ -43,6 +43,10 @@ jobs:
           deno-version: v2.x
       - name: Test deterministic H4 and M15 signal policy
         run: deno test supabase/functions/_shared/signal-policy.test.ts
+      - name: Test trusted signal ingestion validation
+        run: deno test supabase/functions/_shared/signal-ingestion.test.ts
+      - name: Type-check trusted signal ingestion endpoint
+        run: deno check --node-modules-dir=auto supabase/functions/trader-signal-ingest/index.ts
       - name: Check scanner and Binance execution functions
         run: |
           deno check --node-modules-dir=auto supabase/functions/scanner/index.ts
