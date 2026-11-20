@@ -52,12 +52,19 @@ Deploy this directory as the project root for a separate static frontend. The ex
 
 The existing `../mt5-worker` package runs beside the official MT5 desktop terminal on a private Windows host. It authenticates using a one-time worker token stored in Windows Credential Manager. It currently supports account synchronization and member-confirmed pending-order execution only. It does **not** yet execute H4 signals unattended or manage open positions/trailing stops.
 
+## Engineering progress
+
+- Added `trader_signal_intents` and `trader_member_execution_intents` as a new, service-role-only migration. It is deliberately not applied to the existing Supabase project by this PR.
+- Signal identity is globally idempotent; member execution decisions are separately idempotent per account and signal.
+- The schema records H4 as the primary timeframe and M15 as the confirmation timeframe, with evidence, explanation and risk/policy snapshots.
+- Inserts into these tables do not create MT5 bridge commands. All account permissions still default to fail-closed and existing live-execution flags are untouched.
+
 ## Next engineering stages
 
-1. Durable H4 signal-intent pipeline with lower-timeframe confirmation and multi-market scanning.
-2. Member-specific execution policy, deterministic risk checks, idempotent order lifecycle and broker-side SL/TP verification.
-3. Restart reconciliation, position management, daily loss guard, emergency stop and immutable audit trail.
-4. Secure AI service for grounded explanations, briefings and journal insights—no direct broker credentials and no direct order authority.
+1. Implement the server-side signal ingestion/validation service that writes canonical H4 signals only after M15 confirmation evidence is available.
+2. Implement the member policy evaluator that creates blocked/approved decision records, and only then queues a bridge command when the member's permissions, risk controls, worker health and emergency-stop state all pass.
+3. Extend the Windows worker for unattended strategy-owned order execution, protective SL/TP verification, restart reconciliation and position management. Keep it isolated from manual trades.
+4. Add a grounded AI service for market briefings, signal explanations, risk explanations and journal insights. AI output remains advisory and cannot authorize or submit orders.
 5. Demo end-to-end tests for duplicate signals, BUY/SELL, rejected orders, disconnect/restart, SL/TP, risk limits and emergency stop.
 
 Demo end-to-end testing is mandatory. Never enable live execution as part of deployment or CI.
