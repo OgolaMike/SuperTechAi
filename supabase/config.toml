@@ -46,3 +46,6 @@ verify_jwt = true
 [functions.nfc-community]
 # Public card verification is read-only; all management actions validate the caller JWT inside the function.
 verify_jwt = false
+[functions.trader-signal-ingest]
+# Authenticated by the private SIGNAL_INGEST_SECRET header inside the function.
+verify_jwt = false
