@@ -1,5 +1,6 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { evaluateSignalForMember } from "./signal-policy.ts";
+
+function assertEquals(actual: unknown, expected: unknown) { if (actual !== expected) throw new Error(`Expected ${String(expected)}, received ${String(actual)}`); }
 
 const now = 1_800_000_000;
 const signal = {
