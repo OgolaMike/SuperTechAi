@@ -129,6 +129,18 @@ export default function App() {
           <div className="safety-row"><Wifi/><div><b>Read-only account diagnostics</b><small>Balance, positions and pending orders can be synchronized after the worker is online.</small></div></div>
         </section>
       </div>
+      <section className="card ai-studio">
+        <div className="ai-heading"><div><span className="eyebrow">THE SUPERTECH AI EXPERIENCE</span><h2>Your AI trading companion</h2><p className="muted">Less chart-watching. More clarity, context and control.</p></div><span className="ai-orb"><Zap size={22}/></span></div>
+        <div className="ai-grid">
+          <article className="ai-feature"><span className="ai-icon">✦</span><div><b>Personal market briefing</b><p>Start with the markets that matter, what changed overnight and what deserves attention today.</p><small>PLANNED · MULTI-MARKET INTELLIGENCE</small></div></article>
+          <article className="ai-feature"><span className="ai-icon">◈</span><div><b>Signals that explain themselves</b><p>Every H4-led opportunity gets a plain-language reason, confirmation status, entry area and invalidation level.</p><small>PLANNED · H4 + LOWER-TIMEFRAME CONFIRMATION</small></div></article>
+          <article className="ai-feature"><span className="ai-icon">⌁</span><div><b>Personal risk guardian</b><p>Check exposure, daily loss limits, open positions and trade permissions before an order can proceed.</p><small>SAFETY FOUNDATION · AUTOMATION STILL IN DEVELOPMENT</small></div></article>
+          <article className="ai-feature"><span className="ai-icon">◎</span><div><b>Trade memory and coaching</b><p>Turn completed trades into a searchable journal: what worked, what failed and where discipline can improve.</p><small>PLANNED · PERSONAL PERFORMANCE INTELLIGENCE</small></div></article>
+          <article className="ai-feature"><span className="ai-icon">⌘</span><div><b>Ask in everyday language</b><p>Ask questions such as “Why is this trade waiting?” or “How much risk is open?” and get an answer grounded in your account.</p><small>PLANNED · SECURE ACCOUNT-AWARE COPILOT</small></div></article>
+          <article className="ai-feature"><span className="ai-icon">⇄</span><div><b>One engine, your own account</b><p>Central intelligence can monitor many broker markets while execution remains isolated, permissioned and risk-checked per member.</p><small>FOUNDATION · MEMBER ACCOUNT PAIRING</small></div></article>
+        </div>
+        <div className="ai-note"><ShieldCheck size={16}/><span>AI can explain and recommend; deterministic risk controls decide whether an order is allowed. No AI suggestion can bypass your account permissions or emergency stop.</span></div>
+      </section>
       <section className="card next"><div className="section-title"><div><span className="eyebrow">NEXT STEP</span><h2>Install the MT5 cloud worker</h2></div><Cloud/></div><ol><li>Use a private Windows 10/11 PC or Windows Server with MT5 installed.</li><li>Install Python 3.11 (64-bit) and the worker requirements.</li><li>Run <code>provision_token.py</code> and enter the one-time token above when prompted.</li><li>Start <code>worker.py</code> and keep MT5 logged into the exact paired account.</li></ol><p className="hint">This first repository release prepares secure pairing and account control. It does not yet run unattended signal execution or manage open positions.</p></section>
     </div>}
     {(message||error) && <div className={error?'alert error':'alert'}>{error||message}</div>}
