@@ -88,7 +88,7 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }:
         <div className="mb-3 flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent"/><h2 className="font-semibold text-ink">Talk with your AI companion</h2></div>
         <div className="max-h-80 space-y-3 overflow-y-auto rounded-xl bg-canvas/30 p-3">
           {messages.length === 0 && <div className="py-5 text-center text-sm text-ink-3">Ask a question or choose a prompt. Your companion uses your goal, watchlist and this conversation to respond.</div>}
-          {messages.map((message, index) => <div key={index} className={`max-w-[92%] rounded-2xl p-3 text-sm leading-relaxed ${message.role === 'member' ? 'ml-auto bg-accent/10 text-ink' : 'mr-auto border border-line/10 bg-surface/[0.08] text-ink-2'}`}>{message.text}</div>)}
+          {messages.map((message, index) => <div key={index} className={'max-w-[92%] rounded-2xl p-3 text-sm leading-relaxed ' + (message.role === 'member' ? 'ml-auto bg-accent/10 text-ink' : 'mr-auto border border-line/10 bg-surface/[0.08] text-ink-2')}>{message.text}</div>)}
         </div>
         {loading && <p className="mt-2 text-xs text-ink-3 animate-pulse">Your companion is thinking…</p>}
         {error && <p className="mt-2 text-xs text-amber-400">{error}</p>}
