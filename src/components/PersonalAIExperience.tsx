@@ -65,7 +65,7 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }:
         <div className="relative mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-line/10 bg-canvas/50 p-3.5"><p className="text-xs text-ink-3">Markets you're watching</p><p className="mt-1 text-xl font-bold text-ink">{monitoredAssets.length}</p></div>
           <div className="rounded-2xl border border-line/10 bg-canvas/50 p-3.5"><p className="text-xs text-ink-3">Current signal count</p><p className="mt-1 text-xl font-bold text-ink">{signalsCount}</p></div>
-          <div className="col-span-2 rounded-2xl border border-line/10 bg-canvas/50 p-3.5 sm:col-span-1"><p className="text-xs text-ink-3">Companion status</p><p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-amber-400"><Sparkles className="h-4 w-4" /> Live AI</p></div>
+          <div className="col-span-2 rounded-2xl border border-line/10 bg-canvas/50 p-3.5 sm:col-span-1"><p className="text-xs text-ink-3">AI companion</p><p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ink"><Sparkles className="h-4 w-4 text-accent" /> Available on request</p><p className="mt-1 text-[11px] text-ink-3">Connection is checked when you send a message.</p></div>
         </div>
       </section>
 
