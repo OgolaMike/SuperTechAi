@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
+const PersonalAIExperience = lazy(() => import('@/components/PersonalAIExperience').then((module) => ({ default: module.PersonalAIExperience })));
 const MarketingStudio = lazy(() => import('@/components/MarketingStudio').then((module) => ({ default: module.MarketingStudio })));
 const SuperTechAcademy = lazy(() => import('@/components/SuperTechAcademy').then((module) => ({ default: module.SuperTechAcademy })));
 const AdminPanel = lazy(() => import('@/components/AdminPanel').then((module) => ({ default: module.AdminPanel })));
@@ -9,7 +10,6 @@ const NetworkPanel = lazy(() => import('@/components/NetworkPanel').then((module
 const AccountHub = lazy(() => import('@/components/AccountHub').then((module) => ({ default: module.AccountHub })));
 const SmartCommunity = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.SmartCommunity })));
 import { AssetSelector } from '@/components/AssetSelector';
-import { PersonalAIExperience } from '@/components/PersonalAIExperience';
 import { AmbientBackground } from '@/components/AmbientBackground';
 const DashboardView = lazy(() => import('@/components/DashboardView').then((module) => ({ default: module.DashboardView })));
 const NotificationSettings = lazy(() => import('@/components/NotificationSettings').then((module) => ({ default: module.NotificationSettings })));
