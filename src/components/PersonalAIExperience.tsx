@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BrainCircuit, Sparkles, ShieldAlert, BookOpen, MessageCircle, Send, Compass, Target } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -12,6 +12,9 @@ const starters = [
 
 export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }: Props) {
   const [goal, setGoal] = useState(() => localStorage.getItem('supertech-ai-member-goal') ?? 'Build consistent trading habits and protect my capital');
+  const [memoryOptIn, setMemoryOptIn] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileMessage, setProfileMessage] = useState('');
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<{ role: 'assistant' | 'member'; text: string }[]>([]);
   const [saved, setSaved] = useState(false);
@@ -20,9 +23,63 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }:
   const [serviceStatus, setServiceStatus] = useState<'unchecked' | 'checking' | 'connected' | 'unavailable'>('unchecked');
   const recent = useMemo(() => monitoredAssets.slice(0, 6), [monitoredAssets]);
 
-  const saveGoal = () => {
-    localStorage.setItem('supertech-ai-member-goal', goal.trim());
-    setSaved(true);
+  useEffect(() => {
+    let cancelled = false;
+    const loadProfile = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) return;
+        const { data, error: profileError } = await supabase
+          .from('member_ai_profiles')
+          .select('goal, memory_opt_in')
+          .eq('user_id', authData.user.id)
+          .maybeSingle();
+        if (profileError) throw profileError;
+        if (!cancelled && data) {
+          setGoal(data.goal);
+          setMemoryOptIn(data.memory_opt_in);
+          localStorage.setItem('supertech-ai-member-goal', data.goal);
+        }
+      } catch (err) {
+        if (!cancelled) setProfileMessage(err instanceof Error ? err.message : 'Could not load your saved AI preferences.');
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    };
+    void loadProfile();
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveGoal = async () => {
+    const cleanGoal = goal.trim().slice(0, 240);
+    if (!cleanGoal) {
+      setProfileMessage('Please enter a goal before saving.');
+      return;
+    }
+    setProfileMessage('');
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) throw new Error('Please sign in again before saving your preferences.');
+      if (memoryOptIn) {
+        const { error: saveError } = await supabase.from('member_ai_profiles').upsert({
+          user_id: authData.user.id,
+          goal: cleanGoal,
+          memory_opt_in: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+        if (saveError) throw saveError;
+      } else {
+        const { error: deleteError } = await supabase.from('member_ai_profiles').delete().eq('user_id', authData.user.id);
+        if (deleteError) throw deleteError;
+      }
+      localStorage.setItem('supertech-ai-member-goal', cleanGoal);
+      setGoal(cleanGoal);
+      setSaved(true);
+      setProfileMessage(memoryOptIn ? 'Your goal is saved privately and will follow you across devices.' : 'Your goal is saved on this device only. Persistent AI memory is off.');
+    } catch (err) {
+      setProfileMessage(err instanceof Error ? err.message : 'Could not save your AI preferences. Please try again.');
+      setSaved(false);
+    }
   };
   const ask = async (text: string) => {
     const trimmed = text.trim();
@@ -76,9 +133,11 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }:
       <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
         <div className="rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
           <div className="flex items-center gap-2"><Target className="h-4 w-4 text-accent" /><h2 className="text-base font-semibold text-ink">Your personal goal</h2></div>
-          <p className="mt-1 text-sm text-ink-2">This stays on this device for now and helps tailor guided responses.</p>
+          <p className="mt-1 text-sm text-ink-2">Choose whether your goal stays on this device or is saved privately to your account for use across devices.</p>
           <textarea value={goal} onChange={(e) => { setGoal(e.target.value); setSaved(false); }} rows={3} maxLength={240} className="mt-3 w-full resize-y rounded-xl border border-line/15 bg-canvas/60 p-3 text-sm text-ink outline-none focus:border-accent/50" placeholder="What are you working toward?"/>
-          <button type="button" onClick={saveGoal} className="mt-3 rounded-xl border border-accent/25 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent">{saved ? 'Goal saved ✓' : 'Save my goal'}</button>
+          <label className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-2"><input type="checkbox" checked={memoryOptIn} onChange={(e) => { setMemoryOptIn(e.target.checked); setSaved(false); }} className="mt-0.5 accent-current"/> Save my goal privately to my SuperTech AI account so it is available across my devices. I can turn this off and remove the saved profile at any time.</label>
+          <button type="button" onClick={() => void saveGoal()} disabled={profileLoading} className="mt-3 rounded-xl border border-accent/25 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent disabled:opacity-50">{profileLoading ? 'Loading preferences…' : saved ? 'Preferences saved ✓' : 'Save my preferences'}</button>
+          {profileMessage && <p role="status" className="mt-2 text-xs text-ink-3">{profileMessage}</p>}
           <div className="mt-5 rounded-xl border border-line/10 bg-canvas/40 p-3"><p className="text-xs font-semibold text-ink-3">YOUR WATCHLIST</p><div className="mt-2 flex flex-wrap gap-2">{recent.length ? recent.map((asset) => <span key={asset} className="rounded-full border border-line/15 px-2.5 py-1 text-xs text-ink-2">{asset}</span>) : <span className="text-xs text-ink-3">Choose markets on your dashboard to personalize your space.</span>}</div></div>
         </div>
         <div className="rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
