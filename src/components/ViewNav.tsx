@@ -20,7 +20,7 @@ const PRIMARY: NavItem[] = [
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
 
-const MORE_GROUPS: { title: string; items: NavItem[] }[] = [
+const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   { title: 'Personal AI', items: [ { id: 'personal-ai', label: 'My AI Companion', icon: BrainCircuit } ] },
   { title: 'Intelligence', items: [
     { id: 'strategies', label: 'Strategies', icon: BarChart3 },
