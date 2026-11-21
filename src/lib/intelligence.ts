@@ -34,6 +34,7 @@ export type SuperSignal = {
 };
 
 const PRIMARY_LABEL = 'H4';
+const INTELLIGENCE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => timeframe.granularity !== 60);
 const FRESH_PRIMARY_CANDLES = 8;
 const NEUTRAL_BAND = 0.1;
 const SMA_PERIOD = 60;
@@ -121,13 +122,13 @@ function evaluateSymbol(
   states: Record<number, TfState>,
   nowEpoch: number,
 ): SuperSignal | null {
-  const readings = TIMEFRAMES.map((timeframe) => {
+  const readings = INTELLIGENCE_TIMEFRAMES.map((timeframe) => {
     const state = states[timeframe.granularity];
     const bias = state && !isStale(state, nowEpoch) ? biasOf(state) : ('No data' as Bias);
     return { label: timeframe.label, valid: bias !== 'No data', bias };
   });
 
-  const primaryState = states[TIMEFRAMES.find((tf) => tf.label === PRIMARY_LABEL)!.granularity];
+  const primaryState = states[INTELLIGENCE_TIMEFRAMES.find((tf) => tf.label === PRIMARY_LABEL)!.granularity];
   const signal = primaryState?.latestSignal;
   if (!signal || signal.outcome.closed) return null;
   if (nowEpoch - signal.signalEpoch > FRESH_PRIMARY_CANDLES * primaryState.granularity) return null;
@@ -142,7 +143,7 @@ function evaluateSymbol(
   // Keep H4 authoritative. Entry waits for at least four supporting frames and no higher-timeframe reversal warning.
   if (supportingReads.length !== 7 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
 
-  const confirmations = TIMEFRAMES.map((timeframe) => {
+  const confirmations = INTELLIGENCE_TIMEFRAMES.map((timeframe) => {
     const state = states[timeframe.granularity];
     return {
       label: timeframe.label,
@@ -180,7 +181,7 @@ function evaluateSymbol(
     levels,
     dailyBias,
     agreeing: supportingAligned + 1,
-    validReads: TIMEFRAMES.length,
+    validReads: INTELLIGENCE_TIMEFRAMES.length,
     reads: readings.map((reading) => ({
       label: reading.label,
       bias: reading.bias,

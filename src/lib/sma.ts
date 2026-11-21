@@ -19,11 +19,12 @@ export const TIMEFRAMES: Timeframe[] = [
   { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 900, label: 'M15', role: 'Primary signals', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 900, label: 'M15', role: 'Short-term confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 60, label: 'M1', role: 'Precision signal engine · primary execution timeframe', candleCount: CHART_HISTORY_CANDLES },
 ];
 
 
-export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([900, 1800, 3600, 86400]);
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([60, 900, 1800, 3600, 86400]);
 
 // Build higher timeframes from hourly candles where a source interval is unavailable.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
