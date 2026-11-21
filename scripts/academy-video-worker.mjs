@@ -147,16 +147,33 @@ function combineAudioParts(parts) {
 
 function makeScenes(lesson) {
   const primary = resolveView(lesson.title + ' ' + lesson.category);
-  return [
+  const steps = Array.isArray(lesson.steps) ? lesson.steps : [];
+  const quiz = lesson.quiz;
+  const recapNarration = 'Let us recap this lesson. ' + steps.map((step, index) => 'Step ' + (index + 1) + ': ' + step).join(' ');
+  const scenes = [
     { caption: lesson.title + '\n' + lesson.summary, narration: lesson.narration || lesson.summary, view: primary },
     { caption: 'LEARNING OBJECTIVE\n' + lesson.objective, narration: 'By the end of this lesson, you will be able to: ' + lesson.objective, view: primary },
-    ...lesson.steps.map((step, index) => ({
+    ...steps.map((step, index) => ({
       caption: 'STEP ' + (index + 1) + '\n' + step,
       narration: 'Step ' + (index + 1) + '. ' + step,
-      view: resolveView(lesson.title + ' ' + lesson.category + ' ' + step),
+      view: resolveView(lesson.title + ' ' + lesson.category + ' ' + step + ' ' + (lesson.visualPrompt || '')),
     })),
-    { caption: 'KEY TAKEAWAY\nLearn it. Review it. Apply it carefully. Trading involves risk.', narration: 'Key reminder. Learn the process, review the information and apply it carefully. Trading involves risk. No signal guarantees an outcome.', view: primary },
   ];
+  if (quiz?.question && Array.isArray(quiz.answers) && quiz.answers.length && Number.isInteger(quiz.correct)) {
+    const options = quiz.answers.map((answer, index) => 'Option ' + String.fromCharCode(65 + index) + ': ' + answer).join('. ');
+    const correctAnswer = quiz.answers[quiz.correct];
+    scenes.push({
+      caption: 'KNOWLEDGE CHECK\n' + quiz.question + '\nCorrect answer: ' + (correctAnswer || 'Review the explanation'),
+      narration: 'Knowledge check. ' + quiz.question + ' ' + options + '. The correct answer is ' +
+        (correctAnswer || 'the answer explained in the lesson') + '. ' + (quiz.explanation || 'Review the lesson steps to understand why.'),
+      view: primary,
+    });
+  }
+  scenes.push(
+    { caption: 'LESSON RECAP\nReview the key steps', narration: recapNarration, view: primary },
+    { caption: 'CONCLUSION\nUnderstand the process. Apply it carefully.', narration: 'That concludes ' + lesson.title + '. You have reviewed the objective, worked through every step, and completed the knowledge check. Revisit any part that is unclear before applying what you learned. Trading involves risk, and no tool or signal guarantees an outcome.', view: primary },
+  );
+  return scenes;
 }
 
 async function readAccessToken(page) {
@@ -356,7 +373,7 @@ async function main() {
     const accessToken = await readAccessToken(page);
     if (!accessToken) throw new Error('Could not read the signed-in demo session. Sign in again and retry.');
 
-    const response = await fetch('https://jtfsqhewotinvlrcadwq.supabase.co/rest/v1/academy_videos?select=lesson_id,status,video_url,screenshots,created_at&order=created_at.desc', {
+    const response = await fetch('https://jtfsqhewotinvlrcadwq.supabase.co/rest/v1/academy_videos?select=lesson_id,status,video_url,screenshots,provider_video_id,created_at&order=created_at.desc', {
       headers: { apikey: anonKey, Authorization: 'Bearer ' + accessToken },
     });
     if (!response.ok) throw new Error('Could not read current Academy video status (' + response.status + ').');
@@ -375,7 +392,7 @@ async function main() {
     const queue = candidateLessons.filter((lesson) => {
       if (force) return true;
       const row = latest.get(lesson.id);
-      return !row || row.status !== 'completed' || !row.video_url || !Array.isArray(row.screenshots) || row.screenshots.length === 0;
+      return !row || row.status !== 'completed' || !row.video_url || row.provider_video_id !== 'complete-v2' || !Array.isArray(row.screenshots) || row.screenshots.length === 0;
     });
     const dailyLimit = Number.parseInt(process.env.ACADEMY_DAILY_LIMIT || '0', 10);
     if (!TEST_LESSON_ID && !force && Number.isFinite(dailyLimit) && dailyLimit > 0) {
@@ -407,7 +424,7 @@ async function main() {
         const videoPath = await renderVideo(lesson, scenes, tts, dir);
         await publishLesson(accessToken, anonKey, storageClient, lesson, screenshots, videoPath, runTag);
         report.completed.push(lesson.id);
-        console.log('Published ' + lesson.id + ' with ' + screenshots.length + ' real screen screenshots.');
+        console.log('Published ' + lesson.id + ' as complete-v2 with ' + screenshots.length + ' real screen screenshots.');
       } catch (error) {
         report.failed.push({ lesson_id: lesson.id, reason: error instanceof Error ? error.message : String(error) });
         console.error('Failed lesson ' + lesson.id + ': ' + (error instanceof Error ? error.message : String(error)));
