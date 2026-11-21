@@ -8,7 +8,8 @@ const FinancePanel = lazy(() => import('@/components/FinancePanel').then((module
 const NetworkPanel = lazy(() => import('@/components/NetworkPanel').then((module) => ({ default: module.NetworkPanel })));
 const AccountHub = lazy(() => import('@/components/AccountHub').then((module) => ({ default: module.AccountHub })));
 const SmartCommunity = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.SmartCommunity })));
-import { AssetSelector } from '@/components/AssetSelector';\nimport { PersonalAIExperience } from '@/components/PersonalAIExperience';
+import { AssetSelector } from '@/components/AssetSelector';
+import { PersonalAIExperience } from '@/components/PersonalAIExperience';
 import { AmbientBackground } from '@/components/AmbientBackground';
 const DashboardView = lazy(() => import('@/components/DashboardView').then((module) => ({ default: module.DashboardView })));
 const NotificationSettings = lazy(() => import('@/components/NotificationSettings').then((module) => ({ default: module.NotificationSettings })));
@@ -202,7 +203,9 @@ function App() {
         <div key={view} className="view-transition">
         {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
 
-        {view === 'personal-ai' && <PersonalAIExperience signalsCount={views.length} monitoredAssets={selectedSymbols} />}\n\n        {view === 'dashboard' && (
+        {view === 'personal-ai' && <PersonalAIExperience signalsCount={views.length} monitoredAssets={selectedSymbols} />}
+
+        {view === 'dashboard' && (
           <DashboardView
             selectedSymbols={selectedSymbols}
             assetMap={assetMap}
