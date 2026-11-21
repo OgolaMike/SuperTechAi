@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { BrainCircuit, Sparkles, ShieldAlert, BookOpen, MessageCircle, Send, Compass, Target } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-type SignalContextItem = { symbol: string; timeframe: string; direction: 'BUY' | 'SELL'; signalEpoch: number; status: string; entry: number; stopLoss: number; tp1: number; tp2: number; tp3: number };\ntype Props = { signalsCount?: number; monitoredAssets?: string[]; signalContext?: SignalContextItem[] };
+type SignalContextItem = { symbol: string; timeframe: string; direction: 'BUY' | 'SELL'; signalEpoch: number; status: string; entry: number; stopLoss: number; tp1: number; tp2: number; tp3: number };
+type Props = { signalsCount?: number; monitoredAssets?: string[]; signalContext?: SignalContextItem[] };
 
 const starters = [
   { icon: Compass, title: 'What should I focus on?', prompt: 'What should I focus on today?' },
