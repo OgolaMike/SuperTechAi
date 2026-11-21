@@ -278,7 +278,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                 }),
             );
             const selectedHigherTimeframeTasks = currentAssets.flatMap((symbol) =>
-              NATIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== M15_GRANULARITY).map((timeframe) => () =>
+              NATIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== M15_GRANULARITY && timeframe.granularity !== M1_GRANULARITY).map((timeframe) => () =>
                 client
                   .subscribeCandles(symbol, timeframe.granularity, timeframe.candleCount)
                   .then((candles) => {
