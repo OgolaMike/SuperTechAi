@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BrainCircuit, Sparkles, ShieldAlert, BookOpen, MessageCircle, Send, Compass, Target } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-type Props = { signalsCount?: number; monitoredAssets?: string[] };
+type SignalContextItem = { symbol: string; timeframe: string; direction: 'BUY' | 'SELL'; signalEpoch: number; status: string; entry: number; stopLoss: number; tp1: number; tp2: number; tp3: number };
+type Props = { signalsCount?: number; monitoredAssets?: string[]; signalContext?: SignalContextItem[] };
 
 const starters = [
   { icon: Compass, title: 'What should I focus on?', prompt: 'What should I focus on today?' },
@@ -10,18 +11,76 @@ const starters = [
   { icon: BookOpen, title: 'Explain a signal simply', prompt: 'How do I read a signal without rushing?' },
 ];
 
-export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }: Props) {
+export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], signalContext = [] }: Props) {
   const [goal, setGoal] = useState(() => localStorage.getItem('supertech-ai-member-goal') ?? 'Build consistent trading habits and protect my capital');
+  const [memoryOptIn, setMemoryOptIn] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileMessage, setProfileMessage] = useState('');
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<{ role: 'assistant' | 'member'; text: string }[]>([]);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [serviceStatus, setServiceStatus] = useState<'unchecked' | 'checking' | 'connected' | 'unavailable'>('unchecked');
   const recent = useMemo(() => monitoredAssets.slice(0, 6), [monitoredAssets]);
 
-  const saveGoal = () => {
-    localStorage.setItem('supertech-ai-member-goal', goal.trim());
-    setSaved(true);
+  useEffect(() => {
+    let cancelled = false;
+    const loadProfile = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) return;
+        const { data, error: profileError } = await supabase
+          .from('member_ai_profiles')
+          .select('goal, memory_opt_in')
+          .eq('user_id', authData.user.id)
+          .maybeSingle();
+        if (profileError) throw profileError;
+        if (!cancelled && data) {
+          setGoal(data.goal);
+          setMemoryOptIn(data.memory_opt_in);
+          localStorage.setItem('supertech-ai-member-goal', data.goal);
+        }
+      } catch (err) {
+        if (!cancelled) setProfileMessage(err instanceof Error ? err.message : 'Could not load your saved AI preferences.');
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    };
+    void loadProfile();
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveGoal = async () => {
+    const cleanGoal = goal.trim().slice(0, 240);
+    if (!cleanGoal) {
+      setProfileMessage('Please enter a goal before saving.');
+      return;
+    }
+    setProfileMessage('');
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) throw new Error('Please sign in again before saving your preferences.');
+      if (memoryOptIn) {
+        const { error: saveError } = await supabase.from('member_ai_profiles').upsert({
+          user_id: authData.user.id,
+          goal: cleanGoal,
+          memory_opt_in: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+        if (saveError) throw saveError;
+      } else {
+        const { error: deleteError } = await supabase.from('member_ai_profiles').delete().eq('user_id', authData.user.id);
+        if (deleteError) throw deleteError;
+      }
+      localStorage.setItem('supertech-ai-member-goal', cleanGoal);
+      setGoal(cleanGoal);
+      setSaved(true);
+      setProfileMessage(memoryOptIn ? 'Your goal is saved privately and will follow you across devices.' : 'Your goal is saved on this device only. Persistent AI memory is off.');
+    } catch (err) {
+      setProfileMessage(err instanceof Error ? err.message : 'Could not save your AI preferences. Please try again.');
+      setSaved(false);
+    }
   };
   const ask = async (text: string) => {
     const trimmed = text.trim();
@@ -34,15 +93,18 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }:
     setQuestion('');
     setError('');
     setLoading(true);
+    setServiceStatus('checking');
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('personal-ai', {
-        body: { question: trimmed, goal, assets: recent, signalsCount, history },
+        body: { question: trimmed, goal, assets: recent, signalsCount, signalContext, history },
       });
       if (invokeError) throw invokeError;
       if (!data?.answer) throw new Error(data?.error || 'No answer received. Please try again.');
+      setServiceStatus('connected');
       setMessages((prev) => [...prev, { role: 'assistant', text: data.answer }]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not connect to your AI companion. Try again.';
+      setServiceStatus('unavailable');
       setError(message);
       setMessages((prev) => [...prev, { role: 'assistant', text: 'I couldn’t reach my AI service right now. Please try again shortly.' }]);
     } finally {
@@ -65,16 +127,18 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }:
         <div className="relative mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-line/10 bg-canvas/50 p-3.5"><p className="text-xs text-ink-3">Markets you're watching</p><p className="mt-1 text-xl font-bold text-ink">{monitoredAssets.length}</p></div>
           <div className="rounded-2xl border border-line/10 bg-canvas/50 p-3.5"><p className="text-xs text-ink-3">Current signal count</p><p className="mt-1 text-xl font-bold text-ink">{signalsCount}</p></div>
-          <div className="col-span-2 rounded-2xl border border-line/10 bg-canvas/50 p-3.5 sm:col-span-1"><p className="text-xs text-ink-3">Companion status</p><p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-amber-400"><Sparkles className="h-4 w-4" /> Live AI</p></div>
+          <div className="col-span-2 rounded-2xl border border-line/10 bg-canvas/50 p-3.5 sm:col-span-1"><p className="text-xs text-ink-3">AI companion</p><p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ink"><Sparkles className="h-4 w-4 text-accent" />{serviceStatus === 'checking' ? 'Connecting…' : serviceStatus === 'connected' ? 'Connected' : serviceStatus === 'unavailable' ? 'Temporarily unavailable' : 'Not yet checked'}</p><p className="mt-1 text-[11px] text-ink-3">{serviceStatus === 'connected' ? 'Your last request received a response.' : serviceStatus === 'unavailable' ? 'Your last request could not reach the AI service.' : 'Service status is confirmed when you send a message.'}</p></div>
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
         <div className="rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
           <div className="flex items-center gap-2"><Target className="h-4 w-4 text-accent" /><h2 className="text-base font-semibold text-ink">Your personal goal</h2></div>
-          <p className="mt-1 text-sm text-ink-2">This stays on this device for now and helps tailor guided responses.</p>
+          <p className="mt-1 text-sm text-ink-2">Choose whether your goal stays on this device or is saved privately to your account for use across devices.</p>
           <textarea value={goal} onChange={(e) => { setGoal(e.target.value); setSaved(false); }} rows={3} maxLength={240} className="mt-3 w-full resize-y rounded-xl border border-line/15 bg-canvas/60 p-3 text-sm text-ink outline-none focus:border-accent/50" placeholder="What are you working toward?"/>
-          <button type="button" onClick={saveGoal} className="mt-3 rounded-xl border border-accent/25 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent">{saved ? 'Goal saved ✓' : 'Save my goal'}</button>
+          <label className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-2"><input type="checkbox" checked={memoryOptIn} onChange={(e) => { setMemoryOptIn(e.target.checked); setSaved(false); }} className="mt-0.5 accent-current"/> Save my goal privately to my SuperTech AI account so it is available across my devices. I can turn this off and remove the saved profile at any time.</label>
+          <button type="button" onClick={() => void saveGoal()} disabled={profileLoading} className="mt-3 rounded-xl border border-accent/25 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent disabled:opacity-50">{profileLoading ? 'Loading preferences…' : saved ? 'Preferences saved ✓' : 'Save my preferences'}</button>
+          {profileMessage && <p role="status" className="mt-2 text-xs text-ink-3">{profileMessage}</p>}
           <div className="mt-5 rounded-xl border border-line/10 bg-canvas/40 p-3"><p className="text-xs font-semibold text-ink-3">YOUR WATCHLIST</p><div className="mt-2 flex flex-wrap gap-2">{recent.length ? recent.map((asset) => <span key={asset} className="rounded-full border border-line/15 px-2.5 py-1 text-xs text-ink-2">{asset}</span>) : <span className="text-xs text-ink-3">Choose markets on your dashboard to personalize your space.</span>}</div></div>
         </div>
         <div className="rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
