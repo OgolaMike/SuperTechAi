@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
+const PersonalAIExperience = lazy(() => import('@/components/PersonalAIExperience').then((module) => ({ default: module.PersonalAIExperience })));
 const MarketingStudio = lazy(() => import('@/components/MarketingStudio').then((module) => ({ default: module.MarketingStudio })));
 const SuperTechAcademy = lazy(() => import('@/components/SuperTechAcademy').then((module) => ({ default: module.SuperTechAcademy })));
 const AdminPanel = lazy(() => import('@/components/AdminPanel').then((module) => ({ default: module.AdminPanel })));
@@ -201,6 +202,8 @@ function App() {
         <Suspense fallback={<div className="mt-8 min-h-[40vh] animate-pulse rounded-2xl border border-line/15 bg-surface/[0.025]" aria-label="Loading section" />}>
         <div key={view} className="view-transition">
         {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
+
+        {view === 'personal-ai' && <PersonalAIExperience signalsCount={views.length} monitoredAssets={selectedSymbols} />}
 
         {view === 'dashboard' && (
           <DashboardView
