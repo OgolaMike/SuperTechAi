@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BrainCircuit, Sparkles, ShieldAlert, BookOpen, MessageCircle, Send, Compass, Target } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-type Props = { signalsCount?: number; monitoredAssets?: string[] };
+type SignalContextItem = { symbol: string; timeframe: string; direction: 'BUY' | 'SELL'; signalEpoch: number; status: string; entry: number; stopLoss: number; tp1: number; tp2: number; tp3: number };\ntype Props = { signalsCount?: number; monitoredAssets?: string[]; signalContext?: SignalContextItem[] };
 
 const starters = [
   { icon: Compass, title: 'What should I focus on?', prompt: 'What should I focus on today?' },
@@ -10,7 +10,7 @@ const starters = [
   { icon: BookOpen, title: 'Explain a signal simply', prompt: 'How do I read a signal without rushing?' },
 ];
 
-export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }: Props) {
+export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], signalContext = [] }: Props) {
   const [goal, setGoal] = useState(() => localStorage.getItem('supertech-ai-member-goal') ?? 'Build consistent trading habits and protect my capital');
   const [memoryOptIn, setMemoryOptIn] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -95,7 +95,7 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [] }:
     setServiceStatus('checking');
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('personal-ai', {
-        body: { question: trimmed, goal, assets: recent, signalsCount, history },
+        body: { question: trimmed, goal, assets: recent, signalsCount, signalContext, history },
       });
       if (invokeError) throw invokeError;
       if (!data?.answer) throw new Error(data?.error || 'No answer received. Please try again.');
