@@ -11,6 +11,8 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 });
 const clean = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const finite = (v: unknown) => typeof v === "number" && Number.isFinite(v) ? v : null;
+type SignalSummary = { symbol: string; timeframe: string; direction: "BUY" | "SELL" | "UNKNOWN"; signalEpoch: number | null; status: string; entry: number | null; stopLoss: number | null; tp1: number | null; tp2: number | null; tp3: number | null };
+type ChatMessage = { role: "assistant" | "user"; content: string };
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -41,25 +43,33 @@ Deno.serve(async (req: Request) => {
     const goal = clean(body.goal, 240);
     const assets = Array.isArray(body.assets) ? body.assets.slice(0, 10).map((a: unknown) => clean(a, 30)) : [];
     const signalCount = Math.max(0, Math.min(1000, Number(body.signalsCount) || 0));
-    const signalContext = Array.isArray(body.signalContext) ? body.signalContext.slice(0, 12).map((s: any) => ({
-      symbol: clean(s?.symbol, 30),
-      timeframe: clean(s?.timeframe, 8),
-      direction: s?.direction === "BUY" ? "BUY" : s?.direction === "SELL" ? "SELL" : "UNKNOWN",
-      signalEpoch: finite(s?.signalEpoch),
-      status: clean(s?.status, 20),
-      entry: finite(s?.entry),
-      stopLoss: finite(s?.stopLoss),
-      tp1: finite(s?.tp1),
-      tp2: finite(s?.tp2),
-      tp3: finite(s?.tp3),
-    })).filter((s: any) => s.symbol && s.timeframe && s.direction !== "UNKNOWN" && s.signalEpoch !== null) : [];
-    const history = Array.isArray(body.history) ? body.history.slice(-12).map((m: any) => ({
-      role: m?.role === "assistant" ? "assistant" : "user",
-      content: clean(m?.content, 1000),
-    })).filter((m: any) => m.content) : [];
+    const signalContext: Array<SignalSummary & { signalEpoch: number; direction: "BUY" | "SELL" }> = Array.isArray(body.signalContext)
+      ? body.signalContext.slice(0, 12).map((raw: unknown): SignalSummary => {
+          const item = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+          return {
+            symbol: clean(item.symbol, 30),
+            timeframe: clean(item.timeframe, 8),
+            direction: item.direction === "BUY" ? "BUY" : item.direction === "SELL" ? "SELL" : "UNKNOWN",
+            signalEpoch: finite(item.signalEpoch),
+            status: clean(item.status, 20),
+            entry: finite(item.entry),
+            stopLoss: finite(item.stopLoss),
+            tp1: finite(item.tp1),
+            tp2: finite(item.tp2),
+            tp3: finite(item.tp3),
+          };
+        }).filter((item): item is SignalSummary & { signalEpoch: number; direction: "BUY" | "SELL" } =>
+          Boolean(item.symbol && item.timeframe && item.direction !== "UNKNOWN" && item.signalEpoch !== null))
+      : [];
+    const history: ChatMessage[] = Array.isArray(body.history)
+      ? body.history.slice(-12).map((raw: unknown): ChatMessage => {
+          const item = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+          return { role: item.role === "assistant" ? "assistant" : "user", content: clean(item.content, 1000) };
+        }).filter((item) => item.content)
+      : [];
 
     const signalSummary = signalContext.length
-      ? signalContext.map((s: any) => {
+      ? signalContext.map((s) => {
           const ageMinutes = Math.max(0, Math.round((Date.now() / 1000 - s.signalEpoch) / 60));
           return `${s.symbol} ${s.timeframe} ${s.direction}; status ${s.status}; signal age ${ageMinutes} minutes; entry ${s.entry ?? "n/a"}; stop ${s.stopLoss ?? "n/a"}; targets ${s.tp1 ?? "n/a"}, ${s.tp2 ?? "n/a"}, ${s.tp3 ?? "n/a"}`;
         }).join("\n")
