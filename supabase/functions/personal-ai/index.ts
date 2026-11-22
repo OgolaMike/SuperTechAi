@@ -53,12 +53,26 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
       return json({ cleared: true });
     }
+    if (action === "sync-history") {
+      if (!memoryEnabled) return json({ error: "Turn on private memory first." }, 403);
+      const imported: ChatMessage[] = Array.isArray(body.history)
+        ? body.history.slice(-12).map((raw: unknown): ChatMessage => {
+            const item = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+            return { role: item.role === "assistant" ? "assistant" : "user", content: clean(item.content, 1000) };
+          }).filter((item) => item.content)
+        : [];
+      if (imported.length) {
+        const { error } = await db.from("member_ai_chat_history").insert(imported.map((item) => ({ user_id: userId, role: item.role, content: item.content })));
+        if (error) throw error;
+      }
+      return json({ imported: imported.length });
+    }
 
     const question = clean(body.question, 1200);
     if (!question) return json({ error: "Write a question first." }, 400);
     const goal = clean(profile?.goal || body.goal, 240);
     const assets = Array.isArray(body.assets) ? body.assets.slice(0, 10).map((a: unknown) => clean(a, 30)) : [];
-    const signalCount = Math.max(0, Math.min(1000, Number(body.signalsCount) || 0);
+    const signalCount = Math.max(0, Math.min(1000, Number(body.signalsCount) || 0));
     const signalContext: Array<SignalSummary & { signalEpoch: number; direction: "BUY" | "SELL" }> = Array.isArray(body.signalContext)
       ? body.signalContext.slice(0, 12).map((raw: unknown): SignalSummary => {
           const item = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
