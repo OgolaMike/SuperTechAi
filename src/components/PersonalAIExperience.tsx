@@ -18,6 +18,7 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
   const [profileMessage, setProfileMessage] = useState('');
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<{ role: 'assistant' | 'member'; text: string }[]>([]);
+  const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -51,6 +52,32 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadChatHistory = async () => {
+      if (!memoryOptIn) return;
+      setChatHistoryLoading(true);
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) return;
+        const { data, error: historyError } = await supabase
+          .from('member_ai_chat_messages')
+          .select('role, content, created_at')
+          .eq('user_id', authData.user.id)
+          .order('created_at', { ascending: true })
+          .limit(80);
+        if (historyError) throw historyError;
+        if (!cancelled && data) setMessages(data.map((row) => ({ role: row.role === 'assistant' ? 'assistant' as const : 'member' as const, text: row.content })));
+      } catch (err) {
+        if (!cancelled) setProfileMessage(err instanceof Error ? err.message : 'Could not load chat history.');
+      } finally {
+        if (!cancelled) setChatHistoryLoading(false);
+      }
+    };
+    void loadChatHistory();
+    return () => { cancelled = true; };
+  }, [memoryOptIn]);
+
   const saveGoal = async () => {
     const cleanGoal = goal.trim().slice(0, 240);
     if (!cleanGoal) {
@@ -72,6 +99,9 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
       } else {
         const { error: deleteError } = await supabase.from('member_ai_profiles').delete().eq('user_id', authData.user.id);
         if (deleteError) throw deleteError;
+        const { error: historyDeleteError } = await supabase.from('member_ai_chat_messages').delete().eq('user_id', authData.user.id);
+        if (historyDeleteError) throw historyDeleteError;
+        setMessages([]);
       }
       localStorage.setItem('supertech-ai-member-goal', cleanGoal);
       setGoal(cleanGoal);
@@ -90,6 +120,7 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
       content: message.text,
     }));
     setMessages((prev) => [...prev, { role: 'member', text: trimmed }]);
+    if (memoryOptIn) void supabase.auth.getUser().then(({ data }) => { if (data.user) void supabase.from('member_ai_chat_messages').insert({ user_id: data.user.id, role: 'user', content: trimmed }).then(({ error }) => { if (error) setProfileMessage('Your message was sent, but chat history could not be saved.'); }); });
     setQuestion('');
     setError('');
     setLoading(true);
@@ -102,6 +133,7 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
       if (!data?.answer) throw new Error(data?.error || 'No answer received. Please try again.');
       setServiceStatus('connected');
       setMessages((prev) => [...prev, { role: 'assistant', text: data.answer }]);
+      if (memoryOptIn) void supabase.auth.getUser().then(({ data: authData }) => { if (!authData.user) return; void supabase.from('member_ai_chat_messages').insert({ user_id: authData.user.id, role: 'assistant', content: data.answer }).then(async ({ error }) => { if (error) { setProfileMessage('Your reply arrived, but chat history could not be saved.'); return; } const { data: older } = await supabase.from('member_ai_chat_messages').select('id').eq('user_id', authData.user.id).order('created_at', { ascending: false }).range(80, 1000); if (older?.length) await supabase.from('member_ai_chat_messages').delete().eq('user_id', authData.user.id).in('id', older.map((row) => row.id)); }); });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not connect to your AI companion. Try again.';
       setServiceStatus('unavailable');
@@ -151,7 +183,7 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
       <section className="rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent"/><h2 className="font-semibold text-ink">Talk with your AI companion</h2></div>
         <div className="max-h-80 space-y-3 overflow-y-auto rounded-xl bg-canvas/30 p-3">
-          {messages.length === 0 && <div className="py-5 text-center text-sm text-ink-3">Ask a question or choose a prompt. Your companion uses your goal, watchlist and this conversation to respond.</div>}
+          {messages.length === 0 && <div className="py-5 text-center text-sm text-ink-3">{chatHistoryLoading ? 'Restoring your saved conversation…' : 'Ask a question or choose a prompt. Your companion uses your goal, watchlist and this conversation to respond.'}</div>}
           {messages.map((message, index) => <div key={index} className={'max-w-[92%] rounded-2xl p-3 text-sm leading-relaxed ' + (message.role === 'member' ? 'ml-auto bg-accent/10 text-ink' : 'mr-auto border border-line/10 bg-surface/[0.08] text-ink-2')}>{message.text}</div>)}
         </div>
         {loading && <p className="mt-2 text-xs text-ink-3 animate-pulse">Your companion is thinking…</p>}
