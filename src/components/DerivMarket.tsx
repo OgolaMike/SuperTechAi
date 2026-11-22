@@ -4,6 +4,7 @@ import { SignalCard } from '@/components/SignalCard';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import type { Asset, TfState, Timeframe } from '@/lib/sma';
 import { TIMEFRAMES, formatPrice } from '@/lib/sma';
+import { candleMomentum, gradeMarket } from '@/lib/marketGrading';
 
 type Props = {
   assets: Asset[];
@@ -14,7 +15,7 @@ type Props = {
   aiModel: SignalLearningModel;
 };
 
-type Mover = { asset: Asset; price: number | null; changePct: number | null; candles: number };
+type Mover = { asset: Asset; price: number | null; changePct: number | null; candles: number; momentum: number | null; acceleration: number | null; grade: ReturnType<typeof gradeMarket> };
 
 function eatDate(epoch: number): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(epoch * 1000));
@@ -30,7 +31,8 @@ function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['price
   const changePct = priorLast && priorLast.close !== 0 && price != null
     ? ((price - priorLast.close) / priorLast.close) * 100
     : null;
-  return { asset, price, changePct, candles: dayCandles.length };
+  const recent = candleMomentum(hourly.map((candle) => candle.close));
+  return { asset, price, changePct, candles: dayCandles.length, ...recent, grade: gradeMarket({ change24h: changePct, ...recent }) };
 }
 
 function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']): Mover {
@@ -41,7 +43,8 @@ function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']):
   const changePct = previous && previous.close !== 0 && price != null
     ? ((price - previous.close) / previous.close) * 100
     : null;
-  return { asset, price, changePct, candles: hourly.length };
+  const recent = candleMomentum(hourly.map((candle) => candle.close));
+  return { asset, price, changePct, candles: hourly.length, ...recent, grade: gradeMarket({ change24h: changePct, ...recent }) };
 }
 
 export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel }: Props) {
@@ -68,8 +71,8 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
     return [...movers].filter((item) => !term || `${item.asset.name} ${item.asset.symbol} ${item.asset.fullName}`.toLowerCase().includes(term))
       .sort((a, b) => (b.changePct ?? -Infinity) - (a.changePct ?? -Infinity));
   }, [movers, query]);
-  const gainers = useMemo(() => [...ranked].sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0)).slice(0, 10), [ranked]);
-  const losers = useMemo(() => [...ranked].sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0)).slice(0, 10), [ranked]);
+  const gainers = useMemo(() => [...ranked].filter((item) => item.grade.score != null).sort((a, b) => (b.grade.score ?? -Infinity) - (a.grade.score ?? -Infinity)).slice(0, 10), [ranked]);
+  const losers = useMemo(() => [...ranked].filter((item) => item.grade.score != null).sort((a, b) => (a.grade.score ?? Infinity) - (b.grade.score ?? Infinity)).slice(0, 10), [ranked]);
   const active = derivAssets.find((asset) => asset.symbol === selectedSymbol) ?? gainers[0]?.asset ?? derivAssets[0] ?? null;
   const activeState = active ? states[active.symbol]?.[timeframe.granularity] : null;
   const hourlyMove = active ? movers.find((item) => item.asset.symbol === active.symbol) : null;
@@ -126,7 +129,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Live market momentum</p>
             <h3 className="mt-1 text-lg font-semibold text-ink">Top gainers and losers</h3>
-            <p className="mt-1 text-xs text-ink-3">Ranked by rate of change across the latest 24 hourly candles. Rankings appear as data becomes available.</p>
+            <p className="mt-1 text-xs text-ink-3">Daily performance, recent movement and strengthening/weakening are combined into one grade. Higher grades show stronger upward conditions; lower grades show stronger downward conditions.</p>
           </div>
           <Activity className="h-5 w-5 text-accent" />
         </div>
@@ -164,7 +167,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
                 <h3 className="text-base font-semibold text-ink">{active.name} market analysis</h3>
                 <span className="rounded-md bg-accent/10 px-2 py-1 text-[10px] font-semibold text-accent">DERIV</span>
               </div>
-              <p className="mt-1 text-xs text-ink-3">24-hour rate of change {rocText(hourlyMove?.changePct ?? null)} · Live price {formatPrice(prices[active.symbol] ?? activeState?.lastClose ?? null, active.digits)}</p>
+              <p className="mt-1 text-xs text-ink-3">24-hour change {rocText(hourlyMove?.changePct ?? null)} · {hourlyMove?.grade.label ?? 'Building grade'} · Live price {formatPrice(prices[active.symbol] ?? activeState?.lastClose ?? null, active.digits)}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-2 text-xs text-ink-2">
@@ -286,7 +289,7 @@ function MoverList({ title, tone, items, selected, onSelect, format }: {
         <button type="button" onClick={() => onSelect(item.asset.symbol)} aria-pressed={selected === item.asset.symbol}
           className={selected === item.asset.symbol ? 'flex w-full items-center justify-between gap-3 rounded-lg bg-accent/10 px-2 py-2.5 text-left ring-1 ring-accent/30' : 'flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-surface/[0.05]'}>
           <span className="flex min-w-0 items-center gap-3"><span className="w-5 text-xs tabular-nums text-ink-3">{index + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-semibold text-ink">{item.asset.name}</span><span className="block truncate text-[10px] text-ink-3">{item.asset.symbol} · {item.asset.fullName}</span></span></span>
-          <span className={`shrink-0 text-sm font-semibold tabular-nums ${(item.changePct ?? 0) >= 0 ? 'text-up' : 'text-down'}`}>{format(item.changePct)}</span>
+          <span className="shrink-0 text-right"><span className={`block text-sm font-bold ${item.grade.score != null && item.grade.score >= 0 ? 'text-up' : 'text-down'}`}>{item.grade.grade} · {item.grade.score ?? '—'}</span><span className="block text-[10px] text-ink-3">{format(item.changePct)} · 24h</span></span>
         </button>
       </li>)}
       {items.length === 0 && <li className="py-5 text-xs text-ink-3">Waiting for 24 hourly candles.</li>}
