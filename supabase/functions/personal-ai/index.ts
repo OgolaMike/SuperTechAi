@@ -21,8 +21,8 @@ Deno.serve(async (req: Request) => {
   try {
     const url = Deno.env.get("SUPABASE_URL");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!url || !anonKey) return json({ error: "Personal AI is not fully configured yet. Please try again later." }, 503);
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!url || !anonKey || !openaiKey) return json({ error: "Personal AI is not fully configured yet. Please try again later." }, 503);
 
     const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
     if (!bearer) return json({ error: "Please sign in first." }, 401);
@@ -68,6 +68,7 @@ Deno.serve(async (req: Request) => {
       return json({ imported: imported.length });
     }
 
+    if (!openaiKey) return json({ error: "Personal AI is not fully configured yet. Please try again later." }, 503);
     const question = clean(body.question, 1200);
     if (!question) return json({ error: "Write a question first." }, 400);
     const goal = clean(profile?.goal || body.goal, 240);
