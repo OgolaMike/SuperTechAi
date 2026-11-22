@@ -21,6 +21,10 @@ The application already contains substantial capabilities and backend structures
 
 The live database currently contains material trading and member data. Existing public-schema tables are RLS-enabled. The project has 356k+ signal records and 180k+ push events, so migrations and performance changes must be measured and conservative.
 
+Recent Personal AI improvements (PR #94):
+- The companion's connection badge now reflects the last request's result, not a hardcoded live claim.
+- Member goals can be saved cross-device with explicit opt-in.
+
 Known limitations in the current Personal AI screen:
 - Member goal is stored in browser localStorage, not synced across devices.
 - Chat history exists only in component state and is lost when the screen/session resets.
