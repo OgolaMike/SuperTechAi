@@ -82,7 +82,15 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
       } else {
         const { error: deleteError } = await supabase.from('member_ai_profiles').delete().eq('user_id', authData.user.id);
         if (deleteError) throw deleteError;
+        const { error: clearError } = await supabase.functions.invoke('personal-ai', { body: { action: 'clear-history' } });
+        if (clearError) throw clearError;
       }
+      if (memoryOptIn && !memoryWasEnabled && messages.length) {
+        const historyToSave = messages.map((message) => ({ role: message.role === 'member' ? 'user' : 'assistant', content: message.text }));
+        const { error: syncError } = await supabase.functions.invoke('personal-ai', { body: { action: 'sync-history', history: historyToSave } });
+        if (syncError) throw syncError;
+      }
+      setMemoryWasEnabled(memoryOptIn);
       localStorage.setItem('supertech-ai-member-goal', cleanGoal);
       setGoal(cleanGoal);
       setSaved(true);
