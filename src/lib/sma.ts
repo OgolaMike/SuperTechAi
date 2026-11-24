@@ -23,7 +23,7 @@ export const TIMEFRAMES: Timeframe[] = [
 ];
 
 
-export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([60, 900, 1800, 3600, 86400]);
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([900, 1800, 3600, 86400]);
 
 // Build higher timeframes from hourly candles where a source interval is unavailable.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
