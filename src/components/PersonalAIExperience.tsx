@@ -9,11 +9,13 @@ const starters = [
   { icon: Compass, title: 'What should I focus on?', prompt: 'What should I focus on today?' },
   { icon: ShieldAlert, title: 'Help me stay disciplined', prompt: 'Help me avoid emotional trading.' },
   { icon: BookOpen, title: 'Explain a signal simply', prompt: 'How do I read a signal without rushing?' },
+  { icon: Target, title: 'Help me reflect', prompt: 'Help me review my trading habits and choose one improvement.' },
 ];
 
 export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], signalContext = [] }: Props) {
   const [goal, setGoal] = useState(() => localStorage.getItem('supertech-ai-member-goal') ?? 'Build consistent trading habits and protect my capital');
   const [memoryOptIn, setMemoryOptIn] = useState(false);
+  const [memoryWasEnabled, setMemoryWasEnabled] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileMessage, setProfileMessage] = useState('');
   const [question, setQuestion] = useState('');
@@ -39,7 +41,15 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
         if (!cancelled && data) {
           setGoal(data.goal);
           setMemoryOptIn(data.memory_opt_in);
+          setMemoryWasEnabled(data.memory_opt_in);
           localStorage.setItem('supertech-ai-member-goal', data.goal);
+          if (data.memory_opt_in) {
+            const { data: memoryData, error: memoryError } = await supabase.functions.invoke('personal-ai', { body: { action: 'load' } });
+            if (memoryError) throw memoryError;
+            if (!cancelled && Array.isArray(memoryData?.history)) {
+              setMessages(memoryData.history.map((item: { role: string; content: string }) => ({ role: item.role === 'assistant' ? 'assistant' as const : 'member' as const, text: item.content })));
+            }
+          }
         }
       } catch (err) {
         if (!cancelled) setProfileMessage(err instanceof Error ? err.message : 'Could not load your saved AI preferences.');
@@ -72,7 +82,15 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
       } else {
         const { error: deleteError } = await supabase.from('member_ai_profiles').delete().eq('user_id', authData.user.id);
         if (deleteError) throw deleteError;
+        const { error: clearError } = await supabase.functions.invoke('personal-ai', { body: { action: 'clear-history' } });
+        if (clearError) throw clearError;
       }
+      if (memoryOptIn && !memoryWasEnabled && messages.length) {
+        const historyToSave = messages.map((message) => ({ role: message.role === 'member' ? 'user' : 'assistant', content: message.text }));
+        const { error: syncError } = await supabase.functions.invoke('personal-ai', { body: { action: 'sync-history', history: historyToSave } });
+        if (syncError) throw syncError;
+      }
+      setMemoryWasEnabled(memoryOptIn);
       localStorage.setItem('supertech-ai-member-goal', cleanGoal);
       setGoal(cleanGoal);
       setSaved(true);
@@ -136,7 +154,7 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
           <div className="flex items-center gap-2"><Target className="h-4 w-4 text-accent" /><h2 className="text-base font-semibold text-ink">Your personal goal</h2></div>
           <p className="mt-1 text-sm text-ink-2">Choose whether your goal stays on this device or is saved privately to your account for use across devices.</p>
           <textarea value={goal} onChange={(e) => { setGoal(e.target.value); setSaved(false); }} rows={3} maxLength={240} className="mt-3 w-full resize-y rounded-xl border border-line/15 bg-canvas/60 p-3 text-sm text-ink outline-none focus:border-accent/50" placeholder="What are you working toward?"/>
-          <label className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-2"><input type="checkbox" checked={memoryOptIn} onChange={(e) => { setMemoryOptIn(e.target.checked); setSaved(false); }} className="mt-0.5 accent-current"/> Save my goal privately to my SuperTech AI account so it is available across my devices. I can turn this off and remove the saved profile at any time.</label>
+          <label className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-2"><input type="checkbox" checked={memoryOptIn} onChange={(e) => { setMemoryOptIn(e.target.checked); setSaved(false); }} className="mt-0.5 accent-current"/> Save my goal and chat history privately to my SuperTech AI account for use across devices. Turn this off to remove saved profile and chat memory.</label>
           <button type="button" onClick={() => void saveGoal()} disabled={profileLoading} className="mt-3 rounded-xl border border-accent/25 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent disabled:opacity-50">{profileLoading ? 'Loading preferences…' : saved ? 'Preferences saved ✓' : 'Save my preferences'}</button>
           {profileMessage && <p role="status" className="mt-2 text-xs text-ink-3">{profileMessage}</p>}
           <div className="mt-5 rounded-xl border border-line/10 bg-canvas/40 p-3"><p className="text-xs font-semibold text-ink-3">YOUR WATCHLIST</p><div className="mt-2 flex flex-wrap gap-2">{recent.length ? recent.map((asset) => <span key={asset} className="rounded-full border border-line/15 px-2.5 py-1 text-xs text-ink-2">{asset}</span>) : <span className="text-xs text-ink-3">Choose markets on your dashboard to personalize your space.</span>}</div></div>
@@ -149,9 +167,9 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
       </section>
 
       <section className="rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
-        <div className="mb-3 flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent"/><h2 className="font-semibold text-ink">Talk with your AI companion</h2></div>
+        <div className="mb-3 flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent"/><h2 className="font-semibold text-ink">Talk with your AI companion</h2><button type="button" onClick={() => { setMessages([]); if (memoryOptIn) void supabase.functions.invoke('personal-ai', { body: { action: 'clear-history' } }); }} className="ml-auto text-xs text-ink-3 hover:text-ink">Clear conversation</button></div>
         <div className="max-h-80 space-y-3 overflow-y-auto rounded-xl bg-canvas/30 p-3">
-          {messages.length === 0 && <div className="py-5 text-center text-sm text-ink-3">Ask a question or choose a prompt. Your companion uses your goal, watchlist and this conversation to respond.</div>}
+          {messages.length === 0 && <div className="py-5 text-center text-sm text-ink-3">Ask a question or choose a prompt. Your companion uses your goal, watchlist and available signal context to respond.</div>}
           {messages.map((message, index) => <div key={index} className={'max-w-[92%] rounded-2xl p-3 text-sm leading-relaxed ' + (message.role === 'member' ? 'ml-auto bg-accent/10 text-ink' : 'mr-auto border border-line/10 bg-surface/[0.08] text-ink-2')}>{message.text}</div>)}
         </div>
         {loading && <p className="mt-2 text-xs text-ink-3 animate-pulse">Your companion is thinking…</p>}
