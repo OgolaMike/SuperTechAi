@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target, X } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
@@ -6,7 +6,58 @@ import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
 import type { Signal } from '@/lib/signals';
 import type { Candle } from '@/lib/deriv';
-import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
+const SignalChartSnapshot = lazy(() => import('@/components/SignalChartSnapshot').then((module) => ({ default: module.SignalChartSnapshot })));
+
+type DeferredSignalChartProps = {
+  candles: Candle[];
+  levels?: Signal['levels'];
+  signalEpoch?: number;
+  direction?: Signal['direction'];
+  timeframe: string;
+  granularity?: number;
+  digits: number;
+  assetName: string;
+  symbol: string;
+  anchorId: string;
+  livePrice?: number;
+};
+
+function DeferredSignalChartSnapshot(props: DeferredSignalChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    if (shouldRender) return;
+    const container = containerRef.current;
+    if (!container) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setShouldRender(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setShouldRender(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '320px 0px' });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
+  return (
+    <div ref={containerRef} className="min-w-0">
+      {shouldRender ? (
+        <Suspense fallback={<div className="flex min-h-[310px] items-center justify-center rounded-xl border border-line/10 bg-surface/[0.03] text-xs text-ink-3">Loading chart…</div>}>
+          <SignalChartSnapshot {...props} />
+        </Suspense>
+      ) : (
+        <div className="flex aspect-[1440/620] min-h-[310px] items-center justify-center rounded-xl border border-line/10 bg-surface/[0.03] px-4 text-center text-xs text-ink-3">
+          Chart loads as you scroll closer.
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Props = {
   asset: Asset;
@@ -102,7 +153,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
           <EntryTime epoch={signal.signalEpoch} direction={signal.direction} />
           <CurrentPrice price={price} entry={signal.levels.entry} direction={signal.direction} digits={asset.digits} />
           <LevelList rows={buildRows(signal)} digits={asset.digits} />
-          <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+          <DeferredSignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
 
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
@@ -141,7 +192,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
               </div>
               <button type="button" onClick={() => setChartOpen(false)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" aria-label="Close live signal chart"><X className="h-4 w-4" /> Close</button>
             </div>
-            <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-detail-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+            <Suspense fallback={<div className="flex min-h-[45vh] items-center justify-center rounded-xl border border-white/10 bg-[#0c1423] text-sm text-slate-400">Loading live chart…</div>}><SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-detail-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} /></Suspense>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl border border-white/10 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-slate-400">Entry</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.entry.toFixed(asset.digits)}</p></div>
               <div className="rounded-xl border border-rose-400/20 bg-[#0c1423] p-3 text-white"><p className="text-[10px] font-semibold uppercase text-rose-300">Stop loss</p><p className="mt-1 break-all font-mono text-sm font-bold tabular-nums">{signal.levels.stopLoss.toFixed(asset.digits)}</p></div>
@@ -184,7 +235,7 @@ function DailyCandlesEmptyState({ candles, assetName, digits, loading, livePrice
   }
 
   return (
-    <SignalChartSnapshot
+    <DeferredSignalChartSnapshot
       candles={candles}
       timeframe="D1"
       granularity={86400}
