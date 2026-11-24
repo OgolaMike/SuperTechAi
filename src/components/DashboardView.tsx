@@ -124,7 +124,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                   : undefined;
                 return (
                   <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0">
-                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
+                    <SignalCard asset={asset} tf={tf} loaded={loaded || tf.candles.length > 0} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
                   </div>
                 );
               })}
