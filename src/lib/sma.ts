@@ -20,7 +20,6 @@ export const TIMEFRAMES: Timeframe[] = [
   { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 900, label: 'M15', role: 'Short-term confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 60, label: 'M1', role: 'Precision signal engine · primary execution timeframe', candleCount: CHART_HISTORY_CANDLES },
 ];
 
 
