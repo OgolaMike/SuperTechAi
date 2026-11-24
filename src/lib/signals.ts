@@ -119,7 +119,7 @@ export function flattenSignals(
   for (const [symbol, byGranularity] of Object.entries(states)) {
     const asset = assetBySymbol.get(symbol);
     for (const state of Object.values(byGranularity)) {
-      if (!((state.granularity === 14400 && state.label === 'H4') || (state.granularity === 60 && state.label === 'M1'))) continue;
+      if (!((state.granularity === 14400 && state.label === 'H4') || (state.granularity === 900 && state.label === 'M15'))) continue;
       const officialTimeframe = TIMEFRAMES.find((timeframe) =>
         timeframe.granularity === state.granularity && timeframe.label === state.label,
       );
