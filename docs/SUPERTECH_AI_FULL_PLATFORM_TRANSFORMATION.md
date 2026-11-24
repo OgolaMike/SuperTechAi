@@ -38,8 +38,8 @@ Known limitations in the current Personal AI screen:
 **Acceptance:** no fabricated stats; loading, empty, stale and error states are explicit; key actions are reachable on mobile and desktop.
 
 ### 2. Dual-engine trading intelligence
-- Preserve independent M1 and higher-timeframe engines; do not collapse them into one strategy.
-- Explain when engines agree, disagree, or when M1 is acting alone.
+- Preserve independent H4 macro and M15 precision engines; do not collapse them into one strategy. M15 is the lowest permitted trading timeframe.
+- Explain when H4 and M15 agree or disagree; never generate M1/M5 trading signals.
 - Make strategy, timeframe, symbol, candle-close and invalidation rules explicit.
 - Evaluate each engine separately using historical/out-of-sample evidence before claiming an edge.
 
