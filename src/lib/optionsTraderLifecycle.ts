@@ -17,6 +17,9 @@ export type OptionsTradeStatus =
 
 export type OptionsAccountMode = 'demo' | 'real';
 
+/** Individual Deriv contract types returned by the quote API. */
+export type OptionsContractKind = 'ONETOUCH' | 'NOTOUCH';
+
 export interface OptionsProposalSnapshot {
   proposalId: string;
   askPrice: number;
