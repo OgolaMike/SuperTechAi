@@ -106,7 +106,7 @@ function calculateSar(candles: Candle[]): number[] {
 }
 
 /**
- * Closed M15 candle strategy: confirmed HH+HL or LL+LH structure,
+ * Closed M30 candle strategy: confirmed HH+HL or LL+LH structure,
  * a fresh Parabolic SAR side change, and ATR-based initial/trailing protection.
  * This creates an alert proposal only; it does not place broker orders.
  */
@@ -116,11 +116,11 @@ export function buildMarketStructureSarSignal(
   nowEpoch: number,
 ): MarketStructureSarSignal | null {
   const closed = candles
-    .filter((c) => c.epoch + 3600 <= nowEpoch)
+    .filter((c) => c.epoch + 1800 <= nowEpoch)
     .sort((a, b) => a.epoch - b.epoch);
   if (closed.length < 80) return null;
   const latest = closed[closed.length - 1];
-  if (nowEpoch - (latest.epoch + 3600) > 3600) return null;
+  if (nowEpoch - (latest.epoch + 1800) > 3600) return null;
 
   const highs = findPivots(closed, true).slice(-2);
   const lows = findPivots(closed, false).slice(-2);
@@ -164,6 +164,6 @@ export function buildMarketStructureSarSignal(
     swingLows: [lows[0].price, lows[1].price],
     structure: bullishStructure ? "HH_HL" : "LL_LH",
     strategyVersion: "market-structure-sar-v1",
-    idempotencyKey: symbol + "|M15|" + latest.epoch + "|" + direction + "|MARKET_STRUCTURE_SAR_V1",
+    idempotencyKey: symbol + "|M30|" + latest.epoch + "|" + direction + "|MARKET_STRUCTURE_SAR_V1",
   };
 }
