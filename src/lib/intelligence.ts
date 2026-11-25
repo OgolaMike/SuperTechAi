@@ -139,7 +139,7 @@ function evaluateSymbol(
   const supportingAligned = supportingReads.filter((reading) => reading.valid && reading.bias === expected).length;
   const anyTimeframeOpposes = supportingReads.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
-  // Keep H4 authoritative. Entry waits for at least six of nine supporting frames and no higher-timeframe reversal warning.
+  // Keep H4 authoritative. Entry requires at least six of nine supporting frames and no opposing timeframe read.
   if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || anyTimeframeOpposes) return null;
 
   const confirmations = INTELLIGENCE_TIMEFRAMES.map((timeframe) => {
