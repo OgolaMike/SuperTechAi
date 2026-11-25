@@ -161,7 +161,7 @@
   },
   {
     "id": "timeframes",
-    "title": "Timeframes: from minutes to days",
+    "title": "Timeframes: from minutes to weeks",
     "summary": "Understand the ten SuperTech AI analysis timeframes and how they work as one decision.",
     "objective": "Use higher and lower timeframes without confusing short-term movement with the bigger picture.",
     "steps": [
@@ -171,7 +171,7 @@
       "M30 is the lowest analysis and execution timeframe. No strategy uses a timeframe below M30.",
       "A candle on a higher timeframe is not complete until that full period ends."
     ],
-    "narration": "Think of timeframes like maps. A daily chart shows the wider journey, while the 1-minute chart gives a detailed timing view. Actual trade execution still respects the 15-minute minimum. Each timeframe answers a different question. Start with the wider picture, then use the official analysis set to confirm direction."
+    "narration": "Think of timeframes like maps. A weekly chart shows the wider journey, while the M30 chart gives the closest permitted view. All trade execution respects the M30 minimum. Each timeframe answers a different question. Start with the wider picture, then use the official analysis set to confirm direction."
   },
   {
     "id": "trend-structure",
