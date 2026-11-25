@@ -34,13 +34,13 @@ export type SuperSignal = {
 };
 
 const PRIMARY_LABEL = 'H4';
-const INTELLIGENCE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => timeframe.granularity !== 60);
+const INTELLIGENCE_TIMEFRAMES = TIMEFRAMES;
 const FRESH_PRIMARY_CANDLES = 8;
 const NEUTRAL_BAND = 0.1;
 const SMA_PERIOD = 60;
 
 // H4 owns the signal. Supporting frames contribute confirmation, never a competing direction.
-const MIN_SUPPORTING_ALIGNMENT = 4;
+const MIN_SUPPORTING_ALIGNMENT = 6;
 const CLASSIFICATION_RANK: Record<Classification, number> = {
   'Strong alignment': 0,
   'Moderate alignment': 1,
@@ -140,8 +140,10 @@ function evaluateSymbol(
   const higherTimeframes = supportingReads.filter((reading) => reading.label === 'D1' || reading.label === 'H8');
   const higherTimeframeOpposes = higherTimeframes.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
-  // Keep H4 authoritative. Entry waits for at least four supporting frames and no higher-timeframe reversal warning.
-  if (supportingReads.length !== 7 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
+  // H4 owns the only final direction. All nine supporting frames must be fresh;
+  // at least six must agree, and D1/H8 may not oppose. M1/M5 refine timing but
+  // cannot overrule the higher-timeframe direction on their own.
+  if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
 
   const confirmations = INTELLIGENCE_TIMEFRAMES.map((timeframe) => {
     const state = states[timeframe.granularity];
@@ -162,13 +164,13 @@ function evaluateSymbol(
   );
   const confirmationTimeframe = latestConfirmation.label;
   const confirmationEpoch = latestConfirmation.epoch;
-  const gradePercent = Math.round((supportingAligned / 7) * 100);
+  const gradePercent = Math.round((supportingAligned / supportingReads.length) * 100);
 
   const classification: Classification = supportingAligned >= 6 ? 'Strong alignment' : 'Moderate alignment';
   const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
   const explanation = [
     `H4 generated the primary ${direction} signal ${describeAge(nowEpoch - signal.signalEpoch)}.`,
-    `${supportingAligned} of 7 supporting timeframes confirm H4; D1 and H8 are not opposing the direction.`,
+    `${supportingAligned} of 9 supporting timeframes confirm H4; D1 and H8 are not opposing the direction.`,
     `${confirmationTimeframe} was the latest timeframe to join alignment, giving this H4 signal a ${gradePercent}% support grade.`,
   ].join(' ');
 
