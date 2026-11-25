@@ -1,6 +1,7 @@
 name: SuperTech AI quality gates
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
   push:
