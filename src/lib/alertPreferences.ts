@@ -1,4 +1,3 @@
-import { supabase } from '@/lib/supabase';
 
 export type AlertMode = 'full' | 'bubble' | 'muted';
 export type AlertCategory = 'signals' | 'targets' | 'stops' | 'limitOrders' | 'pendingOrders' | 'superSignals' | 'income' | 'business';
@@ -45,36 +44,10 @@ export function cacheAlertModes(settings: AlertModeSettings, userId?: string): v
 }
 
 export async function loadMemberAlertModes(userId: string): Promise<AlertModeSettings> {
-  const { data, error } = await supabase.from('member_alert_preferences')
-    .select('categories, assets, default_asset_mode').eq('user_id', userId).maybeSingle();
-  if (error) throw error;
-  if (!data) return loadAlertModes(userId);
-  const raw = {
-    categories: data.categories,
-    assets: data.assets,
-    defaultAssetMode: data.default_asset_mode,
-  };
-  const fallback = emptySettings();
-  const categories = { ...fallback.categories };
-  for (const item of ALERT_CATEGORIES) if (validMode(raw.categories?.[item.key])) categories[item.key] = raw.categories[item.key];
-  const assets: Record<string, AlertMode> = {};
-  if (raw.assets && typeof raw.assets === 'object' && !Array.isArray(raw.assets)) {
-    for (const [symbol, mode] of Object.entries(raw.assets)) if (validMode(mode)) assets[symbol] = mode;
-  }
-  const settings = { categories, assets, defaultAssetMode: validMode(raw.defaultAssetMode) ? raw.defaultAssetMode : 'bubble' };
-  cacheAlertModes(settings, userId);
-  return settings;
+  return loadAlertModes(userId);
 }
 
 export async function saveMemberAlertModes(settings: AlertModeSettings, userId: string): Promise<void> {
-  const { error } = await supabase.from('member_alert_preferences').upsert({
-    user_id: userId,
-    categories: settings.categories,
-    assets: settings.assets,
-    default_asset_mode: settings.defaultAssetMode,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' });
-  if (error) throw error;
   cacheAlertModes(settings, userId);
 }
 
