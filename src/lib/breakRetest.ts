@@ -110,6 +110,7 @@ export function buildBreakRetestSetups(
     const asset = bySymbol.get(symbol);
     if (!asset) continue;
     for (const state of Object.values(byTimeframe)) {
+      if (state.granularity < 900) continue; // M15 remains the minimum setup timeframe.
       const candles = state.candles;
       for (const direction of ['BUY', 'SELL'] as const) {
         const setup = findSetup(candles, direction, state.granularity);
