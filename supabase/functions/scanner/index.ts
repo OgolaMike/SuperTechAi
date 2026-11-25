@@ -31,6 +31,10 @@ const TIMEFRAMES = [
 type Timeframe = (typeof TIMEFRAMES)[number];
 
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
+  if (granularity === 604800) {
+    const mondayOffset = 3 * 86400;
+    return Math.floor((nowEpoch + mondayOffset) / granularity) * granularity - mondayOffset - granularity;
+  }
   return Math.floor(nowEpoch / granularity) * granularity - granularity;
 }
 
