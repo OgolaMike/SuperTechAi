@@ -64,7 +64,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
  const monitorAsset=(symbol:string)=>{updateSelected([symbol]);setView('dashboard')};
  const openChart=(symbol:string)=>{updateSelected([symbol]);setView('dashboard');window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>document.getElementById(`asset-dashboard-${encodeURIComponent(symbol)}`)?.scrollIntoView({behavior:'smooth',block:'start'})))};
  const toggleSounds=()=>{const next=!soundsEnabled;setSoundsEnabled(next);localStorage.setItem(SOUND_KEY,String(next));if(next){playAlertTone('BUY');ensureNotificationPermission()}};
- const context={session:{user:{id:userId,email}},isAdmin:false};
+ const context={session:{access_token:'',user:{id:userId,email,user_metadata:{}}},isAdmin:false};
  const commonAlerts=[...pendingAlerts.toasts,...breakAlerts.toasts,...signalAlerts.toasts];
  return <SessionContext.Provider value={context}>
   <div className="relative min-h-screen overflow-x-clip bg-canvas text-ink"><AmbientBackground/>
