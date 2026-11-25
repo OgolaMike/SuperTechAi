@@ -575,9 +575,9 @@ Deno.serve(async (req) => {
       const direction = String(body.direction ?? "").toUpperCase();
       const barEpoch = Number(body.barEpoch);
       if (!symbol || symbol.length > 40 || !["BUY", "SELL"].includes(direction) ||
-          !Number.isSafeInteger(barEpoch) || barEpoch <= 0 || barEpoch % 300 !== 0 ||
+          !Number.isSafeInteger(barEpoch) || barEpoch <= 0 || barEpoch % 1800 !== 0 ||
           Math.abs(Math.floor(Date.now() / 1000) - barEpoch) > 5) {
-        return json({ error: "invalid_or_late_five_minute_bar_claim" }, 400);
+        return json({ error: "invalid_or_late_thirty_minute_bar_claim" }, 400);
       }
       const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
         .select("login,server,bridge_status,five_minute_momentum_enabled,five_minute_momentum_symbol,place_new_orders,live_execution_enabled,emergency_stop,risk_controls_enabled,max_daily_loss_pct")
@@ -587,7 +587,7 @@ Deno.serve(async (req) => {
           settings.five_minute_momentum_symbol !== symbol || settings.place_new_orders !== true ||
           settings.live_execution_enabled !== true || settings.emergency_stop !== false ||
           settings.risk_controls_enabled !== true) {
-        return json({ error: "five_minute_momentum_not_authorized" }, 403);
+        return json({ error: "thirty_minute_momentum_not_authorized" }, 403);
       }
       const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
         .select("starting_equity,latest_equity,cash_flow_adjustment,history_complete,updated_at")
