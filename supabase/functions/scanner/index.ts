@@ -59,6 +59,28 @@ function aggregateHourlyCandles(hourly: Candle[], targetGranularity: number): Ca
   });
 }
 
+function aggregateDailyCandles(daily: Candle[], targetGranularity: number): Candle[] {
+  const daysPerCandle = targetGranularity / 86400;
+  if (!Number.isInteger(daysPerCandle) || daysPerCandle < 2) return [];
+  const buckets = new Map<number, Candle[]>();
+  for (const candle of daily) {
+    const epoch = Math.floor(candle.epoch / targetGranularity) * targetGranularity;
+    const bucket = buckets.get(epoch) ?? [];
+    bucket.push(candle);
+    buckets.set(epoch, bucket);
+  }
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).flatMap(([epoch, items]) => {
+    const ordered = items.sort((a, b) => a.epoch - b.epoch);
+    if (ordered.length !== daysPerCandle || ordered.some((candle, index) => candle.epoch !== epoch + index * 86400)) return [];
+    return [{
+      epoch, open: ordered[0].open ?? ordered[0].close,
+      high: Math.max(...ordered.map((candle) => candle.high ?? candle.close)),
+      low: Math.min(...ordered.map((candle) => candle.low ?? candle.close)),
+      close: ordered[ordered.length - 1].close,
+    }];
+  });
+}
+
 async function loadTimeframeCandles(
   feed: DerivFeed | null,
   symbol: SymbolInfo,
@@ -68,6 +90,18 @@ async function loadTimeframeCandles(
 ): Promise<Candle[]> {
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
+
+  // W1 is derived from seven complete D1 candles so the weekly source is consistent across feeds.
+  if (timeframe.granularity === 604800) {
+    const dailyFrame = TIMEFRAMES.find((frame) => frame.granularity === 86400)!;
+    const daily = await loadTimeframeCandles(
+      feed, symbol, { ...dailyFrame, candleCount: Math.min(1000, Math.max(dailyFrame.candleCount, timeframe.candleCount * 7 + 7)) },
+      nowEpoch, cache,
+    );
+    const aggregated = aggregateDailyCandles(daily, timeframe.granularity);
+    cache.set(timeframe.granularity, aggregated);
+    return aggregated;
+  }
 
   // H2/H3 use fully formed UTC hourly buckets across Deriv, Binance Spot and Futures.
   if ([7200, 10800, 21600, 43200].includes(timeframe.granularity)) {
