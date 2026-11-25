@@ -150,7 +150,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : direction === 'SELL' ? 'bg-rose-400' : 'bg-cyan-300'} shadow-[0_0_12px_currentColor]`} />
           <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · {direction ? 'MARKET STRUCTURE' : 'LIVE MARKET · NO CROSS SIGNAL'}</span>
-          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±2.5σ</span>
+          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 20 · BB ±2.5σ</span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Live price and current candle countdown">
@@ -247,7 +247,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] text-slate-300 sm:px-5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-rose-500" /> Upper band</span>
-          <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-yellow-400" /> SMA 60</span>
+          <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-yellow-400" /> SMA 20</span>
           <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-blue-500" /> Lower band</span>
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-blue-500" /> Bullish candle</span>
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-rose-500" /> Bearish candle</span>
