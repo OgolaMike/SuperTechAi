@@ -79,8 +79,8 @@ export function IndependentWorkspace({ email, onSignOut }: Props) {
     };
   }, [market.symbol]);
 
-  const price = ticks.at(-1)?.quote;
-  const previous = ticks.at(-2)?.quote;
+  const price = ticks[ticks.length - 1]?.quote;
+  const previous = ticks[ticks.length - 2]?.quote;
   const delta = price !== undefined && previous !== undefined ? price - previous : 0;
   const up = delta >= 0;
   const chartPath = useMemo(() => {
