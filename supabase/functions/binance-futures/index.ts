@@ -186,7 +186,7 @@ Deno.serve(async req => {
         live_execution_enabled: body.liveExecutionEnabled === true && !emergency, updated_at: new Date().toISOString()
       }).eq("user_id", userId);
       if (error) throw error;
-      return json({ ok: true, message: "Binance Futures settings saved. Execution remains subject to the server-side 8/8 Super Signal gate." });
+      return json({ ok: true, message: "Binance Futures settings saved. Execution remains subject to the server-side H4-led ten-timeframe Super Signal gate." });
     }
 
     if (action === "disconnect") {
