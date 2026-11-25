@@ -26,6 +26,7 @@ const ExchangeMarkets = lazy(() => import('@/components/ExchangeMarkets').then((
 const ServiceHealth = lazy(() => import('@/components/ServiceHealth').then((module) => ({ default: module.ServiceHealth })));
 const RecordsPanel = lazy(() => import('@/components/RecordsPanel').then((module) => ({ default: module.RecordsPanel })));
 const PendingOrdersPanel = lazy(() => import('@/components/PendingOrdersPanel').then((module) => ({ default: module.PendingOrdersPanel })));
+const ThreeHourWickStrategy = lazy(() => import('@/components/ThreeHourWickStrategy').then((module) => ({ default: module.ThreeHourWickStrategy })));
 import { SignOutButton } from '@/components/SignOutButton';
 import { HeaderBrand, StatusBar, TrendIcons } from '@/components/StatusBar';
 const SuperSignalPanel = lazy(() => import('@/components/SuperSignalPanel').then((module) => ({ default: module.SuperSignalPanel })));
@@ -247,6 +248,12 @@ function App() {
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-ink-3">Protection reference: initial stop 2 × ATR(14); trailing reference combines SAR with a 1.5 × ATR buffer. Swing points need two candles to confirm, so entries can arrive later. Signals only for now—no broker order is placed and no live stop is modified.</p>
               </article>
+              <article className="rounded-2xl border border-accent/30 bg-accent/[0.045] p-5">
+                <p className="text-xs font-bold uppercase tracking-wider text-accent">05 · 3H Wick Intelligence</p>
+                <h3 className="mt-2 text-lg font-semibold text-ink">Trade confirmed H4 wick rejection</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-2">A bullish lower-wick rejection can qualify a BUY; a bearish upper-wick rejection can qualify a SELL. The same asset's fresh Unified Signal must confirm the same direction before the setup is authorised.</p>
+                <p className="mt-3 text-xs leading-relaxed text-ink-3">Initial protection uses H4 Bollinger Bands (20, 2.0). The strategy's planned trailing activates at +0.7%, advances in +0.5% steps and has a three-hour maximum holding time from actual execution. Manual trades remain separate.</p>
+              </article>
               <article className="rounded-2xl border border-line/20 bg-surface/[0.035] p-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-down">03 · Triple Top</p>
                 <h3 className="mt-2 text-lg font-semibold text-ink">Three tests of resistance</h3>
@@ -256,6 +263,7 @@ function App() {
             </div>
             <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">These are pattern scans and tracked trade ideas. “Entry reached” is not proof of a broker fill. Check the live chart, market conditions and risk before placing any trade.</div>
             <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />
+            <ThreeHourWickStrategy assets={assets} states={states} unifiedSignals={superSignals} nowEpoch={now} selectedSymbol={selectedSymbols[0]} />
             <div className="border-t border-line/15 pt-6">
               <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} onOpenDashboard={openSignalChart} />
             </div>
