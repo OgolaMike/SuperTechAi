@@ -20,7 +20,7 @@ type Props = {
 const WIDTH = 1440;
 const HEIGHT = 620;
 const PAD = { top: 30, right: 116, bottom: 48, left: 24 };
-const PERIOD = 60;
+const SMA_PERIOD = 20;\nconst VISIBLE_CANDLES = 60;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.5;
@@ -28,9 +28,9 @@ const ZOOM_STEP = 0.5;
 const RIGHT_CANDLE_SPACE = 7;
 
 function rolling(values: number[], index: number) {
-  if (index < PERIOD - 1) return null;
-  const window = values.slice(index - PERIOD + 1, index + 1);
-  const mean = window.reduce((sum, value) => sum + value, 0) / PERIOD;
+  if (index < SMA_PERIOD - 1) return null;
+  const window = values.slice(index - SMA_PERIOD + 1, index + 1);
+  const mean = window.reduce((sum, value) => sum + value, 0) / SMA_PERIOD;
   const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / PERIOD;
   const deviation = Math.sqrt(variance);
   return { mean, upper: mean + deviation * 2.5, lower: mean - deviation * 2.5 };
@@ -56,7 +56,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
       : candle)
     : candles;
   const historyCloses = history.map((item) => item.close);
-  const visibleStart = Math.max(0, history.length - PERIOD);
+  const visibleStart = Math.max(0, history.length - VISIBLE_CANDLES);
   const data = history.slice(visibleStart);
   // Recalculate only the visible candles; the preceding history is used solely for SMA warm-up.
   const stats = data.map((_, index) => rolling(historyCloses, visibleStart + index));
