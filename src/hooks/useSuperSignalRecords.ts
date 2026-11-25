@@ -35,7 +35,7 @@ const COLUMNS = 'signal_key,symbol,asset_name,digits,direction,signal_epoch,entr
 
 function toRow(signal: SuperSignal) {
   return {
-    signal_key: `${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`,
+    signal_key: `${signal.symbol}|14400|${signal.signalEpoch}|${signal.direction}`,
     symbol: signal.symbol,
     asset_name: signal.name,
     digits: signal.digits,
@@ -106,7 +106,7 @@ export function useSuperSignalRecords(signals: SuperSignal[], loaded: boolean) {
   useEffect(() => {
     if (!loaded || signals.length === 0) return;
     const fresh = signals.filter((signal) => {
-      const key = `${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`;
+      const key = `${signal.symbol}|14400|${signal.signalEpoch}|${signal.direction}`;
       if (seen.current.has(key)) return false;
       seen.current.add(key);
       return true;
@@ -124,7 +124,7 @@ export function useSuperSignalRecords(signals: SuperSignal[], loaded: boolean) {
       })
       .then(undefined, (cause: Error) => {
         if (!cancelled) setError(cause.message || 'Could not save Super Signal history');
-        fresh.forEach((signal) => seen.current.delete(`${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`));
+        fresh.forEach((signal) => seen.current.delete(`${signal.symbol}|14400|${signal.signalEpoch}|${signal.direction}`));
       });
     return () => { cancelled = true; };
   }, [signals, loaded, refresh]);
