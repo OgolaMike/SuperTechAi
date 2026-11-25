@@ -12,7 +12,7 @@ Broker execution is not production-verified until the current database migration
 
 ## Strategy and signal boundaries
 
-- Browser dashboard and Supabase scanner use one ten-timeframe H4-led confluence set: D1, H8, H4, H3, H2, H1, M30, M15, M5 and M1. M1/M5 are confirmation-only inputs; they do not emit independent trade signals. M15 remains a supporting precision frame.
+- Browser dashboard and Supabase scanner use one ten-timeframe H4-led confluence set: D1, H8, H4, H3, H2, H1, M30, M15, M5 and M1. M1/M5 are confirmation-only inputs; they do not emit independent trade signals. M15 remains the minimum execution timeframe.
 - The scanner evaluates confirmed/closed candles and persists signal records with stable signal keys.
 - Preserve the existing SMA 60 / Bollinger signal logic, reversal behavior, signal levels and notification timing. Do not change these while implementing the execution bridge.
 - Pending-order ideas are currently generated in the app from live dashboard state. They require ten-timeframe directional agreement and a fresh active M15 signal; M1/M5 are confirmation-only and cannot trigger orders.
