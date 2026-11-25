@@ -22,7 +22,7 @@ Deno.test("Market Structure SAR waits for sufficient confirmed candles", () => {
   }
 });
 
-Deno.test("Market Structure SAR ignores stale M15 data", () => {
+Deno.test("Market Structure SAR ignores stale M30 data", () => {
   const data = candles(100);
   const now = data[data.length - 1].epoch + 900 + 1801;
   if (buildMarketStructureSarSignal("TEST", data, now) !== null) {
