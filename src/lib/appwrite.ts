@@ -79,6 +79,10 @@ export const appwriteAccount = {
       method: 'POST',
       body: { userId, email: email.trim().toLowerCase(), password, name: name.trim() || undefined },
     });
+    await appwriteRequest<AppwriteSession>('/account/sessions/email', {
+      method: 'POST',
+      body: { email: email.trim().toLowerCase(), password },
+    });
     await appwriteRequest('/account/verification', {
       method: 'POST',
       body: { url: callbackUrl('verify') },
