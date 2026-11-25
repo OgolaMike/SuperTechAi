@@ -1,49 +1,53 @@
-import { supabase } from '@/lib/supabase';
+import { appwriteAccount } from '@/lib/appwrite';
 
-function authRedirect(flow: 'recovery'): string {
-  const url = new URL('/', 'https://deriv-sma-signal-das-04us.bolt.host');
+function notifyAuthChanged(): void {
+  window.dispatchEvent(new Event('appwrite-auth-changed'));
+}
+
+function authRedirect(flow: 'recovery' | 'verify'): string {
+  const url = new URL('/', window.location.origin);
   url.searchParams.set('auth', flow);
   return url.toString();
 }
 
 export async function signIn(email: string, password: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) throw error;
+  await appwriteAccount.signIn(email, password);
+  notifyAuthChanged();
 }
 
 export async function signUp(email: string, password: string, payoutTronAddress: string): Promise<boolean> {
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim(),
-    password,
-    options: { data: { payout_tron_address: payoutTronAddress } },
+  await appwriteAccount.create(email, password, '', {
+    payout_tron_address: payoutTronAddress,
   });
-  if (error) throw error;
-  return data.session !== null;
+  notifyAuthChanged();
+  return false;
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: authRedirect('recovery'),
-  });
-  if (error) throw error;
+  await appwriteAccount.requestPasswordRecovery(email);
 }
 
 export async function updatePassword(password: string): Promise<void> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw sessionError;
-  if (!sessionData.session) throw new Error('AUTH_RECOVERY_SESSION_MISSING');
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) throw error;
+  const params = new URLSearchParams(window.location.search);
+  const userId = params.get('userId');
+  const secret = params.get('secret');
+  if (params.get('auth') !== 'recovery' || !userId || !secret) {
+    throw new Error('AUTH_RECOVERY_SESSION_MISSING');
+  }
+  await appwriteAccount.completePasswordRecovery(userId, secret, password);
+  notifyAuthChanged();
 }
 
 export async function signOut(): Promise<void> {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  await appwriteAccount.signOut();
+  notifyAuthChanged();
 }
 
 export function clearAuthRedirect(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete('auth');
+  url.searchParams.delete('userId');
+  url.searchParams.delete('secret');
   url.hash = '';
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
@@ -52,21 +56,23 @@ export function friendlyAuthError(error: unknown): string {
   const e = error as { message?: string; code?: string };
   const message = error instanceof Error ? error.message : e?.message ?? '';
   if (message === 'AUTH_RECOVERY_SESSION_MISSING' || /auth session missing|session_not_found/i.test(message)) {
-    return 'This password-reset link did not open a valid SuperTechAi recovery session. Return to sign in, choose Forgot password, and request a fresh link. Open the newest email on the same device and browser where you will set the new password.';
+    return 'This password-reset link is incomplete or has expired. Return to sign in, choose Forgot password, and request a fresh link. Open the newest email on this same site.';
   }
-  if (e?.code === 'email_not_confirmed' || /email not confirmed/i.test(message)) {
-    return 'This account still needs administrator activation. Contact a SuperTech AI admin for help.';
+  if (e?.code === 'email_not_confirmed' || /email not confirmed|verify your email/i.test(message)) {
+    return 'Please verify your email address first. Open the verification message sent by SuperTech AI, then return here and sign in.';
   }
-  if (/over_email_send_rate_limit|rate.?limit|too many requests|email.*limit/i.test(message)) {
+  if (/user_already_exists|already registered/i.test(message)) return 'An account with this email already exists. Try signing in instead.';
+  if (/rate.?limit|too many requests|email.*limit/i.test(message)) {
     return 'SuperTech AI is temporarily limiting email requests. Wait a little and try again.';
   }
-  if (/invalid login credentials/i.test(message)) return 'The email or password is incorrect.';
-  if (/already registered/i.test(message)) return 'An account with this email already exists. Try signing in instead.';
-  if (/failed to fetch|network|fetch failed|load failed|timeout/i.test(message)) {
-    return 'No connection to the authentication server. Check your internet connection and try again.';
+  if (/invalid credentials|user_invalid_credentials|password.*incorrect/i.test(message)) {
+    return 'The email or password is incorrect.';
   }
-  if (/otp_expired|expired|invalid.*token/i.test(message)) {
-    return 'This link has expired or is no longer valid. Return to sign in and request a fresh password-reset link.';
+  if (/failed to fetch|network|fetch failed|load failed|timeout/i.test(message)) {
+    return 'No connection to the Appwrite authentication service. Check your internet connection and try again.';
+  }
+  if (/otp_expired|expired|invalid.*token|user_invalid_token/i.test(message)) {
+    return 'This link has expired or is no longer valid. Return to sign in and request a fresh link.';
   }
   return message || 'Something went wrong. Please try again.';
 }
