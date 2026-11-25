@@ -214,6 +214,7 @@ function App() {
             loaded={loaded}
             soundsEnabled={soundsEnabled}
             aiModel={aiModel}
+            unifiedSignals={superSignals}
             onNavigate={setView}
           />
         )}
