@@ -4,12 +4,6 @@ function notifyAuthChanged(): void {
   window.dispatchEvent(new Event('appwrite-auth-changed'));
 }
 
-function authRedirect(flow: 'recovery' | 'verify'): string {
-  const url = new URL('/', window.location.origin);
-  url.searchParams.set('auth', flow);
-  return url.toString();
-}
-
 export async function signIn(email: string, password: string): Promise<void> {
   await appwriteAccount.signIn(email, password);
   notifyAuthChanged();
