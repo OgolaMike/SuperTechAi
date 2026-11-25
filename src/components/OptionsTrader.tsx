@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import type { Asset } from '@/lib/sma';
 import type { SuperSignal } from '@/lib/intelligence';
 import type { ConfluenceResult } from '@/lib/strategyConfluence';
+import { OPTIONS_CONTRACT_DURATION_MINUTES } from '@/lib/optionsTrader';
 
 type AccountMode = 'demo' | 'real';
 type ContractMode = 'touch' | 'no-touch' | 'both';
@@ -165,7 +166,7 @@ export function OptionsTrader({ assets, prices, superSignals, confluenceResults,
       </div>
 
       <div className="space-y-4 rounded-2xl border border-line/15 bg-surface/[0.04] p-4 sm:p-5">
-        <div><p className="text-sm font-semibold text-ink">Markets</p><p className="mt-1 text-sm text-ink-2">All eligible Deriv markets</p></div>
+        <div><p className="text-sm font-semibold text-ink">Markets</p><p className="mt-1 text-sm text-ink-2">All eligible Deriv markets</p><p className="mt-1 text-xs text-ink-3">Contract duration: {OPTIONS_CONTRACT_DURATION_MINUTES} minutes</p></div>
         <div className="flex items-center gap-2 rounded-xl border border-line/10 bg-surface/[0.035] p-3 text-xs text-ink-2"><Activity className="h-4 w-4 shrink-0 text-accent" /> Market analysis is shared with the main SuperTech AI engine.</div>
         <div className="border-t border-line/10 pt-4">
           <div className="flex items-center justify-between gap-3">
