@@ -80,7 +80,7 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   const {data:claimed,error:claimError}=await db.from("okx_futures_signal_intents").update({status:"processing",updated_at:new Date().toISOString()}).eq("id",row.id).eq("status","signal_ready").select("id");if(claimError)throw claimError;if(!claimed?.length)continue;
   const {data:st,error:stErr}=await db.from("okx_futures_settings").select("*").eq("user_id",row.user_id).maybeSingle();if(stErr||!st||st.connection_status!=="connected"||!st.auto_trade_enabled||st.emergency_stop)throw Error("okx_automation_not_enabled");
   if(st.demo_trading!==true&&st.live_execution_enabled!==true)throw Error("okx_live_execution_not_authorized");
-  if(Number(row.timeframe_agreement)<5||Date.now()/1000-Number(row.signal_epoch)>8*14400||Date.now()/1000<Number(row.signal_epoch))throw Error("signal_not_fresh_h4_with_support");
+  if(Number(row.timeframe_agreement)<7||Date.now()/1000-Number(row.signal_epoch)>8*14400||Date.now()/1000<Number(row.signal_epoch))throw Error("signal_not_fresh_h4_ten_timeframe_confirmation");
   const {data:c,error:ce}=await db.from("okx_futures_credentials").select("*").eq("user_id",row.user_id).single();if(ce||!c)throw Error("okx_credentials_missing");
   const [k,s,p]=await Promise.all([dec(c.encrypted_api_key),dec(c.encrypted_api_secret),dec(c.encrypted_passphrase)]);
   const inst=String(row.inst_id),demo=st.demo_trading===true;
