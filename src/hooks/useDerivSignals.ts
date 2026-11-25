@@ -15,9 +15,9 @@ import {
 
 const NATIVE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => NATIVE_TIMEFRAME_GRANULARITIES.has(timeframe.granularity));
 const SYNTHETIC_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => !NATIVE_TIMEFRAME_GRANULARITIES.has(timeframe.granularity));
-const M15_GRANULARITY = 900;
+const M30_GRANULARITY = 1800;
 const HOURLY_GRANULARITY = 3600;
-const ALL_ASSET_M15_HISTORY = 200;
+const ALL_ASSET_M30_HISTORY = 200;
 
 export type TimeframeStates = Record<number, TfState>;
 
@@ -251,20 +251,20 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
             const allSymbols = symbols.map((item) => item.symbol);
             // Keep every discovered market eligible for background 8-timeframe scanning.
             watchedRef.current = new Set([...allSymbols, ...binanceAssets.map((asset) => asset.symbol)]);
-            const selectedM15Tasks = currentAssets.map((symbol) => () =>
+            const selectedM30Tasks = currentAssets.map((symbol) => () =>
               client
-                .subscribeCandles(symbol, M15_GRANULARITY, ALL_ASSET_M15_HISTORY)
+                .subscribeCandles(symbol, M30_GRANULARITY, ALL_ASSET_M30_HISTORY)
                 .then((candles) => {
                   candlesRef.current[symbol] ??= {};
-                  candlesRef.current[symbol][M15_GRANULARITY] = candles;
+                  candlesRef.current[symbol][M30_GRANULARITY] = candles;
                   queueLatestPrice(symbol, candles);
-                  const confirmedEpoch = latestConfirmedEpoch(candles, M15_GRANULARITY, Math.floor(Date.now() / 1000));
-                  if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${M15_GRANULARITY}`] = confirmedEpoch;
-                  recompute(symbol, M15_GRANULARITY);
+                  const confirmedEpoch = latestConfirmedEpoch(candles, M30_GRANULARITY, Math.floor(Date.now() / 1000));
+                  if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${M30_GRANULARITY}`] = confirmedEpoch;
+                  recompute(symbol, M30_GRANULARITY);
                 }),
             );
             const selectedHigherTimeframeTasks = currentAssets.flatMap((symbol) =>
-              NATIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== M15_GRANULARITY).map((timeframe) => () =>
+              NATIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== M30_GRANULARITY).map((timeframe) => () =>
                 client
                   .subscribeCandles(symbol, timeframe.granularity, timeframe.candleCount)
                   .then((candles) => {
@@ -288,7 +288,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               ...NATIVE_TIMEFRAMES.filter((timeframe) => timeframe.granularity !== HOURLY_GRANULARITY),
             ].flatMap((timeframe) => backgroundSymbols.map((symbol) => () => {
               const granularity = timeframe.granularity;
-              const historyCount = granularity === M15_GRANULARITY ? ALL_ASSET_M15_HISTORY : timeframe.candleCount;
+              const historyCount = granularity === M30_GRANULARITY ? ALL_ASSET_M30_HISTORY : timeframe.candleCount;
               return client.subscribeCandles(symbol, granularity, historyCount).then((candles) => {
                 candlesRef.current[symbol] ??= {};
                 candlesRef.current[symbol][granularity] = candles;
@@ -302,7 +302,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
 
             // Prioritise selected dashboard feeds; finish the all-market scan setup in the background.
             return client.staggerSubscriptions([
-              ...selectedM15Tasks,
+              ...selectedM30Tasks,
               ...selectedHigherTimeframeTasks,
             ]).then(() => {
               derivLoaded = true;
