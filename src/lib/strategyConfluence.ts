@@ -76,11 +76,11 @@ export function evaluateStrategyConfluence(
     const sellEvidence = sells.reduce((sum, row) => sum + row.strength * Math.min(CONFLUENCE_CONFIG.maximumWeight, Math.max(0.1, row.weight ?? 1)), 0);
     const direction: StrategyDirection | null = buyEvidence === sellEvidence ? null : buyEvidence > sellEvidence ? 'BUY' : 'SELL';
     const agreeing = direction === 'BUY' ? buys : direction === 'SELL' ? sells : [];
-    const opposing = direction === 'BUY' ? sells : direction === 'SELL' ? buys : [];
+    const opposing = direction === 'BUY' ? sells : direction === 'SELL' ? buys : [...buys, ...sells];
     const winningEvidence = direction === 'BUY' ? buyEvidence : direction === 'SELL' ? sellEvidence : 0;
     const score = totalWeight > 0 ? Math.round((winningEvidence / totalWeight) * 100) : 0;
     const distinctAgreeing = new Set(agreeing.map((row) => row.strategyId)).size;
-    const hasConflict = opposing.length > 0;
+    const hasConflict = buys.length > 0 && sells.length > 0;
     const status: ConfluenceResult['status'] =
       distinctAgreeing >= CONFLUENCE_CONFIG.minimumIndependentStrategies &&
       score >= CONFLUENCE_CONFIG.minimumScore && !hasConflict
@@ -91,7 +91,9 @@ export function evaluateStrategyConfluence(
     const explanation = status === 'HIGH_CONFLUENCE'
       ? `${distinctAgreeing} independent strategies agree on ${direction}. Evidence score: ${score}/100. No opposing active strategy signal.`
       : status === 'CONFLICT'
-        ? `${agreeing.length} strategies favour ${direction ?? 'no direction'}, while ${opposing.length} active strategy signal(s) oppose it. Wait for resolution.`
+        ? direction === null
+          ? `${buys.length} BUY and ${sells.length} SELL strategy signal(s) conflict. Wait for resolution.`
+          : `${agreeing.length} strategies favour ${direction}, while ${opposing.length} active strategy signal(s) oppose it. Wait for resolution.`
         : status === 'PARTIAL_AGREEMENT'
           ? `${distinctAgreeing} independent strategy signal(s) currently agree. More confirmation is required before high confluence.`
           : 'No fresh, valid independent strategy signals are available.';
