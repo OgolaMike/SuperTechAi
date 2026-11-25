@@ -118,9 +118,9 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
   const stats = useMemo(() => {
     const closes = state.candles.map((item) => item.close);
     return state.candles.map((_, index) => {
-      if (index < 59) return null;
-      const window = closes.slice(index - 59, index + 1);
-      const mean = window.reduce((sum, value) => sum + value, 0) / 60;
+      if (index < 19) return null;
+      const window = closes.slice(index - 19, index + 1);
+      const mean = window.reduce((sum, value) => sum + value, 0) / 20;
       const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
       const deviation = Math.sqrt(variance);
       return { mean, upper: mean + 2.5 * deviation, lower: mean - 2.5 * deviation };
