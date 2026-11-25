@@ -30,7 +30,7 @@ const json = (body: unknown, status = 200, headers: HeadersInit = {}) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
   });
 
-function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
+function withCors(response: Response, cors: HeadersInit): Response {\n  const headers = new Headers(response.headers);\n  new Headers(cors).forEach((value, key) => headers.set(key, value));\n  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });\n}\n\nfunction corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
   if (!origin || origin !== allowedOrigin) return {};
   return {
     "access-control-allow-origin": origin,
@@ -185,7 +185,7 @@ export default {
         if (!account) return json({ error: "unauthorized" }, 401, cors);
 
         if (request.method === "GET") {
-          return await profileRequest(env, account, "GET");
+          return withCors(await profileRequest(env, account, "GET"), cors);
         }
 
         const body = await request.json().catch(() => null) as Record<string, unknown> | null;
@@ -194,7 +194,7 @@ export default {
         }
         const displayName = body.displayName.trim();
         if (displayName.length > 120) return json({ error: "display_name_too_long" }, 400, cors);
-        return await profileRequest(env, account, "PATCH", { display_name: displayName });
+        return withCors(await profileRequest(env, account, "PATCH", { display_name: displayName }), cors);
       } catch {
         return json({ error: "profile_service_unavailable" }, 503, cors);
       }
