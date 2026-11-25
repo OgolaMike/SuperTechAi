@@ -470,7 +470,7 @@ def run_five_minute_momentum(config: dict[str, Any] | None, daily_loss_pct: floa
     # Missed bars are never replayed; only the immediately following M5 open is eligible.
     if current_bar_epoch <= previous_seen or current_bar_epoch - previous_seen != 300:
         return
-    if int(time.time()) - current_bar_epoch > 15:
+    if int(time.time()) - current_bar_epoch > 5:
         log.info("Five Minute Momentum skipped a late M5 open for %s", symbol)
         return
 
