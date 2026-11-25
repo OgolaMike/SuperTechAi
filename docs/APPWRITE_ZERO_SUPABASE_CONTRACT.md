@@ -1,7 +1,7 @@
 # Independent SuperTech AI — zero-Supabase architecture contract
 
 **Status:** Binding architecture for the Appwrite/Cloudflare deployment  
-**Updated:** 2026-11-25  
+**Updated:** 2026-11-26  
 **Legacy protection:** The existing Bolt/Supabase deployment is out of scope and must not be modified.
 
 ## Non-negotiable boundary
@@ -126,13 +126,14 @@ These are **schema proposals**, not claims that collections already exist. Creat
 
 ## Current reality
 
-The Appwrite project currently contains the original `connection_probe` table plus three newly created, partially provisioned member tables:
+The independent Appwrite sandbox has four confirmed tables from the latest direct database inventory: `connection_probe`, `member_profiles`, `member_roles`, and `membership_entitlements`. `membership_events` was not present in that inventory. The subsequent browser provisioning run was interrupted by its execution budget; it did not finish the schema or perform a final verification.
 
-- `member_profiles` — table ID `6b074d7f001787b0d0c8`; `user_id` and `display_name` were confirmed created; remaining columns are not confirmed complete.
-- `member_roles` — table ID `6b074e04002c1011d8df`; table exists, but its required columns are not yet configured.
-- `membership_entitlements` — table ID `6b074fbd000bd6277c02`; table exists, but its required columns are not yet configured.
-- `membership_events` — creation was not confirmed; do not retry blindly until the database table list is checked.
+- `connection_probe` — ID `6b06e4ec000a9c8a0f94`; was not modified.
+- `member_profiles` — ID `6b074d7f001787b0d0c8`; latest run added nullable `created_at` and `updated_at`, and reported `user_id` updated to required. Existing `display_name` remains optional; `onboarding_status` is still nullable. No index creation was completed.
+- `member_roles` — ID `6b074e04002c1011d8df`; latest run added required `user_id`; creation status was reported as Available/Processing. `role`, `granted_by`, and `created_at` remain pending. No index creation was completed.
+- `membership_entitlements` — ID `6b074fbd000bd6277c02`; no schema changes were completed in the latest run.
+- `membership_events` — creation was not completed; confirm the table list before any creation attempt.
 
-The browser setup attempt did not complete the indexes or a verified deny-client-access review. Treat the permissions state as **unverified**, not as secured. No member or financial records have been created or copied. Do not enable member-data writes until all columns, indexes, and permissions are inspected and confirmed.
+The preceding direct inspection found no indexes and no configured permissions on the four existing tables. It found RLS ON for `connection_probe`, `member_profiles`, and `member_roles`, but OFF for `membership_entitlements`. The latest run did not re-verify those security settings. Treat permissions and current RLS as requiring reinspection. Do not grant client permissions or enable member-data writes until all columns, indexes, and access rules are verified.
 
-The machine-readable intended schema and exact provisioning state are tracked in `appwrite/schema/member-access.tables.json`. Appwrite account adapter and independent auth gate exist in the feature branch; browser account lifecycle is not yet end-to-end verified. The independent platform is still a foundation, not full feature parity.
+The machine-readable provisioning record is `appwrite/schema/member-access.tables.json`. It records the partial state separately from the intended schema. No member, payment, referral or broker records have been created or copied. Appwrite account adapter and independent auth gate exist in the feature branch; browser account lifecycle is not yet end-to-end verified. The independent platform is still a foundation, not full feature parity.
