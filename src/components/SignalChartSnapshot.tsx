@@ -31,7 +31,7 @@ function rolling(values: number[], index: number) {
   if (index < SMA_PERIOD - 1) return null;
   const window = values.slice(index - SMA_PERIOD + 1, index + 1);
   const mean = window.reduce((sum, value) => sum + value, 0) / SMA_PERIOD;
-  const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / PERIOD;
+  const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / SMA_PERIOD;
   const deviation = Math.sqrt(variance);
   return { mean, upper: mean + deviation * 2.5, lower: mean - deviation * 2.5 };
 }
@@ -43,7 +43,7 @@ function timeLabel(epoch: number, granularity: number) {
     : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 900, digits, assetName, symbol, anchorId, livePrice }: Props) {
+export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 1800, digits, assetName, symbol, anchorId, livePrice }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
