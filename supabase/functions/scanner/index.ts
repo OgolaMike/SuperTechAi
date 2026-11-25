@@ -278,11 +278,9 @@ async function processTimeframe(
   }
 
   if (previousMark !== undefined) {
-    const events = timeframe.granularity === 900
-      ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch))
-      : timeframe.granularity === 14400
-        ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch)).filter((event) => event.kind !== "signal")
-        : [];
+    const events = timeframe.granularity === 14400
+      ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch)).filter((event) => event.kind !== "signal")
+      : [];
     if (events.length > 0) {
       const { error } = await db
         .from("push_events")
@@ -334,8 +332,9 @@ function evaluateSuperSignal(
     }
   }
 
-  // Supporting frames may delay entry, but can never replace or reverse the H4 direction.
-  if (supportingAligned < 4 || higherTimeframeOpposes) return null;
+  // At least six of nine supporting frames must align. M1/M5 refine timing;
+  // D1/H8 opposition blocks the signal, and no lower frame can reverse H4.
+  if (supportingAligned < 6 || higherTimeframeOpposes) return null;
   return {
     direction: primary.direction,
     signalEpoch: primary.signalEpoch,
@@ -644,7 +643,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       }
 
       // Super Signal push events are generated server-side for subscribed assets only.
-      // H4 generates the primary signal; seven fresh timeframes provide supporting confirmation.
+      // H4 generates the only primary direction; nine fresh timeframes provide supporting confirmation.
       if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol) || futuresAutomationSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
         try {
           for (const frame of TIMEFRAMES) {
