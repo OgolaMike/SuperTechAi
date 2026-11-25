@@ -137,11 +137,10 @@ function evaluateSymbol(
   const expected = expectedBias(direction);
   const supportingReads = readings.filter((reading) => reading.label !== PRIMARY_LABEL);
   const supportingAligned = supportingReads.filter((reading) => reading.valid && reading.bias === expected).length;
-  const higherTimeframes = supportingReads.filter((reading) => reading.label === 'D1' || reading.label === 'H8');
-  const higherTimeframeOpposes = higherTimeframes.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
+  const anyTimeframeOpposes = supportingReads.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
   // Keep H4 authoritative. Entry waits for at least six of nine supporting frames and no higher-timeframe reversal warning.
-  if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
+  if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || anyTimeframeOpposes) return null;
 
   const confirmations = INTELLIGENCE_TIMEFRAMES.map((timeframe) => {
     const state = states[timeframe.granularity];
@@ -168,7 +167,7 @@ function evaluateSymbol(
   const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
   const explanation = [
     `H4 generated the primary ${direction} signal ${describeAge(nowEpoch - signal.signalEpoch)}.`,
-    `${supportingAligned} of 9 supporting timeframes confirm H4; D1 and H8 are not opposing the direction.`,
+    `${supportingAligned} of 9 supporting timeframes confirm H4; No timeframe is pointing against the direction; the remaining frames are neutral.`,
     `${confirmationTimeframe} was the latest timeframe to join alignment, giving this H4 signal a ${gradePercent}% support grade.`,
   ].join(' ');
 
