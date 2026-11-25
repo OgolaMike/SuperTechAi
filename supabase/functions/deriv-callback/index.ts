@@ -1,5 +1,9 @@
 const headers = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" };
-const page = (title: string, message: string, status = 200) => new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head><body style="font:16px system-ui;background:#0b1020;color:#fff;display:grid;min-height:90vh;place-items:center"><main style="max-width:520px;padding:28px"><h2>${title}</h2><p>${message}</p><p>Returning to SuperTech AI…</p></main><script>setTimeout(()=>location.replace(${JSON.stringify((Deno.env.get("APP_URL") || "").replace(/\/$/, "") + "/?view=options-trader&deriv=connected")}),900)</script></body></html>`, { status, headers });
+const appUrl = (Deno.env.get("APP_URL") || "").replace(/\/$/, "");
+const page = (title: string, message: string, status = 200) => {
+  const destination = `${appUrl}/?view=options-trader&deriv=${status < 400 ? "connected" : "error"}`;
+  return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="1;url=${destination}"><title>${title}</title></head><body style="font:16px system-ui;background:#0b1020;color:#fff;display:grid;min-height:90vh;place-items:center"><main style="max-width:520px;padding:28px"><h2>${title}</h2><p>${message}</p><p>Returning to SuperTech AI…</p></main></body></html>`, { status, headers });
+};
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const sha256 = async (value: string) => { const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)); return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join(""); };
 const encrypt = async (plain: string, keyText: string) => {
@@ -14,7 +18,7 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "GET") return page("Invalid request", "Unsupported request method.", 405);
   const u = new URL(req.url), code = u.searchParams.get("code"), state = u.searchParams.get("state"), providerError = u.searchParams.get("error");
   const base = Deno.env.get("SUPABASE_URL"), service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), clientId = Deno.env.get("DERIV_CLIENT_ID"), redirectUri = Deno.env.get("DERIV_REDIRECT_URI"), key = Deno.env.get("DERIV_TOKEN_ENCRYPTION_KEY");
-  if (!base || !service || !clientId || !redirectUri || !key || !Deno.env.get("APP_URL")) return page("Connection setup incomplete", "SuperTech AI is awaiting administrator configuration.", 503);
+  if (!base || !service || !clientId || !redirectUri || !key || !appUrl) return page("Connection setup incomplete", "SuperTech AI is awaiting administrator configuration.", 503);
   if (!state || state.length > 256 || (code && code.length > 2048)) return page("Invalid authorisation response", "The security check failed. Start again from SuperTech AI.", 400);
   const apiHeaders = { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" };
   const stateHash = await sha256(state);
