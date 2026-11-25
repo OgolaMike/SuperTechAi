@@ -6,12 +6,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const entry = path.join(root, 'src/main.tsx');
 const visited = new Set();
 const violations = [];
-const importPattern = /(?:import|export)\\s+(?:[^'";]*?\\s+from\\s+)?['"]([^'"]+)['"]|import\\s*\\(\\s*['"]([^'"]+)['"]\\s*\\)/g;
+const importPattern = /(?:import|export)\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 const forbidden = [
-  { pattern: /@supabase\\/supabase-js/i, label: 'Supabase SDK import' },
-  { pattern: /supabase\\.co/i, label: 'Supabase endpoint reference' },
+  { pattern: /@supabase\/supabase-js/i, label: 'Supabase SDK import' },
+  { pattern: /supabase\.co/i, label: 'Supabase endpoint reference' },
   { pattern: /VITE_SUPABASE_/i, label: 'Supabase environment variable' },
-  { pattern: /supabase\\.(?:from|rpc|channel|auth|storage)/i, label: 'Supabase client API usage' },
+  { pattern: /supabase\.(?:from|rpc|channel|auth|storage)/i, label: 'Supabase client API usage' },
 ];
 
 function resolveImport(fromFile, specifier) {
