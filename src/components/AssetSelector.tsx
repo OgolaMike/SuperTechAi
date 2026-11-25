@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronsUpDown, Search, Volume2 } from 'lucide-react';
 import type { Asset } from '@/lib/sma';
 
-const MAX_SELECTED = 1;
-
 type Props = {
   assets: Asset[];
   selected: string[];
