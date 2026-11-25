@@ -223,7 +223,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
           <div className="mx-4 mb-4 rounded-xl border border-line/10 bg-canvas/60 p-3">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-2">
-                <label className="flex items-center gap-1.5"><input type="checkbox" checked={showSma} onChange={(event) => setShowSma(event.target.checked)} /> SMA 60</label>
+                <label className="flex items-center gap-1.5"><input type="checkbox" checked={showSma} onChange={(event) => setShowSma(event.target.checked)} /> SMA 20</label>
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={showBands} onChange={(event) => setShowBands(event.target.checked)} /> Bollinger ±2.5σ</label>
               </div>
               <div className="flex items-center gap-2">
@@ -239,7 +239,7 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
             </label>
             {chart ? (
               <div className="w-full overflow-x-auto overscroll-x-contain">
-                <svg viewBox={`0 0 ${chart.width} ${CHART_HEIGHT}`} role="img" aria-label={`${name} ${timeframe.label} candlestick chart with SMA 60 and Bollinger Bands`} style={{ width: `${chart.width}px`, maxWidth: "none", height: "auto" }} className="block">
+                <svg viewBox={`0 0 ${chart.width} ${CHART_HEIGHT}`} role="img" aria-label={`${name} ${timeframe.label} candlestick chart with SMA 20 and Bollinger Bands`} style={{ width: `${chart.width}px`, maxWidth: "none", height: "auto" }} className="block">
                   {[0,1,2,3].map((step) => {
                     const y = PADDING.top + ((CHART_HEIGHT - PADDING.top - PADDING.bottom) * step) / 3;
                     const value = chart.max - ((chart.max - chart.min) * step) / 3;
