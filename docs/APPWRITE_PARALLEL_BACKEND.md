@@ -16,8 +16,7 @@ The current application is tightly coupled to Supabase Auth sessions and the Sup
 
 - Endpoint: `https://fra.cloud.appwrite.io/v1`
 - Project ID: `6b06de46003dde834eb6`
-- Web SDK: `appwrite` (29.3.1)
-- Client module: `src/lib/appwrite.ts`
+- Client module: `src/lib/appwrite.ts` (isolated Appwrite REST client; no new npm dependency)
 - Optional environment template: `.env.appwrite.example`
 
 The endpoint and project ID are public browser configuration, not secrets. The client reads `VITE_APPWRITE_ENDPOINT` and `VITE_APPWRITE_PROJECT_ID`, with the supplied project values as safe defaults.
@@ -55,4 +54,4 @@ The endpoint and project ID are public browser configuration, not secrets. The c
 
 ## Current status
 
-The Appwrite Web SDK and client are now configured on this branch using the project endpoint and ID supplied by the owner. No Appwrite API key is required for this public client initialization. No collections, auth flows, production writes, Supabase settings, or live deployment have been changed. The Appwrite Web platform hostname must be added in the Console, then the branch must pass build/type checks before any read/write feature is introduced.
+The Appwrite REST client is now configured on this branch using the project endpoint and ID supplied by the owner. It exposes read-only account, database-list, and table-row helpers for the initial verification phase. No Appwrite API key is required for this public client initialization. No collections, auth flows, production writes, Supabase settings, or live deployment have been changed. The Appwrite Web platform hostname must be added in the Console, then the branch must pass build/type checks before any read/write feature is introduced.
