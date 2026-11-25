@@ -27,6 +27,9 @@ export function Mt5AutoTrading() {
   const [liveExecutionEnabled, setLiveExecutionEnabled] = useState(false);
   const [emergencyStop, setEmergencyStop] = useState(true);
   const [riskEnabled, setRiskEnabled] = useState(false);
+  const [fiveMinuteEnabled, setFiveMinuteEnabled] = useState(false);
+  const [fiveMinuteSymbol, setFiveMinuteSymbol] = useState('');
+  const [fiveMinuteLotSize, setFiveMinuteLotSize] = useState('0.1');
   const [riskPerTrade, setRiskPerTrade] = useState('0.50');
   const [dailyLossLimit, setDailyLossLimit] = useState('2.00');
   const [maxOpenPositions, setMaxOpenPositions] = useState('3');
@@ -82,7 +85,7 @@ export function Mt5AutoTrading() {
     let active = true;
     const loadSettings = async () => {
       const { data } = await supabase.from('mt5_account_settings')
-        .select('adopt_pending_orders,manage_existing_positions,place_new_orders,live_execution_enabled,emergency_stop,risk_controls_enabled,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points')
+        .select('adopt_pending_orders,manage_existing_positions,place_new_orders,live_execution_enabled,emergency_stop,risk_controls_enabled,max_risk_per_trade_pct,max_daily_loss_pct,max_open_positions,max_spread_points,max_slippage_points,five_minute_momentum_enabled,five_minute_momentum_symbol,five_minute_momentum_lot_size')
         .maybeSingle();
       if (!active || !data) return;
       setAdoptPending(Boolean(data.adopt_pending_orders));
@@ -96,6 +99,9 @@ export function Mt5AutoTrading() {
       setMaxOpenPositions(String(data.max_open_positions ?? 3));
       setMaxSpreadPoints(String(data.max_spread_points ?? 0));
       setMaxSlippagePoints(String(data.max_slippage_points ?? 0));
+      setFiveMinuteEnabled(Boolean(data.five_minute_momentum_enabled));
+      setFiveMinuteSymbol(String(data.five_minute_momentum_symbol ?? ''));
+      setFiveMinuteLotSize(String(data.five_minute_momentum_lot_size ?? 0.1));
     };
     void loadSettings();
     return () => { active = false; };
@@ -263,6 +269,11 @@ export function Mt5AutoTrading() {
       setSettingsMessage('Check the limits: risk up to 2%, daily loss up to 5%, 1–20 open positions, and non-negative spread/slippage points.');
       return;
     }
+    const momentumLot = Number(fiveMinuteLotSize);
+    if (fiveMinuteEnabled && (!fiveMinuteSymbol.trim() || fiveMinuteSymbol.trim().length > 40 || !Number.isFinite(momentumLot) || momentumLot <= 0 || momentumLot > 1000)) {
+      setSettingsMessage('Enter the exact MT5 broker symbol and a valid lot size for Five Minute Momentum.');
+      return;
+    }
     if (riskEnabled && (spread === 0 || slippage === 0)) {
       setSettingsMessage('Set both a spread limit and a slippage limit before enabling risk controls.');
       return;
@@ -283,10 +294,13 @@ export function Mt5AutoTrading() {
         max_open_positions: positions,
         max_spread_points: spread,
         max_slippage_points: slippage,
+        five_minute_momentum_enabled: fiveMinuteEnabled,
+        five_minute_momentum_symbol: fiveMinuteSymbol.trim() || null,
+        five_minute_momentum_lot_size: momentumLot,
         updated_at: new Date().toISOString(),
       }).eq('user_id', authData.user.id);
       if (error) throw error;
-      setSettingsMessage('MT5 permissions and risk limits saved. Live order placement still requires a successful preflight and a separate confirmation for each order.');
+      setSettingsMessage('MT5 permissions and strategy settings saved. Five Minute Momentum remains off unless explicitly enabled, and requires the existing live-execution gates plus a connected worker.');
     } catch (error) {
       setSettingsMessage(error instanceof Error ? error.message : 'Could not save MT5 settings.');
     } finally {
@@ -569,6 +583,20 @@ export function Mt5AutoTrading() {
             <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={liveExecutionEnabled} onChange={(event) => { const checked = event.target.checked; if (checked && !window.confirm('Enable MT5 order placement for the connected account? Every order still requires a separate confirmation.')) return; setLiveExecutionEnabled(checked); }} className="mt-1 accent-current" /><span><strong className="block font-medium">Enable MT5 order placement</strong><span className="text-xs text-ink-2">Off by default. Applies to the connected demo or real account. Every pending order still needs your confirmation.</span></span></label>
             <label className="mt-4 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={emergencyStop} onChange={(event) => { const checked = event.target.checked; if (!checked && !window.confirm('Turn OFF the emergency stop? New MT5 orders may then be sent after your individual confirmation.')) return; setEmergencyStop(checked); }} className="mt-1 accent-current" /><span><strong className="block font-medium">Emergency stop — block all new orders</strong><span className="text-xs text-ink-2">Keep this on to block execution. Turn it off only when you are ready to authorize new orders.</span></span></label>
             <div className="mt-5 border-t border-line/10 pt-4">
+              <h4 className="text-sm font-semibold text-ink">Five Minute Momentum · raw M5 price action</h4>
+              <p className="mt-1 text-xs leading-5 text-ink-2">Independent MT5 strategy. Higher High = BUY; otherwise Lower Low = SELL. It opens on the first available tick of the new M5 candle and closes at that candle's five-minute boundary. Only this strategy's tagged positions are closed.</p>
+              <label className="mt-3 flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={fiveMinuteEnabled} onChange={(event) => { const checked = event.target.checked; if (checked && !window.confirm('Enable automatic Five Minute Momentum market orders on the connected MT5 account? This strategy has no stop-loss or take-profit; it relies on its five-minute timed close.')) return; setFiveMinuteEnabled(checked); }} className="mt-1 accent-current" /><span><strong className="block font-medium">Enable Five Minute Momentum automatic trading</strong><span className="text-xs text-ink-2">Off by default. Also requires new-order permission, risk controls, live execution enabled and emergency stop off.</span></span></label>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="text-xs text-ink-2">Exact MT5 broker symbol
+                  <input value={fiveMinuteSymbol} onChange={(event) => setFiveMinuteSymbol(event.target.value)} placeholder="e.g. EURUSD or EURUSD.a" className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-2.5 py-2 text-sm text-ink" />
+                </label>
+                <label className="text-xs text-ink-2">Requested lot size
+                  <input type="number" min="0.001" step="0.001" value={fiveMinuteLotSize} onChange={(event) => setFiveMinuteLotSize(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-canvas px-2.5 py-2 text-sm text-ink" />
+                </label>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-amber-500">Important: this raw strategy has no protective SL/TP. Lot size is normalized to broker rules, but normalization does not cap losses. The daily loss limit blocks new entries; it does not guarantee the loss on an open five-minute trade.</p>
+            </div>
+            <div className="mt-5 border-t border-line/10 pt-4">
               <h4 className="text-sm font-semibold text-ink">Account risk limits</h4>
               <p className="mt-1 text-xs leading-5 text-ink-2">Conservative starting limits. They will be enforced by the execution worker before any order is released.</p>
               <label className="mt-3 flex items-center gap-3 text-sm text-ink"><input type="checkbox" checked={riskEnabled} onChange={(event) => setRiskEnabled(event.target.checked)} className="accent-current" /><span>Enable risk limits for future automated trading</span></label>
@@ -601,12 +629,13 @@ export function Mt5AutoTrading() {
               <li>• Read account balance, equity and free margin.</li>
               <li>• Read pending orders and open positions.</li>
               <li>• Report worker heartbeat and connection errors.</li>
-              <li>• Place BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT orders after your separate approval and final broker checks.</li>
-              <li>• No unattended signal execution, position modification, trailing stops, cancellation or closing yet.</li>
+              <li>• Place BUY STOP, SELL STOP, BUY LIMIT and SELL LIMIT orders after separate approval and final broker checks.</li>
+              <li>• Run the separately enabled Five Minute Momentum M5 strategy with broker-normalized volume and timed closure of its own tagged trades.</li>
+              <li>• Never manage manual or other EA trades.</li>
             </ul>
           </div>
           <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
-            <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" /><div><p className="text-sm font-semibold text-ink">Automation release status</p><p className="mt-1 text-xs leading-5 text-ink-2">Member-confirmed pending-order placement is implemented, subject to a deployed bridge, a running Windows worker and successful broker checks. Automatic signal execution and automatic position management are still pending.</p></div></div>
+            <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" /><div><p className="text-sm font-semibold text-ink">Automation release status</p><p className="mt-1 text-xs leading-5 text-ink-2">Member-confirmed pending-order placement is implemented. Five Minute Momentum is an optional MT5 worker strategy, disabled by default; it requires the matching database migration and an updated Windows worker. Broker timing, fills and connection failures can affect actual entry/exit prices.</p></div></div>
           </div>
         </div>
       </div>
