@@ -47,7 +47,7 @@ import { ensureNotificationPermission } from '@/lib/deviceNotify';
 import { trainSignalLearningModel, type SignalLearningModel } from '@/lib/aiLearning';
 import { buildSuperSignals } from '@/lib/intelligence';
 import { fetchSignalRecords } from '@/lib/signalRecords';
-import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
+import { buildStopOrderIdeas } from '@/lib/stopOrders';
 import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET } from '@/lib/sma';
@@ -83,7 +83,7 @@ function App() {
   const { theme, toggle: toggleTheme } = useTheme();
   const { assets, states, status, lastTick, prices, loaded } = useDerivSignals(selectedSymbols);
   const pendingOrderIdeas = useMemo(
-    () => buildM15StopOrderIdeas(assets, states, prices, aiModel, now),
+    () => buildStopOrderIdeas(assets, states, prices, aiModel, now),
     [assets, states, prices, aiModel, now],
   );
   const { toasts: pendingToasts, dismiss: dismissPendingToast } = usePendingOrderAlerts(pendingOrderIdeas, loaded && alertPreferencesReady, soundsEnabled);
@@ -239,7 +239,7 @@ function App() {
               <article className="rounded-2xl border border-accent/30 bg-accent/[0.045] p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-bold uppercase tracking-wider text-accent">04 · Market Structure SAR</p>
-                  <span className="rounded-full border border-accent/25 px-2.5 py-1 text-[10px] font-semibold text-accent">M15 strategy</span>
+                  <span className="rounded-full border border-accent/25 px-2.5 py-1 text-[10px] font-semibold text-accent">M30 strategy</span>
                 </div>
                 <h3 className="mt-2 text-lg font-semibold text-ink">Follow confirmed swings with Parabolic SAR</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">This setup looks for two confirmed rising swing highs and two rising swing lows before considering a BUY. For a SELL, it looks for falling swing lows and falling swing highs. Parabolic SAR must also switch sides on a completed candle before an alert is created.</p>
@@ -253,7 +253,7 @@ function App() {
                 <p className="text-xs font-bold uppercase tracking-wider text-accent">05 · 3H Wick Intelligence</p>
                 <h3 className="mt-2 text-lg font-semibold text-ink">Trade confirmed H4 wick rejection</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">A bullish lower-wick rejection can qualify a BUY; a bearish upper-wick rejection can qualify a SELL. The same asset's fresh Unified Signal must confirm the same direction before the setup is authorised.</p>
-                <p className="mt-3 text-xs leading-relaxed text-ink-3">Initial protection uses H4 Bollinger Bands (20, 2.0). The strategy's planned trailing activates at +0.7%, advances in +0.5% steps and has a three-hour maximum holding time from actual execution. Manual trades remain separate.</p>
+                <p className="mt-3 text-xs leading-relaxed text-ink-3">Initial protection uses H4 Bollinger Bands (20, 2.5). The strategy's planned trailing activates at +0.7%, advances in +0.5% steps and has a three-hour maximum holding time from actual execution. Manual trades remain separate.</p>
               </article>
               <article className="rounded-2xl border border-line/20 bg-surface/[0.035] p-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-down">03 · Triple Top</p>
