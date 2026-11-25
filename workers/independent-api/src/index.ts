@@ -30,7 +30,13 @@ const json = (body: unknown, status = 200, headers: HeadersInit = {}) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
   });
 
-function withCors(response: Response, cors: HeadersInit): Response {\n  const headers = new Headers(response.headers);\n  new Headers(cors).forEach((value, key) => headers.set(key, value));\n  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });\n}\n\nfunction corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
+function withCors(response: Response, cors: HeadersInit): Response {
+  const headers = new Headers(response.headers);
+  new Headers(cors).forEach((value, key) => headers.set(key, value));
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
   if (!origin || origin !== allowedOrigin) return {};
   return {
     "access-control-allow-origin": origin,
