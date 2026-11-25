@@ -1,9 +1,8 @@
-import type { ReactNode } from 'react';
 import { Loader2, ShieldCheck, WifiOff } from 'lucide-react';
 import { AuthScreen } from '@/components/AuthScreen';
 import { useAuthSession } from '@/hooks/useAuthSession';
 
-export function AuthGate(_props: { children: ReactNode }) {
+export function AuthGate() {
   const { ready, session, accessError, isPasswordRecovery, isEmailConfirmed } = useAuthSession();
 
   if (!ready) {
