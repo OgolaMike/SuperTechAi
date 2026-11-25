@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { saveBubble, markBubble } from '@/lib/bubbleHistory';
 import { ArrowDownRight, ArrowUpRight, ShieldAlert, Target, X } from 'lucide-react';
 import type { Toast } from '@/hooks/useSignalAlerts';
 import { formatPrice, formatDateTime } from '@/lib/sma';
@@ -6,6 +7,7 @@ import { formatPrice, formatDateTime } from '@/lib/sma';
 type Props = { toasts: Toast[]; onDismiss: (id: string) => void; onOpenChart: (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => void };
 
 export function Toasts({ toasts, onDismiss, onOpenChart }: Props) {
+  useEffect(() => { toasts.forEach(saveBubble); }, [toasts]);
   const visibleToasts = toasts.slice(0, 4);
   const signals = visibleToasts.filter((toast) => toast.kind === 'signal' || toast.kind === 'reversal' || toast.kind === 'break-retest');
   const hits = visibleToasts.filter((toast) => toast.kind === 'hit');
@@ -23,9 +25,9 @@ function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; 
   const displayName = toast.assetName || toast.symbol;
   const bubbleSize = Math.min(132, Math.max(104, 88 + displayName.length * 1.4));
   return <>
-    <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => toast.id.startsWith('super:') ? onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId, toast.id.slice(6)) : setOpen(true)}
+    <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => { markBubble(toast.id, 'opened'); onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId, toast.id.startsWith('super:') ? toast.id.slice(6) : undefined); }}
       className={`signal-bubble pointer-events-auto absolute flex -translate-x-1/2 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-full border-2 px-3 py-3 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${buy ? 'border-up/80 bg-up/15 text-up shadow-up/40' : 'border-down/80 bg-down/15 text-down shadow-down/40'}`}
-      style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: '-150px', animationDelay: `${index * 850}ms` }} onAnimationEnd={() => onDismiss(toast.id)}>
+      style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: '-150px', animationDelay: `${index * 850}ms` }} onAnimationEnd={() => { markBubble(toast.id, 'expired'); onDismiss(toast.id); }}>
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
       <span className="text-sm font-black tracking-wider">{toast.direction}</span>
       <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.kind === 'break-retest' ? 'BREAK & RETEST' : toast.timeframe}</span>
@@ -43,7 +45,7 @@ function HitBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; ind
   const displayName = toast.assetName || toast.symbol;
   const bubbleSize = Math.min(132, Math.max(104, 88 + displayName.length * 1.4));
   return <>
-    <button type="button" aria-label={`Open ${toast.message} details for ${toast.symbol}`} onClick={() => setOpen(true)}
+    <button type="button" aria-label={`Open ${toast.message} details for ${toast.symbol}`} onClick={() => { markBubble(toast.id, 'opened'); setOpen(true); }}
       className={`signal-bubble pointer-events-auto absolute flex -translate-x-1/2 flex-col items-center justify-center gap-1 overflow-hidden rounded-full border-2 px-3 py-3 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isStop ? 'border-down/80 bg-down/15 text-down shadow-down/40' : 'border-warn/80 bg-warn/15 text-warn shadow-warn/40'}`}
       style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: '-150px', animationDelay: `${index * 850}ms` }} onAnimationEnd={() => onDismiss(toast.id)}>
       {isStop ? <ShieldAlert className="h-6 w-6" /> : <Target className="h-6 w-6" />}
