@@ -22,7 +22,7 @@ export interface OptionsExecutionConfig {
   backendEdition: 'supabase' | 'appwrite';
   accountId: string;
   accountMode: OptionsAccountMode;
-  contractKind: 'ONETOUCH' | 'NOTOUCH';
+  contractKind: 'ONETOUCH' | 'NOTOUCH' | 'BOTH';
   stake: number;
   automationEnabled: boolean;
   realTradingConsentAt: string | null;
@@ -34,7 +34,7 @@ export interface OptionsSignalSnapshot {
   symbol: string;
   direction: 'BUY' | 'SELL';
   signalCreatedAt: string;
-  analysisTimeframe: '30m' | '1h' | '2h' | '4h' | '6h' | '8h' | '12h' | '1d' | '1w';
+  analysisTimeframe: string;
   strategyIds: string[];
   confluenceScore: number;
   upperBand: number;
