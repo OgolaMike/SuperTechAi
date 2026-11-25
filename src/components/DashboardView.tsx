@@ -20,14 +20,6 @@ type Props = {
 };
 
 export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, unifiedSignals, onNavigate }: Props) {
-  const signalSummary = selectedSymbols.reduce((summary, symbol) => {
-    for (const timeframe of TIMEFRAMES) {
-      const direction = states[symbol]?.[timeframe.granularity]?.latestSignal?.direction;
-      if (direction === 'BUY') summary.buy += 1;
-      if (direction === 'SELL') summary.sell += 1;
-    }
-    return summary;
-  }, { buy: 0, sell: 0 });
   const unifiedSignal = unifiedSignals.find((signal) => signal.symbol === selectedSymbols[0]) ?? null;
   const totalSignals = unifiedSignal ? 1 : 0;
 
