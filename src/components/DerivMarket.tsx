@@ -46,7 +46,7 @@ function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']):
 
 export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel }: Props) {
   const [selectedSymbol, setSelectedSymbol] = useState('');
-  const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M15') ?? TIMEFRAMES[0]);
+  const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M30') ?? TIMEFRAMES[0]);
   const [visibleCount, setVisibleCount] = useState(60);
   const [spacing, setSpacing] = useState(12);
   const [showSma, setShowSma] = useState(true);
