@@ -4,6 +4,7 @@ import {
   findConfirmedPivots,
 } from "./marketStructureSar.ts";
 import type { Candle } from "./deriv.ts";
+import { backtestMarketStructureSar } from "./marketStructureSar_backtest.ts";
 
 function candles(count: number, startEpoch = 1_800_000_000): Candle[] {
   return Array.from({ length: count }, (_, index) => {
@@ -59,5 +60,33 @@ Deno.test("Swing pivots are not confirmed until two candles form on the right", 
   }
   if (findConfirmedPivots(data.slice(0, 4), true).length !== 0) {
     throw new Error("Expected no confirmed pivot with fewer than two right-side candles");
+  }
+});
+
+
+Deno.test("Market Structure SAR backtest reports no fabricated trades without a signal", () => {
+  const data = candles(120);
+  const report = backtestMarketStructureSar("TEST", data, { targetR: 1 });
+  if (report.tradeCount !== 0 || report.winRate !== null || report.netR !== 0) {
+    throw new Error("Expected an empty, neutral report when no strategy signal exists");
+  }
+});
+
+Deno.test("Market Structure SAR backtest rejects invalid target and cost assumptions", () => {
+  const data = candles(100);
+  let rejectedTarget = false;
+  let rejectedCost = false;
+  try {
+    backtestMarketStructureSar("TEST", data, { targetR: 0 });
+  } catch {
+    rejectedTarget = true;
+  }
+  try {
+    backtestMarketStructureSar("TEST", data, { targetR: 1, roundTripCost: -1 });
+  } catch {
+    rejectedCost = true;
+  }
+  if (!rejectedTarget || !rejectedCost) {
+    throw new Error("Expected invalid backtest assumptions to be rejected");
   }
 });
