@@ -45,7 +45,7 @@
     "objective": "Recognise a high-confluence alert and why confirmation still matters.",
     "steps": [
       "Super Signal combines ten timeframe reads under one H4-led decision.",
-      "The alert appears when all required timeframes align.",
+      "All ten readings must be fresh, at least six of the nine supporting frames must agree with H4, and none may oppose it. Neutral readings may remain.",
       "Review reversal context and the underlying chart before acting.",
       "If conditions change, wait for a fresh setup instead of chasing price."
     ],
@@ -171,7 +171,7 @@
       "M15 remains the minimum execution timeframe. M5 and M1 refine timing only; they cannot overrule higher-timeframe direction or create separate trade instructions.",
       "A candle on a higher timeframe is not complete until that full period ends."
     ],
-    "narration": "Think of timeframes like maps. A daily chart shows the wider journey, while the 1-minute chart gives a detailed timing view, while actual trade execution still respects the 15-minute minimum. Each timeframe answers a different question. Start with the wider picture, then use the official analysis set to confirm direction."
+    "narration": "Think of timeframes like maps. A daily chart shows the wider journey, while the 1-minute chart gives a detailed timing view. Actual trade execution still respects the 15-minute minimum. Each timeframe answers a different question. Start with the wider picture, then use the official analysis set to confirm direction."
   },
   {
     "id": "trend-structure",
