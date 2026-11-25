@@ -25,7 +25,7 @@ export function StrategyConfluencePanel({ results, assets }: Props) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div><p className="font-semibold text-ink">{names.get(result.symbol) ?? result.symbol}</p><p className="text-xs text-ink-3">{result.symbol}</p></div>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${result.status === 'HIGH_CONFLUENCE' ? 'bg-up/10 text-up' : result.status === 'CONFLICT' ? 'bg-down/10 text-down' : 'border border-line/20 text-ink-3'}`}>
-                  {result.status.replaceAll('_', ' ')}
+                  {result.status.replace(/_/g, ' ')}
                 </span>
               </div>
               <div className="mt-4 flex items-end justify-between gap-3">
