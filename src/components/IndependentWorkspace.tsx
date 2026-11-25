@@ -2,12 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Activity, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Bot, CandlestickChart,
   CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Coins, LayoutDashboard,
-  LogOut, Menu, Radio, RefreshCw, ShieldCheck, Signal, Sparkles, TrendingUp,
-  Wallet, X,
+  LogOut, Menu, Radio, ShieldCheck, Signal, Sparkles, TrendingUp, Wallet, X,
 } from 'lucide-react';
-import { signOut } from '@/lib/auth';
 
-type Props = { email: string; userId: string; onSignOut: () => Promise<void> };
+type Props = { email: string; onSignOut: () => Promise<void> };
 type Tick = { quote: number; epoch: number };
 type Market = { symbol: string; label: string; kind: string; digits: number };
 
@@ -36,7 +34,7 @@ const NAV = [
 
 type Page = typeof NAV[number]['id'];
 
-export function IndependentWorkspace({ email, userId, onSignOut }: Props) {
+export function IndependentWorkspace({ email, onSignOut }: Props) {
   const [page, setPage] = useState<Page>('overview');
   const [market, setMarket] = useState(MARKETS[0]);
   const [ticks, setTicks] = useState<Tick[]>([]);
@@ -150,7 +148,7 @@ export function IndependentWorkspace({ email, userId, onSignOut }: Props) {
           </>}
 
           {page !== 'overview' && <section className="mt-7 rounded-3xl border border-white/[0.08] bg-[#0c1420] p-6 sm:p-8"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.08] text-cyan-200"><Sparkles size={22} /></div><h2 className="mt-5 text-2xl font-bold">{title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{pageDescription(page)}</p><div className="mt-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4"><p className="text-sm font-semibold text-amber-100">Secure integration required</p><p className="mt-1 text-xs leading-5 text-slate-400">This module is present in the independent workspace. Its live records and actions will appear after the Appwrite tables and authenticated API services are connected. No sample trades, balances, referrals or signals are fabricated.</p></div><button onClick={() => setPage('overview')} className="mt-5 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.05]">Back to overview</button></section>}
-          <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] pt-5 text-[10px] text-slate-600"><span>SUPERTECH AI · Be part of the AI revolution.</span><span className="max-w-[50%] truncate">Member ID: {userId}</span></footer>
+          <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] pt-5 text-[10px] text-slate-600"><span>SUPERTECH AI · Be part of the AI revolution.</span><span>Signed in securely · Appwrite</span></footer>
         </main>
       </div>
     </div>
