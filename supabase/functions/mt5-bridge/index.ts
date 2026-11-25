@@ -473,7 +473,7 @@ Deno.serve(async (req) => {
       const account = body.account && typeof body.account === "object" ? body.account : {};
       const { data: settings, error: settingsError } = await db
         .from("mt5_account_settings")
-        .select("login,server")
+        .select("login,server,five_minute_momentum_enabled,five_minute_momentum_symbol,five_minute_momentum_lot_size,place_new_orders,live_execution_enabled,emergency_stop,risk_controls_enabled,max_spread_points,max_slippage_points,max_daily_loss_pct")
         .eq("user_id", worker.user_id)
         .maybeSingle();
       if (settingsError || !settings) throw settingsError ?? new Error("account_settings_missing");
@@ -554,6 +554,18 @@ Deno.serve(async (req) => {
         ok: true, serverTime: now, dailyLossPct: Number(dailyLossPct.toFixed(4)),
         dailyEquityChangePct: Number(dailyEquityChangePct.toFixed(4)),
         cashFlowAdjustment, realizedTradingNet, dealCount, historyComplete, utcDate,
+        five_minute_momentum: {
+          enabled: settings.five_minute_momentum_enabled === true,
+          symbol: settings.five_minute_momentum_symbol,
+          lot_size: Number(settings.five_minute_momentum_lot_size ?? 0.1),
+          place_new_orders: settings.place_new_orders === true,
+          live_execution_enabled: settings.live_execution_enabled === true,
+          emergency_stop: settings.emergency_stop !== false,
+          risk_controls_enabled: settings.risk_controls_enabled === true,
+          max_spread_points: Number(settings.max_spread_points ?? 0),
+          max_slippage_points: Number(settings.max_slippage_points ?? 0),
+          max_daily_loss_pct: Number(settings.max_daily_loss_pct ?? 2),
+        },
       });
     }
 
