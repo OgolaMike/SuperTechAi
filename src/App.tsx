@@ -82,7 +82,7 @@ function App() {
   const [alertPreferencesReady, setAlertPreferencesReady] = useState(false);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>(() => new URLSearchParams(window.location.search).get('view') === 'options-trader' ? 'options-trader' : 'dashboard');
   const [now, setNow] = useState<number>(currentEpoch);
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
