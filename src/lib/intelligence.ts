@@ -37,7 +37,7 @@ const PRIMARY_LABEL = 'H4';
 const INTELLIGENCE_TIMEFRAMES = TIMEFRAMES;
 const FRESH_PRIMARY_CANDLES = 8;
 const NEUTRAL_BAND = 0.1;
-const SMA_PERIOD = 60;
+const SMA_PERIOD = 20;
 
 // H4 owns the signal. Supporting frames contribute confirmation, never a competing direction.
 const MIN_SUPPORTING_ALIGNMENT = 6;
