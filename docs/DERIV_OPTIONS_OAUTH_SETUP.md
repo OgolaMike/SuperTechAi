@@ -35,7 +35,7 @@ Never commit these values to GitHub or expose them in Vite/browser environment v
 ## Deploy and verify
 
 1. Apply migration `20261126120000_add_deriv_options_oauth.sql`.
-2. Set the four Edge Function secrets above.
+2. Set the five Edge Function secrets above.
 3. Deploy `deriv-connect`, `deriv-callback`, `deriv-status`, `deriv-disconnect`, and `deriv-options-proposal` to the isolated test backend only.
 4. Register the exact callback URL in Deriv.
 5. Test with a Demo account first. Confirm the returned account list shows the expected account ID, account type and currency.
