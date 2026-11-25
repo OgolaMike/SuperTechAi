@@ -24,6 +24,7 @@ export type PendingOrderIdea = {
 };
 
 const PRIMARY_GRANULARITY = 900;
+const EXECUTION_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => timeframe.granularity >= PRIMARY_GRANULARITY);
 const SIGNAL_MAX_AGE_BARS = 8;
 
 function timeframeBias(state: TfState): Direction | null {
@@ -62,12 +63,12 @@ export function buildPendingOrderIdeas(
     const currentPrice = prices[asset.symbol];
     if (!states || currentPrice == null || !Number.isFinite(currentPrice)) continue;
 
-    const readings = TIMEFRAMES.map((timeframe) => {
+    const readings = EXECUTION_TIMEFRAMES.map((timeframe) => {
       const state = states[timeframe.granularity];
       if (!state || isStale(state, nowEpoch)) return null;
       return timeframeBias(state);
     });
-    if (readings.length !== TIMEFRAMES.length) continue;
+    if (readings.length !== EXECUTION_TIMEFRAMES.length) continue;
 
     const direction = readings[0];
     if (direction == null || !readings.every((bias) => bias === direction)) continue;
