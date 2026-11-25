@@ -68,7 +68,7 @@ export type Asset = {
 export const DEFAULT_ASSET = 'R_25';
 export const MAX_MONITORED_ASSETS = 1;
 
-const SMA_PERIOD = 60;
+const SMA_PERIOD = 20;
 const BB_DEVIATION = 2.5;
 
 export type TfState = {
