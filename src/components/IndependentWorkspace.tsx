@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Bot, CandlestickChart,
+  Activity, ArrowDownRight, ArrowUpRight, Bell, Bot, CandlestickChart,
   CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Coins, LayoutDashboard,
   LogOut, Menu, Radio, ShieldCheck, Signal, Sparkles, TrendingUp, Wallet, X,
 } from 'lucide-react';
