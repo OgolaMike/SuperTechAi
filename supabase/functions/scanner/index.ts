@@ -602,7 +602,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                     strategyVersion: structureSar.strategyVersion,
                     symbol: symbol.symbol,
                     assetName: symbol.name,
-                    timeframe: "M15",
+                    timeframe: "M30",
                     direction: structureSar.direction,
                     digits: symbol.digits,
                     signalEpoch: structureSar.signalEpoch,
@@ -636,7 +636,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                     signal_key: limitSignalKey,
                     kind: "limit_order",
                     payload: {
-                      label: "LIMIT", symbol: symbol.symbol, assetName: symbol.name, timeframe: "M15",
+                      label: "LIMIT", symbol: symbol.symbol, assetName: symbol.name, timeframe: "M30",
                       direction: limitIntent.direction, digits: symbol.digits, signalEpoch: limitIntent.signalEpoch,
                       entry: limitIntent.entry, stopLoss: limitIntent.stopLoss,
                       tp1: limitIntent.takeProfit, tp2: limitIntent.takeProfit, tp3: limitIntent.takeProfit,
