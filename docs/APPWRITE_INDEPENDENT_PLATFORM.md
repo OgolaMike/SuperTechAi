@@ -20,6 +20,23 @@ The current application is not merely using Supabase for login. Supabase is embe
 
 Therefore changing only the login form would leave the new platform dependent on Supabase and would not meet the owner's requirement. The Appwrite deployment must have a provider-specific data/service layer and Appwrite Functions or another Appwrite-compatible backend for protected operations.
 
+## Free hosting for the independent deployment
+
+The independent web frontend is intended for **Cloudflare Pages Free**, not Bolt.new. The existing Bolt deployment remains untouched.
+
+- Framework: Vite + React + TypeScript (already used by this repository).
+- Build command: `npm run build`.
+- Build output directory: `dist`.
+- Production branch: `feat/appwrite-independent-platform-foundation` during validation; use a dedicated release branch after review.
+- SPA routing: `public/_redirects` routes application paths back to `index.html`.
+- Basic response headers: `public/_headers`.
+- Public build-time configuration: `VITE_APPWRITE_ENDPOINT` and `VITE_APPWRITE_PROJECT_ID`.
+- Do not add Appwrite API keys, service-role credentials, exchange secrets, or private keys to frontend environment variables.
+
+Cloudflare Pages is only the frontend host in this design. Appwrite remains the identity/data platform. Any protected server-side feature must be implemented with Appwrite Functions or another secured backend, not placed in the browser bundle.
+
+Cloudflare Pages Free currently documents 500 builds per month, one concurrent build, and custom-domain support. Confirm current account quotas before opening the new site to members.
+
 ## Appwrite foundation
 
 - Endpoint: `https://fra.cloud.appwrite.io/v1`
