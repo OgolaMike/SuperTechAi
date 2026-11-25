@@ -6,14 +6,13 @@ Last checked: 2026-11-25
 
 The official timeframe set is:
 
-`D1, H8, H4, H3, H2, H1, M30, M15, M5, M1`.
+`M30, H1, H2, H3, H4, H6, H8, H12, D1, W1`.
 
-- H4 is the single primary direction.
+- H4 remains the primary direction; W1 adds the highest-level market context.
 - The other nine frames are supporting reads.
 - A signal requires fresh data for all ten frames, at least six supporting reads aligned with H4, and no opposing directional read.
 - Neutral supporting reads are permitted; missing or stale reads are not.
-- M5 and M1 refine timing only. They cannot create independent BUY/SELL signals or trigger broker orders.
-- M15 is the minimum execution/trigger timeframe.
+- M30 is the lowest permitted analysis and execution timeframe; no M1, M5 or M15 feed is part of the official set.
 - If the gate is not satisfied, the unified result is WAIT/no signal.
 
 ## Repository implementation
@@ -21,7 +20,7 @@ The official timeframe set is:
 - Shared frontend timeframe configuration and live candle state include all ten frames.
 - Scanner evaluates the same H4-led ten-frame gate.
 - Super Signal remains one H4-anchored result; timeframe tiles show support/neutral/missing/opposing state rather than separate instructions.
-- Pending Orders use H4 for direction, require at least six of nine supporting reads without opposition, and use a fresh M15 signal as the trigger.
+- Pending Orders use H4 for direction, require at least six of nine supporting reads without opposition, and use a fresh M30 signal as the trigger.
 - Binance Futures and OKX Futures executor gates require at least 7/10 agreement (H4 plus six supporting frames).
 - Pure Price Action remains indicator-free and now displays confirmed market structure, swing highs/lows, and the last closed candle below its chart.
 
@@ -48,7 +47,7 @@ The repository verification workflows run:
 
 The Supabase project is reported as `ACTIVE_HEALTHY`, but scanner invocations from the existing one-minute cron are currently receiving HTTP 402. The recorded response body says the project service is restricted because it exceeded its egress quota and that the project owner must upgrade the plan or remove spend caps to restore service.
 
-The scanner state last recorded a successful run on 2026-11-15. Consequently, current live M1/M5 scanner-feed coverage cannot be claimed from database marks.
+The scanner state last recorded a successful run on 2026-11-15. Consequently, the old M1/M5 feed coverage is historical only and is no longer part of the official timeframe set.
 
 The deployed Edge Function versions observed at the time of this check were:
 
