@@ -211,7 +211,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
 
       <div>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-bold uppercase tracking-wider text-ink-3">Ten-timeframe confirmation</div><span className="rounded-lg border border-up/25 bg-up/10 px-3 py-1.5 text-sm font-black text-up">{record.grade_percent == null ? 'Grade unavailable for this older record' : `${record.grade_percent}% · ${record.confirmation_timeframe} completed alignment`}</span></div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+        <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
           {TIMEFRAMES.map((timeframe) => {
             const read = record.reads.find((item) => item.label === timeframe.label);
             const agrees = read?.agrees === true;
@@ -241,7 +241,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
 
       <div className="rounded-xl border border-line/10 bg-surface/[0.025] p-3">
         <div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">What confirmed it</div>
-        <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'All eight timeframes confirmed the same direction at the time this signal fired.'}</p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'The ten-frame engine confirmed one H4-led direction at the time this signal fired.'}</p>
       </div>
 
 
