@@ -3,7 +3,7 @@ import type { Candle } from "./deriv.ts";
 export type MarketStructureSarSignal = {
   symbol: string;
   direction: "BUY" | "SELL";
-  timeframe: "M15";
+  timeframe: "M30";
   signalEpoch: number;
   entry: number;
   stopLoss: number;
@@ -116,11 +116,11 @@ export function buildMarketStructureSarSignal(
   nowEpoch: number,
 ): MarketStructureSarSignal | null {
   const closed = candles
-    .filter((c) => c.epoch + 900 <= nowEpoch)
+    .filter((c) => c.epoch + 3600 <= nowEpoch)
     .sort((a, b) => a.epoch - b.epoch);
   if (closed.length < 80) return null;
   const latest = closed[closed.length - 1];
-  if (nowEpoch - (latest.epoch + 900) > 1800) return null;
+  if (nowEpoch - (latest.epoch + 3600) > 3600) return null;
 
   const highs = findPivots(closed, true).slice(-2);
   const lows = findPivots(closed, false).slice(-2);
@@ -158,7 +158,7 @@ export function buildMarketStructureSarSignal(
   if (!(entry > 0 && stopLoss > 0 && trailingStop > 0)) return null;
 
   return {
-    symbol, direction, timeframe: "M15", signalEpoch: latest.epoch,
+    symbol, direction, timeframe: "M30", signalEpoch: latest.epoch,
     entry, stopLoss, trailingStop, atr: currentAtr, sar, previousSar,
     swingHighs: [highs[0].price, highs[1].price],
     swingLows: [lows[0].price, lows[1].price],
