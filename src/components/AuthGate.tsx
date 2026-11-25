@@ -31,7 +31,6 @@ export function AuthGate() {
 
   return <IndependentWorkspace
     email={session.user.email}
-    userId={session.user.id}
     onSignOut={signOut}
   />;
 }
