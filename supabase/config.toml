@@ -46,3 +46,15 @@ verify_jwt = true
 [functions.nfc-community]
 # Public card verification is read-only; all management actions validate the caller JWT inside the function.
 verify_jwt = false
+
+[functions.deriv-connect]
+verify_jwt = true
+
+[functions.deriv-callback]
+verify_jwt = false
+
+[functions.deriv-status]
+verify_jwt = true
+
+[functions.deriv-disconnect]
+verify_jwt = true
