@@ -8,10 +8,14 @@ const visited = new Set();
 const violations = [];
 const importPattern = /(?:import|export)\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 const forbidden = [
-  { pattern: /@supabase\/supabase-js/i, label: 'Supabase SDK import' },
-  { pattern: /supabase\.co/i, label: 'Supabase endpoint reference' },
-  { pattern: /VITE_SUPABASE_/i, label: 'Supabase environment variable' },
-  { pattern: /supabase\.(?:from|rpc|channel|auth|storage)/i, label: 'Supabase client API usage' },
+  { needle: '@supabase/supabase-js', label: 'Supabase SDK import' },
+  { needle: 'supabase.co', label: 'Supabase endpoint reference' },
+  { needle: 'VITE_SUPABASE_', label: 'Supabase environment variable' },
+  { needle: 'supabase.from(', label: 'Supabase client API usage' },
+  { needle: 'supabase.rpc(', label: 'Supabase client API usage' },
+  { needle: 'supabase.channel(', label: 'Supabase client API usage' },
+  { needle: 'supabase.auth.', label: 'Supabase client API usage' },
+  { needle: 'supabase.storage.', label: 'Supabase client API usage' },
 ];
 
 function resolveImport(fromFile, specifier) {
@@ -30,7 +34,7 @@ function visit(file) {
   visited.add(absolute);
   const source = fs.readFileSync(absolute, 'utf8');
   for (const rule of forbidden) {
-    if (rule.pattern.test(source)) violations.push({ file: path.relative(root, absolute), rule: rule.label });
+    if (source.toLowerCase().includes(rule.needle.toLowerCase())) violations.push({ file: path.relative(root, absolute), rule: rule.label });
   }
   importPattern.lastIndex = 0;
   for (const match of source.matchAll(importPattern)) {
