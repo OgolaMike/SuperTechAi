@@ -332,7 +332,7 @@ function evaluateSuperSignal(
     if (bias !== "NEUTRAL" && bias !== expected) anyTimeframeOpposes = true;
   }
 
-  // Require at least six of nine supporting frames; D1/H8 may never oppose H4.
+  // Require at least six of nine supporting frames; no supporting timeframe, including M1/M5, may oppose H4.
   if (supporting.length !== 9 || supportingAligned < 6 || anyTimeframeOpposes) return null;
   return {
     direction: primary.direction,
