@@ -36,6 +36,32 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   const countdown = daysRemaining > 0
     ? `${daysRemaining}d ${String(hoursRemaining).padStart(2, '0')}:${String(minutesRemaining).padStart(2, '0')}:${String(secondsPart).padStart(2, '0')}`
     : `${String(hoursRemaining).padStart(2, '0')}:${String(minutesRemaining).padStart(2, '0')}:${String(secondsPart).padStart(2, '0')}`;
+  const closedData = candles.filter(c => c.epoch + setup.granularity <= clockEpoch).slice(-60);
+  const swingHighs: Array<{ index: number; price: number }> = [];
+  const swingLows: Array<{ index: number; price: number }> = [];
+  for (let i = 2; i < closedData.length - 2; i++) {
+    const candle = closedData[i];
+    if ([closedData[i-2], closedData[i-1]].every(c => candle.high >= c.high)
+      && [closedData[i+1], closedData[i+2]].every(c => candle.high > c.high)) swingHighs.push({ index: i, price: candle.high });
+    if ([closedData[i-2], closedData[i-1]].every(c => candle.low <= c.low)
+      && [closedData[i+1], closedData[i+2]].every(c => candle.low < c.low)) swingLows.push({ index: i, price: candle.low });
+  }
+  const lastTwoHighs = swingHighs.slice(-2);
+  const lastTwoLows = swingLows.slice(-2);
+  const highTag = lastTwoHighs.length === 2 ? (lastTwoHighs[1].price > lastTwoHighs[0].price ? 'HH' : lastTwoHighs[1].price < lastTwoHighs[0].price ? 'LH' : 'EQH') : '—';
+  const lowTag = lastTwoLows.length === 2 ? (lastTwoLows[1].price > lastTwoLows[0].price ? 'HL' : lastTwoLows[1].price < lastTwoLows[0].price ? 'LL' : 'EQL') : '—';
+  const structureLabel = highTag === 'HH' && lowTag === 'HL' ? 'Bullish structure'
+    : highTag === 'LH' && lowTag === 'LL' ? 'Bearish structure'
+    : highTag !== '—' && lowTag !== '—' ? 'Mixed / transitioning' : 'Structure developing';
+  const lastClosed = closedData[closedData.length - 1];
+  const lastRange = lastClosed ? Math.max(lastClosed.high - lastClosed.low, 1e-12) : 0;
+  const bodyPercent = lastClosed ? Math.round(Math.abs(lastClosed.close - lastClosed.open) / lastRange * 100) : null;
+  const candleRead = !lastClosed ? 'Waiting for closed candle'
+    : (bodyPercent ?? 0) <= 15 ? 'Indecision candle'
+    : lastClosed.close > lastClosed.open ? 'Bullish close' : lastClosed.close < lastClosed.open ? 'Bearish close' : 'Flat close';
+  const wickRead = !lastClosed ? '—'
+    : lastClosed.high - Math.max(lastClosed.open, lastClosed.close) > (Math.min(lastClosed.open, lastClosed.close) - lastClosed.low) * 1.5 ? 'Upper-wick rejection'
+    : Math.min(lastClosed.open, lastClosed.close) - lastClosed.low > (lastClosed.high - Math.max(lastClosed.open, lastClosed.close)) * 1.5 ? 'Lower-wick rejection' : 'Balanced wicks';
   if (data.length < 2) return <div className="grid h-56 place-items-center text-sm text-slate-400">Waiting for candle history…</div>;
   const W = 1200;
   const H = fullscreen ? 650 : 340;
@@ -84,6 +110,29 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
       <line x1={P.left} x2={W-P.right} y1={y(setup.entry)} y2={y(setup.entry)} stroke="#e2e8f0" strokeWidth="1.8" strokeDasharray="3 5" opacity=".95"/><rect x={W-P.right+4} y={y(setup.entry)-12} width="104" height="24" rx="4" fill="#475569"/><text x={W-P.right+56} y={y(setup.entry)+4} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">ENTRY {fmt(setup.entry)}</text>
       <text x={P.left+6} y={H-10} fill="#64748b" fontSize="11" fontWeight="700">SUPERTECH AI · PURE PRICE ACTION · {setup.timeframe}</text>
     </svg>
+    <div className="grid grid-cols-2 gap-2 border-t border-white/10 bg-[#0b1422] p-3 sm:grid-cols-4">
+      <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] p-3">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Market structure</p>
+        <p className={`mt-1 text-xs font-black ${structureLabel === 'Bullish structure' ? 'text-emerald-300' : structureLabel === 'Bearish structure' ? 'text-rose-300' : 'text-amber-200'}`}>{structureLabel}</p>
+        <p className="mt-1 text-[10px] text-slate-500">Confirmed swing sequence</p>
+      </div>
+      <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] p-3">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Swing high</p>
+        <p className="mt-1 text-xs font-black text-white">{highTag} · {lastTwoHighs.length ? fmt(lastTwoHighs[1].price) : 'Building'}</p>
+        <p className="mt-1 text-[10px] text-slate-500">HH higher · LH lower</p>
+      </div>
+      <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] p-3">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Swing low</p>
+        <p className="mt-1 text-xs font-black text-white">{lowTag} · {lastTwoLows.length ? fmt(lastTwoLows[1].price) : 'Building'}</p>
+        <p className="mt-1 text-[10px] text-slate-500">HL higher · LL lower</p>
+      </div>
+      <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] p-3">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Last closed candle</p>
+        <p className="mt-1 text-xs font-black text-white">{candleRead}</p>
+        <p className="mt-1 text-[10px] text-slate-400">{bodyPercent == null ? '—' : `${bodyPercent}% body`} · {wickRead}</p>
+      </div>
+    </div>
+    <p className="border-t border-white/5 bg-[#080e19] px-3 py-2 text-[10px] text-slate-500">Pure price action readings use confirmed candle highs, lows and closes only. They are context, not additional BUY/SELL signals.</p>
   </div>;
 }
 
