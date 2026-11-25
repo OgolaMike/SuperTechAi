@@ -28,8 +28,8 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
     }
     return summary;
   }, { buy: 0, sell: 0 });
-  const totalSignals = unifiedSignals.length;
-  const unifiedSignal = unifiedSignals[0] ?? null;
+  const unifiedSignal = unifiedSignals.find((signal) => signal.symbol === selectedSymbols[0]) ?? null;
+  const totalSignals = unifiedSignal ? 1 : 0;
 
   const shortcuts: { label: string; detail: string; view: View; icon: typeof Compass }[] = [
     { label: 'All signals', detail: 'Explore every timeframe', view: 'records', icon: BarChart3 },
@@ -77,7 +77,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         </div>
       </section>
 
-      <section id={`asset-dashboard-${encodeURIComponent(symbol)}`} className="mt-7">
+      <section className="mt-7">
         <div className="mb-3 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">QUICK ACCESS</p>
@@ -113,7 +113,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         const asset = assetMap.get(symbol) ?? { symbol, name: symbol, fullName: symbol, digits: 4 };
         const assetStates = states[symbol] ?? {};
         return (
-          <section key={symbol} className="mt-7">
+          <section id={`asset-dashboard-${encodeURIComponent(symbol)}`} key={symbol} className="mt-7">
             <div className="mb-3 flex items-center gap-3">
               <div className="h-px flex-1 bg-line/10" />
               <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-2">{asset.fullName}</h3>
