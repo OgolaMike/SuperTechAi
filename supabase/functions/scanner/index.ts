@@ -14,8 +14,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
-// H4 is the single primary trigger. M15, M5 and M1 contribute confirmation only;
-// no lower timeframe can publish a competing dashboard BUY/SELL instruction.
+// H4 is the single primary trigger. The other nine frames provide confirmation;
+// M5/M1 refine entry timing only and never publish competing dashboard instructions.
 // H2/H3/H4/H8 are built from complete hourly candles for consistent market bars.
 const TIMEFRAMES = [
   { granularity: 86400, label: "D1", candleCount: 366 },
