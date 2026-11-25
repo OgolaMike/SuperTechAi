@@ -46,6 +46,10 @@ import { playAlertTone } from '@/lib/alertSound';
 import { ensureNotificationPermission } from '@/lib/deviceNotify';
 import { trainSignalLearningModel, type SignalLearningModel } from '@/lib/aiLearning';
 import { buildSuperSignals } from '@/lib/intelligence';
+import { buildBreakRetestSetups } from '@/lib/breakRetest';
+import { evaluateThreeHourWick } from '@/lib/threeHourWick';
+import { evaluateStrategyConfluence, type StrategyAssessment } from '@/lib/strategyConfluence';
+import { StrategyConfluencePanel } from '@/components/StrategyConfluencePanel';
 import { fetchSignalRecords } from '@/lib/signalRecords';
 import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
 import { useSession } from '@/lib/sessionContext';
@@ -99,6 +103,55 @@ function App() {
   const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.symbol, asset])), [assets]);
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
+  // Each engine publishes its own assessment. Confluence observes these outputs
+  // but never changes the source strategy's direction or signal lifecycle.
+  const confluenceResults = useMemo(() => {
+    const assessments: StrategyAssessment[] = [];
+    const superBySymbol = new Map(superSignals.map((signal) => [signal.symbol, signal]));
+    const breakRetestBySymbol = new Map<string, ReturnType<typeof buildBreakRetestSetups>[number]>();
+    for (const setup of buildBreakRetestSetups(assets, states)) {
+      const current = breakRetestBySymbol.get(setup.symbol);
+      if (!current || setup.confirmationEpoch > current.confirmationEpoch) breakRetestBySymbol.set(setup.symbol, setup);
+    }
+    for (const asset of assets) {
+      const tenFrame = superBySymbol.get(asset.symbol);
+      assessments.push({
+        strategyId: 'ten-timeframe', strategyName: 'Ten-Timeframe Intelligence', symbol: asset.symbol,
+        direction: tenFrame?.direction ?? null, status: tenFrame ? 'SIGNAL' : 'WAIT',
+        signalEpoch: tenFrame?.signalEpoch ?? now, strength: tenFrame?.gradePercent ?? 0, weight: 1,
+        reason: tenFrame?.explanation ?? 'No qualified ten-timeframe agreement.',
+      });
+      const m5Candles = [...(states[asset.symbol]?.[300]?.candles ?? [])].sort((a, b) => a.epoch - b.epoch);
+      const m5Previous = m5Candles[m5Candles.length - 2];
+      const m5Latest = m5Candles[m5Candles.length - 1];
+      const m5Direction = m5Latest && m5Previous && now - (m5Latest.epoch + 300) <= 600
+        ? m5Latest.high > m5Previous.high ? 'BUY' : m5Latest.low < m5Previous.low ? 'SELL' : null
+        : null;
+      assessments.push({
+        strategyId: 'm5-hh-ll', strategyName: 'M5 HH/LL Momentum', symbol: asset.symbol,
+        direction: m5Direction, status: m5Direction ? 'SIGNAL' : 'WAIT',
+        signalEpoch: m5Latest?.epoch ?? now, strength: m5Direction ? 70 : 0, weight: 1,
+        reason: m5Direction ? 'Latest completed M5 candle confirms a higher high or lower low.' : 'No fresh M5 higher-high or lower-low trigger.',
+      });
+      const breakRetest = breakRetestBySymbol.get(asset.symbol);
+      assessments.push({
+        strategyId: 'break-retest', strategyName: 'Break & Retest', symbol: asset.symbol,
+        direction: breakRetest?.direction ?? null, status: breakRetest ? 'SIGNAL' : 'WAIT',
+        signalEpoch: breakRetest?.confirmationEpoch ?? now, strength: breakRetest ? 85 : 0, weight: 1,
+        reason: breakRetest ? 'Closed-candle breakout, retest and confirmation sequence.' : 'No fresh confirmed break-and-retest setup.',
+      });
+      const wick = evaluateThreeHourWick(asset.symbol, states[asset.symbol]?.[14400]?.candles ?? [], now);
+      const candidate = wick.status === 'CONFIRMED' ? wick.candidate : null;
+      assessments.push({
+        strategyId: '3h-wick', strategyName: '3H Wick Intelligence', symbol: asset.symbol,
+        direction: candidate?.direction ?? null, status: candidate ? 'SIGNAL' : 'WAIT',
+        signalEpoch: candidate?.signalEpoch ?? now,
+        strength: candidate ? Math.min(100, Math.round(candidate.wickToBodyRatio / 4 * 100)) : 0,
+        weight: 1, reason: candidate ? 'Independent wick rejection confirmed.' : 'No fresh qualifying wick rejection.',
+      });
+    }
+    return evaluateStrategyConfluence(assessments, now);
+  }, [assets, states, superSignals, now]);
   // H4 is the single primary trigger. It is allowed to alert only after the
   // complete ten-timeframe confluence engine confirms the same direction.
   const unifiedViews = useMemo(() => views.filter((item) => item.granularity === 14400 && superSignals.some((signal) =>
@@ -218,6 +271,7 @@ function App() {
 
         {view === 'strategies' && (
           <section className="mt-8 space-y-7">
+            <StrategyConfluencePanel results={confluenceResults} assets={assets} />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Learn the setup · follow the live scan</p>
               <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Trading Strategies</h2>
@@ -264,7 +318,7 @@ function App() {
             </div>
             <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">These are pattern scans and tracked trade ideas. “Entry reached” is not proof of a broker fill. Check the live chart, market conditions and risk before placing any trade.</div>
             <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />
-            <ThreeHourWickStrategy assets={assets} states={states} unifiedSignals={superSignals} nowEpoch={now} selectedSymbol={selectedSymbols[0]} />
+            <ThreeHourWickStrategy assets={assets} states={states} nowEpoch={now} selectedSymbol={selectedSymbols[0]} />
             <div className="border-t border-line/15 pt-6">
               <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} onOpenDashboard={openSignalChart} />
             </div>
@@ -275,6 +329,7 @@ function App() {
 
         {view === 'super' && (
           <section className="mt-8">
+            <StrategyConfluencePanel results={confluenceResults} assets={assets} />
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
               <h2 className="text-xl font-semibold tracking-tight text-ink">One clear signal from ten timeframes</h2>
