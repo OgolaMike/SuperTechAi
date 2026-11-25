@@ -30,5 +30,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+      - name: Check independent Worker security contract
+        run: npm run check:independent-worker
       - name: Validate independent Cloudflare Worker bundle (dry run only)
         run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
