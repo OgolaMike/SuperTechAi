@@ -8,7 +8,6 @@ type AccountMode = 'demo' | 'real';
 type ContractMode = 'touch' | 'no-touch' | 'both';
 type Props = {
   assets: Asset[];
-  states: Record<string, Record<number, TfState>>;
   prices: Record<string, number>;
   superSignals: SuperSignal[];
   confluenceResults: ConfluenceResult[];
@@ -49,11 +48,13 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
       .map((result) => {
         const asset = assetBySymbol.get(result.symbol);
         const signal = signalBySymbol.get(result.symbol);
-        return asset && signal ? { asset, signal, result, price: prices[result.symbol] ?? null } : null;
+        return asset && signal && nowEpoch >= signal.signalEpoch && nowEpoch - signal.signalEpoch <= 8 * 14400
+          ? { asset, signal, result, price: prices[result.symbol] ?? null }
+          : null;
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => b.result.score - a.result.score);
-  }, [assets, confluenceResults, prices, superSignals]);
+  }, [assets, confluenceResults, nowEpoch, prices, superSignals]);
 
   const strategySignals = useMemo(
     () => confluenceResults.reduce((count, result) => count + result.assessments.filter((item) => item.status === 'SIGNAL').length, 0),
