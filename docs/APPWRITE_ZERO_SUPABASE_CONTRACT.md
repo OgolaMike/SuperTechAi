@@ -126,4 +126,13 @@ These are **schema proposals**, not claims that collections already exist. Creat
 
 ## Current reality
 
-The Appwrite project currently has only the connection-probe collection recorded in the setup notes. The Appwrite account adapter and independent auth gate are present in the feature branch, and the Cloudflare preview hostname has been added to the Appwrite Web platforms. The proposed business collections and service migrations above are **not yet implemented**. No live member or financial data has been copied.
+The Appwrite project currently contains the original `connection_probe` table plus three newly created, partially provisioned member tables:
+
+- `member_profiles` — table ID `6b074d7f001787b0d0c8`; `user_id` and `display_name` were confirmed created; remaining columns are not confirmed complete.
+- `member_roles` — table ID `6b074e04002c1011d8df`; table exists, but its required columns are not yet configured.
+- `membership_entitlements` — table ID `6b074fbd000bd6277c02`; table exists, but its required columns are not yet configured.
+- `membership_events` — creation was not confirmed; do not retry blindly until the database table list is checked.
+
+The browser setup attempt did not complete the indexes or a verified deny-client-access review. Treat the permissions state as **unverified**, not as secured. No member or financial records have been created or copied. Do not enable member-data writes until all columns, indexes, and permissions are inspected and confirmed.
+
+The machine-readable intended schema and exact provisioning state are tracked in `appwrite/schema/member-access.tables.json`. Appwrite account adapter and independent auth gate exist in the feature branch; browser account lifecycle is not yet end-to-end verified. The independent platform is still a foundation, not full feature parity.
