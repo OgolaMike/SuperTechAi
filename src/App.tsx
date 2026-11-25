@@ -30,6 +30,7 @@ import { SignOutButton } from '@/components/SignOutButton';
 import { HeaderBrand, StatusBar, TrendIcons } from '@/components/StatusBar';
 const SuperSignalPanel = lazy(() => import('@/components/SuperSignalPanel').then((module) => ({ default: module.SuperSignalPanel })));
 const BreakRetestPanel = lazy(() => import('@/components/BreakRetestPanel').then((module) => ({ default: module.BreakRetestPanel })));
+const FiveMinuteMomentum = lazy(() => import('@/components/FiveMinuteMomentum').then((module) => ({ default: module.FiveMinuteMomentum })));
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toasts } from '@/components/Toasts';
 import { ViewNav, type View } from '@/components/ViewNav';
@@ -262,6 +263,7 @@ function App() {
           </section>
         )}
         {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />}
+        {view === 'five-minute' && <FiveMinuteMomentum asset={assetMap.get(selectedSymbols[0])} state={states[selectedSymbols[0]]?.[300]} currentPrice={prices[selectedSymbols[0]] ?? null} nowEpoch={now} loaded={loaded} />}
 
         {view === 'super' && (
           <section className="mt-8">
