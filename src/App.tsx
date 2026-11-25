@@ -10,6 +10,7 @@ const NetworkPanel = lazy(() => import('@/components/NetworkPanel').then((module
 const AccountHub = lazy(() => import('@/components/AccountHub').then((module) => ({ default: module.AccountHub })));
 const SmartCommunity = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.SmartCommunity })));
 import { AssetSelector } from '@/components/AssetSelector';
+import { BubbleHistory } from '@/components/BubbleHistory';
 import { AmbientBackground } from '@/components/AmbientBackground';
 const DashboardView = lazy(() => import('@/components/DashboardView').then((module) => ({ default: module.DashboardView })));
 const NotificationSettings = lazy(() => import('@/components/NotificationSettings').then((module) => ({ default: module.NotificationSettings })));
@@ -207,6 +208,7 @@ function App() {
             loaded={loaded}
             soundsEnabled={soundsEnabled}
             aiModel={aiModel}
+            unifiedSignals={superSignals}
             onNavigate={setView}
           />
         )}
@@ -252,22 +254,22 @@ function App() {
               </article>
             </div>
             <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">These are pattern scans and tracked trade ideas. “Entry reached” is not proof of a broker fill. Check the live chart, market conditions and risk before placing any trade.</div>
-            <BreakRetestPanel assets={assets} states={states} prices={prices} />
+            <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />
             <div className="border-t border-line/15 pt-6">
               <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />
             </div>
           </section>
         )}
-        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} selectedSetupKey={selectedBreakRetestKey} />}
+        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} selectedSetupKey={selectedBreakRetestKey} onOpenDashboard={openSignalChart} />}
 
         {view === 'super' && (
           <section className="mt-8">
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
               <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
-              <p className="max-w-2xl text-sm text-ink-2">We wait for all eight timeframes to point in the same direction before announcing a Super Signal.</p>
+              <p className="max-w-2xl text-sm text-ink-2">We wait for all ten timeframes to validate one direction before announcing a Super Signal.</p>
             </div>
-            <SuperSignalPanel selectedSignalKey={selectedSuperSignalKey} signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
+            <SuperSignalPanel selectedSignalKey={selectedSuperSignalKey} signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} onOpenDashboard={openSignalChart} />
           </section>
         )}
 
@@ -281,6 +283,7 @@ function App() {
         {view === 'exchange-markets' && <ExchangeMarkets aiModel={aiModel} onNavigate={setView} />}
         {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
+        {view === 'bubble-history' && <BubbleHistory onOpenDashboard={openSignalChart} />}
 
         <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>
           <NotificationSettings assets={assets} />
