@@ -77,9 +77,14 @@ export function ReversalContextPanel({ assets, states, nowEpoch }: Props) {
     if (!signal || signal.outcome.closed || nowEpoch - signal.signalEpoch > LOOKBACK_SECONDS) return [];
     const reads: Read[] = [
       { label: 'H1', bias: biasFromState(byTimeframe?.[3600], nowEpoch) },
+      { label: 'H2', bias: biasFromState(byTimeframe?.[7200], nowEpoch) },
+      { label: 'H3', bias: biasFromState(byTimeframe?.[10800], nowEpoch) },
       { label: 'H4', bias: biasFromState(byTimeframe?.[14400], nowEpoch) },
+      { label: 'H6', bias: biasFromState(byTimeframe?.[21600], nowEpoch) },
       { label: 'H8', bias: biasFromState(byTimeframe?.[28800], nowEpoch) },
+      { label: 'H12', bias: biasFromState(byTimeframe?.[43200], nowEpoch) },
       { label: 'D1', bias: biasFromState(byTimeframe?.[DAY], nowEpoch) },
+      { label: 'W1', bias: biasFromState(byTimeframe?.[WEEK], nowEpoch) },
     ];
     const expected = expectedBias(signal.direction);
     if (!reads.some((read) => read.bias !== 'No data' && read.bias !== 'Neutral' && read.bias !== expected)) return [];
