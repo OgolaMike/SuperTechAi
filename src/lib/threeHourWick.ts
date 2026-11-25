@@ -23,7 +23,7 @@ export type ThreeHourWickCandidate = {
 };
 
 export type ThreeHourWickEvaluation =
-  | { status: 'WAITING_FOR_DATA' | 'NO_REJECTION' | 'AWAITING_UNIFIED_CONFIRMATION' | 'CONFIRMATION_MISMATCH' | 'STALE_CONFIRMATION' | 'STALE_H4_CANDLE' }
+  | { status: 'WAITING_FOR_DATA' | 'NO_REJECTION' | 'STALE_H4_CANDLE' }
   | { status: 'CONFIRMED'; candidate: ThreeHourWickCandidate };
 
 export const THREE_HOUR_WICK_CONFIG = {
@@ -32,7 +32,7 @@ export const THREE_HOUR_WICK_CONFIG = {
   bollingerDeviation: 2,
   wickToBodyMinimum: 2,
   stopBufferDeviationFraction: 0.1,
-  unifiedMaxAgeCandles: 8,
+  maxSignalAgeCandles: 8,
   forcedExitAfterSeconds: 3 * 60 * 60,
   trailingActivationPercent: 0.7,
   trailingStepPercent: 0.5,
@@ -67,7 +67,7 @@ export function evaluateThreeHourWick(
 
   const candle = closed[closed.length - 1];
   if (nowEpoch - (candle.epoch + THREE_HOUR_WICK_CONFIG.timeframeSeconds) >
-      THREE_HOUR_WICK_CONFIG.unifiedMaxAgeCandles * THREE_HOUR_WICK_CONFIG.timeframeSeconds) {
+      THREE_HOUR_WICK_CONFIG.maxSignalAgeCandles * THREE_HOUR_WICK_CONFIG.timeframeSeconds) {
     return { status: 'STALE_H4_CANDLE' };
   }
   const stats = bands(closed.slice(0, -1).concat(candle));
@@ -83,13 +83,6 @@ export function evaluateThreeHourWick(
   const sell = upperWick >= safeBody * THREE_HOUR_WICK_CONFIG.wickToBodyMinimum && candle.close < candle.open;
   if (buy === sell) return { status: 'NO_REJECTION' };
   const direction: WickDirection = buy ? 'BUY' : 'SELL';
-
-  if (!confirmation || confirmation.symbol !== symbol) return { status: 'AWAITING_UNIFIED_CONFIRMATION' };
-  if (confirmation.direction !== direction) return { status: 'CONFIRMATION_MISMATCH' };
-  if (confirmation.signalEpoch > nowEpoch ||
-      nowEpoch - confirmation.signalEpoch > THREE_HOUR_WICK_CONFIG.unifiedMaxAgeCandles * THREE_HOUR_WICK_CONFIG.timeframeSeconds) {
-    return { status: 'STALE_CONFIRMATION' };
-  }
 
   const entry = candle.close;
   const buffer = stats.deviation * THREE_HOUR_WICK_CONFIG.stopBufferDeviationFraction;
