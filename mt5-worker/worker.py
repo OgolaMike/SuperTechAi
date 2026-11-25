@@ -404,7 +404,7 @@ def close_due_five_minute_positions(max_slippage_points: int) -> None:
         symbol_info = mt5.symbol_info(str(position.symbol))
         tick = mt5.symbol_info_tick(str(position.symbol))
         if symbol_info is None or tick is None:
-            log.warning("Five Minute Momentum close delayed: market quote unavailable")
+            log.warning("Thirty Minute Momentum close delayed: market quote unavailable")
             continue
         is_buy = int(position.type) == int(mt5.POSITION_TYPE_BUY)
         request = {
@@ -421,20 +421,20 @@ def close_due_five_minute_positions(max_slippage_points: int) -> None:
         }
         check = mt5.order_check(request)
         if not broker_order_check_passed(check):
-            log.warning("Five Minute Momentum close broker check rejected for ticket %s", position.ticket)
+            log.warning("Thirty Minute Momentum close broker check rejected for ticket %s", position.ticket)
             continue
         result = mt5.order_send(request)
         if result is None or int(getattr(result, "retcode", -1)) not in {
             int(getattr(mt5, "TRADE_RETCODE_DONE", 10009)),
             int(getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)),
         }:
-            log.warning("Five Minute Momentum close not confirmed for ticket %s; will retry only while broker still reports it open", position.ticket)
+            log.warning("Thirty Minute Momentum close not confirmed for ticket %s; will retry only while broker still reports it open", position.ticket)
         else:
-            log.info("Five Minute Momentum closed ticket %s at its five-minute boundary", position.ticket)
+            log.info("Thirty Minute Momentum closed ticket %s at its 30-minute boundary", position.ticket)
 
 
 def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_loss_pct: float = 100.0) -> None:
-    """Evaluate broker M5 candles and execute one raw HH/LL market trade per bar."""
+    """Evaluate broker M30 candles and execute one raw HH/LL market trade per bar."""
     settings = config or {}
     max_slippage = int(settings.get("max_slippage_points", 0) or 0)
     # Exit management remains active even if the member disables new entries.
@@ -455,7 +455,7 @@ def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_lo
     symbol = str(settings.get("symbol", "")).strip()
     if not symbol or len(symbol) > 40 or not mt5.symbol_select(symbol, True):
         return
-    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M5, 0, 3)
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 3)
     if rates is None or len(rates) < 3:
         return
     current_bar_epoch = int(rates[0]["time"])
@@ -467,11 +467,11 @@ def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_lo
     if current_bar_epoch == previous_seen:
         return
     MOMENTUM_LAST_BAR[symbol] = current_bar_epoch
-    # Missed bars are never replayed; only the immediately following M5 open is eligible.
-    if current_bar_epoch <= previous_seen or current_bar_epoch - previous_seen != 300:
+    # Missed bars are never replayed; only the immediately following M30 open is eligible.
+    if current_bar_epoch <= previous_seen or current_bar_epoch - previous_seen != 1800:
         return
     if int(time.time()) - current_bar_epoch > 5:
-        log.info("Five Minute Momentum skipped a late M5 open for %s", symbol)
+        log.info("Thirty Minute Momentum skipped a late M30 open for %s", symbol)
         return
 
     direction = detect_signal(rates[2], rates[1])
@@ -485,7 +485,7 @@ def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_lo
     positions = mt5.positions_get()
     pending = mt5.orders_get()
     if account is None or terminal is None or symbol_info is None or tick is None or positions is None or pending is None:
-        log.warning("Five Minute Momentum skipped: broker state unavailable")
+        log.warning("Thirty Minute Momentum skipped: broker state unavailable")
         return
     if not terminal.connected or not account.trade_allowed or bool(getattr(terminal, "tradeapi_disabled", False)):
         return
@@ -521,7 +521,7 @@ def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_lo
     }
     check = mt5.order_check(request)
     if not broker_order_check_passed(check):
-        log.warning("Five Minute Momentum broker preflight rejected %s %s", direction, symbol)
+        log.warning("Thirty Minute Momentum broker preflight rejected %s %s", direction, symbol)
         return
     # Claim this account/symbol/bar atomically before sending to prevent duplicate workers.
     claim = api_call(token, {
@@ -531,7 +531,7 @@ def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_lo
         "barEpoch": current_bar_epoch,
     })
     if claim.get("error") or claim.get("claimed") is not True or not claim.get("barId"):
-        log.info("Five Minute Momentum bar not claimed (%s); no broker order sent",
+        log.info("Thirty Minute Momentum bar not claimed (%s); no broker order sent",
                  claim.get("reason", claim.get("error", "claim_denied")))
         return
     bar_id = str(claim["barId"])
@@ -544,12 +544,12 @@ def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_lo
     except Exception:
         api_call(token, {"action": "record_five_minute_bar", "barId": bar_id,
                          "state": "uncertain", "brokerMessage": "MT5 send raised an exception"})
-        log.warning("Five Minute Momentum send outcome uncertain; candle will not be retried")
+        log.warning("Thirty Minute Momentum send outcome uncertain; candle will not be retried")
         return
     if result is None:
         api_call(token, {"action": "record_five_minute_bar", "barId": bar_id,
                          "state": "uncertain", "brokerMessage": "MT5 returned no send result"})
-        log.warning("Five Minute Momentum send outcome uncertain; candle will not be retried")
+        log.warning("Thirty Minute Momentum send outcome uncertain; candle will not be retried")
         return
     retcode = int(getattr(result, "retcode", -1))
     state = "accepted" if retcode in accepted else "rejected"
@@ -561,10 +561,10 @@ def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_lo
         "brokerMessage": str(getattr(result, "comment", ""))[:120],
     })
     if state != "accepted":
-        log.warning("Five Minute Momentum %s %s rejected by broker (retcode=%s)", direction, symbol, retcode)
+        log.warning("Thirty Minute Momentum %s %s rejected by broker (retcode=%s)", direction, symbol, retcode)
         return
-    log.info("Five Minute Momentum opened %s %s volume=%s at M5 bar %s; scheduled exit at %s",
-             direction, symbol, volume, current_bar_epoch, current_bar_epoch + 300)
+    log.info("Thirty Minute Momentum opened %s %s volume=%s at M30 bar %s; scheduled exit at %s",
+             direction, symbol, volume, current_bar_epoch, current_bar_epoch + 1800)
 
 
 def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
@@ -685,7 +685,7 @@ def main() -> None:
                 try:
                     run_five_minute_momentum(token, momentum_config, daily_loss_pct)
                 except Exception as momentum_error:
-                    log.warning("Five Minute Momentum cycle failed: %s", type(momentum_error).__name__)
+                    log.warning("Thirty Minute Momentum cycle failed: %s", type(momentum_error).__name__)
                 time.sleep(MOMENTUM_CHECK_SECONDS)
         except KeyboardInterrupt:
             log.info("Stopping worker")
@@ -701,7 +701,7 @@ def main() -> None:
                         int(last_momentum_config.get("max_slippage_points", 10) or 10)
                     )
                 except Exception as close_error:
-                    log.warning("Offline M5 close check failed: %s", type(close_error).__name__)
+                    log.warning("Offline M30 close check failed: %s", type(close_error).__name__)
                 time.sleep(MOMENTUM_CHECK_SECONDS)
             backoff = min(backoff * 2, 60)
     mt5.shutdown()
