@@ -76,8 +76,6 @@ function App() {
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
   const [view, setView] = useState<View>('dashboard');
-  const [selectedSuperSignalKey, setSelectedSuperSignalKey] = useState('');
-  const [selectedBreakRetestKey, setSelectedBreakRetestKey] = useState('');
   const [now, setNow] = useState<number>(currentEpoch);
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
@@ -140,7 +138,7 @@ function App() {
     setView('dashboard');
   };
 
-  const openSignalChart = (symbol: string, _granularity: number, _chartTargetId?: string, _selectedSignalKey?: string) => {
+  const openSignalChart = (symbol: string) => {
     // Every signal source returns to the single-asset dashboard. Selecting a signal
     // changes the dashboard asset rather than adding another monitored asset.
     updateSelected([symbol]);
@@ -263,7 +261,7 @@ function App() {
             </div>
           </section>
         )}
-        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} selectedSetupKey={selectedBreakRetestKey} onOpenDashboard={openSignalChart} />}
+        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />}
 
         {view === 'super' && (
           <section className="mt-8">
@@ -272,7 +270,7 @@ function App() {
               <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
               <p className="max-w-2xl text-sm text-ink-2">We wait for all ten timeframes to validate one direction before announcing a Super Signal.</p>
             </div>
-            <SuperSignalPanel selectedSignalKey={selectedSuperSignalKey} signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} onOpenDashboard={openSignalChart} />
+            <SuperSignalPanel signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} onOpenDashboard={openSignalChart} />
           </section>
         )}
 
