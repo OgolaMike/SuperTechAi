@@ -5,8 +5,8 @@ function roc(values:number[], periods:number):number|null { if(values.length<=pe
 function percentile(values:number[],p:number):number { const sorted=values.filter(Number.isFinite).sort((a,b)=>a-b); return sorted.length?sorted[Math.min(sorted.length-1,Math.floor((sorted.length-1)*p))]:Number.POSITIVE_INFINITY; }
 /** Closed-candle, adaptive-momentum STOP-entry signal proposal. No order execution. */
 export function buildHighRocStopSignal(symbol:string,candles:Candle[],nowEpoch:number):HighRocStopSignal|null {
- const closed=candles.filter(c=>c.epoch+900<=nowEpoch).sort((a,b)=>a.epoch-b.epoch); if(closed.length<100)return null;
- const latest=closed[closed.length-1]; if(nowEpoch-(latest.epoch+900)>1800)return null; const closes=closed.map(c=>c.close);
+ const closed=candles.filter(c=>c.epoch+1800<=nowEpoch).sort((a,b)=>a.epoch-b.epoch); if(closed.length<100)return null;
+ const latest=closed[closed.length-1]; if(nowEpoch-(latest.epoch+1800)>3600)return null; const closes=closed.map(c=>c.close);
  const r3=roc(closes,3),r6=roc(closes,6),r12=roc(closes,12); if(r3===null||r6===null||r12===null)return null;
  const sign=Math.sign(r12); if(!sign||Math.sign(r3)!==sign||Math.sign(r6)!==sign)return null;
  const history:number[]=[]; for(let end=Math.max(12,closes.length-97);end<closes.length-1;end++){const v=roc(closes.slice(0,end+1),12);if(v!==null)history.push(Math.abs(v));}
