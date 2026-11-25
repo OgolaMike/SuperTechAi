@@ -4,6 +4,7 @@ import { Just4YouBonus } from '@/components/Just4YouBonus';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
+import type { SuperSignal } from '@/lib/intelligence';
 import type { View } from '@/components/ViewNav';
 
 type Props = {
@@ -14,16 +15,15 @@ type Props = {
   loaded: boolean;
   soundsEnabled: boolean;
   aiModel: SignalLearningModel;
+  unifiedSignals: SuperSignal[];
   onNavigate: (view: View) => void;
 };
 
-export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, onNavigate }: Props) {
-  const signalSummary = selectedSymbols.reduce((summary, symbol) => {
-    for (const timeframe of TIMEFRAMES) {
-      const direction = states[symbol]?.[timeframe.granularity]?.latestSignal?.direction;
-      if (direction === 'BUY') summary.buy += 1;
-      if (direction === 'SELL') summary.sell += 1;
-    }
+export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, unifiedSignals, onNavigate }: Props) {
+  const unifiedBySymbol = new Map(unifiedSignals.map((signal) => [signal.symbol, signal]));
+  const signalSummary = unifiedSignals.reduce((summary, signal) => {
+    if (signal.direction === 'BUY') summary.buy += 1;
+    if (signal.direction === 'SELL') summary.sell += 1;
     return summary;
   }, { buy: 0, sell: 0 });
   const totalSignals = signalSummary.buy + signalSummary.sell;
@@ -95,7 +95,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
       <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">MARKET INTELLIGENCE</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">8 Timeframes. One Intelligence.</h2>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">10 Timeframes. One Signal.</h2>
           <p className="mt-1 max-w-2xl text-sm font-medium tracking-wide text-ink-2">SEE THE SIGNAL. OWN THE MOMENT.</p>
           <p className="mt-1 text-xs text-ink-3">
             {aiModel.ready
@@ -108,6 +108,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
       {selectedSymbols.map((symbol) => {
         const asset = assetMap.get(symbol) ?? { symbol, name: symbol, fullName: symbol, digits: 4 };
         const assetStates = states[symbol] ?? {};
+        const unifiedSignal = unifiedBySymbol.get(symbol);
         return (
           <section key={symbol} className="mt-7">
             <div className="mb-3 flex items-center gap-3">
@@ -118,13 +119,14 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1 xl:gap-6">
               {TIMEFRAMES.map((timeframe) => {
                 const tf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
-                const direction = tf.latestSignal?.direction;
-                const confluenceCount = direction
-                  ? TIMEFRAMES.filter((item) => assetStates[item.granularity]?.latestSignal?.direction === direction).length
-                  : undefined;
+                const isPrimarySignalChart = timeframe.label === 'H4';
+                const displayTf = isPrimarySignalChart && unifiedSignal
+                  ? tf
+                  : { ...tf, latestSignal: null, signals: [] };
+                const confluenceCount = isPrimarySignalChart && unifiedSignal ? unifiedSignal.agreeing : undefined;
                 return (
                   <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0">
-                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
+                    <SignalCard asset={asset} tf={displayTf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
                   </div>
                 );
               })}
