@@ -36,17 +36,15 @@ The first application integration currently connects Ten-Timeframe Intelligence 
 - BUY: bullish close with lower wick at least 2 times the candle body.
 - SELL: bearish close with upper wick at least 2 times the candle body.
 - If both or neither condition applies, reject the setup.
-- Require a fresh Unified Signal for the exact same symbol and same direction. A signal on another symbol can never authorize this setup.
 - Initial BUY stop: lower H4 Bollinger Band minus 0.1 standard deviation; initial SELL stop: upper band plus 0.1 standard deviation.
 - Trailing activation is +0.7% favourable price movement. At +0.7%, stop reaches break-even; each additional +0.5 percentage points locks another +0.5 percentage points from entry. Stop may only tighten.
 - Maximum holding time is three hours from actual broker execution time, not signal time.
 - Only one entry per H4 signal key and asset.
-- A later Unified Signal reversal does not reverse or force-close an already-open position.
 - The strategy may only manage positions carrying its own strategy identifier.
 
 ## Release boundary
 
-The web client currently provides a read-only candidate preview. It does not submit orders, persist strategy-owned positions, or run a durable three-hour position manager. cTrader's current repository UI explicitly reports that the cloud trade engine is not active. Do not enable unattended execution until a broker-side worker/cBot, idempotent order dispatch, broker stop-distance and volume validation, position reconciliation, close confirmation, exposure controls and demo end-to-end tests are complete.
+The web client currently provides a read-only candidate preview. Independent strategy assessments may be compared by the confluence layer, but each strategy's signal remains its own. It does not submit orders, persist strategy-owned positions, or run a durable three-hour position manager. cTrader's current repository UI explicitly reports that the cloud trade engine is not active. Do not enable unattended execution until a broker-side worker/cBot, idempotent order dispatch, broker stop-distance and volume validation, position reconciliation, close confirmation, exposure controls and demo end-to-end tests are complete.
 
 ## Asset coverage
 
