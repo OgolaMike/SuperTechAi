@@ -27,3 +27,20 @@ The Worker currently needs only public Appwrite endpoint/project identifiers and
 This is an authenticated API foundation, not the completed member backend. It does not read or write Appwrite database tables yet. The sandbox schema is only partially provisioned and security settings have not been reverified. Do not enable profile writes, roles, entitlements, payments, referrals, or trading execution until schema/indexes/permissions and negative access tests are complete.
 
 Set `VITE_INDEPENDENT_API_URL` in the Pages project to the deployed independent Worker URL before connecting the browser helper in a live preview. Until then the helper fails closed with a clear configuration error.
+
+
+## Member profile API
+
+The Worker also exposes a narrowly scoped profile API:
+
+- `GET /api/profile`: resolves the current member from the Appwrite JWT and returns that member's profile. If no row exists, it initializes one using the verified Appwrite user ID.
+- `PATCH /api/profile`: allows only a bounded `displayName` update. The Worker ignores client-supplied user IDs, roles, entitlements and onboarding state.
+- Rows use the Appwrite user ID as their row ID and receive row-level read/update permissions for that user.
+
+### Required Worker secret
+
+Create an Appwrite API key in the sandbox project with only the database row scopes required by this Worker (`rows.read` and `rows.write`), then add it as the Cloudflare Worker secret named `APPWRITE_API_KEY`. Never put it in `wrangler.toml`, Pages variables, source code, or the browser. The key is used only after the Worker validates the caller's Appwrite JWT and derives the row ID itself.
+
+The database and member profile table IDs are configured as non-secret Worker variables. The profile endpoint fails closed with `503 member_data_not_configured` until the secret is configured. It also requires the table columns recorded in `appwrite/schema/member-access.tables.json`; the Appwrite console schema and row-level permissions must be verified before using real member data.
+
+The profile API is not an entitlement or role API. It cannot grant paid access, admin status, payment approval, referrals, withdrawals or trading permissions.
