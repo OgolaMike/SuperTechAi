@@ -1,0 +1,8 @@
+name = "supertechai-independent-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-26"
+
+[vars]
+APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1"
+APPWRITE_PROJECT_ID = "6b06de46003dde834eb6"
+ALLOWED_ORIGIN = "https://supertechai.pages.dev"
