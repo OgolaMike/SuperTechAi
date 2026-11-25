@@ -187,7 +187,6 @@ export function useSignalAlerts(
         const isNewer = !previousSignal || view.signal.signalEpoch > previousSignal.signal.signalEpoch;
 
         if (isNewer) {
-          const isReversal = Boolean(previousSignal && previousSignal.signal.direction !== view.signal.direction);
           // Directional BUY/SELL alerts are owned by useSuperSignalAlerts,
           // which applies the complete ten-timeframe gate. This hook tracks outcomes only.
           latest.set(key, view);
