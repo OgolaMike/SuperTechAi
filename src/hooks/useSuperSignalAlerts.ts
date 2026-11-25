@@ -77,7 +77,6 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
         timeframe: 'SUPER SIGNAL',
         granularity: SUPER_SIGNAL_GRANULARITY,
         signalEpoch: signal.signalEpoch,
-        chartTargetId: `super-signal-chart-${encodeURIComponent(signal.symbol)}-${signal.signalEpoch}-${signal.direction}`,
         digits: signal.digits,
         message,
         price: signal.levels.entry,
