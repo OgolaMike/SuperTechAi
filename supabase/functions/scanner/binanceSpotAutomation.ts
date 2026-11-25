@@ -359,7 +359,7 @@ export async function submitBinanceSpotLimitIntents(
           user_id: account.user_id, symbol, side: "BUY", order_kind: "OTOCO",
           entry_price: entryPrice, quantity, stop_loss: stopLoss, take_profit: takeProfit,
           expires_at: new Date((intent.signalEpoch + 8 * 900) * 1000).toISOString(),
-          signal_key: symbol + "|M15|" + intent.signalEpoch + "|BUY",
+          signal_key: symbol + "|M30|" + intent.signalEpoch + "|BUY",
           idempotency_key: idempotencyKey, client_order_id: workingClientOrderId,
           status: "queued",
           request_payload: {
@@ -369,7 +369,7 @@ export async function submitBinanceSpotLimitIntents(
             quote_notional_usdt: notional,
             list_client_order_id: listClientOrderId,
             working_client_order_id: workingClientOrderId,
-            strategy: "M15-LIMIT-OTOCO",
+            strategy: "M30-LIMIT-OTOCO",
           },
         }).select("id").single();
         if (insertError) {
@@ -390,7 +390,7 @@ export async function submitBinanceSpotLimitIntents(
             environment: "live",
             strategyId: "spot_m15_limit_otoco",
             strategyVersion: "spot-otoco-v1",
-            signalId: symbol + "|M15|" + intent.signalEpoch + "|BUY",
+            signalId: symbol + "|M30|" + intent.signalEpoch + "|BUY",
             signalCreatedAt: new Date(intent.signalEpoch * 1000).toISOString(),
             expiresAt: expiresAt.toISOString(),
             order: {
