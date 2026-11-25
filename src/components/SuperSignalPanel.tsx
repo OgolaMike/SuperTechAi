@@ -121,7 +121,7 @@ export function SuperSignalPanel({
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] px-6 py-12 text-center">
           <Sparkles className="h-6 w-6 text-accent" />
           <h3 className="text-lg font-semibold text-ink">No Super Signal recorded yet</h3>
-          <p className="max-w-md text-sm text-ink-2">When all ten timeframes agree, the signal will be added here and kept for outcome tracking.</p>
+          <p className="max-w-md text-sm text-ink-2">When the H4 primary signal has fresh readings from all ten timeframes, at least six of its nine supporting frames agree, and none points the other way, the signal is saved for outcome tracking. Neutral readings may remain.</p>
         </div>
       ) : (
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(250px,0.78fr)_minmax(0,1.7fr)]">
@@ -146,7 +146,7 @@ export function SuperSignalPanel({
                         <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black tracking-wider ${record.direction === 'BUY' ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>{record.direction}</span>
                       </div>
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-[11px] font-semibold text-accent">10/10 CONFIRMED</span><span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent == null ? '—' : `${record.grade_percent}%`}</span>
+                        <span className="text-[11px] font-semibold text-accent">10/10 DATA READY</span><span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent == null ? '—' : `${record.grade_percent}%`}</span>
                         <OutcomeBadge status={record.status} closed={record.closed} />
                       </div>
                       <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" />{formatDateTime(record.signal_epoch)}</div>
@@ -201,7 +201,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
     <article className="min-w-0 space-y-4 rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 10/10</div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 10TF</div>
           <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
           <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
         </div>
@@ -219,16 +219,18 @@ function SuperSignalDetails({ record, price, aiModel }: {
           {TIMEFRAMES.map((timeframe) => {
             const read = record.reads.find((item) => item.label === timeframe);
             const agrees = read?.agrees === true;
-            return <div key={timeframe} className={`rounded-lg border px-1.5 py-2 text-center ${agrees ? 'border-up/25 bg-up/10 text-up' : 'border-line/10 bg-surface/[0.03] text-ink-3'}`}>
+            const neutral = read?.valid === true && read.bias === 'Neutral';
+            const label = !read?.valid ? '—' : agrees ? '✓' : neutral ? 'N' : '!';
+            return <div key={timeframe} title={`${timeframe}: ${!read?.valid ? 'No data' : agrees ? 'Supports direction' : neutral ? 'Neutral' : 'Opposes direction'}`} className={`rounded-lg border px-1.5 py-2 text-center ${agrees ? 'border-up/25 bg-up/10 text-up' : neutral ? 'border-amber-400/25 bg-amber-400/10 text-amber-300' : 'border-line/10 bg-surface/[0.03] text-ink-3'}`}>
               <div className="text-[10px] font-bold">{timeframe}</div>
-              <div className="mt-1 flex justify-center">{agrees ? <Check className="h-3.5 w-3.5" /> : <span className="text-[10px]">—</span>}</div>
+              <div className="mt-1 flex justify-center text-[10px] font-black">{label}</div>
             </div>;
           })}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Metric label="10/10 confirmation grade" value={record.grade_percent == null ? "Not recorded" : `${record.grade_percent}%`} />
+        <Metric label="Directional support grade" value={record.grade_percent == null ? "Not recorded" : `${record.grade_percent}%`} />
         <Metric label="Entry price" value={formatPrice(record.entry, record.digits)} />
         <Metric label="Current price" value={price == null ? 'Unavailable' : formatPrice(price, record.digits)} />
         <Metric label="AI pattern score" value={score == null ? 'Learning' : `${score}/100`} />
@@ -245,7 +247,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
 
       <div className="rounded-xl border border-line/10 bg-surface/[0.025] p-3">
         <div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">What confirmed it</div>
-        <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'All ten timeframes confirmed the same direction at the time this signal fired.'}</p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'H4 supplied the primary direction. All ten timeframe readings were available, with no supporting timeframe opposing the signal.'}</p>
       </div>
 
 
