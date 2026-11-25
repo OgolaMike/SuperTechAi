@@ -13,7 +13,7 @@ type Bias = 'Bullish' | 'Bearish' | 'Neutral' | 'No data';
 type Read = { label: string; bias: Bias };
 
 const PRIMARY_GRANULARITY = 1800;
-const DAY = 86400;
+const DAY = 86400;\nconst WEEK = 604800;
 const LOOKBACK_SECONDS = 8 * PRIMARY_GRANULARITY;
 
 function biasFromState(state: TfState | undefined, nowEpoch: number): Bias {
@@ -35,10 +35,10 @@ function expectedBias(direction: Direction): Bias {
 
 function interpretation(direction: Direction, reads: Read[]): { title: string; detail: string; confirmation: string } {
   const expected = expectedBias(direction);
-  const higher = reads.filter((read) => ['H1', 'H4', 'H8', 'D1'].includes(read.label));
+  const higher = reads.filter((read) => ['H1', 'H2', 'H3', 'H4', 'H6', 'H8', 'H12', 'D1', 'W1'].includes(read.label));
   const opposing = higher.filter((read) => read.bias !== 'No data' && read.bias !== 'Neutral' && read.bias !== expected);
   const aligned = higher.filter((read) => read.bias === expected);
-  const majorOpposition = opposing.some((read) => ['H4', 'H8', 'D1'].includes(read.label));
+  const majorOpposition = opposing.some((read) => ['H4', 'H6', 'H8', 'H12', 'D1', 'W1'].includes(read.label));
 
   if (opposing.length === 0 && aligned.length >= 2) {
     return {
@@ -51,20 +51,20 @@ function interpretation(direction: Direction, reads: Read[]): { title: string; d
     return {
       title: 'Likely pullback risk — not a confirmed trend change',
       detail: `The ${direction} move conflicts with ${opposing.map((read) => read.label).join(', ')}. It may be a short-term retracement against the broader trend rather than a durable reversal.`,
-      confirmation: 'Do not promote this to a high-confluence reversal until H1/M30 structure turns and a completed candle confirms the change; major H4/H8/D1 opposition must be resolved.',
+      confirmation: 'Do not promote this to a high-confluence reversal until H1/M30 structure turns and a completed candle confirms the change; major H4/H6/H8/H12/D1/W1 opposition must be resolved.',
     };
   }
   if (opposing.length > 0) {
     return {
       title: 'Potential reversal — confirmation pending',
       detail: `The short-term move has some higher-timeframe support, but ${opposing.map((read) => read.label).join(', ')} still disagree. Treat this as developing evidence, not a confirmed trend change.`,
-      confirmation: 'Wait for a completed M30 and H1 candle to confirm the direction, then reassess H4 and daily context.',
+      confirmation: 'Wait for a completed M30 and H1 candle to confirm the direction, then reassess H4, daily and weekly context.',
     };
   }
   return {
     title: 'Insufficient higher-timeframe evidence',
     detail: 'One or more important timeframe readings are unavailable or neutral. The system should not infer a reversal from missing data.',
-    confirmation: 'Wait until valid H1, H4, H8 and D1 context is available before assigning high-confluence status.',
+    confirmation: 'Wait until valid H1, H4, H8, D1 and W1 context is available before assigning high-confluence status.',
   };
 }
 
