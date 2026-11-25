@@ -212,6 +212,7 @@ export function useSignalAlerts(
       const category = toast.kind === 'hit' ? (toast.tone === 'STOP' ? 'stops' : 'targets') : 'signals';
       return getAlertMode(category, toast.symbol, userId) !== 'muted';
     });
+    visible.forEach(saveBubble);
     if (visible.length) setToasts((previous) => [...visible, ...previous].slice(0, MAX_TOASTS));
 
     const signalToasts = visible.filter((toast) => getAlertMode('signals', toast.symbol, userId) === 'full' && (toast.kind === 'signal' || toast.kind === 'reversal'));
