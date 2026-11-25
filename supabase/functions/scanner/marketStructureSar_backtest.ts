@@ -33,6 +33,7 @@ export type BacktestReport = {
   tradeCount: number;
   wins: number;
   losses: number;
+  breakeven: number;
   openAtEnd: number;
   winRate: number | null;
   averageR: number | null;
@@ -63,8 +64,13 @@ export function backtestMarketStructureSar(
   }
 
   const candles = input
-    .filter((c) => Number.isFinite(c.epoch) && Number.isFinite(c.open) &&
-      Number.isFinite(c.high) && Number.isFinite(c.low) && Number.isFinite(c.close))
+    .filter((c) =>
+      Number.isFinite(c.epoch) &&
+      typeof c.open === "number" && Number.isFinite(c.open) &&
+      typeof c.high === "number" && Number.isFinite(c.high) &&
+      typeof c.low === "number" && Number.isFinite(c.low) &&
+      Number.isFinite(c.close)
+    )
     .slice()
     .sort((a, b) => a.epoch - b.epoch);
 
@@ -147,6 +153,7 @@ export function backtestMarketStructureSar(
   const completed = trades.filter((trade) => trade.rMultiple !== null);
   const wins = completed.filter((trade) => (trade.rMultiple as number) > 0).length;
   const losses = completed.filter((trade) => (trade.rMultiple as number) < 0).length;
+  const breakeven = completed.length - wins - losses;
   const netR = completed.reduce((sum, trade) => sum + (trade.rMultiple as number), 0);
   let equity = 0;
   let peak = 0;
@@ -169,6 +176,7 @@ export function backtestMarketStructureSar(
     tradeCount: completed.length,
     wins,
     losses,
+    breakeven,
     openAtEnd: trades.length - completed.length,
     winRate: completed.length ? wins / completed.length : null,
     averageR: completed.length ? netR / completed.length : null,
