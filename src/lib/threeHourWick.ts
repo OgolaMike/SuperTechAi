@@ -29,7 +29,7 @@ export type ThreeHourWickEvaluation =
 export const THREE_HOUR_WICK_CONFIG = {
   timeframeSeconds: 4 * 60 * 60,
   bollingerPeriod: 20,
-  bollingerDeviation: 2,
+  bollingerDeviation: 2.5,
   wickToBodyMinimum: 2,
   stopBufferDeviationFraction: 0.1,
   unifiedMaxAgeCandles: 8,
