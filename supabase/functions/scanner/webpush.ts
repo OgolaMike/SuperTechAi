@@ -215,7 +215,7 @@ function buildMessage(event: PushEventRow): string {
     body = `Momentum ${p.strength ?? "HIGH"} · ROC 3/6/12: ${(p.roc3 ?? 0).toFixed(2)}% / ${(p.roc6 ?? 0).toFixed(2)}% / ${(p.roc12 ?? 0).toFixed(2)}% · Stop entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP ${price(p.tp1)} · Expires ${formatTime(p.expiryEpoch ?? p.signalEpoch + 3600)}`;
   } else if (event.kind === "pending_order") {
     title = `PENDING ${p.direction} ORDER · ${p.assetName}`;
-    body = `Confirmed M15 BB(20, 2.5) reversal · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · Target ${price(p.tp1)} · ${formatTime(p.eventEpoch)}`;
+    body = `Confirmed M30 BB(20, 2.5) reversal · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · Target ${price(p.tp1)} · ${formatTime(p.eventEpoch)}`;
   } else {
     title = `${p.direction} LIMIT SIGNAL · ${p.assetName}`;
     body = `Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP ${price(p.tp3)} · Strength ${p.strengthScore ?? p.momentumScore ?? 0}/100 · ${p.timeframeAgreement ?? 10}/10 timeframes · ${formatTime(p.eventEpoch)}`;
@@ -272,7 +272,7 @@ export async function dispatchPending(
   for (const event of events as PushEventRow[]) {
     // Never deliver delayed strategy alerts after their confirmation window has expired.
     if ((event.kind === "high_roc_stop" && Number(event.payload.expiryEpoch ?? 0) <= Math.floor(Date.now() / 1000)) ||
-        (event.kind === "market_structure_sar" && event.payload.signalEpoch + 2 * 900 <= Math.floor(Date.now() / 1000))) {
+        (event.kind === "market_structure_sar" && event.payload.signalEpoch + 2 * 1800 <= Math.floor(Date.now() / 1000))) {
       const { error: expiredError } = await db.from("push_events")
         .update({ dispatched_at: new Date().toISOString() }).eq("event_key", event.event_key);
       if (expiredError) throw new Error("Could not retire expired High ROC event: " + expiredError.message);
