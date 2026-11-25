@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 export type AlertMode = 'full' | 'bubble' | 'muted';
 export type AlertCategory = 'signals' | 'targets' | 'stops' | 'limitOrders' | 'pendingOrders' | 'superSignals' | 'income' | 'business';
 export const ALERT_CATEGORIES: { key: AlertCategory; label: string; description: string }[] = [
-  { key: 'superSignals', label: 'Super Signals', description: 'All eight timeframes agree.' },
+  { key: 'superSignals', label: 'Super Signals', description: 'All ten timeframes agree.' },
   { key: 'signals', label: 'BUY and SELL signals', description: 'New confirmed signals and reversals.' },
   { key: 'limitOrders', label: 'Strategy setups', description: 'Break & Retest and other strategy confirmations.' },
   { key: 'pendingOrders', label: 'Pending orders', description: 'New setups, entries and order outcomes.' },
