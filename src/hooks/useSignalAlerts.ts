@@ -188,9 +188,8 @@ export function useSignalAlerts(
 
         if (isNewer) {
           const isReversal = Boolean(previousSignal && previousSignal.signal.direction !== view.signal.direction);
-          if (isFresh(view.signal.signalEpoch, view.granularity, nowEpoch)) {
-            created.push(toastFor(view, isReversal ? 'reversal' : 'signal', null, nowEpoch, isReversal ? previousSignal : undefined));
-          }
+          // Directional BUY/SELL alerts are owned by useSuperSignalAlerts,
+          // which applies the complete ten-timeframe gate. This hook tracks outcomes only.
           latest.set(key, view);
         }
         continue;
@@ -198,6 +197,7 @@ export function useSignalAlerts(
 
       const before = JSON.parse(previousSignature) as Record<HitLabel, number | null>;
       seen.set(view.key, signature);
+      if (view.granularity !== 14400) continue; // Only the unified H4 signal owns outcome alerts.
       (Object.keys(fields) as HitLabel[]).forEach((hit) => {
         const epoch = fields[hit];
         if (epoch === null || before[hit] !== null) return;
