@@ -271,7 +271,7 @@ function App() {
           </section>
         )}
         {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />}
-        {view === 'five-minute' && <FiveMinuteMomentum asset={assetMap.get(selectedSymbols[0])} state={states[selectedSymbols[0]]?.[300]} currentPrice={prices[selectedSymbols[0]] ?? null} nowEpoch={now} loaded={loaded} />}
+        {view === 'five-minute' && <FiveMinuteMomentum asset={assetMap.get(selectedSymbols[0])} state={states[selectedSymbols[0]]?.[1800]} currentPrice={prices[selectedSymbols[0]] ?? null} nowEpoch={now} loaded={loaded} />}
 
         {view === 'super' && (
           <section className="mt-8">
