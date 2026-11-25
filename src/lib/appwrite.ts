@@ -1,4 +1,5 @@
-// Lightweight Appwrite REST client. Supabase remains the production source of truth.
+// Appwrite client for the independent SuperTech AI platform.
+// This module deliberately has no Supabase imports or fallback behavior.
 const endpoint = (
   import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'
 ).replace(/\/$/, '');
@@ -11,18 +12,31 @@ export const APPWRITE_ENDPOINT = endpoint;
 export const APPWRITE_PROJECT_ID = projectId;
 
 type AppwriteRequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   headers?: Record<string, string>;
+};
+
+export type AppwriteUser = {
+  $id: string;
+  $createdAt: string;
+  name: string;
+  email: string;
+  emailVerification: boolean;
+  status: boolean;
+};
+
+export type AppwriteSession = {
+  $id: string;
+  userId: string;
+  expire: string;
 };
 
 export async function appwriteRequest<T>(
   path: string,
   options: AppwriteRequestOptions = {},
 ): Promise<T> {
-  if (!appwriteConfigured) {
-    throw new Error('Appwrite is not configured.');
-  }
+  if (!appwriteConfigured) throw new Error('Appwrite is not configured.');
 
   const response = await fetch(`${endpoint}${path}`, {
     method: options.method || 'GET',
@@ -37,28 +51,69 @@ export async function appwriteRequest<T>(
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const message =
-      payload && typeof payload.message === 'string'
-        ? payload.message
-        : `Appwrite request failed (${response.status}).`;
-    throw new Error(message);
+    const message = payload && typeof payload.message === 'string'
+      ? payload.message
+      : `Appwrite request failed (${response.status}).`;
+    const error = new Error(message) as Error & { code?: string; type?: string; response?: unknown };
+    error.code = payload?.code;
+    error.type = payload?.type;
+    error.response = payload;
+    throw error;
   }
-
   return payload as T;
 }
 
-// Read-only helpers for the initial parallel-backend verification phase.
+const accountPath = '/account';
+const callbackUrl = (flow: 'verify' | 'recovery') => {
+  const url = new URL('/', window.location.origin);
+  url.searchParams.set('auth', flow);
+  return url.toString();
+};
+
 export const appwriteAccount = {
-  get: () => appwriteRequest<Record<string, unknown>>('/account'),
+  get: () => appwriteRequest<AppwriteUser>(accountPath),
+
+  create: async (email: string, password: string, name = '') => {
+    const userId = globalThis.crypto?.randomUUID?.() ?? `member-${Date.now()}`;
+    const user = await appwriteRequest<AppwriteUser>(accountPath, {
+      method: 'POST',
+      body: { userId, email: email.trim().toLowerCase(), password, name: name.trim() || undefined },
+    });
+    await appwriteRequest('/account/verification', {
+      method: 'POST',
+      body: { url: callbackUrl('verify') },
+    });
+    return user;
+  },
+
+  signIn: async (email: string, password: string) => {
+    await appwriteRequest<AppwriteSession>('/account/sessions/email', {
+      method: 'POST',
+      body: { email: email.trim().toLowerCase(), password },
+    });
+    return appwriteRequest<AppwriteUser>(accountPath);
+  },
+
+  signOut: () => appwriteRequest<void>('/account/sessions/current', { method: 'DELETE' }),
+
+  requestPasswordRecovery: (email: string) =>
+    appwriteRequest('/account/recovery', {
+      method: 'POST',
+      body: { email: email.trim().toLowerCase(), url: callbackUrl('recovery') },
+    }),
+
+  completePasswordRecovery: (userId: string, secret: string, password: string) =>
+    appwriteRequest('/account/recovery', {
+      method: 'PUT',
+      body: { userId, secret, password, passwordAgain: password },
+    }),
+
+  completeEmailVerification: (userId: string, secret: string) =>
+    appwriteRequest('/account/verification', {
+      method: 'PUT',
+      body: { userId, secret },
+    }),
 };
 
-export const appwriteDatabases = {
-  list: () => appwriteRequest<{ total: number; databases: unknown[] }>('/databases'),
-};
-
-export const appwriteTablesDB = {
-  listRows: (databaseId: string, tableId: string) =>
-    appwriteRequest<{ total: number; rows: unknown[] }>(
-      `/tablesdb/${encodeURIComponent(databaseId)}/tables/${encodeURIComponent(tableId)}/rows`,
-    ),
-};
+// Administrative database APIs are intentionally not exposed in the browser.
+// Client-side members should only access documents granted to their Appwrite user role.
