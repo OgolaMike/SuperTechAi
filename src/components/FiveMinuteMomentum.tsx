@@ -96,7 +96,7 @@ export function FiveMinuteMomentum({ asset, state, currentPrice, nowEpoch, loade
           </div>
           <div className="mt-4 flex gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[0.05] p-3">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-            <p className="text-xs leading-5 text-ink-2">This is a live market-data strategy monitor, not a broker execution confirmation. MT5's current worker supports member-approved pending orders; unattended market entry and timed position closing are not yet implemented. No live order is sent from this screen.</p>
+            <p className="text-xs leading-5 text-ink-2">This screen monitors the selected asset's M5 price action. Broker execution is configured separately under MT5 Auto Trading: connect the Windows worker, select the exact broker symbol and explicitly enable Five Minute Momentum. This dashboard monitor does not itself submit orders.</p>
           </div>
         </article>
       </div>
