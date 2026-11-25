@@ -46,6 +46,7 @@ import { playAlertTone } from '@/lib/alertSound';
 import { ensureNotificationPermission } from '@/lib/deviceNotify';
 import { trainSignalLearningModel, type SignalLearningModel } from '@/lib/aiLearning';
 import { buildSuperSignals } from '@/lib/intelligence';
+import { buildBreakRetestSetups } from '@/lib/breakRetest';
 import { evaluateThreeHourWick } from '@/lib/threeHourWick';
 import { evaluateStrategyConfluence, type StrategyAssessment } from '@/lib/strategyConfluence';
 import { StrategyConfluencePanel } from '@/components/StrategyConfluencePanel';
@@ -107,6 +108,11 @@ function App() {
   const confluenceResults = useMemo(() => {
     const assessments: StrategyAssessment[] = [];
     const superBySymbol = new Map(superSignals.map((signal) => [signal.symbol, signal]));
+    const breakRetestBySymbol = new Map<string, ReturnType<typeof buildBreakRetestSetups>[number]>();
+    for (const setup of buildBreakRetestSetups(assets, states)) {
+      const current = breakRetestBySymbol.get(setup.symbol);
+      if (!current || setup.confirmationEpoch > current.confirmationEpoch) breakRetestBySymbol.set(setup.symbol, setup);
+    }
     for (const asset of assets) {
       const tenFrame = superBySymbol.get(asset.symbol);
       assessments.push({
@@ -114,6 +120,13 @@ function App() {
         direction: tenFrame?.direction ?? null, status: tenFrame ? 'SIGNAL' : 'WAIT',
         signalEpoch: tenFrame?.signalEpoch ?? now, strength: tenFrame?.gradePercent ?? 0, weight: 1,
         reason: tenFrame?.explanation ?? 'No qualified ten-timeframe agreement.',
+      });
+      const breakRetest = breakRetestBySymbol.get(asset.symbol);
+      assessments.push({
+        strategyId: 'break-retest', strategyName: 'Break & Retest', symbol: asset.symbol,
+        direction: breakRetest?.direction ?? null, status: breakRetest ? 'SIGNAL' : 'WAIT',
+        signalEpoch: breakRetest?.confirmationEpoch ?? now, strength: breakRetest ? 85 : 0, weight: 1,
+        reason: breakRetest ? 'Closed-candle breakout, retest and confirmation sequence.' : 'No fresh confirmed break-and-retest setup.',
       });
       const wick = evaluateThreeHourWick(asset.symbol, states[asset.symbol]?.[14400]?.candles ?? [], now);
       const candidate = wick.status === 'CONFIRMED' ? wick.candidate : null;
