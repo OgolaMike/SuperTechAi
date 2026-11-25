@@ -111,3 +111,7 @@ The following work remains before SuperTech AI can autonomously trade signals an
 8. Unit, integration and broker end-to-end tests covering duplicate signals, restart during send, disconnections, rejected stops, partial fills, symbol suffixes, daily loss breaches and emergency stop.
 
 No automatic-trading switch should be presented as functional until these items are implemented and tested. A green GitHub build is not proof of broker execution.
+
+## Optional Five Minute Momentum MT5 strategy
+
+The Windows worker includes a separate optional M5 market-order strategy. It compares the two most recent completed MT5 M5 candles: Higher High -> BUY; otherwise Lower Low -> SELL; if both conditions occur, BUY takes precedence as in the original EA. It enters on the first available tick of the next M5 candle and closes only its own tagged position at the end of that five-minute candle. It enforces one account trade at a time, skips missed candle opens, normalizes volume to broker min/max/step, and remains disabled by default behind member execution permissions and the emergency stop. It has no protective SL/TP; network or broker failures can delay the timed exit. See the worker README for setup and limitations.

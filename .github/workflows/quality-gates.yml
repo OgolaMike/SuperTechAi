@@ -44,9 +44,23 @@ jobs:
           deno-version: v2.x
       - name: Check scanner and Binance execution functions
         run: |
+          deno check --node-modules-dir=auto supabase/functions/mt5-bridge/index.ts
           deno check --node-modules-dir=auto supabase/functions/scanner/index.ts
           deno check --node-modules-dir=auto supabase/functions/binance-spot/index.ts
           deno check --node-modules-dir=auto supabase/functions/binance-futures/index.ts
           deno check --node-modules-dir=auto supabase/functions/binance-futures-executor/index.ts
           deno check --node-modules-dir=auto supabase/functions/okx-futures/index.ts
           deno check --node-modules-dir=auto supabase/functions/okx-futures-executor/index.ts
+
+  mt5-worker:
+    name: MT5 worker strategy unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile MT5 worker modules
+        run: python -m py_compile mt5-worker/worker.py mt5-worker/five_minute_momentum.py
+      - name: Run pure strategy and broker-volume tests
+        run: python -m unittest discover -s mt5-worker -p "test_*.py"

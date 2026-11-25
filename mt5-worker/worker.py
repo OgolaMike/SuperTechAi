@@ -20,10 +20,13 @@ import MetaTrader5 as mt5
 from risk import preflight_new_order, RiskRejected
 from pending_orders import validate_pending_order_geometry, PendingOrderRejected
 from execution_safety import make_broker_comment, classify_existing_attempt, classify_send_result, broker_order_check_passed
+from five_minute_momentum import detect_signal, normalize_volume, position_is_due_to_close, MOMENTUM_MAGIC, MOMENTUM_COMMENT_PREFIX
 
 SERVICE_NAME = "SuperTechAI-MT5-Bridge"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 POLL_SECONDS = max(3, int(os.getenv("STAI_POLL_SECONDS", "5")))
+MOMENTUM_CHECK_SECONDS = 0.25
+MOMENTUM_LAST_BAR: dict[str, int] = {}
 API_URL = os.environ["STAI_BRIDGE_URL"].rstrip("/") + "/functions/v1/mt5-bridge"
 WORKER_ID = os.environ["STAI_WORKER_ID"]
 TERMINAL_PATH = os.getenv("STAI_MT5_TERMINAL_PATH")
@@ -376,10 +379,198 @@ def execute_pending_order(token: str, command: dict[str, Any]) -> dict[str, Any]
     }
 
 
+
+def _market_filling_mode(symbol_info: Any) -> int:
+    flags = int(getattr(symbol_info, "filling_mode", 0))
+    if flags & int(getattr(mt5, "SYMBOL_FILLING_IOC", 2)):
+        return mt5.ORDER_FILLING_IOC
+    if flags & int(getattr(mt5, "SYMBOL_FILLING_FOK", 1)):
+        return mt5.ORDER_FILLING_FOK
+    return mt5.ORDER_FILLING_RETURN
+
+
+def close_due_five_minute_positions(max_slippage_points: int) -> None:
+    """Close only this strategy's positions; never touch manual/other EA trades."""
+    positions = mt5.positions_get()
+    if positions is None:
+        raise RuntimeError("momentum_positions_unavailable")
+    now_epoch = int(time.time())
+    for position in positions:
+        comment = str(getattr(position, "comment", ""))
+        if int(getattr(position, "magic", 0)) != MOMENTUM_MAGIC or not comment.startswith(MOMENTUM_COMMENT_PREFIX):
+            continue
+        if not position_is_due_to_close(int(position.time), now_epoch):
+            continue
+        symbol_info = mt5.symbol_info(str(position.symbol))
+        tick = mt5.symbol_info_tick(str(position.symbol))
+        if symbol_info is None or tick is None:
+            log.warning("Five Minute Momentum close delayed: market quote unavailable")
+            continue
+        is_buy = int(position.type) == int(mt5.POSITION_TYPE_BUY)
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": str(position.symbol),
+            "position": int(position.ticket),
+            "volume": float(position.volume),
+            "type": mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY,
+            "price": float(tick.bid if is_buy else tick.ask),
+            "deviation": max(1, int(max_slippage_points or 10)),
+            "magic": MOMENTUM_MAGIC,
+            "comment": "STAI5M:EXIT",
+            "type_filling": _market_filling_mode(symbol_info),
+        }
+        check = mt5.order_check(request)
+        if not broker_order_check_passed(check):
+            log.warning("Five Minute Momentum close broker check rejected for ticket %s", position.ticket)
+            continue
+        result = mt5.order_send(request)
+        if result is None or int(getattr(result, "retcode", -1)) not in {
+            int(getattr(mt5, "TRADE_RETCODE_DONE", 10009)),
+            int(getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)),
+        }:
+            log.warning("Five Minute Momentum close not confirmed for ticket %s; will retry only while broker still reports it open", position.ticket)
+        else:
+            log.info("Five Minute Momentum closed ticket %s at its five-minute boundary", position.ticket)
+
+
+def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_loss_pct: float = 100.0) -> None:
+    """Evaluate broker M5 candles and execute one raw HH/LL market trade per bar."""
+    settings = config or {}
+    max_slippage = int(settings.get("max_slippage_points", 0) or 0)
+    # Exit management remains active even if the member disables new entries.
+    close_due_five_minute_positions(max_slippage)
+
+    if settings.get("enabled") is not True:
+        return
+    if (settings.get("place_new_orders") is not True or
+        settings.get("live_execution_enabled") is not True or
+        settings.get("emergency_stop") is not False or
+        settings.get("risk_controls_enabled") is not True):
+        return
+    if int(settings.get("max_spread_points", 0) or 0) <= 0 or max_slippage <= 0:
+        return
+    if daily_loss_pct >= float(settings.get("max_daily_loss_pct", 2.0)):
+        return
+
+    symbol = str(settings.get("symbol", "")).strip()
+    if not symbol or len(symbol) > 40 or not mt5.symbol_select(symbol, True):
+        return
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M5, 0, 3)
+    if rates is None or len(rates) < 3:
+        return
+    current_bar_epoch = int(rates[0]["time"])
+    previous_seen = MOMENTUM_LAST_BAR.get(symbol)
+    if previous_seen is None:
+        # On startup, establish the current bar without entering late into it.
+        MOMENTUM_LAST_BAR[symbol] = current_bar_epoch
+        return
+    if current_bar_epoch == previous_seen:
+        return
+    MOMENTUM_LAST_BAR[symbol] = current_bar_epoch
+    # Missed bars are never replayed; only the immediately following M5 open is eligible.
+    if current_bar_epoch <= previous_seen or current_bar_epoch - previous_seen != 300:
+        return
+    if int(time.time()) - current_bar_epoch > 5:
+        log.info("Five Minute Momentum skipped a late M5 open for %s", symbol)
+        return
+
+    direction = detect_signal(rates[2], rates[1])
+    if direction is None:
+        return
+
+    account = mt5.account_info()
+    terminal = mt5.terminal_info()
+    symbol_info = mt5.symbol_info(symbol)
+    tick = mt5.symbol_info_tick(symbol)
+    positions = mt5.positions_get()
+    pending = mt5.orders_get()
+    if account is None or terminal is None or symbol_info is None or tick is None or positions is None or pending is None:
+        log.warning("Five Minute Momentum skipped: broker state unavailable")
+        return
+    if not terminal.connected or not account.trade_allowed or bool(getattr(terminal, "tradeapi_disabled", False)):
+        return
+    if positions or pending:
+        # Strict single-trade account policy; do not overlap with manual or other EA orders.
+        return
+    trade_mode = int(getattr(symbol_info, "trade_mode", 0))
+    if trade_mode in {int(getattr(mt5, "SYMBOL_TRADE_MODE_DISABLED", -1)), int(getattr(mt5, "SYMBOL_TRADE_MODE_CLOSEONLY", -2))}:
+        return
+    if trade_mode == int(getattr(mt5, "SYMBOL_TRADE_MODE_LONGONLY", -3)) and direction != "BUY":
+        return
+    if trade_mode == int(getattr(mt5, "SYMBOL_TRADE_MODE_SHORTONLY", -4)) and direction != "SELL":
+        return
+    point = float(getattr(symbol_info, "point", 0) or 0)
+    if point <= 0 or (float(tick.ask) - float(tick.bid)) / point > int(settings["max_spread_points"]):
+        return
+    volume = normalize_volume(
+        float(settings.get("lot_size", 0.1)),
+        float(symbol_info.volume_min), float(symbol_info.volume_max), float(symbol_info.volume_step),
+    )
+    request = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": symbol,
+        "volume": volume,
+        "type": mt5.ORDER_TYPE_BUY if direction == "BUY" else mt5.ORDER_TYPE_SELL,
+        "price": float(tick.ask if direction == "BUY" else tick.bid),
+        "sl": 0.0,
+        "tp": 0.0,
+        "deviation": max_slippage,
+        "magic": MOMENTUM_MAGIC,
+        "comment": f"{MOMENTUM_COMMENT_PREFIX}{current_bar_epoch}",
+        "type_filling": _market_filling_mode(symbol_info),
+    }
+    check = mt5.order_check(request)
+    if not broker_order_check_passed(check):
+        log.warning("Five Minute Momentum broker preflight rejected %s %s", direction, symbol)
+        return
+    # Claim this account/symbol/bar atomically before sending to prevent duplicate workers.
+    claim = api_call(token, {
+        "action": "claim_five_minute_bar",
+        "symbol": symbol,
+        "direction": direction,
+        "barEpoch": current_bar_epoch,
+    })
+    if claim.get("error") or claim.get("claimed") is not True or not claim.get("barId"):
+        log.info("Five Minute Momentum bar not claimed (%s); no broker order sent",
+                 claim.get("reason", claim.get("error", "claim_denied")))
+        return
+    bar_id = str(claim["barId"])
+    accepted = {
+        int(getattr(mt5, "TRADE_RETCODE_DONE", 10009)),
+        int(getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)),
+    }
+    try:
+        result = mt5.order_send(request)
+    except Exception:
+        api_call(token, {"action": "record_five_minute_bar", "barId": bar_id,
+                         "state": "uncertain", "brokerMessage": "MT5 send raised an exception"})
+        log.warning("Five Minute Momentum send outcome uncertain; candle will not be retried")
+        return
+    if result is None:
+        api_call(token, {"action": "record_five_minute_bar", "barId": bar_id,
+                         "state": "uncertain", "brokerMessage": "MT5 returned no send result"})
+        log.warning("Five Minute Momentum send outcome uncertain; candle will not be retried")
+        return
+    retcode = int(getattr(result, "retcode", -1))
+    state = "accepted" if retcode in accepted else "rejected"
+    api_call(token, {
+        "action": "record_five_minute_bar", "barId": bar_id, "state": state,
+        "brokerTicket": int(getattr(result, "order", 0) or getattr(result, "deal", 0) or 0) or None,
+        "brokerRetcode": retcode, "volume": volume,
+        "entryPrice": float(getattr(result, "price", 0) or request["price"]),
+        "brokerMessage": str(getattr(result, "comment", ""))[:120],
+    })
+    if state != "accepted":
+        log.warning("Five Minute Momentum %s %s rejected by broker (retcode=%s)", direction, symbol, retcode)
+        return
+    log.info("Five Minute Momentum opened %s %s volume=%s at M5 bar %s; scheduled exit at %s",
+             direction, symbol, volume, current_bar_epoch, current_bar_epoch + 300)
+
+
 def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
     command_type = command.get("command_type")
     if command_type == "pause_trading":
-        # Safe no-op acknowledgement: this worker has no trade execution path.
+        # Safe no-op acknowledgement: server-side emergency stop blocks all new strategy entries.
         return {"paused": True, "message": "The server-side emergency stop blocks new submissions. This command does not change broker orders."}
     mt5_ready()
     if command_type == "sync_account":
@@ -452,11 +643,12 @@ def main() -> None:
     token = get_worker_token()
     log.info("Starting SuperTech AI guarded MT5 worker %s on %s", VERSION, platform.node())
     backoff = 2
+    last_momentum_config: dict[str, Any] = {}
     while True:
         try:
             mt5_ready()
             account_snapshot = safe_account_snapshot()
-            api_call(token, {
+            heartbeat = api_call(token, {
                 "action": "heartbeat",
                 "version": VERSION,
                 "account": {
@@ -485,13 +677,32 @@ def main() -> None:
                     log.warning("Command %s rejected or failed: %s", command_id, type(exc).__name__)
                     complete(token, command_id, False, error_code="worker_command_failed")
             backoff = 2
-            time.sleep(POLL_SECONDS)
+            momentum_config = heartbeat.get("five_minute_momentum") or {}
+            last_momentum_config = momentum_config
+            daily_loss_pct = float(heartbeat.get("dailyLossPct", 100.0))
+            cycle_end = time.monotonic() + POLL_SECONDS
+            while time.monotonic() < cycle_end:
+                try:
+                    run_five_minute_momentum(token, momentum_config, daily_loss_pct)
+                except Exception as momentum_error:
+                    log.warning("Five Minute Momentum cycle failed: %s", type(momentum_error).__name__)
+                time.sleep(MOMENTUM_CHECK_SECONDS)
         except KeyboardInterrupt:
             log.info("Stopping worker")
             break
         except Exception as exc:
             log.warning("Bridge cycle failed: %s", type(exc).__name__)
-            time.sleep(backoff)
+            # Timed exits are local broker actions: keep checking them even while
+            # Supabase is unreachable. New entries remain disabled without fresh auth.
+            recovery_end = time.monotonic() + backoff
+            while time.monotonic() < recovery_end:
+                try:
+                    close_due_five_minute_positions(
+                        int(last_momentum_config.get("max_slippage_points", 10) or 10)
+                    )
+                except Exception as close_error:
+                    log.warning("Offline M5 close check failed: %s", type(close_error).__name__)
+                time.sleep(MOMENTUM_CHECK_SECONDS)
             backoff = min(backoff * 2, 60)
     mt5.shutdown()
 

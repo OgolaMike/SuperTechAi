@@ -1,6 +1,6 @@
 # SuperTech AI MT5 Windows Worker
 
-This worker supports account synchronization and explicitly member-approved pending-order placement. It never accepts broker passwords. It does not yet execute SuperTech AI signals automatically or manage open positions, trail stops, cancel pending orders or close trades.
+This worker supports account synchronization, explicitly member-approved pending orders, and an optional member-enabled Five Minute Momentum strategy. It never accepts broker passwords. The M5 strategy uses raw Higher High / Lower Low rules, one open account trade at a time, broker-normalized fixed volume and a timed close at the M5 candle boundary.
 
 ## Requirements
 
@@ -72,3 +72,17 @@ Execution is fail-closed unless the member enables new-order permission, risk co
 6. Verify the broker ticket in MT5 and refresh the app's order inventory.
 
 Current delivery boundary: member-confirmed pending orders only. Unattended execution from SuperTech AI signals, automatic position management, staged trailing stops and pending-order cancellation are not implemented. An Android device cannot host the worker; a private Windows PC or Windows VPS must run MT5 and the worker continuously. Broker execution is not production-verified until the matching migration and Edge Function are deployed and an actual broker end-to-end test succeeds. Do not assume a GitHub green check proves the broker accepted an order. Start with the smallest risk you can tolerate and verify every first broker submission.
+
+## Five Minute Momentum (optional)
+
+This strategy is disabled by default and is independent of the unified multi-timeframe signal engine. In the signed-in MT5 settings, enable it only after pairing the worker, entering the exact broker symbol (including any suffix), setting a requested lot size, configuring non-zero spread/slippage limits, enabling risk controls and explicitly enabling MT5 order placement with the emergency stop off.
+
+- Compare the last two completed broker M5 candles.
+- Higher High means BUY; otherwise Lower Low means SELL; if both occur, BUY wins, matching the original EA's condition order.
+- Enter at the first available broker tick after the next M5 candle begins. The exact theoretical candle-open price cannot be guaranteed.
+- Close only positions tagged with this strategy's magic number and comment at the end of their entry M5 candle. The worker checks locally every 250 ms while connected.
+- Any existing open position or pending order blocks a new entry, enforcing one account trade at a time and avoiding interference with manual trades.
+- A missed candle is skipped, never replayed. After worker restart, the current candle is initialized without a late entry.
+- Volume is clamped and floored to the broker's minimum, maximum and step. A normalized volume is not a risk guarantee.
+
+**Risk warning:** the raw strategy has no protective stop-loss or take-profit. A disconnect or failed close can extend the holding period. The daily loss limit blocks new entries but cannot guarantee a maximum loss on an open trade. Test on a broker demo account before considering live use.
