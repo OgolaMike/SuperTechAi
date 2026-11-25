@@ -259,7 +259,7 @@ function App() {
             <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">These are pattern scans and tracked trade ideas. “Entry reached” is not proof of a broker fill. Check the live chart, market conditions and risk before placing any trade.</div>
             <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />
             <div className="border-t border-line/15 pt-6">
-              <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />
+              <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} onOpenDashboard={openSignalChart} />
             </div>
           </section>
         )}
@@ -281,7 +281,7 @@ function App() {
         {view === 'ctrader' && <CTraderAutoTrading />}
         {view === 'binance' && <div className="space-y-8"><BinanceSpotAutomation /><div className="border-t border-line/15 pt-8"><BinanceFuturesAutomation /></div></div>}
         {view === 'okx' && <OKXFuturesAutomation />}
-        {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
+        {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} onOpenDashboard={openSignalChart} />}
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'exchange-markets' && <ExchangeMarkets aiModel={aiModel} onNavigate={setView} />}
         {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
