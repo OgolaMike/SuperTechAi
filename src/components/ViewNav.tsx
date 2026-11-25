@@ -24,7 +24,7 @@ const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   { title: 'Personal AI', items: [ { id: 'personal-ai', label: 'My AI Companion', icon: BrainCircuit } ] },
   { title: 'Intelligence', items: [
     { id: 'strategies', label: 'Strategies', icon: BarChart3 },
-    { id: 'five-minute', label: 'Five Minute Momentum', icon: Activity },
+    { id: 'five-minute', label: 'Thirty Minute Momentum', icon: Activity },
     { id: 'break-retest', label: 'Break & Retest', icon: Repeat2 },
     { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
     { id: 'bubble-history', label: 'Bubble History', icon: Archive },
