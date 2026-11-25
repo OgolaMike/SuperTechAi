@@ -8,4 +8,4 @@
 - Break & Retest retains a fixed 5R risk/reward type.
 - The Academy admin panel is backend-publishing-only; browser-based duplicate video generation code has been removed.
 
-Live Futures order execution must remain gated by explicit member opt-in, risk controls, emergency stop, 8/8 Super Signal confirmation, and confirmed protective orders. This document does not authorize live trading or change account permissions.
+Live Futures order execution must remain gated by explicit member opt-in, risk controls, emergency stop, H4-led ten-timeframe Super Signal confirmation with fresh data and no opposing timeframe reads, and confirmed protective orders. This document does not authorize live trading or change account permissions.
