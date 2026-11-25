@@ -49,7 +49,7 @@ import { fetchSignalRecords } from '@/lib/signalRecords';
 import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
 import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
-import { DEFAULT_ASSET, MAX_MONITORED_ASSETS } from '@/lib/sma';
+import { DEFAULT_ASSET } from '@/lib/sma';
 import { loadMemberAlertModes } from '@/lib/alertPreferences';
 
 const ASSET_STORAGE_KEY = 'supertech-selected-assets';
