@@ -36,6 +36,7 @@ create table if not exists public.options_proposal_snapshots (
   expires_at timestamptz not null,
   consumed_at timestamptz,
   unique (account_id, proposal_id),
+  unique (id, user_id),
   check (expires_at > created_at)
 );
 
@@ -47,7 +48,7 @@ create index if not exists options_proposals_signal_idx
 create table if not exists public.options_execution_ledger (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  proposal_record_id uuid not null unique references public.options_proposal_snapshots(id),
+  proposal_record_id uuid not null unique,
   idempotency_key text not null unique,
   status text not null check (status in ('RESERVED','BUY_SENT','UNKNOWN','OPEN','WON','LOST','SOLD','REJECTED')),
   broker_contract_id text unique,
@@ -58,7 +59,9 @@ create table if not exists public.options_execution_ledger (
   last_reconciled_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  settled_at timestamptz
+  settled_at timestamptz,
+  foreign key (proposal_record_id, user_id)
+    references public.options_proposal_snapshots(id, user_id)
 );
 
 create index if not exists options_execution_user_status_idx
@@ -90,7 +93,8 @@ revoke all on public.options_proposal_snapshots from anon, authenticated;
 revoke all on public.options_execution_ledger from anon, authenticated;
 revoke all on public.options_execution_events from anon, authenticated;
 
-grant all on public.options_trader_settings to service_role;
-grant all on public.options_proposal_snapshots to service_role;
-grant all on public.options_execution_ledger to service_role;
-grant all on public.options_execution_events to service_role;
+grant select, insert, update on public.options_trader_settings to service_role;
+grant select, insert on public.options_proposal_snapshots to service_role;
+grant update (consumed_at) on public.options_proposal_snapshots to service_role;
+grant select, insert, update on public.options_execution_ledger to service_role;
+grant select, insert on public.options_execution_events to service_role;
