@@ -4,7 +4,8 @@ import { BinanceStream, fetchBinanceCandles, loadBinanceAssets } from '@/lib/bin
 import {
   TIMEFRAMES,
   NATIVE_TIMEFRAME_GRANULARITIES,
-  aggregateHourlyCandles,\n  aggregateDailyCandles,
+  aggregateHourlyCandles,
+  aggregateDailyCandles,
   computeTfState,
   emptyTfState,
   mergeCandle,
@@ -16,7 +17,9 @@ import {
 const NATIVE_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => NATIVE_TIMEFRAME_GRANULARITIES.has(timeframe.granularity));
 const SYNTHETIC_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => !NATIVE_TIMEFRAME_GRANULARITIES.has(timeframe.granularity));
 const M30_GRANULARITY = 1800;
-const HOURLY_GRANULARITY = 3600;\nconst DAILY_GRANULARITY = 86400;\nconst WEEKLY_GRANULARITY = 604800;
+const HOURLY_GRANULARITY = 3600;
+const DAILY_GRANULARITY = 86400;
+const WEEKLY_GRANULARITY = 604800;
 const ALL_ASSET_M30_HISTORY = 200;
 
 export type TimeframeStates = Record<number, TfState>;
@@ -166,7 +169,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     };
 
     const hydrateSyntheticFromHourly = (symbol: string, hourlyCandles: Candle[]) => {
-      for (const timeframe of SYNTHETIC_TIMEFRAMES) {
+      for (const timeframe of SYNTHETIC_TIMEFRAMES.filter((item) => item.granularity !== WEEKLY_GRANULARITY)) {
         const aggregated = aggregateHourlyCandles(hourlyCandles, timeframe.granularity);
         candlesRef.current[symbol] ??= {};
         candlesRef.current[symbol][timeframe.granularity] = aggregated;
@@ -230,9 +233,8 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
       candlesRef.current[symbol] ??= {};
       const nextCandles = mergeCandle(candlesRef.current[symbol][granularity] ?? [], candle);
       candlesRef.current[symbol][granularity] = nextCandles;
-      if (granularity === HOURLY_GRANULARITY) {
-        hydrateSyntheticFromHourly(symbol, nextCandles);
-      }
+      if (granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, nextCandles);
+      if (granularity === DAILY_GRANULARITY) hydrateWeeklyFromDaily(symbol, nextCandles);
       // Keep chart candles live independently from closed-candle signal calculations.
       pendingChartUpdatesRef.current[symbol] ??= {};
       pendingChartUpdatesRef.current[symbol][granularity] = nextCandles;
@@ -288,7 +290,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
               symbols.some((item) => item.symbol === symbol),
             );
             const allSymbols = symbols.map((item) => item.symbol);
-            // Keep every discovered market eligible for background 8-timeframe scanning.
+            // Keep every discovered market eligible for background 10-timeframe scanning.
             watchedRef.current = new Set([...allSymbols, ...binanceAssets.map((asset) => asset.symbol)]);
             const selectedM30Tasks = currentAssets.map((symbol) => () =>
               client
@@ -313,7 +315,8 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                     const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
                     if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${timeframe.granularity}`] = confirmedEpoch;
                     recompute(symbol, timeframe.granularity);
-                    if (timeframe.granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, candles);\n                    if (timeframe.granularity === DAILY_GRANULARITY) hydrateWeeklyFromDaily(symbol, candles);
+                    if (timeframe.granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, candles);
+                    if (timeframe.granularity === DAILY_GRANULARITY) hydrateWeeklyFromDaily(symbol, candles);
                   }),
               ),
             );
@@ -335,7 +338,8 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
                 const confirmedEpoch = latestConfirmedEpoch(candles, granularity, Math.floor(Date.now() / 1000));
                 if (confirmedEpoch !== null) computedConfirmedRef.current[`${symbol}:${granularity}`] = confirmedEpoch;
                 recompute(symbol, granularity);
-                if (granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, candles);\n                if (granularity === DAILY_GRANULARITY) hydrateWeeklyFromDaily(symbol, candles);\n                if (granularity === DAILY_GRANULARITY) hydrateWeeklyFromDaily(symbol, candles);
+                if (granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(symbol, candles);
+                if (granularity === DAILY_GRANULARITY) hydrateWeeklyFromDaily(symbol, candles);
               });
             }));
 
@@ -383,7 +387,8 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
           const confirmedEpoch = latestConfirmedEpoch(candles, timeframe.granularity, Math.floor(Date.now() / 1000));
           if (confirmedEpoch !== null) computedConfirmedRef.current[`${asset.symbol}:${timeframe.granularity}`] = confirmedEpoch;
           recompute(asset.symbol, timeframe.granularity);
-          if (timeframe.granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(asset.symbol, candles);\n          if (timeframe.granularity === DAILY_GRANULARITY) hydrateWeeklyFromDaily(asset.symbol, candles);
+          if (timeframe.granularity === HOURLY_GRANULARITY) hydrateSyntheticFromHourly(asset.symbol, candles);
+          if (timeframe.granularity === DAILY_GRANULARITY) hydrateWeeklyFromDaily(asset.symbol, candles);
         }),
       );
       const selectedMarkets = allMarkets.filter((asset) => selectedRef.current.includes(asset.symbol));
