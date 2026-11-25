@@ -188,9 +188,13 @@ async function buildExchangeStatesUncached(exchange: ExchangeId, symbol: string)
   const hourly = byGranularity[3600] ?? [];
   const all: Record<number, Candle[]> = { ...byGranularity };
   all[14400] = aggregateHourlyCandles(hourly, 14400);
-  all[28800] = aggregateHourlyCandles(hourly, 28800);\n  all[21600] = aggregateHourlyCandles(hourly, 21600);\n  all[43200] = aggregateHourlyCandles(hourly, 43200);
+  all[14400] = aggregateHourlyCandles(hourly, 14400);
+  all[28800] = aggregateHourlyCandles(hourly, 28800);
+  all[21600] = aggregateHourlyCandles(hourly, 21600);
+  all[43200] = aggregateHourlyCandles(hourly, 43200);
   all[7200] = aggregateHourlyCandles(hourly, 7200);
-  all[10800] = aggregateHourlyCandles(hourly, 10800);\n  all[604800] = aggregateDailyCandles(byGranularity[86400] ?? [], 604800);
+  all[10800] = aggregateHourlyCandles(hourly, 10800);
+  all[604800] = aggregateDailyCandles(byGranularity[86400] ?? [], 604800);
   const now = Math.floor(Date.now() / 1000);
   return Object.fromEntries(TIMEFRAMES.map((tf) => [tf.granularity, computeTfState(tf, all[tf.granularity] ?? [], now)]));
 }
