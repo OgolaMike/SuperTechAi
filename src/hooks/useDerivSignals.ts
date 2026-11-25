@@ -323,7 +323,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     });
 
     // Binance spot is an additional public market-data source. Its assets use
-    // the same eight timeframe calculations and state model as Deriv assets.
+    // the same ten timeframe calculations and state model as Deriv assets.
     void loadBinanceAssets().then(async (markets) => {
       if (stopped) return;
       binanceAssets = markets.map((market) => ({
