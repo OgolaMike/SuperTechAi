@@ -23,8 +23,10 @@ export type PendingOrderIdea = {
   strengthScore: number;
 };
 
+const DIRECTION_GRANULARITY = 14400;
 const PRIMARY_GRANULARITY = 900;
 const SIGNAL_MAX_AGE_BARS = 8;
+const MIN_SUPPORTING_ALIGNMENT = 6;
 
 function timeframeBias(state: TfState): Direction | null {
   if (state.lastClose == null || state.currentSma == null || state.stdDev == null) return null;
@@ -65,12 +67,18 @@ export function buildPendingOrderIdeas(
     const readings = TIMEFRAMES.map((timeframe) => {
       const state = states[timeframe.granularity];
       if (!state || isStale(state, nowEpoch)) return null;
-      return timeframeBias(state);
+      return { label: timeframe.label, bias: timeframeBias(state) };
     });
-    if (readings.length !== TIMEFRAMES.length) continue;
+    if (readings.length !== TIMEFRAMES.length || readings.some((read) => read == null)) continue;
 
-    const direction = readings[0];
-    if (direction == null || !readings.every((bias) => bias === direction)) continue;
+    const directionRead = readings.find((read) => read?.label === 'H4');
+    const direction = directionRead?.bias ?? null;
+    if (direction == null) continue;
+
+    const supportingReads = readings.filter((read) => read?.label !== 'H4');
+    const supportingAligned = supportingReads.filter((read) => read?.bias === direction).length;
+    const hasOpposition = supportingReads.some((read) => read?.bias != null && read.bias !== direction);
+    if (supportingAligned < MIN_SUPPORTING_ALIGNMENT || hasOpposition) continue;
 
     const primary = states[PRIMARY_GRANULARITY];
     const triggerSignal = primary?.latestSignal;
@@ -119,7 +127,7 @@ export function buildPendingOrderIdeas(
         aiScore,
         momentumScore: null,
         reason: candidate.reason,
-        timeframeAgreement: TIMEFRAMES.length,
+        timeframeAgreement: supportingAligned + 1,
         signalEpoch: triggerSignal.signalEpoch,
         strengthScore: aiScore ?? 0,
       });
