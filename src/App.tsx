@@ -58,7 +58,7 @@ function loadSelectedSymbols(): string[] {
   try {
     const saved = JSON.parse(localStorage.getItem(ASSET_STORAGE_KEY) ?? '[]');
     if (Array.isArray(saved) && saved.every((item) => typeof item === 'string') && saved.length > 0) {
-      return saved.slice(0, MAX_MONITORED_ASSETS);
+      return saved.slice(0, 1);
     }
   } catch {
     /* use default */
@@ -125,31 +125,24 @@ function App() {
   }, []);
 
   const updateSelected = (symbols: string[]) => {
-    const next = symbols.slice(0, MAX_MONITORED_ASSETS);
+    const next = symbols.slice(0, 1);
     setSelectedSymbols(next);
     localStorage.setItem(ASSET_STORAGE_KEY, JSON.stringify(next));
   };
 
   const monitorAsset = (symbol: string) => {
-    if (selectedSymbols.includes(symbol) || selectedSymbols.length >= MAX_MONITORED_ASSETS) return;
-    updateSelected([...selectedSymbols, symbol]);
+    if (selectedSymbols[0] === symbol) return;
+    updateSelected([symbol]);
+    setView('dashboard');
   };
 
-  const openSignalChart = (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => {
-    if (chartTargetId?.startsWith('break-retest:')) {
-      setSelectedBreakRetestKey(chartTargetId.slice('break-retest:'.length));
-      setView('break-retest');
-    } else if (chartTargetId) {
-      if (selectedSignalKey) setSelectedSuperSignalKey(selectedSignalKey);
-      setView('super');
-    } else {
-      setSelectedSymbols((current) => current.includes(symbol) ? current : [...current, symbol].slice(-10));
-      setView('dashboard');
-    }
-    const targetId = chartTargetId?.startsWith('break-retest:') ? 'break-retest-panel' : chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
-    // Wait only for React to commit the destination view, then reveal the chart immediately.
+  const openSignalChart = (symbol: string, _granularity: number, _chartTargetId?: string, _selectedSignalKey?: string) => {
+    // Every signal source returns to the single-asset dashboard. Selecting a signal
+    // changes the dashboard asset rather than adding another monitored asset.
+    updateSelected([symbol]);
+    setView('dashboard');
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      document.getElementById(targetId)?.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+      document.getElementById(`asset-dashboard-${encodeURIComponent(symbol)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }));
   };
 
