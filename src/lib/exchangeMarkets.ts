@@ -188,7 +188,6 @@ async function buildExchangeStatesUncached(exchange: ExchangeId, symbol: string)
   const hourly = byGranularity[3600] ?? [];
   const all: Record<number, Candle[]> = { ...byGranularity };
   all[14400] = aggregateHourlyCandles(hourly, 14400);
-  all[14400] = aggregateHourlyCandles(hourly, 14400);
   all[28800] = aggregateHourlyCandles(hourly, 28800);
   all[21600] = aggregateHourlyCandles(hourly, 21600);
   all[43200] = aggregateHourlyCandles(hourly, 43200);
