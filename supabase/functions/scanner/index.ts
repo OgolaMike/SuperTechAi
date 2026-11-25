@@ -14,9 +14,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
-// H4 remains the macro engine; M15 is the independent precision engine.
-// The eight-frame H4 confluence set remains D1 through M15; M15 is its lowest frame.
-// H2 and H3 are built from complete hourly candles so Deriv and Binance use matching bars.
+// H4 is the single primary trigger. M15, M5 and M1 contribute confirmation only;
+// no lower timeframe can publish a competing dashboard BUY/SELL instruction.
+// H2/H3/H4/H8 are built from complete hourly candles for consistent market bars.
 const TIMEFRAMES = [
   { granularity: 86400, label: "D1", candleCount: 366 },
   { granularity: 28800, label: "H8", candleCount: 200 },
@@ -26,6 +26,8 @@ const TIMEFRAMES = [
   { granularity: 3600, label: "H1", candleCount: 603 },
   { granularity: 1800, label: "M30", candleCount: 200 },
   { granularity: 900, label: "M15", candleCount: 200 },
+  { granularity: 300, label: "M5", candleCount: 300 },
+  { granularity: 60, label: "M1", candleCount: 300 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
@@ -277,7 +279,7 @@ async function processTimeframe(
 
   if (previousMark !== undefined) {
     const events = timeframe.granularity === 900
-      ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch))
+      ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch)).filter((event) => event.kind !== "signal")
       : timeframe.granularity === 14400
         ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch)).filter((event) => event.kind !== "signal")
         : [];
@@ -332,8 +334,8 @@ function evaluateSuperSignal(
     }
   }
 
-  // Supporting frames may delay entry, but can never replace or reverse the H4 direction.
-  if (supportingAligned < 4 || higherTimeframeOpposes) return null;
+  // Require at least six of nine supporting frames; D1/H8 may never oppose H4.
+  if (supporting.length !== 9 || supportingAligned < 6 || higherTimeframeOpposes) return null;
   return {
     direction: primary.direction,
     signalEpoch: primary.signalEpoch,
@@ -522,6 +524,16 @@ async function runScan(): Promise<Record<string, unknown>> {
         try {
           const candles = await loadTimeframeCandles(feed, symbol, timeframe, nowEpoch, candleCache);
           fetchedCount += 1;
+          // M1/M5 are confirmation-only inputs. Do not persist them as independent
+          // trade signals or emit their own signal events.
+          if (timeframe.granularity === 60 || timeframe.granularity === 300) {
+            const latestConfirmed = candles.filter((candle) => candle.epoch + timeframe.granularity <= nowEpoch).at(-1);
+            if (latestConfirmed) {
+              newMarks.push({ symbol: symbol.symbol, granularity: timeframe.granularity, epoch: latestConfirmed.epoch });
+              marks.set(markKey, latestConfirmed.epoch);
+            }
+            continue;
+          }
           const result = await processTimeframe(symbol, timeframe, candles, nowEpoch, previousMark);
           rowsWritten += result.rowsWritten;
 
@@ -642,7 +654,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       }
 
       // Super Signal push events are generated server-side for subscribed assets only.
-      // H4 generates the primary signal; seven fresh timeframes provide supporting confirmation.
+      // H4 generates the primary signal; nine fresh timeframes provide supporting confirmation.
       if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol) || futuresAutomationSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
         try {
           for (const frame of TIMEFRAMES) {
