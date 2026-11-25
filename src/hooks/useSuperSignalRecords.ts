@@ -35,7 +35,7 @@ const COLUMNS = 'signal_key,symbol,asset_name,digits,direction,signal_epoch,entr
 
 function toRow(signal: SuperSignal) {
   return {
-    signal_key: `${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`,
+    signal_key: `${signal.symbol}|14400|${signal.signalEpoch}|${signal.direction}`,
     symbol: signal.symbol,
     asset_name: signal.name,
     digits: signal.digits,
