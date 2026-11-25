@@ -120,7 +120,7 @@ export function buildPendingOrderIdeas(
         aiScore,
         momentumScore: null,
         reason: candidate.reason,
-        timeframeAgreement: TIMEFRAMES.length,
+        timeframeAgreement: EXECUTION_TIMEFRAMES.length,
         signalEpoch: triggerSignal.signalEpoch,
         strengthScore: aiScore ?? 0,
       });
