@@ -35,7 +35,6 @@ import { Toasts } from '@/components/Toasts';
 import { ViewNav, type View } from '@/components/ViewNav';
 import { useDerivSignals } from '@/hooks/useDerivSignals';
 import { useSignalAlerts } from '@/hooks/useSignalAlerts';
-import { useSuperSignalAlerts } from '@/hooks/useSuperSignalAlerts';
 import { useBreakRetestAlerts } from '@/hooks/useBreakRetestAlerts';
 import { useSuperSignalRecords } from '@/hooks/useSuperSignalRecords';
 import { usePendingOrderAlerts } from '@/hooks/usePendingOrderAlerts';
@@ -100,9 +99,13 @@ function App() {
   const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.symbol, asset])), [assets]);
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
-  const { toasts, dismiss } = useSignalAlerts(views, loaded && alertPreferencesReady, soundsEnabled);
+  // H4 is the single primary trigger. It is allowed to alert only after the
+  // complete ten-timeframe confluence engine confirms the same direction.
+  const unifiedViews = useMemo(() => views.filter((item) => item.granularity === 14400 && superSignals.some((signal) =>
+    signal.symbol === item.symbol && signal.direction === item.signal.direction && signal.signalEpoch === item.signal.signalEpoch,
+  )), [views, superSignals]);
+  const { toasts, dismiss } = useSignalAlerts(unifiedViews, loaded && alertPreferencesReady, soundsEnabled);
   const { toasts: breakRetestToasts, dismiss: dismissBreakRetestToast } = useBreakRetestAlerts(assets, states, prices, loaded && alertPreferencesReady, soundsEnabled);
-  const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded && alertPreferencesReady, soundsEnabled);
   const superSignalHistory = useSuperSignalRecords(superSignals, loaded);
   const sync = useSignalRecordSync(views, loaded);
 
@@ -312,7 +315,7 @@ function App() {
         </footer>
       </div>
 
-      <Toasts toasts={[...pendingToasts, ...breakRetestToasts, ...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); dismissBreakRetestToast(id); dismissPendingToast(id); }} onOpenChart={openSignalChart} />
+      <Toasts toasts={[...pendingToasts, ...breakRetestToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissBreakRetestToast(id); dismissPendingToast(id); }} onOpenChart={openSignalChart} />
     </div>
   );
 }
