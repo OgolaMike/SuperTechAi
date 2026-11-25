@@ -1,6 +1,9 @@
 import { createContext, useContext } from 'react';
 
-export type IndependentSession = { user: { id: string; email: string } };
+export type IndependentSession = {
+  access_token: string;
+  user: { id: string; email: string; user_metadata: Record<string, unknown> };
+};
 export type SessionContextValue = { session: IndependentSession; isAdmin: boolean };
 export const SessionContext = createContext<SessionContextValue | null>(null);
 export function useSession(): SessionContextValue {
