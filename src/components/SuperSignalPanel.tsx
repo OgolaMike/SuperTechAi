@@ -18,6 +18,7 @@ type Props = {
   loaded: boolean;
   aiModel: SignalLearningModel;
   states: Record<string, Record<number, TfState>>;
+  onOpenDashboard: (symbol: string, granularity: number) => void;
 };
 
 const TIMEFRAMES = ['D1', 'H8', 'H4', 'H3', 'H2', 'H1', 'M30', 'M15', 'M5', 'M1'];
@@ -64,7 +65,7 @@ function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
 export function SuperSignalPanel({
   selectedSignalKey,
   signals, records, recordsLoading, recordsError, onRefreshRecords,
-  prices, loaded, aiModel, states,
+  prices, loaded, aiModel, states, onOpenDashboard,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState('');
 
@@ -171,6 +172,7 @@ export function SuperSignalPanel({
         </div>
       )}
 
+      {selected && <button type="button" onClick={() => onOpenDashboard(selected.symbol, 14400)} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-canvas">VIEW ON DASHBOARD</button>}
       <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3"><Info className="mt-0.5 h-4 w-4 shrink-0" />Super Signals remain in this history after the live alert disappears. Profit and stop outcomes update from the matching recorded M15 signal.</p>
     </div>
   );
