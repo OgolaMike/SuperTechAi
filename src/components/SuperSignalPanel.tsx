@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Check, Clock3, Info, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Clock3, Info, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { formatDateTime, formatPrice } from '@/lib/sma';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import type { SuperSignal } from '@/lib/intelligence';
