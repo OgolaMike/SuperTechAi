@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "database": {
+    "name": "supertech_ai_sandbox",
+    "id": "6b06e4d900325c304d98"
+  },
+  "status": "partially_provisioned_do_not_write_member_data",
+  "existingTables": [
+    {
+      "name": "member_profiles",
+      "id": "6b074d7f001787b0d0c8",
+      "status": "created_partial",
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "display_name",
+          "type": "varchar",
+          "size": 120,
+          "required": false
+        },
+        {
+          "key": "onboarding_status",
+          "type": "varchar",
+          "size": 24,
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "key": "updated_at",
+          "type": "datetime",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "member_profiles_user_id_unique",
+          "type": "unique",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "member_roles",
+      "id": "6b074e04002c1011d8df",
+      "status": "created_empty_schema_pending",
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "role",
+          "type": "varchar",
+          "size": 24,
+          "required": true
+        },
+        {
+          "key": "granted_by",
+          "type": "varchar",
+          "size": 36,
+          "required": false
+        },
+        {
+          "key": "created_at",
+          "type": "datetime",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "member_roles_user_id",
+          "type": "key",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "membership_entitlements",
+      "id": "6b074fbd000bd6277c02",
+      "status": "created_empty_schema_pending",
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "tier",
+          "type": "varchar",
+          "size": 32,
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "varchar",
+          "size": 24,
+          "required": true
+        },
+        {
+          "key": "starts_at",
+          "type": "datetime",
+          "required": false
+        },
+        {
+          "key": "ends_at",
+          "type": "datetime",
+          "required": false
+        },
+        {
+          "key": "source_payment_id",
+          "type": "varchar",
+          "size": 64,
+          "required": false
+        },
+        {
+          "key": "updated_at",
+          "type": "datetime",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "membership_entitlements_user_id",
+          "type": "key",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "membership_events",
+      "id": null,
+      "status": "not_created_confirm_before_retry",
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "event_type",
+          "type": "varchar",
+          "size": 32,
+          "required": true
+        },
+        {
+          "key": "actor_user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": false
+        },
+        {
+          "key": "details",
+          "type": "varchar",
+          "size": 2000,
+          "required": false
+        },
+        {
+          "key": "idempotency_key",
+          "type": "varchar",
+          "size": 80,
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "datetime",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "membership_events_idempotency_unique",
+          "type": "unique",
+          "columns": [
+            "idempotency_key"
+          ]
+        },
+        {
+          "key": "membership_events_user_id",
+          "type": "key",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
+    }
+  ],
+  "security": {
+    "clientPermissions": "not_verified",
+    "rule": "Do not grant client permissions. All writes must go through authenticated trusted server-side functions.",
+    "readyForMemberData": false
+  },
+  "notes": [
+    "Appwrite system columns such as $id, $createdAt and $updatedAt are platform-managed and are not substitutes for the requested application fields unless code is explicitly mapped to them.",
+    "No member, payment, referral or broker records have been created or migrated.",
+    "Do not provision membership_events again until the console is checked to avoid duplicate table creation."
+  ]
+}
