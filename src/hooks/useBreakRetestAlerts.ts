@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Asset, TfState } from '@/lib/sma';
 import type { Toast } from './useSignalAlerts';
+import { saveBubble } from '@/lib/bubbleHistory';
 import { buildBreakRetestSetups } from '@/lib/breakRetest';
 import { playAlertTone } from '@/lib/alertSound';
 import { showSignalNotification } from '@/lib/deviceNotify';
@@ -114,6 +115,7 @@ export function useBreakRetestAlerts(
     previousPrices.current = currentPrices;
     if (!created.length) return;
     const visible = created.filter((toast) => getAlertMode('limitOrders', toast.symbol, userId) !== 'muted');
+    visible.forEach(saveBubble);
     if (visible.length) setToasts(current => [...visible, ...current].slice(0, 4));
     for (const toast of visible) {
       if (getAlertMode('limitOrders', toast.symbol, userId) !== 'full') continue;

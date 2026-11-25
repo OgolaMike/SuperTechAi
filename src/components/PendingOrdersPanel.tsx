@@ -16,6 +16,7 @@ type Props = {
   aiModel: SignalLearningModel;
   nowEpoch: number;
   loaded: boolean;
+  onOpenDashboard: (symbol: string, granularity: number) => void;
 };
 
 function loadTrackedOrders(): M15StopIdea[] {
@@ -28,7 +29,7 @@ function loadTrackedOrders(): M15StopIdea[] {
   } catch { return []; }
 }
 
-export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, loaded }: Props) {
+export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, loaded, onOpenDashboard }: Props) {
   const [trackedOrders, setTrackedOrders] = useState<M15StopIdea[]>(loadTrackedOrders);
   const [category, setCategory] = useState<'TRIPLE BOTTOM' | 'TRIPLE TOP'>('TRIPLE BOTTOM');
   const [filter, setFilter] = useState<'active' | 'results' | 'all'>('active');
@@ -105,7 +106,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                   <h4 className={`mt-1 text-xl font-bold ${idea.direction === 'BUY' ? 'text-up' : 'text-down'}`}>{idea.type}</h4>
                   <p className="mt-1 text-[11px] font-semibold tracking-wide text-ink-2">{idea.patternType} · RR 1:3</p>
                 </div>
-                <StatusPill status={idea.status} />
+                <div className="flex flex-wrap items-center gap-2"><StatusPill status={idea.status} /><button type="button" onClick={() => onOpenDashboard(idea.symbol, idea.granularity)} className="rounded-lg bg-accent px-3 py-2 text-[11px] font-bold text-canvas">VIEW ON DASHBOARD</button></div>
               </div>
 
               <div className="mt-3 min-w-0 rounded-xl border border-line/25 bg-surface/[0.025] px-3 py-3">

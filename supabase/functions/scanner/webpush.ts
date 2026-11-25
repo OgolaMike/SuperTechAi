@@ -197,7 +197,7 @@ function buildMessage(event: PushEventRow): string {
     body = p.message ?? (event.kind === "income" ? "A new earning has been credited to your account." : "There is new activity in your referral business.");
   } else if (event.kind === "super_signal") {
     title = `SUPER SIGNAL ${p.direction} · ${p.assetName}`;
-    body = `All eight timeframes agree · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)} · ${formatTime(p.signalEpoch)}`;
+    body = `All ten timeframes agree · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)} · ${formatTime(p.signalEpoch)}`;
   } else if (event.kind === "signal") {
     title = `${p.direction} ${p.assetName} · ${p.timeframe}`;
     body = `Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)}\nSignal ${formatTime(p.signalEpoch)}`;
@@ -218,7 +218,7 @@ function buildMessage(event: PushEventRow): string {
     body = `Confirmed M15 BB(60, 2.5) reversal · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · Target ${price(p.tp1)} · ${formatTime(p.eventEpoch)}`;
   } else {
     title = `${p.direction} LIMIT SIGNAL · ${p.assetName}`;
-    body = `Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP ${price(p.tp3)} · Strength ${p.strengthScore ?? p.momentumScore ?? 0}/100 · ${p.timeframeAgreement ?? 8}/8 timeframes · ${formatTime(p.eventEpoch)}`;
+    body = `Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP ${price(p.tp3)} · Strength ${p.strengthScore ?? p.momentumScore ?? 0}/100 · ${p.timeframeAgreement ?? 10}/10 timeframes · ${formatTime(p.eventEpoch)}`;
   }
   return JSON.stringify({
     title,

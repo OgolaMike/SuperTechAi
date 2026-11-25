@@ -307,7 +307,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
             ]).then(() => {
               derivLoaded = true;
               markLoaded();
-              // Complete the same eight-timeframe scan for every unselected Deriv market.
+              // Complete the same ten-timeframe scan for every unselected Deriv market.
               // Selected assets retain their prioritised feeds above.
               if (backgroundMarketTasks.length > 0) void client.staggerSubscriptions(backgroundMarketTasks);
             });
@@ -323,7 +323,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     });
 
     // Binance spot is an additional public market-data source. Its assets use
-    // the same eight timeframe calculations and state model as Deriv assets.
+    // the same ten timeframe calculations and state model as Deriv assets.
     void loadBinanceAssets().then(async (markets) => {
       if (stopped) return;
       binanceAssets = markets.map((market) => ({

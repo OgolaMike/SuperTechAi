@@ -18,9 +18,10 @@ type Props = {
   loaded: boolean;
   aiModel: SignalLearningModel;
   states: Record<string, Record<number, TfState>>;
+  onOpenDashboard: (symbol: string, granularity: number) => void;
 };
 
-const TIMEFRAMES = ['D1', 'H8', 'H4', 'H3', 'H2', 'H1', 'M30', 'M15'];
+const TIMEFRAMES = ['D1', 'H8', 'H4', 'H3', 'H2', 'H1', 'M30', 'M15', 'M5', 'M1'];
 
 function statesForRecord(record: SuperSignalRecord, states: Record<string, Record<number, TfState>>) {
   return states[record.symbol]?.[900]?.candles ?? [];
@@ -64,7 +65,7 @@ function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
 export function SuperSignalPanel({
   selectedSignalKey,
   signals, records, recordsLoading, recordsError, onRefreshRecords,
-  prices, loaded, aiModel, states,
+  prices, loaded, aiModel, states, onOpenDashboard,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState('');
 
@@ -104,7 +105,7 @@ export function SuperSignalPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">Super Signal history</div>
-          <p className="mt-1 text-sm text-ink-2">Select one signal to inspect its entry, eight-timeframe confirmation and recorded result.</p>
+          <p className="mt-1 text-sm text-ink-2">Select one signal to inspect its entry, ten-timeframe confirmation and recorded result.</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-line/15 bg-surface/[0.04] px-3 py-1.5 text-xs font-semibold text-ink-2">{allRecords.length} saved</span>
@@ -120,7 +121,7 @@ export function SuperSignalPanel({
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] px-6 py-12 text-center">
           <Sparkles className="h-6 w-6 text-accent" />
           <h3 className="text-lg font-semibold text-ink">No Super Signal recorded yet</h3>
-          <p className="max-w-md text-sm text-ink-2">When all eight timeframes agree, the signal will be added here and kept for outcome tracking.</p>
+          <p className="max-w-md text-sm text-ink-2">When all ten timeframes agree, the signal will be added here and kept for outcome tracking.</p>
         </div>
       ) : (
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(250px,0.78fr)_minmax(0,1.7fr)]">
@@ -145,7 +146,7 @@ export function SuperSignalPanel({
                         <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black tracking-wider ${record.direction === 'BUY' ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>{record.direction}</span>
                       </div>
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-[11px] font-semibold text-accent">8/8 CONFIRMED</span><span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent == null ? '—' : `${record.grade_percent}%`}</span>
+                        <span className="text-[11px] font-semibold text-accent">10/10 CONFIRMED</span><span className="rounded-md border border-up/25 bg-up/10 px-2 py-1 text-[11px] font-black text-up">{record.grade_percent == null ? '—' : `${record.grade_percent}%`}</span>
                         <OutcomeBadge status={record.status} closed={record.closed} />
                       </div>
                       <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-3"><Clock3 className="h-3 w-3" />{formatDateTime(record.signal_epoch)}</div>
@@ -171,6 +172,7 @@ export function SuperSignalPanel({
         </div>
       )}
 
+      {selected && <button type="button" onClick={() => onOpenDashboard(selected.symbol, 14400)} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-canvas">VIEW ON DASHBOARD</button>}
       <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3"><Info className="mt-0.5 h-4 w-4 shrink-0" />Super Signals remain in this history after the live alert disappears. Profit and stop outcomes update from the matching recorded M15 signal.</p>
     </div>
   );
@@ -199,7 +201,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
     <article className="min-w-0 space-y-4 rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 8/8</div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 10/10</div>
           <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
           <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
         </div>
@@ -212,8 +214,8 @@ function SuperSignalDetails({ record, price, aiModel }: {
       </div>
 
       <div>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-bold uppercase tracking-wider text-ink-3">Eight-timeframe confirmation</div><span className="rounded-lg border border-up/25 bg-up/10 px-3 py-1.5 text-sm font-black text-up">{record.grade_percent == null ? 'Grade unavailable for this older record' : `${record.grade_percent}% · ${record.confirmation_timeframe} completed alignment`}</span></div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-bold uppercase tracking-wider text-ink-3">Ten-timeframe confirmation</div><span className="rounded-lg border border-up/25 bg-up/10 px-3 py-1.5 text-sm font-black text-up">{record.grade_percent == null ? 'Grade unavailable for this older record' : `${record.grade_percent}% · ${record.confirmation_timeframe} completed alignment`}</span></div>
+        <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
           {TIMEFRAMES.map((timeframe) => {
             const read = record.reads.find((item) => item.label === timeframe);
             const agrees = read?.agrees === true;
@@ -226,7 +228,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Metric label="8/8 confirmation grade" value={record.grade_percent == null ? "Not recorded" : `${record.grade_percent}%`} />
+        <Metric label="10/10 confirmation grade" value={record.grade_percent == null ? "Not recorded" : `${record.grade_percent}%`} />
         <Metric label="Entry price" value={formatPrice(record.entry, record.digits)} />
         <Metric label="Current price" value={price == null ? 'Unavailable' : formatPrice(price, record.digits)} />
         <Metric label="AI pattern score" value={score == null ? 'Learning' : `${score}/100`} />
@@ -243,7 +245,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
 
       <div className="rounded-xl border border-line/10 bg-surface/[0.025] p-3">
         <div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">What confirmed it</div>
-        <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'All eight timeframes confirmed the same direction at the time this signal fired.'}</p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-2">{record.explanation || 'All ten timeframes confirmed the same direction at the time this signal fired.'}</p>
       </div>
 
 

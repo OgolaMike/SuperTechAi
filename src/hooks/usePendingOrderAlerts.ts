@@ -4,6 +4,7 @@ import { showSignalNotification } from '@/lib/deviceNotify';
 import { formatPrice } from '@/lib/sma';
 import type { M15StopIdea } from '@/lib/stopOrders';
 import type { Toast } from './useSignalAlerts';
+import { saveBubble } from '@/lib/bubbleHistory';
 import { getAlertMode } from '@/lib/alertPreferences';
 import { useSession } from '@/lib/sessionContext';
 
@@ -93,6 +94,7 @@ export function usePendingOrderAlerts(ideas: M15StopIdea[], loaded: boolean, sou
       seenRef.current = Object.fromEntries(entries);
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(seenRef.current)); } catch { /* in-memory fallback */ }
     }
+    created.forEach(saveBubble);
     if (created.length) setToasts((current) => [...created, ...current].slice(0, 4));
   }, [ideas, loaded, soundsEnabled, userId]);
 

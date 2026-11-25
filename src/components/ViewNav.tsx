@@ -3,10 +3,10 @@ import {
   Activity, BarChart3, Bell, Bot, Cable, ChevronUp, BrainCircuit,
   GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
   Megaphone, MoreHorizontal, Repeat2, Sparkles, Users, CreditCard,
-  UserRoundPlus, X,
+  UserRoundPlus, X, Archive,
 } from 'lucide-react';
 
-export type View = 'personal-ai' | 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'strategies' | 'marketing' | 'connections' | 'smart-community';
+export type View = 'personal-ai' | 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'bubble-history' | 'strategies' | 'marketing' | 'connections' | 'smart-community';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -26,6 +26,7 @@ const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     { id: 'strategies', label: 'Strategies', icon: BarChart3 },
     { id: 'break-retest', label: 'Break & Retest', icon: Repeat2 },
     { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
+    { id: 'bubble-history', label: 'Bubble History', icon: Archive },
     { id: 'academy', label: 'Academy', icon: GraduationCap },
   ] },
   { title: 'Trading connections', items: [

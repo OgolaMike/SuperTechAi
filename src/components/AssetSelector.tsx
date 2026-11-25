@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronsUpDown, Search, Volume2 } from 'lucide-react';
 import type { Asset } from '@/lib/sma';
 
-const MAX_SELECTED = 10;
-
 type Props = {
   assets: Asset[];
   selected: string[];
@@ -23,9 +21,7 @@ export function AssetSelector({ assets, selected, onChange, soundsEnabled, onTog
       `${asset.name} ${asset.symbol} ${asset.fullName}`.toLowerCase().includes(term),
     );
   }, [assets, query]);
-  const selectedNames = assets
-    .filter((asset) => selected.includes(asset.symbol))
-    .map((asset) => asset.name);
+  const selectedName = assets.find((asset) => asset.symbol === selected[0])?.name ?? selected[0] ?? 'Choose an asset';
 
   useEffect(() => {
     if (!open) return;
@@ -37,12 +33,8 @@ export function AssetSelector({ assets, selected, onChange, soundsEnabled, onTog
   }, [open]);
 
   const toggle = (symbol: string) => {
-    if (selected.includes(symbol)) {
-      if (selected.length === 1) return;
-      onChange(selected.filter((item) => item !== symbol));
-      return;
-    }
-    if (selected.length < MAX_SELECTED) onChange([...selected, symbol]);
+    if (selected[0] !== symbol) onChange([symbol]);
+    setOpen(false);
   };
 
   return (
@@ -57,10 +49,10 @@ export function AssetSelector({ assets, selected, onChange, soundsEnabled, onTog
         >
           <span className="min-w-0">
             <span className="block break-words text-sm font-semibold text-ink">
-              {selectedNames.length === 1 ? selectedNames[0] : `${selected.length} assets monitored`}
+              {selectedName}
             </span>
             <span className="block break-words text-xs uppercase tracking-wider text-ink-3">
-              Choose up to {MAX_SELECTED} assets
+              Choose one dashboard asset
             </span>
           </span>
           <ChevronsUpDown className="h-4 w-4 flex-shrink-0 text-ink-2" />
@@ -83,7 +75,7 @@ export function AssetSelector({ assets, selected, onChange, soundsEnabled, onTog
       {open && (
         <div className="absolute right-0 z-30 mt-2 max-h-[min(70vh,32rem)] w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-line/10 bg-canvas/95 p-2 shadow-2xl backdrop-blur-xl">
           <div className="mb-2 flex items-center justify-between px-1 text-xs uppercase tracking-wider text-ink-3">
-            <span>{selected.length}/{MAX_SELECTED} selected</span>
+            <span>1 active dashboard asset</span>
             <span>Deriv + Binance Spot markets</span>
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-lg border border-line/10 bg-surface/[0.03] px-2.5 py-2">
@@ -96,10 +88,10 @@ export function AssetSelector({ assets, selected, onChange, soundsEnabled, onTog
               autoFocus
             />
           </label>
-          <div role="listbox" aria-multiselectable="true" className="max-h-80 overflow-y-auto">
+          <div role="listbox" aria-multiselectable="false" className="max-h-80 overflow-y-auto">
             {filtered.map((asset) => {
-              const active = selected.includes(asset.symbol);
-              const disabled = !active && selected.length >= MAX_SELECTED;
+              const active = selected[0] === asset.symbol;
+              const disabled = false;
               return (
                 <button
                   key={asset.symbol}

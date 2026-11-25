@@ -10,6 +10,7 @@ const NetworkPanel = lazy(() => import('@/components/NetworkPanel').then((module
 const AccountHub = lazy(() => import('@/components/AccountHub').then((module) => ({ default: module.AccountHub })));
 const SmartCommunity = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.SmartCommunity })));
 import { AssetSelector } from '@/components/AssetSelector';
+import { BubbleHistory } from '@/components/BubbleHistory';
 import { AmbientBackground } from '@/components/AmbientBackground';
 const DashboardView = lazy(() => import('@/components/DashboardView').then((module) => ({ default: module.DashboardView })));
 const NotificationSettings = lazy(() => import('@/components/NotificationSettings').then((module) => ({ default: module.NotificationSettings })));
@@ -34,7 +35,6 @@ import { Toasts } from '@/components/Toasts';
 import { ViewNav, type View } from '@/components/ViewNav';
 import { useDerivSignals } from '@/hooks/useDerivSignals';
 import { useSignalAlerts } from '@/hooks/useSignalAlerts';
-import { useSuperSignalAlerts } from '@/hooks/useSuperSignalAlerts';
 import { useBreakRetestAlerts } from '@/hooks/useBreakRetestAlerts';
 import { useSuperSignalRecords } from '@/hooks/useSuperSignalRecords';
 import { usePendingOrderAlerts } from '@/hooks/usePendingOrderAlerts';
@@ -48,7 +48,7 @@ import { fetchSignalRecords } from '@/lib/signalRecords';
 import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
 import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
-import { DEFAULT_ASSET, MAX_MONITORED_ASSETS } from '@/lib/sma';
+import { DEFAULT_ASSET } from '@/lib/sma';
 import { loadMemberAlertModes } from '@/lib/alertPreferences';
 
 const ASSET_STORAGE_KEY = 'supertech-selected-assets';
@@ -58,7 +58,7 @@ function loadSelectedSymbols(): string[] {
   try {
     const saved = JSON.parse(localStorage.getItem(ASSET_STORAGE_KEY) ?? '[]');
     if (Array.isArray(saved) && saved.every((item) => typeof item === 'string') && saved.length > 0) {
-      return saved.slice(0, MAX_MONITORED_ASSETS);
+      return saved.slice(0, 1);
     }
   } catch {
     /* use default */
@@ -76,8 +76,6 @@ function App() {
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
   const [view, setView] = useState<View>('dashboard');
-  const [selectedSuperSignalKey, setSelectedSuperSignalKey] = useState('');
-  const [selectedBreakRetestKey, setSelectedBreakRetestKey] = useState('');
   const [now, setNow] = useState<number>(currentEpoch);
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
@@ -99,9 +97,13 @@ function App() {
   const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.symbol, asset])), [assets]);
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
-  const { toasts, dismiss } = useSignalAlerts(views, loaded && alertPreferencesReady, soundsEnabled);
+  // H4 is the single primary trigger. It is allowed to alert only after the
+  // complete ten-timeframe confluence engine confirms the same direction.
+  const unifiedViews = useMemo(() => views.filter((item) => item.granularity === 14400 && superSignals.some((signal) =>
+    signal.symbol === item.symbol && signal.direction === item.signal.direction && signal.signalEpoch === item.signal.signalEpoch,
+  )), [views, superSignals]);
+  const { toasts, dismiss } = useSignalAlerts(unifiedViews, loaded && alertPreferencesReady, soundsEnabled);
   const { toasts: breakRetestToasts, dismiss: dismissBreakRetestToast } = useBreakRetestAlerts(assets, states, prices, loaded && alertPreferencesReady, soundsEnabled);
-  const { toasts: superToasts, dismiss: dismissSuperToast } = useSuperSignalAlerts(superSignals, loaded && alertPreferencesReady, soundsEnabled);
   const superSignalHistory = useSuperSignalRecords(superSignals, loaded);
   const sync = useSignalRecordSync(views, loaded);
 
@@ -125,31 +127,24 @@ function App() {
   }, []);
 
   const updateSelected = (symbols: string[]) => {
-    const next = symbols.slice(0, MAX_MONITORED_ASSETS);
+    const next = symbols.slice(0, 1);
     setSelectedSymbols(next);
     localStorage.setItem(ASSET_STORAGE_KEY, JSON.stringify(next));
   };
 
   const monitorAsset = (symbol: string) => {
-    if (selectedSymbols.includes(symbol) || selectedSymbols.length >= MAX_MONITORED_ASSETS) return;
-    updateSelected([...selectedSymbols, symbol]);
+    if (selectedSymbols[0] === symbol) return;
+    updateSelected([symbol]);
+    setView('dashboard');
   };
 
-  const openSignalChart = (symbol: string, granularity: number, chartTargetId?: string, selectedSignalKey?: string) => {
-    if (chartTargetId?.startsWith('break-retest:')) {
-      setSelectedBreakRetestKey(chartTargetId.slice('break-retest:'.length));
-      setView('break-retest');
-    } else if (chartTargetId) {
-      if (selectedSignalKey) setSelectedSuperSignalKey(selectedSignalKey);
-      setView('super');
-    } else {
-      setSelectedSymbols((current) => current.includes(symbol) ? current : [...current, symbol].slice(-10));
-      setView('dashboard');
-    }
-    const targetId = chartTargetId?.startsWith('break-retest:') ? 'break-retest-panel' : chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
-    // Wait only for React to commit the destination view, then reveal the chart immediately.
+  const openSignalChart = (symbol: string) => {
+    // Every signal source returns to the single-asset dashboard. Selecting a signal
+    // changes the dashboard asset rather than adding another monitored asset.
+    updateSelected([symbol]);
+    setView('dashboard');
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      document.getElementById(targetId)?.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+      document.getElementById(`asset-dashboard-${encodeURIComponent(symbol)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }));
   };
 
@@ -214,6 +209,7 @@ function App() {
             loaded={loaded}
             soundsEnabled={soundsEnabled}
             aiModel={aiModel}
+            unifiedSignals={superSignals}
             onNavigate={setView}
           />
         )}
@@ -259,22 +255,22 @@ function App() {
               </article>
             </div>
             <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">These are pattern scans and tracked trade ideas. “Entry reached” is not proof of a broker fill. Check the live chart, market conditions and risk before placing any trade.</div>
-            <BreakRetestPanel assets={assets} states={states} prices={prices} />
+            <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />
             <div className="border-t border-line/15 pt-6">
-              <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />
+              <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} onOpenDashboard={openSignalChart} />
             </div>
           </section>
         )}
-        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} selectedSetupKey={selectedBreakRetestKey} />}
+        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />}
 
         {view === 'super' && (
           <section className="mt-8">
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
               <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
-              <p className="max-w-2xl text-sm text-ink-2">We wait for all eight timeframes to point in the same direction before announcing a Super Signal.</p>
+              <p className="max-w-2xl text-sm text-ink-2">We wait for all ten timeframes to validate one direction before announcing a Super Signal.</p>
             </div>
-            <SuperSignalPanel selectedSignalKey={selectedSuperSignalKey} signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
+            <SuperSignalPanel signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} onOpenDashboard={openSignalChart} />
           </section>
         )}
 
@@ -283,11 +279,12 @@ function App() {
         {view === 'ctrader' && <CTraderAutoTrading />}
         {view === 'binance' && <div className="space-y-8"><BinanceSpotAutomation /><div className="border-t border-line/15 pt-8"><BinanceFuturesAutomation /></div></div>}
         {view === 'okx' && <OKXFuturesAutomation />}
-        {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />}
+        {view === 'orders' && <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} onOpenDashboard={openSignalChart} />}
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'exchange-markets' && <ExchangeMarkets aiModel={aiModel} onNavigate={setView} />}
         {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
+        {view === 'bubble-history' && <BubbleHistory onOpenDashboard={openSignalChart} />}
 
         <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>
           <NotificationSettings assets={assets} />
@@ -316,7 +313,7 @@ function App() {
         </footer>
       </div>
 
-      <Toasts toasts={[...pendingToasts, ...breakRetestToasts, ...superToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissSuperToast(id); dismissBreakRetestToast(id); dismissPendingToast(id); }} onOpenChart={openSignalChart} />
+      <Toasts toasts={[...pendingToasts, ...breakRetestToasts, ...toasts]} onDismiss={(id) => { dismiss(id); dismissBreakRetestToast(id); dismissPendingToast(id); }} onOpenChart={openSignalChart} />
     </div>
   );
 }

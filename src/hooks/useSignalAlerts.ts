@@ -5,6 +5,7 @@ import { formatPrice } from '@/lib/sma';
 import { getAlertMode } from '@/lib/alertPreferences';
 import { useSession } from '@/lib/sessionContext';
 import type { Direction, SignalLevels, SignalView } from '@/lib/signals';
+import { saveBubble } from '@/lib/bubbleHistory';
 
 export type ToastKind = 'signal' | 'reversal' | 'hit' | 'break-retest';
 
@@ -212,6 +213,7 @@ export function useSignalAlerts(
       const category = toast.kind === 'hit' ? (toast.tone === 'STOP' ? 'stops' : 'targets') : 'signals';
       return getAlertMode(category, toast.symbol, userId) !== 'muted';
     });
+    visible.forEach(saveBubble);
     if (visible.length) setToasts((previous) => [...visible, ...previous].slice(0, MAX_TOASTS));
 
     const signalToasts = visible.filter((toast) => getAlertMode('signals', toast.symbol, userId) === 'full' && (toast.kind === 'signal' || toast.kind === 'reversal'));
