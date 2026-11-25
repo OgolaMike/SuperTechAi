@@ -23,7 +23,6 @@ export type PendingOrderIdea = {
   strengthScore: number;
 };
 
-const DIRECTION_GRANULARITY = 14400;
 const PRIMARY_GRANULARITY = 900;
 const SIGNAL_MAX_AGE_BARS = 8;
 const MIN_SUPPORTING_ALIGNMENT = 6;
