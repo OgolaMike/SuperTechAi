@@ -20,10 +20,12 @@ export const TIMEFRAMES: Timeframe[] = [
   { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 900, label: 'M15', role: 'Short-term confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 300, label: 'M5', role: 'Entry refinement', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 60, label: 'M1', role: 'Entry timing', candleCount: CHART_HISTORY_CANDLES },
 ];
 
 
-export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([900, 1800, 3600, 86400]);
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([60, 300, 900, 1800, 3600, 86400]);
 
 // Build higher timeframes from hourly candles where a source interval is unavailable.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
@@ -64,7 +66,7 @@ export type Asset = {
 };
 
 export const DEFAULT_ASSET = 'R_25';
-export const MAX_MONITORED_ASSETS = 10;
+export const MAX_MONITORED_ASSETS = 1;
 
 const SMA_PERIOD = 60;
 const BB_DEVIATION = 2.5;
