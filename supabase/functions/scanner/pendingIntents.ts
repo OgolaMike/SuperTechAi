@@ -32,7 +32,7 @@ function latestStats(candles: Candle[], granularity: number, nowEpoch: number) {
   if (closed.length < 20) return null;
   const window = closed.slice(-20);
   const mean = window.reduce((sum, candle) => sum + candle.close, 0) / 20;
-  const variance = window.reduce((sum, candle) => sum + (candle.close - mean) ** 2, 0) / 60;
+  const variance = window.reduce((sum, candle) => sum + (candle.close - mean) ** 2, 0) / 20;
   const deviation = Math.sqrt(variance);
   const last = closed[closed.length - 1];
   if (!(deviation > 0) || !Number.isFinite(last.close)) return null;
@@ -58,9 +58,9 @@ function executionContext(candlesByGranularity: Map<number, Candle[]>, nowEpoch:
   if (!trigger || trigger.direction !== direction || trigger.outcome.closed ||
       nowEpoch - trigger.signalEpoch > 8 * 1800) return null;
 
-  const m15Momentum = momentumStrength(candles, PRIMARY_FRAME.seconds, primary.deviation, direction, nowEpoch);
-  if (m15Momentum < 40) return null;
-  return { direction, primary, trigger, momentum: m15Momentum };
+  const m30Momentum = momentumStrength(candles, PRIMARY_FRAME.seconds, primary.deviation, direction, nowEpoch);
+  if (m30Momentum < 40) return null;
+  return { direction, primary, trigger, momentum: m30Momentum };
 }
 
 function momentumStrength(candles: Candle[], granularity: number, deviation: number, direction: Direction, nowEpoch: number): number {
@@ -103,7 +103,7 @@ export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Ma
       stopLoss: entry - sign * primary.deviation,
       takeProfit: entry + sign * primary.deviation * 2.5,
       currentPrice, timeframeAgreement: 1 as const, momentumScore: momentum, strengthScore: momentum,
-      strategyVersion: "m15-only-limit-v4" as const,
+      strategyVersion: "m30-only-limit-v5" as const,
       idempotencyKey: `${symbol}|${orderType}|${trigger.signalEpoch}|L${index + 1}`,
     }))
     .filter((intent) => [intent.stopLoss, intent.takeProfit].every((v) => Number.isFinite(v) && v > 0));
