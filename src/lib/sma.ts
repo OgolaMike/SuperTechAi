@@ -12,22 +12,22 @@ export type Timeframe = {
 const CHART_HISTORY_CANDLES = 1440;
 
 export const TIMEFRAMES: Timeframe[] = [
-  { granularity: 86400, label: 'D1', role: 'Highest timeframe · daily bias', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 1800, label: 'M30', role: 'Lowest analysis and execution timeframe', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 3600, label: 'H1', role: 'Short-term confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 7200, label: 'H2', role: 'Short-term structure', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 10800, label: 'H3', role: 'Intermediate structure', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 14400, label: 'H4', role: 'Primary signal timeframe', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 21600, label: 'H6', role: 'Higher-timeframe confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 28800, label: 'H8', role: 'Higher-timeframe trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 10800, label: 'H3', role: 'Major structure confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 900, label: 'M15', role: 'Short-term confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 300, label: 'M5', role: 'Entry refinement', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 60, label: 'M1', role: 'Entry timing', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 43200, label: 'H12', role: 'Major market context', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 86400, label: 'D1', role: 'Daily market context', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 604800, label: 'W1', role: 'Highest timeframe · weekly bias', candleCount: CHART_HISTORY_CANDLES },
 ];
 
 
-export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([60, 300, 900, 1800, 3600, 86400]);
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([1800, 3600, 14400, 28800, 86400, 604800]);
 
-// Build higher timeframes from hourly candles where a source interval is unavailable.
+// Build H2/H3/H6/H12 from complete hourly candles; M30, D1 and W1 use native source candles.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
 export function aggregateHourlyCandles(hourly: Candle[], targetGranularity: number, nowEpoch = Math.floor(Date.now() / 1000)): Candle[] {
   const hoursPerCandle = targetGranularity / 3600;
