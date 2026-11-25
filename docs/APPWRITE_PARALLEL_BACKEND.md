@@ -12,21 +12,31 @@ SuperTech AI will run with both providers during a controlled transition:
 
 The current application is tightly coupled to Supabase Auth sessions and the Supabase client. Replacing or mirroring authentication immediately could create duplicate identities, divergent sessions, and access-control gaps. Appwrite's database model and permissions also do not map one-to-one to the existing PostgreSQL schema, RLS policies, triggers, and SQL functions.
 
-## Required setup
+## Configured Appwrite project
 
-1. Create an Appwrite Cloud project at https://cloud.appwrite.io/.
-2. Add the production app's exact web origin to the Appwrite project's Web platform settings.
-3. Record the Appwrite endpoint and project ID. These are public client configuration values.
-4. Do not put an Appwrite API key, Supabase service-role key, database password, or other server secret in Vite variables or browser code.
-5. Keep the Appwrite project empty until a schema/data mapping and access-control review is complete.
+- Endpoint: `https://fra.cloud.appwrite.io/v1`
+- Project ID: `6b06de46003dde834eb6`
+- Web SDK: `appwrite` (29.3.1)
+- Client module: `src/lib/appwrite.ts`
+- Optional environment template: `.env.appwrite.example`
+
+The endpoint and project ID are public browser configuration, not secrets. The client reads `VITE_APPWRITE_ENDPOINT` and `VITE_APPWRITE_PROJECT_ID`, with the supplied project values as safe defaults.
+
+## Required console setup
+
+1. In the Appwrite project, add a Web platform for `deriv-sma-signal-das-04us.bolt.host`.
+2. Also add `localhost` for local development if needed.
+3. Confirm the project region is Frankfurt (`fra`).
+4. Do not create production collections or copy live data yet; schema mapping and access-control review must happen first.
+5. Do not put an Appwrite API key, Supabase service-role key, database password, or other server secret in Vite variables or browser code.
 
 ## Rollout phases
 
-### Phase 1 — isolated connection
-- Add the official Appwrite Web SDK and lockfile update.
-- Add a separately named Appwrite client/config module.
-- Add a non-destructive connectivity check.
-- Keep Supabase as the only production data/auth provider.
+### Phase 1 — isolated connection (client configured)
+- Added the official Appwrite Web SDK dependency (`appwrite` 29.3.1).
+- Added a separately named Appwrite client/config module.
+- Supabase remains the only production data/auth provider.
+- The Appwrite project still needs its Web platform hostname configured in the Console before browser requests can succeed.
 
 ### Phase 2 — schema and security
 - Map selected non-financial read-only data first (for example, public strategy metadata).
@@ -45,4 +55,4 @@ The current application is tightly coupled to Supabase Auth sessions and the Sup
 
 ## Current status
 
-This branch is a safe integration preparation. It intentionally does not connect to or write to Appwrite because project credentials/configuration and a verified schema mapping have not yet been supplied. It does not change or deploy the live application.
+The Appwrite Web SDK and client are now configured on this branch using the project endpoint and ID supplied by the owner. No Appwrite API key is required for this public client initialization. No collections, auth flows, production writes, Supabase settings, or live deployment have been changed. The Appwrite Web platform hostname must be added in the Console, then the branch must pass build/type checks before any read/write feature is introduced.
