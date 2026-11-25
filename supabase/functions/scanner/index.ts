@@ -336,7 +336,7 @@ function evaluateSuperSignal(
     }
   }
 
-  // Five of seven D1-to-M15 frames set directional confirmation. At least one
+  // At least five of seven D1-to-M15 frames set directional confirmation. At least one
   // micro frame must confirm timing; M1/M5 never vote the market direction.
   if (directionalAligned < 5 || microAligned < 1 || higherTimeframeOpposes) return null;
   return {
@@ -647,7 +647,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       }
 
       // Super Signal push events are generated server-side for subscribed assets only.
-      // H4 generates the only primary direction; seven frames confirm direction and M1/M5 refine timing.
+      // H4 generates the only primary direction; seven directional frames confirm it and M1/M5 refine timing.
       if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol) || futuresAutomationSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
         try {
           for (const frame of TIMEFRAMES) {
