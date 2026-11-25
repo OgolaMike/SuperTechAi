@@ -9,12 +9,26 @@ SuperTechAI is a multi-strategy platform with two separate execution paths:
 
 ## Intelligence and strategy layers
 
-1. **Unified Multi-Timeframe Intelligence:** the coordination layer. H4 owns the primary signal; the ten configured timeframes contribute confirmation. It produces one coordinated direction per asset, not ten competing instructions.
+Each strategy owns its entry rules, signal lifecycle, performance history and risk proposal. A strategy publishes an assessment; it never changes its direction merely to match another strategy.
+
+1. **Ten-Timeframe Intelligence:** one H4-led assessment informed by the ten configured timeframes. This is one strategy assessment, not ten independent strategy votes.
 2. **Pure Price Action:** reads candle bodies, wicks, swing highs/lows, structure and rejection independently of indicator calculations.
 3. **Market Structure SAR:** independent M15 setup using confirmed HH/HL or LL/LH structure, a Parabolic SAR flip and ATR protection. Current release is signal-only.
 4. **Break & Retest:** independent level-break and retest setup.
 5. **Triple Bottom / Triple Top:** pure-price-action pending-order ideas, tracked independently from market signals.
-6. **3H Wick Intelligence:** independent H4 rejection setup. In confirmation mode, a same-symbol, fresh Unified Signal must agree with the wick direction. It proposes a BB(20, 2.0) initial stop, a progressive price-based trailing plan and a three-hour maximum holding period.
+6. **3H Wick Intelligence:** independent H4 rejection setup. It proposes a BB(20, 2.0) initial stop, a progressive price-based trailing plan and a three-hour maximum holding period.
+
+## Collaborative confluence layer
+
+The confluence engine consumes fresh assessments from the independent strategies. It compares direction, signal age, strategy strength and bounded evidence weights. It deduplicates by strategy ID so one strategy cannot vote multiple times for the same asset. It distinguishes high confluence, partial agreement, conflict and wait.
+
+- High confluence requires at least two distinct strategy IDs, a minimum evidence score of 65/100 and no opposing active strategy signal.
+- Opposing active signals remain visible and produce a conflict state; they are never silently discarded.
+- The evidence score is not a win probability and must not be marketed as one.
+- Confluence does not rewrite source signals or authorize broker execution by itself.
+- New strategy adapters should publish the same `StrategyAssessment` contract without coupling their internal logic to another strategy.
+
+The first application integration currently connects Ten-Timeframe Intelligence and 3H Wick. Market Structure SAR, Break & Retest, HH/LL and other strategy outputs still need their own adapters before they contribute to the combined live result.
 
 ## 3H Wick rules
 
