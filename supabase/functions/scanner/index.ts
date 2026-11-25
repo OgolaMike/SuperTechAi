@@ -555,15 +555,6 @@ async function runScan(): Promise<Record<string, unknown>> {
         try {
           const candles = await loadTimeframeCandles(feed, symbol, timeframe, nowEpoch, candleCache);
           fetchedCount += 1;
-          // No sub-M30 timeframe is scanned or persisted.
-          if (false) {
-            const latestConfirmed = candles.filter((candle) => candle.epoch + timeframe.granularity <= nowEpoch).at(-1);
-            if (latestConfirmed) {
-              newMarks.push({ symbol: symbol.symbol, granularity: timeframe.granularity, epoch: latestConfirmed.epoch });
-              marks.set(markKey, latestConfirmed.epoch);
-            }
-            continue;
-          }
           const result = await processTimeframe(symbol, timeframe, candles, nowEpoch, previousMark);
           rowsWritten += result.rowsWritten;
 
