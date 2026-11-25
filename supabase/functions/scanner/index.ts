@@ -312,8 +312,9 @@ function evaluateSuperSignal(
 
   const expected = primary.direction;
   const supporting = TIMEFRAMES.filter((frame) => frame.granularity !== primaryFrame.granularity);
-  let supportingAligned = 0;
-  let anyTimeframeOpposes = false;
+  let directionalAligned = 0;
+  let microAligned = 0;
+  let directionalOpposes = false;
 
   for (const frame of supporting) {
     const candles = (candlesByFrame.get(frame.granularity) ?? [])
@@ -328,12 +329,16 @@ function evaluateSuperSignal(
     const deviation = Math.sqrt(variance);
     const gap = latest.close - mean;
     const bias = gap > deviation * 0.1 ? "BUY" : gap < -deviation * 0.1 ? "SELL" : "NEUTRAL";
-    if (bias === expected) supportingAligned += 1;
-    if (bias !== "NEUTRAL" && bias !== expected) anyTimeframeOpposes = true;
+    if (bias === expected) {
+      if (frame.granularity === 300 || frame.granularity === 60) microAligned += 1;
+      else directionalAligned += 1;
+    }
+    if (frame.granularity !== 300 && frame.granularity !== 60 && bias !== "NEUTRAL" && bias !== expected) directionalOpposes = true;
   }
 
-  // Require at least six of nine supporting frames; D1/H8 may never oppose H4.
-  if (supporting.length !== 9 || supportingAligned < 6 || anyTimeframeOpposes) return null;
+  // Five of seven D1-to-M15 frames set direction with no opposing directional frame.
+  // M5/M1 refine timing only; at least one must confirm H4, neither can reverse it.
+  if (supporting.length !== 9 || directionalAligned < 5 || directionalOpposes || microAligned < 1) return null;
   return {
     direction: primary.direction,
     signalEpoch: primary.signalEpoch,
@@ -342,8 +347,8 @@ function evaluateSuperSignal(
     tp1: primary.levels.tp1,
     tp2: primary.levels.tp2,
     tp3: primary.levels.tp3,
-    timeframeAgreement: supportingAligned + 1,
-    supportingAligned,
+    timeframeAgreement: directionalAligned + microAligned + 1,
+    supportingAligned: directionalAligned,
   };
 }
 
