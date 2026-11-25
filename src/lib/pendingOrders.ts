@@ -44,7 +44,7 @@ function makeLevels(direction: Direction, entry: number, deviation: number): Pic
 }
 
 /**
- * Creates pending-order ideas from the official eight-timeframe analysis set.
+ * Creates pending-order ideas from the official analysis set at M15 and higher.
  * The primary trigger is always a confirmed 15-minute crossover. It never
  * requests or uses any timeframe outside TIMEFRAMES and never places an order.
  */
