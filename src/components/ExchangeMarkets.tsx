@@ -15,7 +15,7 @@ export function ExchangeMarkets({ aiModel, onNavigate }: Props) {
   const [load, setLoad] = useState<LoadState>({ rows: [], loading: true, error: null });
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [query, setQuery] = useState('');
-  const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M15') ?? TIMEFRAMES[0]);
+  const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M30') ?? TIMEFRAMES[0]);
   const [states, setStates] = useState<Record<number, TfState>>({});
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
