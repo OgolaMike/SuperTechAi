@@ -36,6 +36,7 @@ jobs:
           deno-version: v2.x
       - name: Check Supabase Edge Functions
         run: |
+          deno check --node-modules-dir=auto supabase/functions/mt5-bridge/index.ts
           deno check --node-modules-dir=auto supabase/functions/scanner/index.ts
           deno check --node-modules-dir=auto supabase/functions/binance-spot/index.ts
           deno check --node-modules-dir=auto supabase/functions/binance-futures/index.ts
