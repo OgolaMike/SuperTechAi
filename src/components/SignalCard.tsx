@@ -118,9 +118,9 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center">
           {loading ? <Loader2 className="h-6 w-6 animate-spin text-ink-3" /> : <Minus className="h-6 w-6 text-ink-3" />}
-          <div className="text-base font-semibold text-ink-2">{marketClosed ? 'Market closed' : loading ? 'Loading market data' : 'No new signal'}</div>
+          <div className="text-base font-semibold text-ink-2">{marketClosed ? 'Market closed' : loading ? 'Loading market data' : tf.granularity === 14400 ? 'No unified signal yet' : 'Supporting chart · no separate signal'}</div>
           <div className="text-sm text-ink-3">
-            {marketClosed ? 'This market is closed for the weekend. Signals will update when it reopens.' : loading ? 'Waiting for recent price data.' : 'No crossover has closed yet.'}
+            {marketClosed ? 'This market is closed for the weekend. Signals will update when it reopens.' : loading ? 'Waiting for recent price data.' : tf.granularity === 14400 ? 'The ten-timeframe engine is waiting for a valid H4-led setup.' : 'This chart contributes market context. The single final BUY/SELL decision appears on H4 only.'}
           </div>
         </div>
       )}
@@ -129,7 +129,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
         <Clock className="h-3.5 w-3.5 flex-shrink-0 text-ink-3" />
         <span>Last update: {formatDateTime(tf.updatedEpoch)}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] leading-relaxed text-slate-300"><span className="font-semibold text-cyan-200">NO CROSS SIGNAL</span><span>Market data remains active; BUY/SELL appears only after a confirmed candle-close crossover.</span></div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] leading-relaxed text-slate-300"><span className="font-semibold text-cyan-200">{tf.granularity === 14400 ? 'UNIFIED SIGNAL ENGINE' : 'SUPPORTING TIMEFRAME'}</span><span>{tf.granularity === 14400 ? 'One final direction is shown only after the ten-timeframe confirmation gate passes.' : 'This chart provides evidence only; it does not issue a separate BUY or SELL signal.'}</span></div>
       {chartOpen && signal && createPortal((
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#050914]/95 p-3 backdrop-blur-md sm:p-6" onClick={(event) => event.stopPropagation()}>
           <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4">
