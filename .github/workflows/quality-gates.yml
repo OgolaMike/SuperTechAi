@@ -48,3 +48,5 @@ jobs:
           deno check --node-modules-dir=auto supabase/functions/binance-spot/index.ts
           deno check --node-modules-dir=auto supabase/functions/binance-futures/index.ts
           deno check --node-modules-dir=auto supabase/functions/binance-futures-executor/index.ts
+          deno check --node-modules-dir=auto supabase/functions/okx-futures/index.ts
+          deno check --node-modules-dir=auto supabase/functions/okx-futures-executor/index.ts
