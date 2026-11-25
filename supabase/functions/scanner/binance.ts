@@ -4,8 +4,8 @@ const REST_BASE = 'https://data-api.binance.vision/api/v3';
 const EXCLUDED_BASES = new Set(['USDC','USDT','BUSD','TUSD','FDUSD','DAI','USDP','EUR','GBP','AEUR','PAXG']);
 const LEVERAGED_SUFFIX = /(UP|DOWN|BULL|BEAR)$/;
 const INTERVALS: Record<number, string> = {
-  60: '1m', 900: '15m', 1800: '30m',
-  3600: '1h', 14400: '4h', 28800: '8h', 86400: '1d',
+  1800: '30m', 3600: '1h', 7200: '2h', 10800: '3h', 14400: '4h',
+  21600: '6h', 28800: '8h', 43200: '12h', 86400: '1d', 604800: '1w',
 };
 
 type Ticker = { symbol: string; quoteVolume: string };
