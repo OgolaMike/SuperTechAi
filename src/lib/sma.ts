@@ -27,7 +27,7 @@ export const TIMEFRAMES: Timeframe[] = [
 
 export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([1800, 3600, 14400, 28800, 86400]);
 
-// Build H2/H3/H6/H12 from complete hourly candles; M30, D1 and W1 use native source candles.
+// Build H2/H3/H6/H12 from complete hourly candles and W1 from complete daily candles.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
 export function aggregateHourlyCandles(hourly: Candle[], targetGranularity: number, nowEpoch = Math.floor(Date.now() / 1000)): Candle[] {
   const hoursPerCandle = targetGranularity / 3600;
