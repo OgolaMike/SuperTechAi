@@ -57,7 +57,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
   return (
     <section className="mt-8 min-w-0 w-full space-y-6 overflow-x-hidden">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Pure price-action · all assets · all timeframes</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Pure price-action · all assets · M15+ execution frames</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
           SELL: a Triple Top is formed from two confirmed swing highs at resistance; SuperTech AI stages a SELL LIMIT for the third test. BUY: a Triple Bottom is formed from two confirmed swing lows at support; SuperTech AI stages a BUY LIMIT for the third test. The stop-loss sits beyond the far edge of the pattern zone and the target is 3R. Every available asset and timeframe is scanned independently using pure price action.
@@ -94,7 +94,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-5 text-sm text-ink-2">Waiting for market data…</div>
       ) : visibleOrders.length === 0 ? (
         <div className="rounded-xl border border-line/25 bg-surface/[0.03] p-5 text-sm text-ink-2">
-          No {category.toLowerCase()} setups in this view yet. Scanning continues across all discovered assets and configured timeframes.
+          No {category.toLowerCase()} setups in this view yet. Scanning continues across discovered assets and the supported M15-and-higher execution frames.
         </div>
       ) : (
         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
