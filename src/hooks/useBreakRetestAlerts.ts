@@ -92,7 +92,6 @@ export function useBreakRetestAlerts(
         assetName: item.assetName,
         timeframe: item.timeframe,
         granularity: item.granularity,
-        chartTargetId: `break-retest:${item.key}`,
         digits: 5,
         message,
         price,
