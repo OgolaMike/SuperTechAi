@@ -54,6 +54,8 @@ export default {
     const origin = request.headers.get("origin") || "";
     const cors = corsHeaders(origin, env.ALLOWED_ORIGIN);
 
+    if (origin && origin !== env.ALLOWED_ORIGIN) return json({ error: "origin_not_allowed" }, 403);
+
     if (request.method === "OPTIONS") {
       if (origin !== env.ALLOWED_ORIGIN) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: cors });
@@ -65,7 +67,6 @@ export default {
     }
 
     if (url.pathname === "/api/me" && request.method === "GET") {
-      if (origin && origin !== env.ALLOWED_ORIGIN) return json({ error: "origin_not_allowed" }, 403);
       try {
         const account = await authenticate(request, env);
         if (!account) return json({ error: "unauthorized" }, 401, cors);
