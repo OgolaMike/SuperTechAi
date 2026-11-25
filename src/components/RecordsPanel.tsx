@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Loader2, RefreshCw } from 'lucide-react';
+import { Check, LayoutDashboard, Loader2, RefreshCw } from 'lucide-react';
 import { fetchSignalRecords, type SignalRecordRow } from '@/lib/signalRecords';
 import { formatDateTime, formatPrice } from '@/lib/sma';
 
@@ -13,6 +13,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 type Props = {
   version: number;
+  onOpenDashboard?: (symbol: string) => void;
 };
 
 type LoadState = {
@@ -21,7 +22,7 @@ type LoadState = {
   loading: boolean;
 };
 
-export function RecordsPanel({ version }: Props) {
+export function RecordsPanel({ version, onOpenDashboard }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const [state, setState] = useState<LoadState>({ rows: [], error: null, loading: true });
   const [reloadKey, setReloadKey] = useState(0);
@@ -113,11 +114,12 @@ export function RecordsPanel({ version }: Props) {
                 <th className="px-3 py-3 font-semibold">TP 2</th>
                 <th className="px-3 py-3 font-semibold">TP 3</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">Dashboard</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line/10">
               {visible.map((row) => (
-                <RecordRow key={row.signal_key} row={row} />
+                <RecordRow key={row.signal_key} row={row} onOpenDashboard={onOpenDashboard} />
               ))}
             </tbody>
           </table>
@@ -127,7 +129,7 @@ export function RecordsPanel({ version }: Props) {
   );
 }
 
-function RecordRow({ row }: { row: SignalRecordRow }) {
+function RecordRow({ row, onOpenDashboard }: { row: SignalRecordRow; onOpenDashboard?: (symbol: string) => void }) {
   const isBuy = row.direction === 'BUY';
   return (
     <tr className="transition-colors hover:bg-surface/[0.03]">
@@ -143,6 +145,7 @@ function RecordRow({ row }: { row: SignalRecordRow }) {
       <td className="px-4 py-3">
         <StatusBadge status={row.status} closed={row.closed} />
       </td>
+      <td className="px-4 py-3"><button type="button" onClick={() => onOpenDashboard?.(row.symbol)} className="inline-flex items-center gap-1.5 rounded-lg border border-accent/25 bg-accent/10 px-2.5 py-2 text-[11px] font-semibold text-ink hover:border-accent/60"><LayoutDashboard className="h-3.5 w-3.5"/> Open</button></td>
     </tr>
   );
 }
