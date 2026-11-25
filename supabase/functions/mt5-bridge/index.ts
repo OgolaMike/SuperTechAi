@@ -569,6 +569,91 @@ Deno.serve(async (req) => {
       });
     }
 
+
+    if (body.action === "claim_five_minute_bar") {
+      const symbol = String(body.symbol ?? "").trim();
+      const direction = String(body.direction ?? "").toUpperCase();
+      const barEpoch = Number(body.barEpoch);
+      if (!symbol || symbol.length > 40 || !["BUY", "SELL"].includes(direction) ||
+          !Number.isSafeInteger(barEpoch) || barEpoch <= 0 || barEpoch % 300 !== 0 ||
+          Math.abs(Math.floor(Date.now() / 1000) - barEpoch) > 5) {
+        return json({ error: "invalid_or_late_five_minute_bar_claim" }, 400);
+      }
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("login,server,bridge_status,five_minute_momentum_enabled,five_minute_momentum_symbol,place_new_orders,live_execution_enabled,emergency_stop,risk_controls_enabled,max_daily_loss_pct")
+        .eq("user_id", worker.user_id).maybeSingle();
+      if (settingsError || !settings) throw settingsError ?? new Error("account_settings_missing");
+      if (settings.bridge_status !== "connected" || settings.five_minute_momentum_enabled !== true ||
+          settings.five_minute_momentum_symbol !== symbol || settings.place_new_orders !== true ||
+          settings.live_execution_enabled !== true || settings.emergency_stop !== false ||
+          settings.risk_controls_enabled !== true) {
+        return json({ error: "five_minute_momentum_not_authorized" }, 403);
+      }
+      const { data: daily, error: dailyError } = await db.from("mt5_daily_risk_snapshots")
+        .select("starting_equity,latest_equity,cash_flow_adjustment,history_complete,updated_at")
+        .eq("user_id", worker.user_id).eq("utc_date", now.slice(0, 10)).maybeSingle();
+      if (dailyError) throw dailyError;
+      if (!daily || Number(daily.starting_equity) <= 0 || daily.history_complete !== true ||
+          Date.now() - Date.parse(daily.updated_at) > 30000) {
+        return json({ error: "daily_risk_snapshot_stale_or_incomplete" }, 409);
+      }
+      const dailyLossPct = Math.max(0, -((Number(daily.latest_equity) -
+        Number(daily.starting_equity) - Number(daily.cash_flow_adjustment ?? 0)) /
+        Number(daily.starting_equity)) * 100);
+      if (dailyLossPct >= Number(settings.max_daily_loss_pct)) {
+        return json({ error: "daily_loss_limit_reached" }, 409);
+      }
+      const { data: existing, error: existingError } = await db.from("mt5_five_minute_momentum_bars")
+        .select("id,state").eq("user_id", worker.user_id).eq("account_login", settings.login)
+        .eq("account_server", settings.server).eq("symbol", symbol).eq("bar_epoch", barEpoch).maybeSingle();
+      if (existingError) throw existingError;
+      if (existing) return json({ ok: true, claimed: false, reason: "bar_already_claimed" });
+      const { data: inserted, error: insertError } = await db.from("mt5_five_minute_momentum_bars").insert({
+        user_id: worker.user_id, account_login: settings.login, account_server: settings.server,
+        symbol, bar_epoch: barEpoch, direction, state: "claimed",
+      }).select("id").single();
+      if (insertError) {
+        if (insertError.code === "23505") return json({ ok: true, claimed: false, reason: "bar_already_claimed" });
+        throw insertError;
+      }
+      return json({ ok: true, claimed: true, barId: inserted.id });
+    }
+
+    if (body.action === "record_five_minute_bar") {
+      const barId = String(body.barId ?? "");
+      const state = String(body.state ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(barId) || !["accepted", "rejected", "uncertain"].includes(state)) {
+        return json({ error: "invalid_five_minute_bar_result" }, 400);
+      }
+      const ticket = body.brokerTicket == null ? null : Number(body.brokerTicket);
+      const retcode = body.brokerRetcode == null ? null : Number(body.brokerRetcode);
+      const volume = body.volume == null ? null : Number(body.volume);
+      const entryPrice = body.entryPrice == null ? null : Number(body.entryPrice);
+      if ((ticket !== null && (!Number.isSafeInteger(ticket) || ticket < 0)) ||
+          (retcode !== null && !Number.isInteger(retcode)) ||
+          (volume !== null && (!Number.isFinite(volume) || volume <= 0)) ||
+          (entryPrice !== null && (!Number.isFinite(entryPrice) || entryPrice <= 0))) {
+        return json({ error: "invalid_five_minute_bar_result_fields" }, 400);
+      }
+      const { data: settings, error: settingsError } = await db.from("mt5_account_settings")
+        .select("login,server").eq("user_id", worker.user_id).maybeSingle();
+      if (settingsError || !settings) throw settingsError ?? new Error("account_settings_missing");
+      const { data, error } = await db.from("mt5_five_minute_momentum_bars").update({
+        state,
+        broker_ticket: ticket,
+        broker_retcode: retcode,
+        volume,
+        entry_price: entryPrice,
+        broker_message: String(body.brokerMessage ?? "").slice(0, 120),
+        updated_at: now,
+      }).eq("id", barId).eq("user_id", worker.user_id)
+        .eq("account_login", settings.login).eq("account_server", settings.server)
+        .eq("state", "claimed").select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "five_minute_bar_claim_not_found_or_already_recorded" }, 404);
+      return json({ ok: true, recorded: true, state });
+    }
+
     if (body.action === "poll") {
       const { data, error } = await db.rpc("claim_mt5_bridge_commands", {
         p_worker_id: workerId, p_lease_seconds: 90, p_limit: 10,
