@@ -433,7 +433,7 @@ def close_due_five_minute_positions(max_slippage_points: int) -> None:
             log.info("Five Minute Momentum closed ticket %s at its five-minute boundary", position.ticket)
 
 
-def run_five_minute_momentum(config: dict[str, Any] | None, daily_loss_pct: float = 100.0) -> None:
+def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_loss_pct: float = 100.0) -> None:
     """Evaluate broker M5 candles and execute one raw HH/LL market trade per bar."""
     settings = config or {}
     max_slippage = int(settings.get("max_slippage_points", 0) or 0)
@@ -523,14 +523,45 @@ def run_five_minute_momentum(config: dict[str, Any] | None, daily_loss_pct: floa
     if not broker_order_check_passed(check):
         log.warning("Five Minute Momentum broker preflight rejected %s %s", direction, symbol)
         return
-    # The bar is marked consumed before sending. An uncertain send is never blindly repeated.
-    result = mt5.order_send(request)
+    # Claim this account/symbol/bar atomically before sending to prevent duplicate workers.
+    claim = api_call(token, {
+        "action": "claim_five_minute_bar",
+        "symbol": symbol,
+        "direction": direction,
+        "barEpoch": current_bar_epoch,
+    })
+    if claim.get("error") or claim.get("claimed") is not True or not claim.get("barId"):
+        log.info("Five Minute Momentum bar not claimed (%s); no broker order sent",
+                 claim.get("reason", claim.get("error", "claim_denied")))
+        return
+    bar_id = str(claim["barId"])
     accepted = {
         int(getattr(mt5, "TRADE_RETCODE_DONE", 10009)),
         int(getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)),
     }
-    if result is None or int(getattr(result, "retcode", -1)) not in accepted:
-        log.warning("Five Minute Momentum %s %s was not confirmed; this candle will not be retried", direction, symbol)
+    try:
+        result = mt5.order_send(request)
+    except Exception:
+        api_call(token, {"action": "record_five_minute_bar", "barId": bar_id,
+                         "state": "uncertain", "brokerMessage": "MT5 send raised an exception"})
+        log.warning("Five Minute Momentum send outcome uncertain; candle will not be retried")
+        return
+    if result is None:
+        api_call(token, {"action": "record_five_minute_bar", "barId": bar_id,
+                         "state": "uncertain", "brokerMessage": "MT5 returned no send result"})
+        log.warning("Five Minute Momentum send outcome uncertain; candle will not be retried")
+        return
+    retcode = int(getattr(result, "retcode", -1))
+    state = "accepted" if retcode in accepted else "rejected"
+    api_call(token, {
+        "action": "record_five_minute_bar", "barId": bar_id, "state": state,
+        "brokerTicket": int(getattr(result, "order", 0) or getattr(result, "deal", 0) or 0) or None,
+        "brokerRetcode": retcode, "volume": volume,
+        "entryPrice": float(getattr(result, "price", 0) or request["price"]),
+        "brokerMessage": str(getattr(result, "comment", ""))[:120],
+    })
+    if state != "accepted":
+        log.warning("Five Minute Momentum %s %s rejected by broker (retcode=%s)", direction, symbol, retcode)
         return
     log.info("Five Minute Momentum opened %s %s volume=%s at M5 bar %s; scheduled exit at %s",
              direction, symbol, volume, current_bar_epoch, current_bar_epoch + 300)
@@ -650,7 +681,7 @@ def main() -> None:
             cycle_end = time.monotonic() + POLL_SECONDS
             while time.monotonic() < cycle_end:
                 try:
-                    run_five_minute_momentum(momentum_config, daily_loss_pct)
+                    run_five_minute_momentum(token, momentum_config, daily_loss_pct)
                 except Exception as momentum_error:
                     log.warning("Five Minute Momentum cycle failed: %s", type(momentum_error).__name__)
                 time.sleep(MOMENTUM_CHECK_SECONDS)
