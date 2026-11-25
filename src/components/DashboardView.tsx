@@ -20,8 +20,9 @@ type Props = {
 };
 
 export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, unifiedSignals, onNavigate }: Props) {
+  const visibleSymbols = selectedSymbols.slice(0, 1);
   const unifiedBySymbol = new Map(unifiedSignals.map((signal) => [signal.symbol, signal]));
-  const signalSummary = unifiedSignals.reduce((summary, signal) => {
+  const signalSummary = unifiedSignals.filter((signal) => visibleSymbols.includes(signal.symbol)).reduce((summary, signal) => {
     if (signal.direction === 'BUY') summary.buy += 1;
     if (signal.direction === 'SELL') summary.sell += 1;
     return summary;
@@ -52,8 +53,8 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         </div>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-2xl border border-line/10 bg-canvas/55 p-4">
-            <p className="text-xs text-ink-3">Monitored assets</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{selectedSymbols.length}</p>
+            <p className="text-xs text-ink-3">Dashboard asset</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{visibleSymbols.length}</p>
           </div>
           <div className="rounded-2xl border border-line/10 bg-canvas/55 p-4">
             <p className="text-xs text-ink-3">Current signals</p>
@@ -105,7 +106,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         </div>
       </div>
 
-      {selectedSymbols.map((symbol) => {
+      {visibleSymbols.map((symbol) => {
         const asset = assetMap.get(symbol) ?? { symbol, name: symbol, fullName: symbol, digits: 4 };
         const assetStates = states[symbol] ?? {};
         const unifiedSignal = unifiedBySymbol.get(symbol);
