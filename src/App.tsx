@@ -143,7 +143,7 @@ function App() {
       if (selectedSignalKey) setSelectedSuperSignalKey(selectedSignalKey);
       setView('super');
     } else {
-      setSelectedSymbols((current) => current.includes(symbol) ? current : [...current, symbol].slice(-10));
+      setSelectedSymbols((current) => [symbol, ...current.filter((item) => item !== symbol)].slice(0, 10));
       setView('dashboard');
     }
     const targetId = chartTargetId?.startsWith('break-retest:') ? 'break-retest-panel' : chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
@@ -260,13 +260,13 @@ function App() {
               </article>
             </div>
             <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">These are pattern scans and tracked trade ideas. “Entry reached” is not proof of a broker fill. Check the live chart, market conditions and risk before placing any trade.</div>
-            <BreakRetestPanel assets={assets} states={states} prices={prices} />
+            <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={(symbol) => openSignalChart(symbol, 900)} />
             <div className="border-t border-line/15 pt-6">
               <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />
             </div>
           </section>
         )}
-        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} selectedSetupKey={selectedBreakRetestKey} />}
+        {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} selectedSetupKey={selectedBreakRetestKey} onOpenDashboard={(symbol) => openSignalChart(symbol, 900)} />}
 
         {view === 'super' && (
           <section className="mt-8">
