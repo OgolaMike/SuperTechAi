@@ -45,7 +45,9 @@ Cloudflare Pages Free currently documents 500 builds per month, one concurrent b
 - Existing connection probe table: `connection_probe` (`6b06e4ec000a9c8a0f94`)
 - Browser config is public; never put Appwrite API keys, Supabase service-role keys, exchange secrets, or encryption keys in Vite variables.
 
-The Appwrite client now has account lifecycle methods for account creation, email/password sessions, current-account lookup, sign-out, email verification, and password recovery. These methods are isolated in `src/lib/appwrite.ts` and do not import or fall back to Supabase.
+The Appwrite client now has account lifecycle methods for account creation, email/password sessions, current-account lookup, sign-out, email verification, and password recovery. Registration stores the submitted TRC20 receiving address in user-editable Appwrite account preferences only; it is not payment evidence or a membership approval. These methods are isolated in `src/lib/appwrite.ts` and do not import or fall back to Supabase.
+
+The independent preview entrypoint now uses the Appwrite auth gate. Email verification and password recovery callbacks are handled by the Appwrite account API. The legacy application modules and NFC/Supabase routes are deliberately not loaded from the independent preview entrypoint. A verified Appwrite account currently sees a migration-pending screen rather than incomplete trading, finance, membership, or automation features. Before browser auth can be tested, register `supertechai.pages.dev` as a Web platform in the Appwrite project.
 
 ## Migration rules
 
@@ -68,4 +70,4 @@ The Appwrite client now has account lifecycle methods for account creation, emai
 
 ## Current branch status
 
-This branch adds isolated Appwrite account API methods only. It does not yet switch the app's AuthGate, migrate member permissions/data, replace Supabase Edge Functions or storage, or produce a complete Appwrite-only runtime. It is not ready to deploy as the independent member platform until those steps pass build, security, and end-to-end tests.
+This branch now includes the isolated Appwrite account API and the independent preview auth gate. It does not yet migrate member permissions/roles, payment and financial data, referrals, signal history, notifications, Supabase Edge Functions, Storage, or trading/automation services. It is not ready to operate as the independent member platform until the Appwrite Web origin is configured and those domains pass security, build, and end-to-end parity tests.
