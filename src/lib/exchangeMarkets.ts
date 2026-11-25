@@ -26,7 +26,7 @@ const get = async (url: string) => {
   if (!response.ok) throw new Error('Exchange market data proxy is unavailable');
   const data: unknown = await response.json();
   if (!data || typeof data !== 'object' || 'error' in data) throw new Error('Invalid exchange market response');
-  return data as Record<string, any>;
+  // The exchange endpoints have different JSON row shapes; consumers validate each row before use.\n  // eslint-disable-next-line @typescript-eslint/no-explicit-any\n  return data as Record<string, any>;
 };
 
 async function fetchExchangeTickersUncached(exchange: ExchangeId): Promise<ExchangeTicker[]> {
