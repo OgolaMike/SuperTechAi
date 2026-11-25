@@ -12,7 +12,7 @@ type Bias = 'Bullish' | 'Bearish' | 'Neutral' | 'No data';
 
 type Read = { label: string; bias: Bias };
 
-const PRIMARY_GRANULARITY = 900;
+const PRIMARY_GRANULARITY = 1800;
 const DAY = 86400;
 const LOOKBACK_SECONDS = 8 * PRIMARY_GRANULARITY;
 
