@@ -5,6 +5,7 @@ import { formatPrice } from '@/lib/sma';
 import { getAlertMode } from '@/lib/alertPreferences';
 import { useSession } from '@/lib/sessionContext';
 import type { Direction, SignalLevels, SignalView } from '@/lib/signals';
+import { saveBubble } from '@/lib/bubbleHistory';
 
 export type ToastKind = 'signal' | 'reversal' | 'hit' | 'break-retest';
 
