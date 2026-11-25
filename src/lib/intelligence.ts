@@ -40,7 +40,7 @@ const NEUTRAL_BAND = 0.1;
 const SMA_PERIOD = 60;
 
 // H4 owns the signal. Supporting frames contribute confirmation, never a competing direction.
-const MIN_SUPPORTING_ALIGNMENT = 6;
+const MIN_DIRECTIONAL_ALIGNMENT = 5;
 const CLASSIFICATION_RANK: Record<Classification, number> = {
   'Strong alignment': 0,
   'Moderate alignment': 1,
@@ -136,14 +136,17 @@ function evaluateSymbol(
   const { direction, levels } = signal;
   const expected = expectedBias(direction);
   const supportingReads = readings.filter((reading) => reading.label !== PRIMARY_LABEL);
-  const supportingAligned = supportingReads.filter((reading) => reading.valid && reading.bias === expected).length;
+  const directionalReads = supportingReads.filter((reading) => reading.label !== 'M5' && reading.label !== 'M1');
+  const microReads = supportingReads.filter((reading) => reading.label === 'M5' || reading.label === 'M1');
+  const directionalAligned = directionalReads.filter((reading) => reading.valid && reading.bias === expected).length;
+  const microAligned = microReads.filter((reading) => reading.valid && reading.bias === expected).length;
   const higherTimeframes = supportingReads.filter((reading) => reading.label === 'D1' || reading.label === 'H8');
   const higherTimeframeOpposes = higherTimeframes.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
-  // H4 owns the only final direction. All nine supporting frames must be fresh;
-  // at least six must agree, and D1/H8 may not oppose. M1/M5 refine timing but
-  // cannot overrule the higher-timeframe direction on their own.
-  if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
+  // H4 owns direction. Five of seven D1-to-M15 supporting frames must agree.
+  // M1/M5 are timing-only: at least one must confirm the direction, but neither
+  // can vote the market direction or replace the seven higher/mid frames.
+  if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || directionalAligned < MIN_DIRECTIONAL_ALIGNMENT || microAligned < 1 || higherTimeframeOpposes) return null;
 
   const confirmations = INTELLIGENCE_TIMEFRAMES.map((timeframe) => {
     const state = states[timeframe.granularity];
@@ -164,13 +167,14 @@ function evaluateSymbol(
   );
   const confirmationTimeframe = latestConfirmation.label;
   const confirmationEpoch = latestConfirmation.epoch;
-  const gradePercent = Math.round((supportingAligned / supportingReads.length) * 100);
+  const gradePercent = Math.round((directionalAligned / directionalReads.length) * 100);
 
-  const classification: Classification = supportingAligned >= 6 ? 'Strong alignment' : 'Moderate alignment';
+  const classification: Classification = directionalAligned >= 6 ? 'Strong alignment' : 'Moderate alignment';
   const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
   const explanation = [
     `H4 generated the primary ${direction} signal ${describeAge(nowEpoch - signal.signalEpoch)}.`,
-    `${supportingAligned} of 9 supporting timeframes confirm H4; D1 and H8 are not opposing the direction.`,
+    `${directionalAligned} of 7 directional supporting timeframes confirm H4; D1 and H8 are not opposing the direction.`,
+    `M5/M1 provide entry timing confirmation (${microAligned} of 2 agree) without changing the H4 direction.`,
     `${confirmationTimeframe} was the latest timeframe to join alignment, giving this H4 signal a ${gradePercent}% support grade.`,
   ].join(' ');
 
@@ -182,7 +186,7 @@ function evaluateSymbol(
     classification,
     levels,
     dailyBias,
-    agreeing: supportingAligned + 1,
+    agreeing: directionalAligned + microAligned + 1,
     validReads: INTELLIGENCE_TIMEFRAMES.length,
     reads: readings.map((reading) => ({
       label: reading.label,
