@@ -65,7 +65,7 @@ export function FiveMinuteMomentum({ asset, state, currentPrice, nowEpoch, loade
               <div className="mt-6 grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-line/10 bg-canvas/50 p-3">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3">M5 candle open</p>
-                  <p className="mt-1 font-mono text-lg font-bold text-ink">{price(forming.open, digits)}</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-ink">{forming ? price(forming.open, digits) : '—'}</p>
                 </div>
                 <div className="rounded-xl border border-line/10 bg-canvas/50 p-3">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Current price</p>
