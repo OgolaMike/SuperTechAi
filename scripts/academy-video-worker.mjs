@@ -60,7 +60,7 @@ async function readLessons() {
 
 function resolveView(text) {
   const value = String(text || '').toLowerCase();
-  if (/super signal|eight timeframes|8 timeframes|multi[- ]timeframe/.test(value)) return 'Super Signal';
+  if (/super signal|ten timeframes|10 timeframes|eight timeframes|8 timeframes|multi[- ]timeframe/.test(value)) return 'Super Signal';
   if (/pending order|limit order|stop order|entry zone|order execution|market order|slippage/.test(value)) return 'Pending Orders';
   if (/binance futures|futures|funding rate|perpetual|derivative/.test(value)) return 'Binance Futures';
   if (/binance spot/.test(value)) return 'Binance Spot';
