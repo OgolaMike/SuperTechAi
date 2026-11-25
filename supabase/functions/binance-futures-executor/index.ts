@@ -85,14 +85,14 @@ Deno.serve(async req=>{
    if(haltNewOrders)continue;
    const nowEpoch=Math.floor(Date.now()/1000);
    const freshCutoff=nowEpoch-8*14400;
-   const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").gte("timeframe_agreement",5).gte("signal_epoch",freshCutoff).lte("signal_epoch",nowEpoch).order("signal_epoch",{ascending:false}).limit(25);
+   const {data:intents,error:ie}=await db.from("binance_futures_signal_intents").select("*").eq("user_id",cfg.user_id).eq("status","signal_ready").gte("timeframe_agreement",7).gte("signal_epoch",freshCutoff).lte("signal_epoch",nowEpoch).order("signal_epoch",{ascending:false}).limit(25);
    if(ie){failed++;continue;}
    if(!(intents??[]).length)continue;
    let memberSnapshot:{available:number;wallet:number;active:PositionRow[];exchangeSymbols:ExchangeSymbol[]}|null=null;
    let memberPreflightError:string|null=null;
    for(const it of intents??[]){
     const now=Math.floor(Date.now()/1000);
-    if((Array.isArray(cfg.allowed_symbols)&&cfg.allowed_symbols.length>0&&!cfg.allowed_symbols.includes(it.symbol))||Number(it.timeframe_agreement)<5||now-Number(it.signal_epoch)>8*14400||now<Number(it.signal_epoch)||!Number(it.entry_price)||!Number(it.stop_loss)||!Number(it.take_profit)){skipped++;continue;}
+    if((Array.isArray(cfg.allowed_symbols)&&cfg.allowed_symbols.length>0&&!cfg.allowed_symbols.includes(it.symbol))||Number(it.timeframe_agreement)<7||now-Number(it.signal_epoch)>8*14400||now<Number(it.signal_epoch)||!Number(it.entry_price)||!Number(it.stop_loss)||!Number(it.take_profit)){skipped++;continue;}
     const {data:dup}=await db.from("binance_futures_orders").select("id,status").eq("user_id",cfg.user_id).eq("signal_key",it.signal_key).maybeSingle();
     if(dup){skipped++;continue;}
     try{
