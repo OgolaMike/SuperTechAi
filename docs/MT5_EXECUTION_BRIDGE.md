@@ -15,7 +15,7 @@ Broker execution is not production-verified until the current database migration
 - Browser dashboard and Supabase scanner use one ten-timeframe H4-led confluence set: D1, H8, H4, H3, H2, H1, M30, M15, M5 and M1. M1/M5 are confirmation-only inputs; they do not emit independent trade signals. M15 remains a supporting precision frame.
 - The scanner evaluates confirmed/closed candles and persists signal records with stable signal keys.
 - Preserve the existing SMA 60 / Bollinger signal logic, reversal behavior, signal levels and notification timing. Do not change these while implementing the execution bridge.
-- Pending-order ideas are currently generated in the app from live dashboard state. They require agreement across all eight timeframes and a fresh active M15 signal.
+- Pending-order ideas are currently generated in the app from live dashboard state. They require agreement across the eight M15-and-higher execution frames and a fresh active M15 signal.
 - The trained-AI quality gate applies to Buy Limit and Sell Limit ideas only. Buy Stop and Sell Stop rules must not be changed by that limit-order filter.
 - These browser-generated ideas are not yet a durable unattended signal-to-order feed. A future automation release must move the same decision rules into a server-side, candle-close-driven pipeline and persist each intent idempotently; it must not trust a browser tab to remain open.
 
