@@ -18,16 +18,16 @@ const corsHeaders = {
 // no lower timeframe can publish a competing dashboard BUY/SELL instruction.
 // H2/H3/H4/H8 are built from complete hourly candles for consistent market bars.
 const TIMEFRAMES = [
-  { granularity: 86400, label: "D1", candleCount: 366 },
-  { granularity: 28800, label: "H8", candleCount: 200 },
-  { granularity: 14400, label: "H4", candleCount: 200 },
-  { granularity: 10800, label: "H3", candleCount: 200 },
-  { granularity: 7200, label: "H2", candleCount: 200 },
-  { granularity: 3600, label: "H1", candleCount: 603 },
   { granularity: 1800, label: "M30", candleCount: 200 },
-  { granularity: 900, label: "M15", candleCount: 200 },
-  { granularity: 300, label: "M5", candleCount: 300 },
-  { granularity: 60, label: "M1", candleCount: 300 },
+  { granularity: 3600, label: "H1", candleCount: 200 },
+  { granularity: 7200, label: "H2", candleCount: 200 },
+  { granularity: 10800, label: "H3", candleCount: 200 },
+  { granularity: 14400, label: "H4", candleCount: 200 },
+  { granularity: 21600, label: "H6", candleCount: 200 },
+  { granularity: 28800, label: "H8", candleCount: 200 },
+  { granularity: 43200, label: "H12", candleCount: 200 },
+  { granularity: 86400, label: "D1", candleCount: 366 },
+  { granularity: 604800, label: "W1", candleCount: 200 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
@@ -70,7 +70,7 @@ async function loadTimeframeCandles(
   if (cached) return cached;
 
   // H2/H3 use fully formed UTC hourly buckets across Deriv, Binance Spot and Futures.
-  if (timeframe.granularity === 7200 || timeframe.granularity === 10800) {
+  if ([7200, 10800, 21600, 43200].includes(timeframe.granularity)) {
     const hoursPerCandle = timeframe.granularity / 3600;
     const hourlyFrame = TIMEFRAMES.find((frame) => frame.granularity === 3600)!;
     const hourlyCount = Math.min(1000, Math.max(hourlyFrame.candleCount, timeframe.candleCount * hoursPerCandle + hoursPerCandle));
