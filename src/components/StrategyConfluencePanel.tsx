@@ -1,5 +1,5 @@
 import { CheckCircle2, CircleDashed, XCircle } from 'lucide-react';
-import type { ConfluenceResult, StrategyAssessment } from '@/lib/strategyConfluence';
+import type { ConfluenceResult } from '@/lib/strategyConfluence';
 type Props={results:ConfluenceResult[]};
 export function StrategyConfluencePanel({results}:Props){
  return <section className="mt-6 space-y-4"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-accent">Independent engines · agreement only</p><h3 className="mt-1 text-xl font-semibold text-ink">Strategy Confluence</h3><p className="mt-1 text-sm text-ink-2">Each strategy keeps its own rules and output. This layer only compares direction and freshness; it does not rewrite signals or estimate win probability.</p></div>
