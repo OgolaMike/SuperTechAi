@@ -46,4 +46,8 @@ ALTER TABLE public.mt5_signal_intents
   ]::text[]))
   NOT VALID;
 
+-- Stop scanning obsolete sub-M30 intervals while preserving historical signal rows.
+DELETE FROM public.scanner_candle_marks
+WHERE granularity IN (60, 300, 900);
+
 COMMIT;
