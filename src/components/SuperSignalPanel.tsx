@@ -215,7 +215,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
           {TIMEFRAMES.map((timeframe) => {
             const read = record.reads.find((item) => item.label === timeframe.label);
             const agrees = read?.agrees === true;
-            return <div key={timeframe} className={`rounded-lg border px-1.5 py-2 text-center ${agrees ? 'border-up/25 bg-up/10 text-up' : 'border-line/10 bg-surface/[0.03] text-ink-3'}`}>
+            return <div key={timeframe.label} className={`rounded-lg border px-1.5 py-2 text-center ${agrees ? 'border-up/25 bg-up/10 text-up' : 'border-line/10 bg-surface/[0.03] text-ink-3'}`}>
               <div className="text-[10px] font-bold">{timeframe.label}</div>
               <div className="mt-1 flex justify-center">{agrees ? <Check className="h-3.5 w-3.5" /> : <span className="text-[10px]">—</span>}</div>
             </div>;
