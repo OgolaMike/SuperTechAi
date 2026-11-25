@@ -45,6 +45,8 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
   const [connectionError, setConnectionError] = useState('');
   const [quoteBusySymbol, setQuoteBusySymbol] = useState('');
   const [quoteError, setQuoteError] = useState('');
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState('');
   const [quotes, setQuotes] = useState<Record<string, Array<{ contractType: string; askPrice: number; payout: number; currency: string; barrier: string }>>>({});
 
   const loadConnection = useCallback(async () => {
@@ -101,6 +103,32 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
   };
 
   const selectedAccount = accounts.find(item => item.account_type === account && item.status === 'active') ?? accounts.find(item => item.account_type === account) ?? null;
+
+  const saveSettings = async () => {
+    if (!selectedAccount || selectedAccount.status !== 'active') {
+      setSettingsMessage('Connect and select an active Deriv account first.');
+      return;
+    }
+    const amount = Number(stake);
+    if (!Number.isFinite(amount) || amount < 0.35) {
+      setSettingsMessage('Enter a valid stake of at least 0.35.');
+      return;
+    }
+    setSettingsBusy(true);
+    setSettingsMessage('');
+    const contractKind = contract === 'both' ? 'BOTH' : contract === 'touch' ? 'ONETOUCH' : 'NOTOUCH';
+    const { data, error } = await supabase.functions.invoke('deriv-options-settings', {
+      body: { action: 'save', accountId: selectedAccount.account_id, accountMode: account, contractKind, stake: amount, automationEnabled: false },
+    });
+    if (error || data?.error) {
+      setSettingsMessage(data?.error === 'execution_not_enabled'
+        ? 'Automatic trading is still locked while Demo execution tests are pending.'
+        : error?.message ?? data?.error ?? 'Could not save settings.');
+    } else {
+      setSettingsMessage('Your account and trading preferences have been saved. Automatic trading remains off.');
+    }
+    setSettingsBusy(false);
+  };
 
   const opportunities = useMemo(() => {
     const signalBySymbol = new Map(superSignals.map(signal => [signal.symbol, signal]));
@@ -212,6 +240,11 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
           <input id="options-stake" type="number" min="0.35" step="0.01" inputMode="decimal" value={stake} onChange={event => setStake(event.target.value)} className="w-full bg-transparent text-base font-semibold text-ink outline-none" />
         </div>
         <p className="mt-2 text-xs text-ink-3">The broker's minimum stake and account currency will be checked before any order.</p>
+        <button type="button" onClick={() => void saveSettings()} disabled={settingsBusy || !connected}
+          className="mt-4 w-full rounded-xl border border-accent/35 bg-accent/10 px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-accent/15 disabled:cursor-not-allowed disabled:opacity-50">
+          {settingsBusy ? 'Saving…' : 'Save trading preferences'}
+        </button>
+        {settingsMessage && <p role="status" className="mt-2 text-xs text-ink-2">{settingsMessage}</p>}
       </div>
 
       <div className="space-y-4 rounded-2xl border border-line/15 bg-surface/[0.04] p-4 sm:p-5">
