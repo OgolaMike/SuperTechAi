@@ -6,7 +6,7 @@ import { showSignalNotification } from '@/lib/deviceNotify';
 import { getAlertMode } from '@/lib/alertPreferences';
 import { useSession } from '@/lib/sessionContext';
 
-const SUPER_SIGNAL_GRANULARITY = 900;
+const SUPER_SIGNAL_GRANULARITY = 14400;
 const FRESH_CANDLES = 2;
 
 function isFreshSignal(signalEpoch: number, nowEpoch: number): boolean {
@@ -65,7 +65,7 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
       if (!isFreshSignal(signal.signalEpoch, nowEpoch)) continue;
       const alertMode = getAlertMode('superSignals', signal.symbol, userId);
       if (alertMode === 'muted') continue;
-      const message = `All eight timeframes agree. A new ${signal.direction} opportunity has been confirmed.`;
+      const message = `All ten timeframes agree. A new ${signal.direction} opportunity has been confirmed.`;
       const toast: Toast = {
         id: `super:${key}`,
         tag: `super:${key}`,
