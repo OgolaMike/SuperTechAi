@@ -260,7 +260,7 @@ function App() {
               </article>
             </div>
             <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">These are pattern scans and tracked trade ideas. “Entry reached” is not proof of a broker fill. Check the live chart, market conditions and risk before placing any trade.</div>
-            <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={(symbol) => openSignalChart(symbol, 900)} />
+            <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={(symbol) => openSignalChart(symbol, 14400) />
             <div className="border-t border-line/15 pt-6">
               <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} />
             </div>
