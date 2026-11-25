@@ -61,7 +61,7 @@ async function executeIntent(row:OkxSignalIntent){
  const {data:settings,error:se}=await admin.from("okx_futures_settings").select("*").eq("user_id",userId).maybeSingle();if(se||!settings)throw Error("okx_settings_missing");
  if(settings.connection_status!=="connected"||!settings.auto_trade_enabled||settings.emergency_stop)throw Error("okx_automation_not_enabled");
  if(settings.demo_trading!==true&&settings.live_execution_enabled!==true)throw Error("okx_live_execution_not_enabled");
- if(row.timeframe_agreement!==8||Math.floor(Date.now()/1000)-Number(row.signal_epoch)>7200||Number(row.signal_epoch)>Math.floor(Date.now()/1000)+30)throw Error("okx_signal_not_fresh_8_of_8");
+ if(Number(row.timeframe_agreement)<7||Math.floor(Date.now()/1000)-Number(row.signal_epoch)>7200||Number(row.signal_epoch)>Math.floor(Date.now()/1000)+30)throw Error("okx_signal_not_fresh_h4_ten_timeframe_confirmation");
  const inst=instId(String(row.inst_id??row.symbol??"")),{k,s,p}=await getCred(userId),demo=settings.demo_trading===true;
  const [account,positions,instruments,ticker]=await Promise.all([
   okx(k,s,p,"/api/v5/account/balance?ccy=USDT","GET",null,demo),
