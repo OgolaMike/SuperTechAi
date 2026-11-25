@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Activity, ArrowUpRight, CheckCircle2, Clock3, LockKeyhole, Wallet } from 'lucide-react';
-import type { Asset, TfState } from '@/lib/sma';
+import type { Asset } from '@/lib/sma';
 import type { SuperSignal } from '@/lib/intelligence';
 import type { ConfluenceResult } from '@/lib/strategyConfluence';
 
