@@ -310,7 +310,8 @@ function evaluateSuperSignal(
 
   const expected = primary.direction;
   const supporting = TIMEFRAMES.filter((frame) => frame.granularity !== primaryFrame.granularity);
-  let supportingAligned = 0;
+  let directionalAligned = 0;
+  let microAligned = 0;
   let higherTimeframeOpposes = false;
 
   for (const frame of supporting) {
@@ -326,15 +327,18 @@ function evaluateSuperSignal(
     const deviation = Math.sqrt(variance);
     const gap = latest.close - mean;
     const bias = gap > deviation * 0.1 ? "BUY" : gap < -deviation * 0.1 ? "SELL" : "NEUTRAL";
-    if (bias === expected) supportingAligned += 1;
+    if (bias === expected) {
+      if (frame.granularity === 300 || frame.granularity === 60) microAligned += 1;
+      else directionalAligned += 1;
+    }
     if ((frame.label === "D1" || frame.label === "H8") && bias !== "NEUTRAL" && bias !== expected) {
       higherTimeframeOpposes = true;
     }
   }
 
-  // At least six of nine supporting frames must align. M1/M5 refine timing;
-  // D1/H8 opposition blocks the signal, and no lower frame can reverse H4.
-  if (supportingAligned < 6 || higherTimeframeOpposes) return null;
+  // Five of seven D1-to-M15 frames set directional confirmation. At least one
+  // micro frame must confirm timing; M1/M5 never vote the market direction.
+  if (directionalAligned < 5 || microAligned < 1 || higherTimeframeOpposes) return null;
   return {
     direction: primary.direction,
     signalEpoch: primary.signalEpoch,
@@ -343,8 +347,8 @@ function evaluateSuperSignal(
     tp1: primary.levels.tp1,
     tp2: primary.levels.tp2,
     tp3: primary.levels.tp3,
-    timeframeAgreement: supportingAligned + 1,
-    supportingAligned,
+    timeframeAgreement: directionalAligned + microAligned + 1,
+    supportingAligned: directionalAligned,
   };
 }
 
@@ -643,7 +647,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       }
 
       // Super Signal push events are generated server-side for subscribed assets only.
-      // H4 generates the only primary direction; nine fresh timeframes provide supporting confirmation.
+      // H4 generates the only primary direction; seven frames confirm direction and M1/M5 refine timing.
       if ((hasUnfilteredPushSubscription || subscribedSymbols.has(symbol.symbol) || futuresAutomationSymbols.has(symbol.symbol)) && Date.now() - started <= TIME_BUDGET_MS) {
         try {
           for (const frame of TIMEFRAMES) {
