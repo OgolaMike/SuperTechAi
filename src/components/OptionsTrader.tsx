@@ -58,6 +58,15 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
     } else {
       const list = Array.isArray(data?.accounts) ? data.accounts as DerivAccount[] : [];
       setAccounts(list);
+      if (data?.connected) {
+        const { data: saved, error: settingsError } = await supabase.functions.invoke('deriv-options-settings', { body: { action: 'get' } });
+        const settings = !settingsError && saved?.settings ? saved.settings : null;
+        if (settings?.account_mode === 'demo' || settings?.account_mode === 'real') setAccount(settings.account_mode);
+        if (settings?.contract_kind === 'ONETOUCH') setContract('touch');
+        else if (settings?.contract_kind === 'NOTOUCH') setContract('no-touch');
+        else if (settings?.contract_kind === 'BOTH') setContract('both');
+        if (settings?.stake != null && Number.isFinite(Number(settings.stake))) setStake(String(settings.stake));
+      }
       setConnected(Boolean(data?.connected));
       setNeedsReconnect(Boolean(data?.needsReconnect));
       setConnectionError('');
