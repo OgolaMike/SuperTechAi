@@ -23,7 +23,7 @@ export type ThreeHourWickCandidate = {
 };
 
 export type ThreeHourWickEvaluation =
-  | { status: 'WAITING_FOR_DATA' | 'NO_REJECTION' | 'AWAITING_UNIFIED_CONFIRMATION' | 'CONFIRMATION_MISMATCH' | 'STALE_CONFIRMATION' }
+  | { status: 'WAITING_FOR_DATA' | 'NO_REJECTION' | 'AWAITING_UNIFIED_CONFIRMATION' | 'CONFIRMATION_MISMATCH' | 'STALE_CONFIRMATION' | 'STALE_H4_CANDLE' }
   | { status: 'CONFIRMED'; candidate: ThreeHourWickCandidate };
 
 export const THREE_HOUR_WICK_CONFIG = {
@@ -66,6 +66,10 @@ export function evaluateThreeHourWick(
   if (closed.length < THREE_HOUR_WICK_CONFIG.bollingerPeriod) return { status: 'WAITING_FOR_DATA' };
 
   const candle = closed[closed.length - 1];
+  if (nowEpoch - (candle.epoch + THREE_HOUR_WICK_CONFIG.timeframeSeconds) >
+      THREE_HOUR_WICK_CONFIG.unifiedMaxAgeCandles * THREE_HOUR_WICK_CONFIG.timeframeSeconds) {
+    return { status: 'STALE_H4_CANDLE' };
+  }
   const stats = bands(closed.slice(0, -1).concat(candle));
   if (!stats) return { status: 'WAITING_FOR_DATA' };
 
