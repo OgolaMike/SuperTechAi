@@ -54,6 +54,7 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
     : highTag === 'LH' && lowTag === 'LL' ? 'Bearish structure'
     : highTag !== '—' && lowTag !== '—' ? 'Mixed / transitioning' : 'Structure developing';
   const lastClosed = closedData[closedData.length - 1];
+  const lastRange = lastClosed ? Math.max(lastClosed.high - lastClosed.low, 1e-12) : 1;
   const bodyPercent = lastClosed ? Math.round(Math.abs(lastClosed.close - lastClosed.open) / lastRange * 100) : null;
   const candleRead = !lastClosed ? 'Waiting for closed candle'
     : (bodyPercent ?? 0) <= 15 ? 'Indecision candle'
