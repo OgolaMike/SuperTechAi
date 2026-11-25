@@ -18,7 +18,7 @@ export type ExchangeId = typeof EXCHANGE_OPTIONS[number]['id'];
 export type ExchangeTicker = { exchange: ExchangeId; symbol: string; base: string; quote: string; price: number; open24h: number; changePct: number; quoteVolume: number };
 export type ExchangeAssetState = { ticker: ExchangeTicker; candles: Candle[]; states: Record<number, TfState> };
 
-const INTERVALS: Record<number, string> = { 900: '15m', 1800: '30m', 3600: '1h', 14400: '4h', 28800: '8h', 86400: '1d' };
+const INTERVALS: Record<number, string> = { 1800: '30m', 3600: '1h', 14400: '4h', 28800: '8h', 86400: '1d' };
 const clean = (v: unknown) => typeof v === 'string' ? v : String(v ?? '');
 const num = (v: unknown) => Number(v);
 const valid = (v: number) => Number.isFinite(v) && v > 0;
@@ -110,7 +110,32 @@ async function fetchExchangeTickersUncached(exchange: ExchangeId): Promise<Excha
   return rows.filter((x) => valid(x.quoteVolume)).sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, 150);
 }
 
+function aggregateDailyCandles(daily: Candle[], targetGranularity: number): Candle[] {
+  const daysPerCandle = targetGranularity / 86400;
+  if (!Number.isInteger(daysPerCandle) || daysPerCandle < 2) return [];
+  const buckets = new Map<number, Candle[]>();
+  for (const candle of daily) {
+    const epoch = Math.floor(candle.epoch / targetGranularity) * targetGranularity;
+    const bucket = buckets.get(epoch) ?? [];
+    bucket.push(candle);
+    buckets.set(epoch, bucket);
+  }
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).flatMap(([epoch, items]) => {
+    const ordered = items.sort((a, b) => a.epoch - b.epoch);
+    if (ordered.length !== daysPerCandle || ordered.some((candle, index) => candle.epoch !== epoch + index * 86400)) return [];
+    return [{ epoch, open: ordered[0].open, high: Math.max(...ordered.map((c) => c.high)), low: Math.min(...ordered.map((c) => c.low)), close: ordered[ordered.length - 1].close, symbol: ordered[0].symbol }];
+  });
+}
+
 export async function fetchExchangeCandles(exchange: ExchangeId, symbol: string, granularity: number): Promise<Candle[]> {
+  if ([7200, 10800, 21600, 43200].includes(granularity)) {
+    const hourly = await fetchExchangeCandles(exchange, symbol, 3600);
+    return aggregateHourlyCandles(hourly, granularity);
+  }
+  if (granularity === 604800) {
+    const daily = await fetchExchangeCandles(exchange, symbol, 86400);
+    return aggregateDailyCandles(daily, granularity);
+  }
   const interval = INTERVALS[granularity];
   if (!interval) throw new Error('Unsupported exchange candle interval');
   let rows: Array<{ epoch: number; open: number; high: number; low: number; close: number }> = [];
@@ -154,7 +179,7 @@ export async function fetchExchangeCandles(exchange: ExchangeId, symbol: string,
 }
 
 async function buildExchangeStatesUncached(exchange: ExchangeId, symbol: string): Promise<ExchangeAssetState['states']> {
-  const requested = [900, 1800, 3600, 14400, 86400];
+  const requested = [1800, 3600, 86400];
   const results = await Promise.all(requested.map(async (granularity) => {
     try { return [granularity, await fetchExchangeCandles(exchange, symbol, granularity)] as const; }
     catch { return [granularity, [] as Candle[]] as const; }
@@ -162,9 +187,9 @@ async function buildExchangeStatesUncached(exchange: ExchangeId, symbol: string)
   const byGranularity = Object.fromEntries(results) as Record<number, Candle[]>;
   const hourly = byGranularity[3600] ?? [];
   const all: Record<number, Candle[]> = { ...byGranularity };
-  all[28800] = aggregateHourlyCandles(hourly, 28800);
+  all[28800] = aggregateHourlyCandles(hourly, 28800);\n  all[21600] = aggregateHourlyCandles(hourly, 21600);\n  all[43200] = aggregateHourlyCandles(hourly, 43200);
   all[7200] = aggregateHourlyCandles(hourly, 7200);
-  all[10800] = aggregateHourlyCandles(hourly, 10800);
+  all[10800] = aggregateHourlyCandles(hourly, 10800);\n  all[604800] = aggregateDailyCandles(byGranularity[86400] ?? [], 604800);
   const now = Math.floor(Date.now() / 1000);
   return Object.fromEntries(TIMEFRAMES.map((tf) => [tf.granularity, computeTfState(tf, all[tf.granularity] ?? [], now)]));
 }
