@@ -80,9 +80,9 @@ export function ExchangeMarkets({ aiModel, onNavigate }: Props) {
     if (visible.length < 2) return null;
     const mean = (index: number) => {
       const absolute = candles.length - visible.length + index;
-      if (absolute < 59) return null;
-      const values = candles.slice(absolute - 59, absolute + 1).map((candle) => candle.close);
-      const average = values.reduce((sum, value) => sum + value, 0) / 60;
+      if (absolute < 19) return null;
+      const values = candles.slice(absolute - 19, absolute + 1).map((candle) => candle.close);
+      const average = values.reduce((sum, value) => sum + value, 0) / 20;
       const deviation = Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / 60);
       return { average, upper: average + 2.5 * deviation, lower: average - 2.5 * deviation };
     };
