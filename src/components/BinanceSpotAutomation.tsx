@@ -222,7 +222,7 @@ export function BinanceSpotAutomation() {
         <div className="flex items-start gap-3"><CircleHelp className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" /><div>
           <h3 className="font-semibold text-ink">How Binance Spot automation works</h3>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-ink-2">
-            <li>Uses confirmed candles from the official eight-timeframe signal engine and its BUY LIMIT entry levels.</li>
+            <li>Uses confirmed candles from the official ten-timeframe unified signal engine and its BUY LIMIT entry levels.</li>
             <li>When an entry is accepted, Binance OTOCO holds protective exits until the BUY limit fills. Partial fills are separately protected by an OCO exit after the scanner reconciles them.</li>
             <li>Spot is long-only here: bearish signals do not open borrowed or short positions.</li>
             <li>Unfilled entries expire after two hours. Only SuperTechAi-created orders are counted for its active-trade limit; unrelated exchange orders are not modified.</li>
