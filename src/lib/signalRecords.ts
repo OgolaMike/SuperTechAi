@@ -77,8 +77,8 @@ export async function fetchSignalRecords(): Promise<SignalRecordRow[]> {
   const { data, error } = await supabase
     .from('signal_records')
     .select(RECORD_COLUMNS)
-    .in('timeframe', ['H4', 'M15'])
-    .in('granularity', [14400, 900])
+    .in('timeframe', ['H4', 'M30'])
+    .in('granularity', [14400, 1800])
     .order('signal_epoch', { ascending: false })
     .limit(RECORD_LIMIT);
   if (error) throw new Error(error.message);
