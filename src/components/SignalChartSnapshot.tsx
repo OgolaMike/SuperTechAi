@@ -20,7 +20,8 @@ type Props = {
 const WIDTH = 1440;
 const HEIGHT = 620;
 const PAD = { top: 30, right: 116, bottom: 48, left: 24 };
-const SMA_PERIOD = 20;\nconst VISIBLE_CANDLES = 60;
+const SMA_PERIOD = 20;
+const VISIBLE_CANDLES = 60;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.5;
