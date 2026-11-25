@@ -106,6 +106,9 @@ function App() {
   // Independent strategy engines publish their own assessments. Confluence only
   // compares them; it never changes or suppresses an engine's original decision.
   const confluenceResults = useMemo(() => {
+    // This scan is only consumed by the Strategies and Super Signal views.
+    // Keep full-history strategy analysis out of dashboard startup and other sections.
+    if (view !== 'strategies' && view !== 'super') return [];
     const assessments: StrategyAssessment[] = [];
     const superBySymbol = new Map(superSignals.map((signal) => [signal.symbol, signal]));
     const breakRetestBySymbol = new Map<string, ReturnType<typeof buildBreakRetestSetups>[number]>();
@@ -130,7 +133,7 @@ function App() {
       assessments.push({ strategyId: '3h-wick', strategyName: '3H Wick Intelligence', symbol: asset.symbol, direction: candidate?.direction ?? null, status: candidate ? 'SIGNAL' : 'WAIT', signalEpoch: candidate?.signalEpoch ?? now, strength: candidate ? Math.min(100, Math.round(candidate.wickToBodyRatio / 4 * 100)) : 0, reason: candidate ? 'Independent completed H4 wick rejection.' : 'No fresh qualifying wick rejection.' });
     }
     return evaluateStrategyConfluence(assessments, now);
-  }, [assets, states, superSignals, now]);
+  }, [view, assets, states, superSignals, now]);
   // H4 is the single primary trigger. It is allowed to alert only after the
   // complete ten-timeframe confluence engine confirms the same direction.
   const unifiedViews = useMemo(() => views.filter((item) => item.granularity === 14400 && superSignals.some((signal) =>
