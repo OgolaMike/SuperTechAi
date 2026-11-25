@@ -5,6 +5,7 @@ import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
 import type { View } from '@/components/ViewNav';
+import type { SuperSignal } from '@/lib/intelligence';
 
 type Props = {
   selectedSymbols: string[];
@@ -14,10 +15,11 @@ type Props = {
   loaded: boolean;
   soundsEnabled: boolean;
   aiModel: SignalLearningModel;
+  unifiedSignals: SuperSignal[];
   onNavigate: (view: View) => void;
 };
 
-export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, onNavigate }: Props) {
+export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, unifiedSignals, onNavigate }: Props) {
   const signalSummary = selectedSymbols.reduce((summary, symbol) => {
     for (const timeframe of TIMEFRAMES) {
       const direction = states[symbol]?.[timeframe.granularity]?.latestSignal?.direction;
@@ -26,7 +28,8 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
     }
     return summary;
   }, { buy: 0, sell: 0 });
-  const totalSignals = signalSummary.buy + signalSummary.sell;
+  const totalSignals = unifiedSignals.length;
+  const unifiedSignal = unifiedSignals[0] ?? null;
 
   const shortcuts: { label: string; detail: string; view: View; icon: typeof Compass }[] = [
     { label: 'All signals', detail: 'Explore every timeframe', view: 'records', icon: BarChart3 },
@@ -52,20 +55,20 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         </div>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-2xl border border-line/10 bg-canvas/55 p-4">
-            <p className="text-xs text-ink-3">Monitored assets</p>
+            <p className="text-xs text-ink-3">Active dashboard asset</p>
             <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{selectedSymbols.length}</p>
           </div>
           <div className="rounded-2xl border border-line/10 bg-canvas/55 p-4">
-            <p className="text-xs text-ink-3">Current signals</p>
+            <p className="text-xs text-ink-3">Unified decisions</p>
             <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{totalSignals}</p>
           </div>
           <div className="rounded-2xl border border-line/10 bg-canvas/55 p-4">
-            <p className="flex items-center gap-1 text-xs text-ink-3"><ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" /> Buy signals</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-500">{signalSummary.buy}</p>
+            <p className="flex items-center gap-1 text-xs text-ink-3"><ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" /> BUY aligned</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-500">{unifiedSignal?.direction === 'BUY' ? 1 : 0}</p>
           </div>
           <div className="rounded-2xl border border-line/10 bg-canvas/55 p-4">
-            <p className="flex items-center gap-1 text-xs text-ink-3"><ArrowDownRight className="h-3.5 w-3.5 text-rose-500" /> Sell signals</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-rose-500">{signalSummary.sell}</p>
+            <p className="flex items-center gap-1 text-xs text-ink-3"><ArrowDownRight className="h-3.5 w-3.5 text-rose-500" /> SELL aligned</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-rose-500">{unifiedSignal?.direction === 'SELL' ? 1 : 0}</p>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-3">
@@ -74,7 +77,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         </div>
       </section>
 
-      <section className="mt-7">
+      <section id={`asset-dashboard-${encodeURIComponent(symbol)}`} className="mt-7">
         <div className="mb-3 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">QUICK ACCESS</p>
@@ -95,7 +98,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
       <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">MARKET INTELLIGENCE</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">8 Timeframes. One Intelligence.</h2>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">10 Timeframes. One Intelligence.</h2>
           <p className="mt-1 max-w-2xl text-sm font-medium tracking-wide text-ink-2">SEE THE SIGNAL. OWN THE MOMENT.</p>
           <p className="mt-1 text-xs text-ink-3">
             {aiModel.ready
@@ -105,6 +108,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         </div>
       </div>
 
+      {unifiedSignal ? <section className="mt-6 rounded-2xl border-2 border-accent/40 bg-accent/[0.06] p-5" aria-live="polite"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-accent">Unified dual-engine decision · 10/10 timeframe intelligence</p><h3 className={`mt-1 text-2xl font-black ${unifiedSignal.direction === 'BUY' ? 'text-up' : 'text-down'}`}>{unifiedSignal.direction} · {unifiedSignal.name}</h3><p className="mt-1 text-sm text-ink-2">{unifiedSignal.gradePercent}% alignment · {unifiedSignal.agreeing}/10 timeframes supporting</p></div><span className="rounded-full border border-accent/30 px-3 py-1.5 text-xs font-bold text-accent">ONE ACTIVE DECISION</span></div><p className="mt-3 text-sm leading-relaxed text-ink-2">{unifiedSignal.explanation}</p><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"><Metric label="Entry" value={unifiedSignal.levels.entry.toFixed(unifiedSignal.digits)} /><Metric label="Stop-loss" value={unifiedSignal.levels.stopLoss.toFixed(unifiedSignal.digits)} /><Metric label="Target 1" value={unifiedSignal.levels.tp1.toFixed(unifiedSignal.digits)} /><Metric label="Target 3" value={unifiedSignal.levels.tp3.toFixed(unifiedSignal.digits)} /></div><button type="button" onClick={() => onNavigate('super')} className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-canvas">View full unified signal</button></section> : <section className="mt-6 rounded-2xl border border-dashed border-line/20 bg-surface/[0.025] p-5"><p className="text-xs font-bold uppercase tracking-wider text-accent">Unified decision</p><p className="mt-1 text-sm text-ink-2">Waiting for all ten timeframes to validate one direction. Individual timeframe readings are kept in the charts below and are not separate dashboard instructions.</p></section>}
       {selectedSymbols.map((symbol) => {
         const asset = assetMap.get(symbol) ?? { symbol, name: symbol, fullName: symbol, digits: 4 };
         const assetStates = states[symbol] ?? {};
@@ -124,7 +128,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                   : undefined;
                 return (
                   <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0">
-                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} />
+                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} unifiedOnly />
                   </div>
                 );
               })}
@@ -135,3 +139,5 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
     </>
   );
 }
+
+function Metric({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-line/10 bg-canvas/40 p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">{label}</p><p className="mt-1 break-all font-mono text-sm font-bold text-ink">{value}</p></div>; }
