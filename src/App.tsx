@@ -267,8 +267,8 @@ function App() {
           <section className="mt-8">
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
-              <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
-              <p className="max-w-2xl text-sm text-ink-2">We wait for all ten timeframes to validate one direction before announcing a Super Signal.</p>
+              <h2 className="text-xl font-semibold tracking-tight text-ink">One clear signal from ten timeframes</h2>
+              <p className="max-w-2xl text-sm text-ink-2">H4 sets the primary direction. All ten readings must be fresh, at least six of the nine supporting frames must agree, and no timeframe may oppose the signal.</p>
             </div>
             <SuperSignalPanel signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} onOpenDashboard={openSignalChart} />
           </section>
