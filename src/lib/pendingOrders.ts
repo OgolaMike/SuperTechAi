@@ -28,13 +28,13 @@ const PRIMARY_GRANULARITY = 900;
 const SIGNAL_MAX_AGE_BARS = 8;
 const MIN_SUPPORTING_ALIGNMENT = 6;
 
-function timeframeBias(state: TfState): Direction | null {
+function timeframeBias(state: TfState): Direction | 'NEUTRAL' | null {
   if (state.lastClose == null || state.currentSma == null || state.stdDev == null) return null;
   const neutral = state.stdDev * 0.1;
   const difference = state.lastClose - state.currentSma;
   if (difference > neutral) return 'BUY';
   if (difference < -neutral) return 'SELL';
-  return null;
+  return 'NEUTRAL';
 }
 
 function makeLevels(direction: Direction, entry: number, deviation: number): Pick<SignalLevels, 'stopLoss' | 'tp3'> {
@@ -69,15 +69,15 @@ export function buildPendingOrderIdeas(
       if (!state || isStale(state, nowEpoch)) return null;
       return { label: timeframe.label, bias: timeframeBias(state) };
     });
-    if (readings.length !== TIMEFRAMES.length || readings.some((read) => read == null)) continue;
+    if (readings.length !== TIMEFRAMES.length || readings.some((read) => read == null || read.bias == null)) continue;
 
     const directionRead = readings.find((read) => read?.label === 'H4');
-    const direction = directionRead?.bias ?? null;
+    const direction = directionRead?.bias === 'BUY' || directionRead?.bias === 'SELL' ? directionRead.bias : null;
     if (direction == null) continue;
 
     const supportingReads = readings.filter((read) => read?.label !== 'H4');
     const supportingAligned = supportingReads.filter((read) => read?.bias === direction).length;
-    const hasOpposition = supportingReads.some((read) => read?.bias != null && read.bias !== direction);
+    const hasOpposition = supportingReads.some((read) => read?.bias === 'BUY' || read?.bias === 'SELL' ? read.bias !== direction : false);
     if (supportingAligned < MIN_SUPPORTING_ALIGNMENT || hasOpposition) continue;
 
     const primary = states[PRIMARY_GRANULARITY];
