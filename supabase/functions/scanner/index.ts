@@ -14,8 +14,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
-// H4 remains the macro engine; M15 is the independent precision engine.
-// The eight-frame H4 confluence set remains D1 through M15; M15 is its lowest frame.
+// H4 remains the authoritative macro signal engine; M15 remains the minimum execution frame.
+// M5 and M1 add entry-timing intelligence only and never create independent member alerts.
 // H2 and H3 are built from complete hourly candles so Deriv and Binance use matching bars.
 const TIMEFRAMES = [
   { granularity: 86400, label: "D1", candleCount: 366 },
@@ -26,6 +26,8 @@ const TIMEFRAMES = [
   { granularity: 3600, label: "H1", candleCount: 603 },
   { granularity: 1800, label: "M30", candleCount: 200 },
   { granularity: 900, label: "M15", candleCount: 200 },
+  { granularity: 300, label: "M5", candleCount: 200 },
+  { granularity: 60, label: "M1", candleCount: 200 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
