@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Clock3, ShieldCheck, Waves } from 'lucide-react';
+import { Clock3, ShieldCheck } from 'lucide-react';
 import type { Asset, TfState } from '@/lib/sma';
 import type { SuperSignal } from '@/lib/intelligence';
 import { evaluateThreeHourWick } from '@/lib/threeHourWick';
@@ -19,6 +19,7 @@ const STATUS_COPY: Record<string, string> = {
   AWAITING_UNIFIED_CONFIRMATION: 'H4 rejection found. Waiting for the same asset and direction to be confirmed by Unified Intelligence.',
   CONFIRMATION_MISMATCH: 'The Unified Signal does not agree with the H4 rejection. No trade candidate is authorised.',
   STALE_CONFIRMATION: 'The Unified Signal is too old to authorise this setup.',
+  STALE_H4_CANDLE: 'The latest H4 candle is too old. Waiting for fresh market data.',
 };
 
 export function ThreeHourWickStrategy({ assets, states, unifiedSignals, nowEpoch, selectedSymbol }: Props) {
