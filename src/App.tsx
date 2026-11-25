@@ -275,7 +275,7 @@ function App() {
               <h2 className="text-xl font-semibold tracking-tight text-ink">One clear signal from ten timeframes</h2>
               <p className="max-w-2xl text-sm text-ink-2">Ten timeframes inform one H4-led decision. Lower timeframes refine timing; they do not issue competing signals.</p>
             </div>
-            <SuperSignalPanel selectedSignalKey={selectedSuperSignalKey} signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} />
+            <SuperSignalPanel selectedSignalKey={selectedSuperSignalKey} signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} onOpenDashboard={(symbol) => openSignalChart(symbol, 14400)} />
           </section>
         )}
 
@@ -288,7 +288,7 @@ function App() {
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'exchange-markets' && <ExchangeMarkets aiModel={aiModel} onNavigate={setView} />}
         {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
-        {view === 'records' && <RecordsPanel version={sync.version} />}
+        {view === 'records' && <RecordsPanel version={sync.version} onOpenDashboard={(symbol) => openSignalChart(symbol, 14400)} />}
 
         <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>
           <NotificationSettings assets={assets} />
