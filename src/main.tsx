@@ -1,6 +1,6 @@
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
+const App = lazy(() => import('./App.tsx'));
 import { AuthGate } from '@/components/AuthGate';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 const NfcPublicProfile = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.NfcPublicProfile })));
@@ -14,7 +14,7 @@ if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <AppErrorBoundary>
-        {isNfcTap ? <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#050914] text-sm text-white/60">Verifying membership…</div>}><NfcPublicProfile /></Suspense> : <AuthGate><App /></AuthGate>}
+        {isNfcTap ? <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#050914] text-sm text-white/60">Verifying membership…</div>}><NfcPublicProfile /></Suspense> : <AuthGate><Suspense fallback={<div className="min-h-screen bg-canvas" />}><App /></Suspense></AuthGate>}
       </AppErrorBoundary>
     </StrictMode>,
   );
