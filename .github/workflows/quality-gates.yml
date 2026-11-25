@@ -30,7 +30,8 @@ jobs:
       - run: npm run build
 
   edge-functions:
-    name: Supabase Edge Function static checks
+    if: github.ref != 'refs/heads/feat/appwrite-independent-platform-foundation' && github.head_ref != 'feat/appwrite-independent-platform-foundation'
+    name: Legacy Supabase Edge Function static checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
