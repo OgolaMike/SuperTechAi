@@ -35,6 +35,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Check Appwrite Options Settings Function syntax
+        run: node --check appwrite/functions/options-settings/src/main.js
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
