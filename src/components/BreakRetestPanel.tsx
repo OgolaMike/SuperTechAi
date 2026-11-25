@@ -112,7 +112,7 @@ export function BreakRetestPanel({ assets, states, prices, selectedSetupKey }: P
     </div>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <div className="rounded-xl border border-line/10 bg-surface/[0.04] p-4"><p className="text-xs text-ink-2">Markets scanned</p><p className="mt-1 text-2xl font-semibold text-ink">{assetCount}</p></div>
-      <div className="rounded-xl border border-line/10 bg-surface/[0.04] p-4"><p className="text-xs text-ink-2">Timeframes active</p><p className="mt-1 text-2xl font-semibold text-ink">{timeframes}/8</p></div>
+      <div className="rounded-xl border border-line/10 bg-surface/[0.04] p-4"><p className="text-xs text-ink-2">Timeframes active</p><p className="mt-1 text-2xl font-semibold text-ink">{timeframes}/10</p></div>
       <div className="col-span-2 rounded-xl border border-line/10 bg-surface/[0.04] p-4 sm:col-span-1"><p className="text-xs text-ink-2">Confirmed setups</p><p className="mt-1 text-2xl font-semibold text-ink">{setups.length}</p></div>
     </div>
     <div className="flex flex-wrap gap-2">{(['ALL','BUY','SELL'] as const).map(value=><button key={value} onClick={()=>setDirection(value)} className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${direction===value?'border-accent/50 bg-accent/10 text-ink':'border-line/10 text-ink-2 hover:text-ink'}`}>{value==='ALL'?'All setups':value}</button>)}</div>
