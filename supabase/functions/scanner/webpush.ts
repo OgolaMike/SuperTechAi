@@ -197,7 +197,7 @@ function buildMessage(event: PushEventRow): string {
     body = p.message ?? (event.kind === "income" ? "A new earning has been credited to your account." : "There is new activity in your referral business.");
   } else if (event.kind === "super_signal") {
     title = `SUPER SIGNAL ${p.direction} · ${p.assetName}`;
-    body = `All eight timeframes agree · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)} · ${formatTime(p.signalEpoch)}`;
+    body = `Ten-timeframe intelligence confirms one direction · Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)} · ${formatTime(p.signalEpoch)}`;
   } else if (event.kind === "signal") {
     title = `${p.direction} ${p.assetName} · ${p.timeframe}`;
     body = `Entry ${price(p.entry)} · SL ${price(p.stopLoss)} · TP1 ${price(p.tp1)} · TP2 ${price(p.tp2)} · TP3 ${price(p.tp3)}\nSignal ${formatTime(p.signalEpoch)}`;
