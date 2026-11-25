@@ -35,10 +35,11 @@ Never commit these values to GitHub or expose them in Vite/browser environment v
 ## Deploy and verify
 
 1. Apply migration `20261126120000_add_deriv_options_oauth.sql`.
-2. Set the five Edge Function secrets above.
-3. Deploy `deriv-connect`, `deriv-callback`, `deriv-status`, `deriv-disconnect`, and `deriv-options-proposal` to the isolated test backend only.
-4. Register the exact callback URL in Deriv.
-5. Test with a Demo account first. Confirm the returned account list shows the expected account ID, account type and currency.
+2. Set the five Edge Function secrets above in the isolated test backend only.
+3. Deploy `deriv-connect`, `deriv-callback`, `deriv-status`, `deriv-disconnect`, `deriv-options-proposal`, and `deriv-options-settings` to the isolated test backend only.
+4. Create the Options Trader ledger migration from `docs/sql/options_trader_ledger.sql` using `supabase migration new options_trader_execution_ledger`; review it, then apply it only to the isolated test backend. Do not apply it to production.
+5. Register the exact callback URL in Deriv.
+6. Test with a Demo account first. Confirm the returned account list shows the expected account ID, account type and currency.
 6. Confirm expired authorisation prompts the member to reconnect. Deriv does not issue refresh tokens to third-party OAuth apps.
 7. The `deriv-options-proposal` function currently requests a quote only; it does not buy a contract. Keep automatic order execution disabled until purchase, open-contract monitoring, settlement, persistence and end-to-end Demo tests are complete.
 
@@ -48,5 +49,6 @@ Never commit these values to GitHub or expose them in Vite/browser environment v
 - Callback validates and consumes state before exchanging the single-use code.
 - Token exchange happens only in the backend.
 - Access tokens are encrypted at rest with AES-256-GCM and are never returned to the browser.
-- RLS is enabled and all table access is revoked from `anon` and `authenticated`; only service-role Edge Functions can access OAuth records.
+- RLS is enabled and all table access is revoked from `anon` and `authenticated`; only service-role Edge Functions can access OAuth and Options Trader records.
+- The settings endpoint revalidates the selected active Deriv account and server-side stake ceiling. It always stores automation as disabled until Demo execution and settlement tests have passed.
 - Disconnect removes the stored grant from SuperTech AI. If a member also wants to revoke the app's authorisation at Deriv, they should remove it from their Deriv account's authorised applications.
