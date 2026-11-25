@@ -121,6 +121,18 @@ function App() {
         signalEpoch: tenFrame?.signalEpoch ?? now, strength: tenFrame?.gradePercent ?? 0, weight: 1,
         reason: tenFrame?.explanation ?? 'No qualified ten-timeframe agreement.',
       });
+      const m5Candles = [...(states[asset.symbol]?.[300]?.candles ?? [])].sort((a, b) => a.epoch - b.epoch);
+      const m5Previous = m5Candles[m5Candles.length - 2];
+      const m5Latest = m5Candles[m5Candles.length - 1];
+      const m5Direction = m5Latest && m5Previous && now - (m5Latest.epoch + 300) <= 600
+        ? m5Latest.high > m5Previous.high ? 'BUY' : m5Latest.low < m5Previous.low ? 'SELL' : null
+        : null;
+      assessments.push({
+        strategyId: 'm5-hh-ll', strategyName: 'M5 HH/LL Momentum', symbol: asset.symbol,
+        direction: m5Direction, status: m5Direction ? 'SIGNAL' : 'WAIT',
+        signalEpoch: m5Latest?.epoch ?? now, strength: m5Direction ? 70 : 0, weight: 1,
+        reason: m5Direction ? 'Latest completed M5 candle confirms a higher high or lower low.' : 'No fresh M5 higher-high or lower-low trigger.',
+      });
       const breakRetest = breakRetestBySymbol.get(asset.symbol);
       assessments.push({
         strategyId: 'break-retest', strategyName: 'Break & Retest', symbol: asset.symbol,
