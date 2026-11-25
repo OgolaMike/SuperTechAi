@@ -58,3 +58,6 @@ verify_jwt = true
 
 [functions.deriv-disconnect]
 verify_jwt = true
+
+[functions.deriv-options-proposal]
+verify_jwt = true
