@@ -44,8 +44,8 @@ function makeLevels(direction: Direction, entry: number, deviation: number): Pic
 }
 
 /**
- * Creates pending-order ideas from the official eight-timeframe analysis set.
- * The primary trigger is always a confirmed 15-minute crossover. It never
+ * Creates pending-order ideas from the official ten-timeframe analysis set.
+ * The primary trigger is always a confirmed 15-minute signal; M1/M5 are timing-only confirmations. It never
  * requests or uses any timeframe outside TIMEFRAMES and never places an order.
  */
 export function buildPendingOrderIdeas(
