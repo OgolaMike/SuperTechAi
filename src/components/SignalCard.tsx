@@ -29,11 +29,11 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
   const isBuy = signal?.direction === 'BUY';
   const isSell = signal?.direction === 'SELL';
   const aiScore = signal ? getAiPatternScore(aiModel, tf.granularity, signal.direction, signal.levels) : null;
-  const gradeTone = confluenceCount === 8
+  const gradeTone = confluenceCount === 10
     ? 'border-up/60 bg-up/15 text-up shadow-[0_0_22px_rgba(34,197,94,0.18)]'
-    : confluenceCount !== undefined && confluenceCount >= 6
+    : confluenceCount !== undefined && confluenceCount >= 7
       ? 'border-accent/50 bg-accent/10 text-accent'
-      : confluenceCount !== undefined && confluenceCount >= 4
+      : confluenceCount !== undefined && confluenceCount >= 5
         ? 'border-warn/40 bg-warn/10 text-warn'
         : 'border-line/20 bg-surface/[0.04] text-ink-2';
 
@@ -50,7 +50,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
             <span className="text-lg font-semibold text-ink">{tf.label}</span>
             <span className="break-words whitespace-normal text-xs uppercase tracking-wider text-ink-3">{tf.role}</span>
           </div>
-          {signal && <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent/80">Tap anywhere to open live chart</p>}
+          {signal && <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent/100">Tap anywhere to open live chart</p>}
         </div>
         {signal && (
           <span className={`max-w-full whitespace-normal break-words rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-relaxed sm:px-3 sm:text-xs ${statusTone(signal.outcome.status)}`}>
@@ -78,10 +78,10 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
           {confluenceCount !== undefined && (
             <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 px-4 py-3 ${gradeTone}`}>
               <div className="min-w-0 flex-1">
-                <div className="break-words text-[10px] font-bold uppercase leading-relaxed tracking-[0.12em] opacity-80">8-timeframe signal grade</div>
-                <div className="mt-0.5 text-xs opacity-80">{confluenceCount === 8 ? 'SUPER SIGNAL · All timeframes agree' : confluenceCount >= 6 ? 'Strong alignment' : confluenceCount >= 4 ? 'Moderate alignment' : 'Limited alignment'}</div>
+                <div className="break-words text-[10px] font-bold uppercase leading-relaxed tracking-[0.12em] opacity-80">10-timeframe signal grade</div>
+                <div className="mt-0.5 text-xs opacity-80">{confluenceCount === 10 ? 'SUPER SIGNAL · All timeframes agree' : confluenceCount >= 7 ? 'Strong alignment' : confluenceCount >= 5 ? 'Moderate alignment' : 'Limited alignment'}</div>
               </div>
-              <div className="text-3xl font-black tabular-nums">{confluenceCount}<span className="text-lg font-bold opacity-70">/8</span></div>
+              <div className="text-3xl font-black tabular-nums">{confluenceCount}<span className="text-lg font-bold opacity-70">/10</span></div>
             </div>
           )}
 
