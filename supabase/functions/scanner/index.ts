@@ -559,7 +559,7 @@ async function runScan(): Promise<Record<string, unknown>> {
           rowsWritten += result.rowsWritten;
 
           // Create review-only backend LIMIT proposals from the separate M30 entry-pattern strategy.
-          if (timeframe.granularity === 900 && result.lastEpoch !== null &&
+          if (timeframe.granularity === 1800 && result.lastEpoch !== null &&
               (previousMark === undefined || result.lastEpoch > previousMark)) {
             const m15Signals = result.signals;
             const latestSignal = m15Signals[m15Signals.length - 1];
@@ -589,7 +589,7 @@ async function runScan(): Promise<Record<string, unknown>> {
             // Independent Market Structure SAR strategy: confirmed HH/HL or LL/LH plus a fresh SAR flip.
             // Signal-only until a separately tested, strategy-owned execution path is approved.
             try {
-              const structureSar = buildMarketStructureSarSignal(symbol.symbol, candleCache.get(900) ?? [], nowEpoch);
+              const structureSar = buildMarketStructureSarSignal(symbol.symbol, candleCache.get(1800) ?? [], nowEpoch);
               if (structureSar && structureSar.signalEpoch === latestClosed) {
                 const signalKey = structureSar.idempotencyKey;
                 const { error: structureSarError } = await db.from("push_events").upsert([{
