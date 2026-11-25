@@ -41,15 +41,15 @@
   {
     "id": "super",
     "title": "How Super Signal works",
-    "summary": "Understand why agreement across all eight timeframes matters.",
+    "summary": "Understand how ten timeframe reads produce one H4-led decision.",
     "objective": "Recognise a high-confluence alert and why confirmation still matters.",
     "steps": [
-      "Super Signal looks for agreement across eight timeframes.",
-      "The alert appears when all required timeframes align.",
+      "Super Signal uses ten timeframe reads under one H4-led decision.",
+      "H4 owns the direction. Seven higher and mid timeframes confirm market structure, while M5 and M1 refine entry timing.",
       "Review reversal context and the underlying chart before acting.",
       "If conditions change, wait for a fresh setup instead of chasing price."
     ],
-    "narration": "Super Signal highlights moments when all eight monitored timeframes point in the same direction. This agreement can provide stronger context than a single timeframe alone. It does not guarantee a successful trade. Check the chart, understand the broader move, and apply your risk plan."
+    "narration": "Super Signal highlights one H4-led direction after the directional frames agree and M5/M1 confirm timing. This agreement can provide stronger context than a single timeframe alone. It does not guarantee a successful trade. Check the chart, understand the broader move, and apply your risk plan."
   },
   {
     "id": "crypto",
@@ -162,13 +162,13 @@
   {
     "id": "timeframes",
     "title": "Timeframes: from minutes to days",
-    "summary": "Understand the eight SuperTech AI analysis timeframes and how they fit together.",
+    "summary": "Understand the ten SuperTech AI analysis timeframes and how they work as one decision.",
     "objective": "Use higher and lower timeframes without confusing short-term movement with the bigger picture.",
     "steps": [
-      "A timeframe tells you how much time one candle represents. SuperTech AI analyses M15, M30, H1, H2, H3, H4, H8 and D1.",
+      "A timeframe tells you how much time one candle represents. SuperTech AI analyses D1, H8, H4, H3, H2, H1, M30, M15, M5 and M1.",
       "Higher timeframes show broader market movement but may produce fewer signals. Lower timeframes show more detail and more noise.",
       "Start with a higher timeframe to understand the broad direction and major price areas.",
-      "Use a lower timeframe to study a possible entry, but do not let a tiny move make you ignore the bigger picture.",
+      "M15 remains the minimum execution timeframe. M5 and M1 refine entry timing only; they cannot change the H4-led market direction or create separate trade instructions.",
       "A candle on a higher timeframe is not complete until that full period ends."
     ],
     "narration": "Think of timeframes like maps. A daily chart shows the wider journey, while the 15-minute chart gives the closest view used by SuperTech AI. Each timeframe answers a different question. Start with the wider picture, then use the official analysis set to confirm direction."

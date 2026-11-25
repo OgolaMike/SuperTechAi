@@ -24,6 +24,7 @@ export type PendingOrderIdea = {
 };
 
 const PRIMARY_GRANULARITY = 900;
+const EXECUTION_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => timeframe.granularity >= PRIMARY_GRANULARITY);
 const SIGNAL_MAX_AGE_BARS = 8;
 
 function timeframeBias(state: TfState): Direction | null {
@@ -44,7 +45,7 @@ function makeLevels(direction: Direction, entry: number, deviation: number): Pic
 }
 
 /**
- * Creates pending-order ideas from the official eight-timeframe analysis set.
+ * Creates pending-order ideas from the official M15-and-higher execution set.
  * The primary trigger is always a confirmed 15-minute crossover. It never
  * requests or uses any timeframe outside TIMEFRAMES and never places an order.
  */
@@ -62,12 +63,12 @@ export function buildPendingOrderIdeas(
     const currentPrice = prices[asset.symbol];
     if (!states || currentPrice == null || !Number.isFinite(currentPrice)) continue;
 
-    const readings = TIMEFRAMES.map((timeframe) => {
+    const readings = EXECUTION_TIMEFRAMES.map((timeframe) => {
       const state = states[timeframe.granularity];
       if (!state || isStale(state, nowEpoch)) return null;
       return timeframeBias(state);
     });
-    if (readings.length !== TIMEFRAMES.length) continue;
+    if (readings.length !== EXECUTION_TIMEFRAMES.length) continue;
 
     const direction = readings[0];
     if (direction == null || !readings.every((bias) => bias === direction)) continue;
@@ -119,7 +120,7 @@ export function buildPendingOrderIdeas(
         aiScore,
         momentumScore: null,
         reason: candidate.reason,
-        timeframeAgreement: TIMEFRAMES.length,
+        timeframeAgreement: EXECUTION_TIMEFRAMES.length,
         signalEpoch: triggerSignal.signalEpoch,
         strengthScore: aiScore ?? 0,
       });

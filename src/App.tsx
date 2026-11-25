@@ -267,8 +267,8 @@ function App() {
           <section className="mt-8">
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
-              <h2 className="text-xl font-semibold tracking-tight text-ink">Clear signals when all timeframes agree</h2>
-              <p className="max-w-2xl text-sm text-ink-2">We wait for all ten timeframes to validate one direction before announcing a Super Signal.</p>
+              <h2 className="text-xl font-semibold tracking-tight text-ink">One clear H4-led decision from ten timeframes</h2>
+              <p className="max-w-2xl text-sm text-ink-2">Seven directional frames must agree without opposition, while at least one of M5/M1 confirms timing. The engine then publishes one H4-led Super Signal.</p>
             </div>
             <SuperSignalPanel signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} onOpenDashboard={openSignalChart} />
           </section>
@@ -283,7 +283,7 @@ function App() {
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'exchange-markets' && <ExchangeMarkets aiModel={aiModel} onNavigate={setView} />}
         {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
-        {view === 'records' && <RecordsPanel version={sync.version} />}
+        {view === 'records' && <RecordsPanel version={sync.version} onOpenDashboard={openSignalChart} />}
         {view === 'bubble-history' && <BubbleHistory onOpenDashboard={openSignalChart} />}
 
         <section className={`mt-8 grid gap-6 lg:grid-cols-2 ${view === 'alerts' ? '' : 'hidden'}`}>

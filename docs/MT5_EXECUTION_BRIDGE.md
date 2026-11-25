@@ -12,10 +12,10 @@ Broker execution is not production-verified until the current database migration
 
 ## Strategy and signal boundaries
 
-- Browser dashboard and Supabase scanner use one ten-timeframe H4-led confluence set: D1, H8, H4, H3, H2, H1, M30, M15, M5 and M1. M1/M5 are confirmation-only inputs; they do not emit independent trade signals. M15 remains a supporting precision frame.
+- Browser dashboard and Supabase scanner use one ten-timeframe H4-led confluence set: D1, H8, H4, H3, H2, H1, M30, M15, M5 and M1. M1/M5 are confirmation-only inputs; they do not emit independent trade signals. M15 remains the minimum execution timeframe.
 - The scanner evaluates confirmed/closed candles and persists signal records with stable signal keys.
 - Preserve the existing SMA 60 / Bollinger signal logic, reversal behavior, signal levels and notification timing. Do not change these while implementing the execution bridge.
-- Pending-order ideas are currently generated in the app from live dashboard state. They require agreement across all eight timeframes and a fresh active M15 signal.
+- Pending-order ideas are currently generated in the app from live dashboard state. They require agreement across the eight M15-and-higher execution frames and a fresh active M15 signal.
 - The trained-AI quality gate applies to Buy Limit and Sell Limit ideas only. Buy Stop and Sell Stop rules must not be changed by that limit-order filter.
 - These browser-generated ideas are not yet a durable unattended signal-to-order feed. A future automation release must move the same decision rules into a server-side, candle-close-driven pipeline and persist each intent idempotently; it must not trust a browser tab to remain open.
 
@@ -102,7 +102,7 @@ These backend proposals are **not broker orders**. The scanner does not dispatch
 The following work remains before SuperTech AI can autonomously trade signals and manage its own trades:
 
 1. A server-side execution-intent pipeline driven by fresh closed-candle signals, not browser state.
-2. Exact reuse of the eight-timeframe agreement, M15 execution trigger and M30 confluence rules, with the AI quality filter restricted to limit orders.
+2. Exact reuse of the eight M15-and-higher execution-frame alignment, M15 execution trigger and M30 confluence rules, with the AI quality filter restricted to limit orders.
 3. Durable idempotency across scanner runs, worker restarts and broker reconnects; deduplicate by account, symbol, timeframe/candle epoch, direction and strategy version.
 4. Automatic dispatch of qualifying pending-order intents only after the member explicitly enables unattended execution for that account.
 5. Strategy-owned order/position reconciliation that never touches unowned manual trades.
