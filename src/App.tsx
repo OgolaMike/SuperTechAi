@@ -143,7 +143,7 @@ function App() {
       if (selectedSignalKey) setSelectedSuperSignalKey(selectedSignalKey);
       setView('super');
     } else {
-      setSelectedSymbols((current) => [symbol, ...current.filter((item) => item !== symbol)].slice(0, 10));
+      updateSelected([symbol, ...selectedSymbols.filter((item) => item !== symbol)]);
       setView('dashboard');
     }
     const targetId = chartTargetId?.startsWith('break-retest:') ? 'break-retest-panel' : chartTargetId ?? `signal-chart-${encodeURIComponent(symbol)}-${granularity}`;
