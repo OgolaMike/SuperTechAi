@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Check, Clock3, Info, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Check, Clock3, Info, LayoutDashboard, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { formatDateTime, formatPrice, TIMEFRAMES } from '@/lib/sma';
 import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import type { SuperSignal } from '@/lib/intelligence';
@@ -18,6 +18,7 @@ type Props = {
   loaded: boolean;
   aiModel: SignalLearningModel;
   states: Record<string, Record<number, TfState>>;
+  onOpenDashboard?: (symbol: string) => void;
 };
 
 function statesForRecord(record: SuperSignalRecord, states: Record<string, Record<number, TfState>>) {
@@ -62,7 +63,7 @@ function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
 export function SuperSignalPanel({
   selectedSignalKey,
   signals, records, recordsLoading, recordsError, onRefreshRecords,
-  prices, loaded, aiModel, states,
+  prices, loaded, aiModel, states, onOpenDashboard,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState('');
 
@@ -106,6 +107,7 @@ export function SuperSignalPanel({
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-line/15 bg-surface/[0.04] px-3 py-1.5 text-xs font-semibold text-ink-2">{allRecords.length} saved</span>
+          {selected && <button type="button" onClick={() => onOpenDashboard?.(selected.symbol)} className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-semibold text-ink hover:border-accent/60"><LayoutDashboard className="h-3.5 w-3.5"/> Open on Dashboard</button>}
           <button type="button" onClick={onRefreshRecords} aria-label="Refresh Super Signal history" className="flex h-9 w-9 items-center justify-center rounded-xl border border-line/10 bg-surface/[0.03] text-ink-2 hover:text-ink">
             <RefreshCw className={`h-4 w-4 ${recordsLoading ? 'animate-spin' : ''}`} />
           </button>
