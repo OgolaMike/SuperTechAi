@@ -268,7 +268,7 @@ function App() {
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
               <h2 className="text-xl font-semibold tracking-tight text-ink">One clear H4-led decision from ten timeframes</h2>
-              <p className="max-w-2xl text-sm text-ink-2">We wait for all ten timeframes to validate one direction before announcing a Super Signal.</p>
+              <p className="max-w-2xl text-sm text-ink-2">Seven directional frames must agree without opposition, while at least one of M5/M1 confirms timing. The engine then publishes one H4-led Super Signal.</p>
             </div>
             <SuperSignalPanel signals={superSignals} records={superSignalHistory.records} recordsLoading={superSignalHistory.loading} recordsError={superSignalHistory.error} onRefreshRecords={superSignalHistory.refresh} prices={prices} loaded={loaded} aiModel={aiModel} states={states} onOpenDashboard={openSignalChart} />
           </section>
