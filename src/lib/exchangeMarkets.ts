@@ -115,7 +115,8 @@ function aggregateDailyCandles(daily: Candle[], targetGranularity: number): Cand
   if (!Number.isInteger(daysPerCandle) || daysPerCandle < 2) return [];
   const buckets = new Map<number, Candle[]>();
   for (const candle of daily) {
-    const weekOffset = targetGranularity === 604800 ? 3 * 86400 : 0;\n    const epoch = Math.floor((candle.epoch + weekOffset) / targetGranularity) * targetGranularity - weekOffset;
+    const weekOffset = targetGranularity === 604800 ? 3 * 86400 : 0;
+    const epoch = Math.floor((candle.epoch + weekOffset) / targetGranularity) * targetGranularity - weekOffset;
     const bucket = buckets.get(epoch) ?? [];
     bucket.push(candle);
     buckets.set(epoch, bucket);
