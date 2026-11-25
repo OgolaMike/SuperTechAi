@@ -22,16 +22,16 @@ export type BackendLimitIntent = BaseIntent & {
   orderType: "BUY_LIMIT" | "SELL_LIMIT";
   momentumScore: number;
   strengthScore: number;
-  strategyVersion: "m15-only-limit-v4";
+  strategyVersion: "m30-only-limit-v5";
 };
 
-const PRIMARY_FRAME = { label: "M15", seconds: 900 } as const;
+const PRIMARY_FRAME = { label: "M30", seconds: 1800 } as const;
 
 function latestStats(candles: Candle[], granularity: number, nowEpoch: number) {
   const closed = candles.filter((c) => c.epoch + granularity <= nowEpoch).sort((a, b) => a.epoch - b.epoch);
-  if (closed.length < 60) return null;
-  const window = closed.slice(-60);
-  const mean = window.reduce((sum, candle) => sum + candle.close, 0) / 60;
+  if (closed.length < 20) return null;
+  const window = closed.slice(-20);
+  const mean = window.reduce((sum, candle) => sum + candle.close, 0) / 20;
   const variance = window.reduce((sum, candle) => sum + (candle.close - mean) ** 2, 0) / 60;
   const deviation = Math.sqrt(variance);
   const last = closed[closed.length - 1];
@@ -53,10 +53,10 @@ function executionContext(candlesByGranularity: Map<number, Candle[]>, nowEpoch:
   if (!direction) return null;
 
   const primary = stats.get(PRIMARY_FRAME.seconds)!;
-  const primaryCandles = candlesByGranularity.get(900)!;
-  const trigger = computeSignals(primaryCandles, 900, nowEpoch).signals.slice(-1)[0];
+  const primaryCandles = candlesByGranularity.get(1800)!;
+  const trigger = computeSignals(primaryCandles, 1800, nowEpoch).signals.slice(-1)[0];
   if (!trigger || trigger.direction !== direction || trigger.outcome.closed ||
-      nowEpoch - trigger.signalEpoch > 8 * 900) return null;
+      nowEpoch - trigger.signalEpoch > 8 * 1800) return null;
 
   const m15Momentum = momentumStrength(candles, PRIMARY_FRAME.seconds, primary.deviation, direction, nowEpoch);
   if (m15Momentum < 40) return null;
@@ -85,7 +85,7 @@ function momentumStrength(candles: Candle[], granularity: number, deviation: num
   return Math.round(Math.min(1, efficiency / 0.8) * 35 + Math.min(1, bodyRatio / 0.7) * 30 + Math.min(1, Math.max(0, net / deviation) / 0.6) * 35);
 }
 
-/** Returns pullback LIMIT proposals for one confirmed M15-only setup. */
+/** Returns pullback LIMIT proposals for one confirmed M30-only setup. */
 export function buildBackendLimitIntent(symbol: string, candlesByGranularity: Map<number, Candle[]>, nowEpoch: number): BackendLimitIntent[] {
   const context = executionContext(candlesByGranularity, nowEpoch);
   if (!context) return [];
