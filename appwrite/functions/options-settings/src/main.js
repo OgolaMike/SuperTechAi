@@ -1,12 +1,6 @@
 const json = (res, body, status = 200) => res.json(body, status);
 const safeText = value => typeof value === "string" ? value : "";
 
-const sha256 = async value => {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
-};
-
 const decrypt = async (value, keyText) => {
   const [version, ivText, cipherText] = safeText(value).split(".");
   if (version !== "v1" || !ivText || !cipherText) throw new Error("invalid_ciphertext");
