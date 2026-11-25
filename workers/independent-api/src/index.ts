@@ -49,10 +49,10 @@ function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
 
 async function authenticate(request: Request, env: Env): Promise<AppwriteAccount | null> {
   const authorization = request.headers.get("authorization") || "";
-  const match = authorization.match(/^Bearer\\s+(.+)$/i);
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
 
-  const endpoint = env.APPWRITE_ENDPOINT.replace(/\\/$/, "");
+  const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
   const response = await fetch(`${endpoint}/account`, {
     method: "GET",
     headers: {
@@ -79,7 +79,7 @@ async function profileRequest(
 ): Promise<Response> {
   if (!databaseReady(env)) return json({ error: "member_data_not_configured" }, 503);
 
-  const endpoint = env.APPWRITE_ENDPOINT.replace(/\\/$/, "");
+  const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
   const base = `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`;
   const headers = {
     "X-Appwrite-Project": env.APPWRITE_PROJECT_ID,
