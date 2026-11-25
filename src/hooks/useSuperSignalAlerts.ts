@@ -65,7 +65,7 @@ export function useSuperSignalAlerts(signals: SuperSignal[], loaded: boolean, so
       if (!isFreshSignal(signal.signalEpoch, nowEpoch)) continue;
       const alertMode = getAlertMode('superSignals', signal.symbol, userId);
       if (alertMode === 'muted') continue;
-      const message = `All eight timeframes agree. A new ${signal.direction} opportunity has been confirmed.`;
+      const message = `The ten-timeframe intelligence has confirmed one direction. A new ${signal.direction} opportunity has been confirmed.`;
       const toast: Toast = {
         id: `super:${key}`,
         tag: `super:${key}`,
