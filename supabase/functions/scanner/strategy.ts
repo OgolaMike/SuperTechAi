@@ -24,7 +24,7 @@ export type Outcome = {
 
 export type Signal = { direction: Direction; signalEpoch: number; levels: Levels; outcome: Outcome };
 
-const SMA_PERIOD = 60;
+const SMA_PERIOD = 20;
 const TP1_SIGMA = 1.5;
 const TP2_SIGMA = 2.5;
 const TP3_SIGMA = 3;
