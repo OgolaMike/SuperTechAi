@@ -26,7 +26,7 @@ function statesForRecord(record: SuperSignalRecord, states: Record<string, Recor
 }
 
 function signalKey(signal: Pick<SuperSignal, 'symbol' | 'direction' | 'signalEpoch'>) {
-  return `${signal.symbol}|14400|${signal.signalEpoch}|${signal.direction}`;
+  return `${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`;
 }
 
 function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
