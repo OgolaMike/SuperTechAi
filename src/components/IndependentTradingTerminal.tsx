@@ -36,7 +36,7 @@ import { loadMemberAlertModes } from '@/lib/alertPreferences';
 const ASSET_KEY='supertech-selected-assets';
 const SOUND_KEY='supertech-signal-sounds';
 type Props={email:string;userId:string};
-function readSelected():string[]{try{const value=JSON.parse(localStorage.getItem(ASSET_KEY)??'[]');if(Array.isArray(value)&&value.every(x=>typeof x==='string')&&value.length)return value.slice(0,1)}catch{}return[DEFAULT_ASSET]}
+function readSelected():string[]{try{const value=JSON.parse(localStorage.getItem(ASSET_KEY)??'[]');if(Array.isArray(value)&&value.every(x=>typeof x==='string')&&value.length)return value.slice(0,1)}catch{/* Invalid saved selection; use the default market. */}return[DEFAULT_ASSET]}
 function epoch(){return Math.floor(Date.now()/1000)}
 
 export function IndependentTradingTerminal({email,userId}:Props){
