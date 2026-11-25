@@ -358,7 +358,7 @@ function evaluateSuperSignal(
     if (nowEpoch - (latest.epoch + frame.granularity) > 2 * frame.granularity) return null;
     const window = candles.slice(-20).map((candle) => candle.close);
     const mean = window.reduce((sum, value) => sum + value, 0) / 20;
-    const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
+    const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 20;
     const deviation = Math.sqrt(variance);
     const gap = latest.close - mean;
     const bias = gap > deviation * 0.1 ? "BUY" : gap < -deviation * 0.1 ? "SELL" : "NEUTRAL";
