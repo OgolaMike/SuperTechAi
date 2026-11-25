@@ -73,8 +73,9 @@ const callbackUrl = (flow: 'verify' | 'recovery') => {
 export const appwriteAccount = {
   get: () => appwriteRequest<AppwriteUser>(accountPath),
 
-  create: async (email: string, password: string, name = '') => {
-    const userId = globalThis.crypto?.randomUUID?.() ?? `member-${Date.now()}`;
+  create: async (email: string, password: string, name = '', prefs?: Record<string, unknown>) => {
+    const userId = globalThis.crypto?.randomUUID?.();
+    if (!userId) throw new Error('Secure account creation is unavailable in this browser. Please update your browser and try again.');
     const user = await appwriteRequest<AppwriteUser>(accountPath, {
       method: 'POST',
       body: { userId, email: email.trim().toLowerCase(), password, name: name.trim() || undefined },
@@ -83,10 +84,17 @@ export const appwriteAccount = {
       method: 'POST',
       body: { email: email.trim().toLowerCase(), password },
     });
+    if (prefs) {
+      await appwriteRequest('/account/prefs', {
+        method: 'PUT',
+        body: { prefs },
+      });
+    }
     await appwriteRequest('/account/verification', {
       method: 'POST',
       body: { url: callbackUrl('verify') },
     });
+    await appwriteRequest<void>('/account/sessions/current', { method: 'DELETE' });
     return user;
   },
 
@@ -95,7 +103,14 @@ export const appwriteAccount = {
       method: 'POST',
       body: { email: email.trim().toLowerCase(), password },
     });
-    return appwriteRequest<AppwriteUser>(accountPath);
+    const user = await appwriteRequest<AppwriteUser>(accountPath);
+    if (!user.emailVerification) {
+      await appwriteRequest<void>('/account/sessions/current', { method: 'DELETE' });
+      const error = new Error('Please verify your email address before signing in.') as Error & { code?: string };
+      error.code = 'email_not_confirmed';
+      throw error;
+    }
+    return user;
   },
 
   signOut: () => appwriteRequest<void>('/account/sessions/current', { method: 'DELETE' }),
