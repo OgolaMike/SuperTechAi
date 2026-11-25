@@ -28,7 +28,7 @@ The confluence engine consumes fresh assessments from the independent strategies
 - Confluence does not rewrite source signals or authorize broker execution by itself.
 - New strategy adapters should publish the same `StrategyAssessment` contract without coupling their internal logic to another strategy.
 
-The first application integration currently connects Ten-Timeframe Intelligence and 3H Wick. Market Structure SAR, Break & Retest, HH/LL and other strategy outputs still need their own adapters before they contribute to the combined live result.
+The first application integration currently connects Ten-Timeframe Intelligence, 3H Wick, Break & Retest and M5 HH/LL Momentum. Market Structure SAR, Dual Engine, Pure Price Action as a separately scored engine, and pending-order patterns still need their own adapters before they contribute to the combined live result.
 
 ## 3H Wick rules
 
