@@ -11,6 +11,7 @@ type ContractMode = 'touch' | 'no-touch' | 'both';
 type DerivAccount = { account_id: string; account_type: string; currency: string; status: string };
 type Props = {
   assets: Asset[];
+  states: Record<string, Record<number, TfState>>;
   prices: Record<string, number>;
   superSignals: SuperSignal[];
   confluenceResults: ConfluenceResult[];
