@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Archive, ArrowDownRight, ArrowUpRight, Clock3, ExternalLink, Search } from 'lucide-react';
+import { Archive, ExternalLink, Search } from 'lucide-react';
 import { formatDateTime, formatPrice } from '@/lib/sma';
 import { loadBubbleHistory, type ArchivedBubble, type BubbleStatus } from '@/lib/bubbleHistory';
 
