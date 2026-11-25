@@ -106,7 +106,7 @@ export function BinanceFuturesAutomation() {
         maxOpenPositions: Number(maxOpen), allowedSymbols: [], autoTradeEnabled: autoTrade,
         liveExecutionEnabled: liveExecution, emergencyStop,
       });
-      setMessage('Futures controls saved. New eligible 8/8 Super Signals can be executed when the account is connected, automation and live orders are enabled, and the emergency stop is off. Saving controls does not place an order.');
+      setMessage('Futures controls saved. New eligible H4-led ten-timeframe Super Signals can be executed when the account is connected, automation and live orders are enabled, and the emergency stop is off. Saving controls does not place an order.');
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save Futures settings.');
@@ -132,7 +132,7 @@ export function BinanceFuturesAutomation() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Binance Futures automation</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Super Signal Futures Trader</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">A separate USDT-M Futures connection for Super Signals. The execution rule is 8/8 agreement only; ordinary BUY/SELL signals and Spot automation do not qualify.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">A separate USDT-M Futures connection for Super Signals. The execution rule is ten-timeframe H4-led confirmation: all ten readings fresh, at least six supporting frames aligned, and no opposing reads; ordinary BUY/SELL signals and Spot automation do not qualify.</p>
         </div>
         <span className={`rounded-full border px-3 py-1 text-xs font-medium ${connected ? 'border-up/20 bg-up/10 text-up' : 'border-amber-400/20 bg-amber-400/10 text-amber-500'}`}>{connected ? 'Futures connected' : 'Not connected'}</span>
       </div>
@@ -166,7 +166,7 @@ export function BinanceFuturesAutomation() {
             <label className="text-xs font-medium text-ink-2">Daily loss limit<select value={dailyLoss} onChange={e => setDailyLoss(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink">{['1','1.5','2','3','4','5'].map(v=><option key={v} value={v}>{v}%</option>)}</select></label>
             <label className="text-xs font-medium text-ink-2">Maximum open positions<input type="number" min="1" max="10" value={maxOpen} onChange={e => setMaxOpen(e.target.value)} className="mt-1 w-full rounded-xl border border-line/15 bg-canvas px-3 py-2.5 text-sm text-ink" /></label>
           </div>
-          <div className="mt-3 rounded-xl border border-up/20 bg-up/5 p-3"><p className="text-sm font-semibold text-ink">Automatic Super Signal pair selection</p><p className="mt-1 text-xs leading-5 text-ink-2">No manual pair list is needed. The executor considers every eligible 8/8 Super Signal and checks that the pair is actively tradable on Binance USDT-M Futures before any order.</p></div>
+          <div className="mt-3 rounded-xl border border-up/20 bg-up/5 p-3"><p className="text-sm font-semibold text-ink">Automatic Super Signal pair selection</p><p className="mt-1 text-xs leading-5 text-ink-2">No manual pair list is needed. The executor considers every eligible H4-led ten-timeframe signal and checks that the pair is actively tradable on Binance USDT-M Futures before any order.</p></div>
           <div className="mt-4 space-y-3 rounded-xl border border-line/10 bg-canvas/50 p-3">
             <label className="flex items-center justify-between gap-3 text-sm text-ink"><span>Enable Super Signal automation</span><input type="checkbox" checked={autoTrade} onChange={e => setAutoTrade(e.target.checked)} /></label>
             <label className="flex items-center justify-between gap-3 text-sm text-ink"><span>Authorize live Futures orders</span><input type="checkbox" checked={liveExecution} onChange={e => setLiveExecution(e.target.checked)} /></label>
@@ -179,12 +179,12 @@ export function BinanceFuturesAutomation() {
 
       <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm leading-6 text-ink-2">
         <div className="flex items-center gap-2 font-semibold text-ink"><ShieldAlert className="h-4 w-4 text-amber-500" />Live trading safeguards</div>
-        Only eligible 8/8 Super Signals can be considered. Each order is subject to the member’s risk settings, daily-loss limit, open-position limit, exchange quantity rules, duplicate protection and protective stop/target checks. Keep withdrawals disabled on the API key.
+        Only eligible H4-led ten-timeframe Super Signals can be considered. Each order is subject to the member’s risk settings, daily-loss limit, open-position limit, exchange quantity rules, duplicate protection and protective stop/target checks. Keep withdrawals disabled on the API key.
       </div>
 
       <div className="rounded-2xl border border-line/10 bg-surface/[0.04] p-5">
-        <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-semibold text-ink">Qualified 8/8 Super Signals</h3><span className="rounded-full border border-accent/20 px-2.5 py-1 text-xs text-accent">{signalIntents.length} recent</span></div>
-        {signalIntents.length === 0 ? <p className="text-sm text-ink-3">No eligible 8/8 Binance Futures signals yet. Signals appear here when they meet the 8/8 gate and Binance Futures eligibility checks.</p> : <div className="space-y-2">{signalIntents.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/10 bg-canvas/50 p-3"><div><p className="text-sm font-semibold text-ink">{s.symbol} · {s.side} · {s.timeframe_agreement}/8</p><p className="mt-1 text-xs text-ink-3">Entry {Number(s.entry_price).toPrecision(8)} · SL {Number(s.stop_loss).toPrecision(8)} · TP {Number(s.take_profit).toPrecision(8)}</p></div><span className="rounded-full border border-amber-400/20 px-2.5 py-1 text-xs text-amber-500">Signal ready · no order sent</span></div>)}</div>}
+        <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-semibold text-ink">Qualified H4-led ten-timeframe Super Signals</h3><span className="rounded-full border border-accent/20 px-2.5 py-1 text-xs text-accent">{signalIntents.length} recent</span></div>
+        {signalIntents.length === 0 ? <p className="text-sm text-ink-3">No eligible 10TF Binance Futures signals yet. Signals appear here after the H4-led ten-timeframe gate and Binance Futures eligibility checks.</p> : <div className="space-y-2">{signalIntents.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/10 bg-canvas/50 p-3"><div><p className="text-sm font-semibold text-ink">{s.symbol} · {s.side} · {s.timeframe_agreement}/8</p><p className="mt-1 text-xs text-ink-3">Entry {Number(s.entry_price).toPrecision(8)} · SL {Number(s.stop_loss).toPrecision(8)} · TP {Number(s.take_profit).toPrecision(8)}</p></div><span className="rounded-full border border-amber-400/20 px-2.5 py-1 text-xs text-amber-500">Signal ready · no order sent</span></div>)}</div>}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
