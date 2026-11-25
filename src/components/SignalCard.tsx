@@ -15,11 +15,12 @@ type Props = {
   price: number | undefined;
   aiModel: SignalLearningModel;
   confluenceCount?: number;
+  unifiedOnly?: boolean;
 };
 
-export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount }: Props) {
+export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount, unifiedOnly = false }: Props) {
   const [chartOpen, setChartOpen] = useState(false);
-  const signal = tf.latestSignal;
+  const signal = unifiedOnly ? null : tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
   const isWeekend = [0, 6].includes(new Date().getDay());
   const marketGroup = (asset.market ?? '').toLowerCase();
@@ -111,6 +112,11 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount 
             </div>
           )}
         </>
+      ) : unifiedOnly ? (
+        <div className="space-y-3">
+          <SignalChartSnapshot candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+          <p className="text-xs text-ink-3">This timeframe contributes to the single unified decision. It does not issue a separate dashboard trade instruction.</p>
+        </div>
       ) : tf.granularity === 86400 && marketClosed ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/15 px-4 py-8 text-center"><div className="text-base font-semibold text-ink-2">Market closed</div><div className="text-sm text-ink-3">This market is closed for the weekend. Signals will update when it reopens.</div></div>
       ) : tf.granularity === 86400 ? (
