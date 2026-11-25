@@ -38,8 +38,8 @@ Known limitations in the current Personal AI screen:
 **Acceptance:** no fabricated stats; loading, empty, stale and error states are explicit; key actions are reachable on mobile and desktop.
 
 ### 2. Dual-engine trading intelligence
-- Preserve independent H4 macro and M15 precision engines; do not collapse them into one strategy. M15 is the lowest permitted trading timeframe.
-- Explain when H4 and M15 agree or disagree; never generate M1/M5 trading signals.
+- Preserve independent H4 primary direction and M30 minimum execution timeframe; retain independent strategy engines and their separate outputs.
+- Explain when H4 and M30 agree or disagree; never generate signals below M30.
 - Make strategy, timeframe, symbol, candle-close and invalidation rules explicit.
 - Evaluate each engine separately using historical/out-of-sample evidence before claiming an edge.
 
@@ -115,7 +115,7 @@ Known limitations in the current Personal AI screen:
 4. Add cross-device personal goal and private AI memory only with RLS and explicit member controls.
 
 ### Phase 2 — Unified signal-to-outcome journey
-1. Align M1 and higher-timeframe explanation and confluence display.
+1. Align M30 and higher-timeframe explanation and confluence display.
 2. Standardize signal lifecycle and chart snapshots.
 3. Reconcile signal history with actual broker/exchange execution records.
 4. Add transparent performance and journal views.
