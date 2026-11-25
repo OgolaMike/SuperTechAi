@@ -313,7 +313,7 @@ function evaluateSuperSignal(
   const expected = primary.direction;
   const supporting = TIMEFRAMES.filter((frame) => frame.granularity !== primaryFrame.granularity);
   let supportingAligned = 0;
-  let higherTimeframeOpposes = false;
+  let anyTimeframeOpposes = false;
 
   for (const frame of supporting) {
     const candles = (candlesByFrame.get(frame.granularity) ?? [])
@@ -329,13 +329,11 @@ function evaluateSuperSignal(
     const gap = latest.close - mean;
     const bias = gap > deviation * 0.1 ? "BUY" : gap < -deviation * 0.1 ? "SELL" : "NEUTRAL";
     if (bias === expected) supportingAligned += 1;
-    if ((frame.label === "D1" || frame.label === "H8") && bias !== "NEUTRAL" && bias !== expected) {
-      higherTimeframeOpposes = true;
-    }
+    if (bias !== "NEUTRAL" && bias !== expected) anyTimeframeOpposes = true;
   }
 
   // Require at least six of nine supporting frames; D1/H8 may never oppose H4.
-  if (supporting.length !== 9 || supportingAligned < 6 || higherTimeframeOpposes) return null;
+  if (supporting.length !== 9 || supportingAligned < 6 || anyTimeframeOpposes) return null;
   return {
     direction: primary.direction,
     signalEpoch: primary.signalEpoch,
