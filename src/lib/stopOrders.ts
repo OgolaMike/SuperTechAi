@@ -141,7 +141,7 @@ export function buildM15StopOrderIdeas(
   for (const asset of assets) {
     const price = prices[asset.symbol];
     if (price == null) continue;
-    for (const timeframe of TIMEFRAMES) {
+    for (const timeframe of TIMEFRAMES.filter((item) => item.granularity >= 900)) {
       ideas.push(...scanTimeframe(asset, statesBySymbol[asset.symbol]?.[timeframe.granularity], price, nowEpoch));
     }
   }
