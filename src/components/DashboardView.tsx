@@ -114,13 +114,11 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1 xl:gap-6">
               {TIMEFRAMES.map((timeframe) => {
                 const tf = assetStates[timeframe.granularity] ?? emptyTfState(timeframe);
-                const direction = tf.latestSignal?.direction;
-                const confluenceCount = direction
-                  ? TIMEFRAMES.filter((item) => assetStates[item.granularity]?.latestSignal?.direction === direction).length
-                  : undefined;
+                const isPrimarySignalChart = timeframe.granularity === 14400;
+                const confluenceCount = isPrimarySignalChart && unifiedSignal ? unifiedSignal.agreeing : undefined;
                 return (
                   <div key={`${symbol}-${timeframe.granularity}`} className="min-w-0">
-                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} unifiedOnly />
+                    <SignalCard asset={asset} tf={tf} loaded={loaded} price={prices[symbol]} aiModel={aiModel} confluenceCount={confluenceCount} unifiedOnly={!isPrimarySignalChart || !unifiedSignal} />
                   </div>
                 );
               })}
