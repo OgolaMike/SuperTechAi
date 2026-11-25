@@ -75,7 +75,7 @@ function evaluateOutcome(direction: Direction, levels: Levels, after: Candle[]):
   return { tp1Epoch, tp2Epoch, tp3Epoch, slEpoch, status, closed: tp3Epoch !== null || slEpoch !== null };
 }
 
-// Same SMA 60 / Bollinger 2.5 crossover rules as the browser engine. Only closed candles count.
+// Same SMA 20 / Bollinger 2.5 crossover rules as the browser engine. Only closed candles count.
 export function computeSignals(
   candles: Candle[],
   granularity: number,
