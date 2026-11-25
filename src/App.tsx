@@ -22,6 +22,7 @@ const BinanceFuturesAutomation = lazy(() => import('@/components/BinanceFuturesA
 const OKXFuturesAutomation = lazy(() => import('@/components/OKXFuturesAutomation').then((module) => ({ default: module.OKXFuturesAutomation })));
 const CryptoMovers = lazy(() => import('@/components/CryptoMovers').then((module) => ({ default: module.CryptoMovers })));
 const DerivMarket = lazy(() => import('@/components/DerivMarket').then((module) => ({ default: module.DerivMarket })));
+const OptionsTrader = lazy(() => import('@/components/OptionsTrader').then((module) => ({ default: module.OptionsTrader })));
 const ExchangeMarkets = lazy(() => import('@/components/ExchangeMarkets').then((module) => ({ default: module.ExchangeMarkets })));
 const ServiceHealth = lazy(() => import('@/components/ServiceHealth').then((module) => ({ default: module.ServiceHealth })));
 const RecordsPanel = lazy(() => import('@/components/RecordsPanel').then((module) => ({ default: module.RecordsPanel })));
@@ -81,7 +82,7 @@ function App() {
   const [alertPreferencesReady, setAlertPreferencesReady] = useState(false);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>(() => new URLSearchParams(window.location.search).get('view') === 'options-trader' ? 'options-trader' : 'dashboard');
   const [now, setNow] = useState<number>(currentEpoch);
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
@@ -327,6 +328,7 @@ function App() {
         {view === 'crypto' && <CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
         {view === 'exchange-markets' && <ExchangeMarkets aiModel={aiModel} onNavigate={setView} />}
         {view === 'deriv-market' && <DerivMarket assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol]) => assets.some((asset) => asset.symbol === symbol && asset.exchange === 'DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} />}
+        {view === 'options-trader' && <OptionsTrader assets={assets.filter((asset) => asset.exchange === 'DERIV')} states={states} prices={prices} superSignals={superSignals.filter((signal) => assetMap.get(signal.symbol)?.exchange === 'DERIV')} confluenceResults={confluenceResults.filter((result) => assetMap.get(result.symbol)?.exchange === 'DERIV')} nowEpoch={now} loaded={loaded} />}
         {view === 'records' && <RecordsPanel version={sync.version} />}
         {view === 'bubble-history' && <BubbleHistory onOpenDashboard={openSignalChart} />}
 

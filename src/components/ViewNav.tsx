@@ -6,7 +6,7 @@ import {
   UserRoundPlus, X, Archive,
 } from 'lucide-react';
 
-export type View = 'personal-ai' | 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'five-minute' | 'bubble-history' | 'strategies' | 'marketing' | 'connections' | 'smart-community';
+export type View = 'options-trader' | 'personal-ai' | 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'five-minute' | 'bubble-history' | 'strategies' | 'marketing' | 'connections' | 'smart-community';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -31,6 +31,7 @@ const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     { id: 'academy', label: 'Academy', icon: GraduationCap },
   ] },
   { title: 'Trading connections', items: [
+    { id: 'options-trader', label: 'Options Trader', icon: Activity },
     { id: 'connections', label: 'Connections', icon: Link2 },
     { id: 'ctrader', label: 'Connect cTrader', icon: Cable },
     { id: 'mt5', label: 'Connect MT5', icon: Cable },
