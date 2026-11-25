@@ -6,8 +6,8 @@ import { showSignalNotification } from '@/lib/deviceNotify';
 import { getAlertMode } from '@/lib/alertPreferences';
 import { useSession } from '@/lib/sessionContext';
 
-const SUPER_SIGNAL_GRANULARITY = 900;
-const FRESH_CANDLES = 2;
+const SUPER_SIGNAL_GRANULARITY = 14400;
+const FRESH_CANDLES = 8;
 
 function isFreshSignal(signalEpoch: number, nowEpoch: number): boolean {
   const age = nowEpoch - signalEpoch;
