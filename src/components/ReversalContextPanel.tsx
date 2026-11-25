@@ -96,7 +96,7 @@ export function ReversalContextPanel({ assets, states, nowEpoch }: Props) {
       </div>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5 text-sm text-ink-2">
-          No recent M15 reversal conflicts detected. The panel only appears when a recent, open M15 signal disagrees with valid higher-timeframe context.
+          No recent M30 reversal conflicts detected. The panel only appears when a recent, open M30 signal disagrees with valid higher-timeframe context.
         </div>
       ) : items.map(({ asset, signal, reads, title, detail, confirmation }) => {
         const Icon = signal.direction === 'BUY' ? ArrowUpRight : ArrowDownRight;
@@ -105,7 +105,7 @@ export function ReversalContextPanel({ assets, states, nowEpoch }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold text-ink">{asset.name} <span className="text-ink-3">({asset.symbol})</span></p>
-                <p className="mt-1 flex items-center gap-1 text-xs text-ink-3"><Icon className="h-3.5 w-3.5" /> M15 {signal.direction} reversal attempt · completed signal candle</p>
+                <p className="mt-1 flex items-center gap-1 text-xs text-ink-3"><Icon className="h-3.5 w-3.5" /> M30 {signal.direction} reversal attempt · completed signal candle</p>
               </div>
               <span className="rounded-full border border-warn/30 bg-warn/10 px-3 py-1 text-xs font-semibold text-warn">{title}</span>
             </div>
