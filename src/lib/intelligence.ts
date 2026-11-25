@@ -143,7 +143,7 @@ function evaluateSymbol(
   const higherTimeframes = supportingReads.filter((reading) => reading.label === 'D1' || reading.label === 'H8');
   const higherTimeframeOpposes = higherTimeframes.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
-  // H4 owns direction. Five of seven D1-to-M15 supporting frames must agree.
+  // H4 owns direction. At least five of seven D1-to-M15 frames must agree.
   // M1/M5 are timing-only: at least one must confirm the direction, but neither
   // can vote the market direction or replace the seven higher/mid frames.
   if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || directionalAligned < MIN_DIRECTIONAL_ALIGNMENT || microAligned < 1 || higherTimeframeOpposes) return null;
@@ -172,7 +172,7 @@ function evaluateSymbol(
   const classification: Classification = directionalAligned >= 6 ? 'Strong alignment' : 'Moderate alignment';
   const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
   const explanation = [
-    `H4 generated the primary ${direction} signal ${describeAge(nowEpoch - signal.signalEpoch)}.`,
+    `H4 generated the only primary ${direction} signal ${describeAge(nowEpoch - signal.signalEpoch)}.`,
     `${directionalAligned} of 7 directional supporting timeframes confirm H4; D1 and H8 are not opposing the direction.`,
     `M5/M1 provide entry timing confirmation (${microAligned} of 2 agree) without changing the H4 direction.`,
     `${confirmationTimeframe} was the latest timeframe to join alignment, giving this H4 signal a ${gradePercent}% support grade.`,
