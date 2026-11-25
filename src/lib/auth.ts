@@ -9,10 +9,8 @@ export async function signIn(email: string, password: string): Promise<void> {
   notifyAuthChanged();
 }
 
-export async function signUp(email: string, password: string, payoutTronAddress: string): Promise<boolean> {
-  await appwriteAccount.create(email, password, '', {
-    payout_tron_address: payoutTronAddress,
-  });
+export async function signUp(email: string, password: string): Promise<boolean> {
+  await appwriteAccount.create(email, password);
   notifyAuthChanged();
   return false;
 }
