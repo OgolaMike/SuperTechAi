@@ -1,11 +1,6 @@
 import type { Candle } from './deriv';
 
 export type WickDirection = 'BUY' | 'SELL';
-export type UnifiedConfirmation = {
-  symbol: string;
-  direction: WickDirection;
-  signalEpoch: number;
-};
 export type ThreeHourWickCandidate = {
   symbol: string;
   direction: WickDirection;
@@ -18,7 +13,6 @@ export type ThreeHourWickCandidate = {
   body: number;
   rejectionWick: number;
   wickToBodyRatio: number;
-  confirmationEpoch: number;
   idempotencyKey: string;
 };
 
@@ -58,7 +52,6 @@ export function evaluateThreeHourWick(
   symbol: string,
   candles: Candle[],
   nowEpoch: number,
-  confirmation: UnifiedConfirmation | null,
 ): ThreeHourWickEvaluation {
   const closed = [...candles]
     .filter((candle) => candle.epoch + THREE_HOUR_WICK_CONFIG.timeframeSeconds <= nowEpoch)
@@ -99,7 +92,6 @@ export function evaluateThreeHourWick(
       middleBand: stats.mean, upperBand: stats.upper, lowerBand: stats.lower,
       body, rejectionWick: buy ? lowerWick : upperWick,
       wickToBodyRatio: (buy ? lowerWick : upperWick) / safeBody,
-      confirmationEpoch: confirmation.signalEpoch,
       idempotencyKey: `${symbol}|H4|${candle.epoch}|${direction}|3H_WICK_V1`,
     },
   };
