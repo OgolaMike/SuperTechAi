@@ -25,7 +25,7 @@ export const TIMEFRAMES: Timeframe[] = [
 ];
 
 
-export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([1800, 3600, 14400, 28800, 86400, 604800]);
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([1800, 3600, 14400, 28800, 86400]);
 
 // Build H2/H3/H6/H12 from complete hourly candles; M30, D1 and W1 use native source candles.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
@@ -45,6 +45,30 @@ export function aggregateHourlyCandles(hourly: Candle[], targetGranularity: numb
     const isCurrent = epoch === currentBucket;
     if (!isCurrent && ordered.length !== hoursPerCandle) return [];
     if (ordered.length === 0) return [];
+    return [{
+      epoch,
+      open: ordered[0].open,
+      high: Math.max(...ordered.map((item) => item.high)),
+      low: Math.min(...ordered.map((item) => item.low)),
+      close: ordered[ordered.length - 1].close,
+      symbol: ordered[0].symbol,
+    }];
+  });
+}
+
+export function aggregateDailyCandles(daily: Candle[], targetGranularity: number): Candle[] {
+  const daysPerCandle = targetGranularity / 86400;
+  if (!Number.isInteger(daysPerCandle) || daysPerCandle < 2) return [];
+  const buckets = new Map<number, Candle[]>();
+  for (const candle of daily) {
+    const epoch = Math.floor(candle.epoch / targetGranularity) * targetGranularity;
+    const bucket = buckets.get(epoch) ?? [];
+    bucket.push(candle);
+    buckets.set(epoch, bucket);
+  }
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).flatMap(([epoch, items]) => {
+    const ordered = items.sort((a, b) => a.epoch - b.epoch);
+    if (ordered.length !== daysPerCandle || ordered.some((candle, index) => candle.epoch !== epoch + index * 86400)) return [];
     return [{
       epoch,
       open: ordered[0].open,
