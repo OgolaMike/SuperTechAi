@@ -23,7 +23,7 @@ from execution_safety import make_broker_comment, classify_existing_attempt, cla
 from five_minute_momentum import detect_signal, normalize_volume, position_is_due_to_close, MOMENTUM_MAGIC, MOMENTUM_COMMENT_PREFIX
 
 SERVICE_NAME = "SuperTechAI-MT5-Bridge"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 POLL_SECONDS = max(3, int(os.getenv("STAI_POLL_SECONDS", "5")))
 MOMENTUM_CHECK_SECONDS = 0.25
 MOMENTUM_LAST_BAR: dict[str, int] = {}
@@ -570,7 +570,7 @@ def run_five_minute_momentum(token: str, config: dict[str, Any] | None, daily_lo
 def execute_read_only(command: dict[str, Any]) -> dict[str, Any]:
     command_type = command.get("command_type")
     if command_type == "pause_trading":
-        # Safe no-op acknowledgement: this worker has no trade execution path.
+        # Safe no-op acknowledgement: server-side emergency stop blocks all new strategy entries.
         return {"paused": True, "message": "The server-side emergency stop blocks new submissions. This command does not change broker orders."}
     mt5_ready()
     if command_type == "sync_account":
@@ -643,6 +643,7 @@ def main() -> None:
     token = get_worker_token()
     log.info("Starting SuperTech AI guarded MT5 worker %s on %s", VERSION, platform.node())
     backoff = 2
+    last_momentum_config: dict[str, Any] = {}
     while True:
         try:
             mt5_ready()
@@ -677,6 +678,7 @@ def main() -> None:
                     complete(token, command_id, False, error_code="worker_command_failed")
             backoff = 2
             momentum_config = heartbeat.get("five_minute_momentum") or {}
+            last_momentum_config = momentum_config
             daily_loss_pct = float(heartbeat.get("dailyLossPct", 100.0))
             cycle_end = time.monotonic() + POLL_SECONDS
             while time.monotonic() < cycle_end:
@@ -690,7 +692,17 @@ def main() -> None:
             break
         except Exception as exc:
             log.warning("Bridge cycle failed: %s", type(exc).__name__)
-            time.sleep(backoff)
+            # Timed exits are local broker actions: keep checking them even while
+            # Supabase is unreachable. New entries remain disabled without fresh auth.
+            recovery_end = time.monotonic() + backoff
+            while time.monotonic() < recovery_end:
+                try:
+                    close_due_five_minute_positions(
+                        int(last_momentum_config.get("max_slippage_points", 10) or 10)
+                    )
+                except Exception as close_error:
+                    log.warning("Offline M5 close check failed: %s", type(close_error).__name__)
+                time.sleep(MOMENTUM_CHECK_SECONDS)
             backoff = min(backoff * 2, 60)
     mt5.shutdown()
 
