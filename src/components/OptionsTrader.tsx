@@ -42,7 +42,10 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [connectionBusy, setConnectionBusy] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState('');
-  const [connectionError, setConnectionError] = useState('');\n  const [quoteBusySymbol, setQuoteBusySymbol] = useState('');\n  const [quoteError, setQuoteError] = useState('');\n  const [quotes, setQuotes] = useState<Record<string, Array<{ contractType: string; askPrice: number; payout: number; currency: string; barrier: string }>>>({});
+  const [connectionError, setConnectionError] = useState('');
+  const [quoteBusySymbol, setQuoteBusySymbol] = useState('');
+  const [quoteError, setQuoteError] = useState('');
+  const [quotes, setQuotes] = useState<Record<string, Array<{ contractType: string; askPrice: number; payout: number; currency: string; barrier: string }>>>({});
 
   const loadConnection = useCallback(async () => {
     setConnectionBusy(true);
