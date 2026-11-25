@@ -140,7 +140,7 @@ function evaluateSymbol(
   const higherTimeframes = supportingReads.filter((reading) => reading.label === 'D1' || reading.label === 'H8');
   const higherTimeframeOpposes = higherTimeframes.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
-  // Keep H4 authoritative. Entry waits for at least four supporting frames and no higher-timeframe reversal warning.
+  // Keep H4 authoritative. Entry waits for at least six of nine supporting frames and no higher-timeframe reversal warning.
   if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || higherTimeframeOpposes) return null;
 
   const confirmations = INTELLIGENCE_TIMEFRAMES.map((timeframe) => {
