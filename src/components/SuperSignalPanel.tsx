@@ -21,11 +21,11 @@ type Props = {
 };
 
 function statesForRecord(record: SuperSignalRecord, states: Record<string, Record<number, TfState>>) {
-  return states[record.symbol]?.[900]?.candles ?? [];
+  return states[record.symbol]?.[14400]?.candles ?? [];
 }
 
 function signalKey(signal: Pick<SuperSignal, 'symbol' | 'direction' | 'signalEpoch'>) {
-  return `${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`;
+  return `${signal.symbol}|14400|${signal.signalEpoch}|${signal.direction}`;
 }
 
 function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
@@ -150,7 +150,7 @@ export function SuperSignalPanel({
                     </button>
                     {isSelected && chartCandles.length > 0 && (
                       <div className="min-w-0 overflow-hidden rounded-xl border border-accent/25 bg-surface/[0.025] p-2">
-                        <SignalChartSnapshot candles={chartCandles} livePrice={prices[record.symbol]} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
+                        <SignalChartSnapshot candles={chartCandles} livePrice={prices[record.symbol]} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="H4" granularity={14400} digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
                       </div>
                     )}
                   </div>
@@ -169,7 +169,7 @@ export function SuperSignalPanel({
         </div>
       )}
 
-      <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3"><Info className="mt-0.5 h-4 w-4 shrink-0" />Super Signals remain in this history after the live alert disappears. Profit and stop outcomes update from the matching recorded M15 signal.</p>
+      <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3"><Info className="mt-0.5 h-4 w-4 shrink-0" />Super Signals remain in this history after the live alert disappears. Profit and stop outcomes update from the matching recorded H4 signal.</p>
     </div>
   );
 }
@@ -188,7 +188,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
     { label: 'Take-profit 2', value: record.tp2, tone: 'text-up', hit: record.tp2_hit_epoch },
     { label: 'Take-profit 3', value: record.tp3, tone: 'text-up', hit: record.tp3_hit_epoch },
   ];
-  const score = getAiPatternScore(aiModel, 900, record.direction, {
+  const score = getAiPatternScore(aiModel, 14400, record.direction, {
     entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3,
     mean: record.band_mean, deviation: record.band_deviation,
   });
@@ -199,7 +199,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
         <div className="min-w-0">
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 10TF</div>
           <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
-          <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
+          <p className="text-sm text-ink-3">{record.symbol} · H4 primary signal</p>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-black ${isBuy ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'}`}><DirectionIcon className="h-4 w-4" />{record.direction}</span>
       </header>
@@ -213,10 +213,10 @@ function SuperSignalDetails({ record, price, aiModel }: {
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-bold uppercase tracking-wider text-ink-3">Ten-timeframe confirmation</div><span className="rounded-lg border border-up/25 bg-up/10 px-3 py-1.5 text-sm font-black text-up">{record.grade_percent == null ? 'Grade unavailable for this older record' : `${record.grade_percent}% · ${record.confirmation_timeframe} completed alignment`}</span></div>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
           {TIMEFRAMES.map((timeframe) => {
-            const read = record.reads.find((item) => item.label === timeframe);
+            const read = record.reads.find((item) => item.label === timeframe.label);
             const agrees = read?.agrees === true;
             return <div key={timeframe} className={`rounded-lg border px-1.5 py-2 text-center ${agrees ? 'border-up/25 bg-up/10 text-up' : 'border-line/10 bg-surface/[0.03] text-ink-3'}`}>
-              <div className="text-[10px] font-bold">{timeframe}</div>
+              <div className="text-[10px] font-bold">{timeframe.label}</div>
               <div className="mt-1 flex justify-center">{agrees ? <Check className="h-3.5 w-3.5" /> : <span className="text-[10px]">—</span>}</div>
             </div>;
           })}
