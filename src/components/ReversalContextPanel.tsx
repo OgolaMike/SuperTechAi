@@ -13,7 +13,8 @@ type Bias = 'Bullish' | 'Bearish' | 'Neutral' | 'No data';
 type Read = { label: string; bias: Bias };
 
 const PRIMARY_GRANULARITY = 1800;
-const DAY = 86400;\nconst WEEK = 604800;
+const DAY = 86400;
+const WEEK = 604800;
 const LOOKBACK_SECONDS = 8 * PRIMARY_GRANULARITY;
 
 function biasFromState(state: TfState | undefined, nowEpoch: number): Bias {
