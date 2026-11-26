@@ -44,7 +44,7 @@ export function HeaderBrand() {
       <img
         src="/supertechai-logo.png?v=32bbfde1"
         alt="SuperTechAi official gold and electric-blue lightning logo"
-        className="block h-[88px] w-[88px] object-contain sm:h-[104px] sm:w-[104px]"
+        className="block h-14 w-14 object-contain sm:h-16 sm:w-16"
         width={104}
         height={104}
         loading="eager"
