@@ -120,7 +120,6 @@ export function SignalCard({ asset, tf, loaded, price, confluenceCount, unifiedO
         <Clock className="h-3.5 w-3.5 flex-shrink-0 text-ink-3" />
         <span>Last update: {formatDateTime(tf.updatedEpoch)}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] leading-relaxed text-slate-300"><span className="font-semibold text-cyan-200">NO CROSS SIGNAL</span><span>Market data remains active; BUY/SELL appears only after a confirmed candle-close crossover.</span></div>
       {chartOpen && signal && createPortal((
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#050914]/95 p-3 backdrop-blur-md sm:p-6" onClick={(event) => event.stopPropagation()}>
           <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4">
