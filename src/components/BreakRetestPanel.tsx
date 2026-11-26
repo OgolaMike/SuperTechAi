@@ -75,11 +75,12 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   const x = (i: number) => P.left + i / candleSlots * plotWidth;
   const y = (v: number) => P.top + (max - v) / range * (H - P.top - P.bottom);
   const body = Math.max(5, Math.min(18, (W - P.left - P.right) / data.length * 0.62));
-  const breakIndex = Math.max(0, data.findIndex(c => c.epoch >= setup.breakEpoch));
-  const confirmIndex = Math.max(0, data.findIndex(c => c.epoch >= setup.confirmationEpoch));
-  const zoneX = x(breakIndex);
+  const breakIndex = data.findIndex(c => c.epoch === setup.breakEpoch);
+  const retestIndex = data.findIndex(c => c.epoch === setup.retestEpoch);
+  const confirmIndex = data.findIndex(c => c.epoch === setup.confirmationEpoch);
+  const zoneX = x(Math.max(0, breakIndex));
   const zoneY = y(setup.zoneHigh);
-  const zoneH = Math.max(3, y(setup.zoneLow) - zoneY);
+  const zoneH = Math.max(2, y(setup.zoneLow) - zoneY);
   const bullish = setup.direction === 'BUY';
   const accent = bullish ? '#34d399' : '#fb7185';
   const grid = Array.from({ length: 6 }, (_, i) => max - range * i / 5);
@@ -99,14 +100,15 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
         <linearGradient id={`zone-${setup.key.replace(/[^a-zA-Z0-9]/g,'')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={accent} stopOpacity=".25"/><stop offset="100%" stopColor={accent} stopOpacity=".07"/></linearGradient>
       </defs>
       {grid.map((v,i)=><g key={i}><line x1={P.left} x2={W-P.right} y1={y(v)} y2={y(v)} stroke="#94a3b8" strokeOpacity=".13" strokeDasharray="3 8"/><text x={W-P.right+9} y={y(v)+4} fill="#94a3b8" fontSize="13">{fmt(v)}</text></g>)}
-      <rect x={zoneX} y={zoneY} width={Math.max(12,W-P.right-zoneX)} height={zoneH} fill={`url(#zone-${setup.key.replace(/[^a-zA-Z0-9]/g,'')})`} stroke={accent} strokeWidth="2" rx="3"/>
-      <text x={Math.min(W-P.right-150,zoneX+8)} y={Math.max(P.top+15,zoneY-8)} fill={accent} fontSize="13" fontWeight="800">{bullish ? 'BROKEN RESISTANCE → SUPPORT' : 'BROKEN SUPPORT → RESISTANCE'}</text>
+      <rect x={zoneX} y={zoneY} width={Math.max(12,W-P.right-zoneX)} height={zoneH} fill={`url(#zone-${setup.key.replace(/[^a-zA-Z0-9]/g,'')})`} stroke={accent} strokeWidth="1" strokeOpacity=".42" strokeDasharray="3 5" rx="2"/>
+      {breakIndex >= 0 && <g opacity=".72"><line x1={x(breakIndex)} x2={x(breakIndex)} y1={P.top+34} y2={H-P.bottom} stroke={accent} strokeWidth="1" strokeDasharray="2 6"/><text x={x(breakIndex)+5} y={P.top+29} fill={accent} fontSize="10" fontWeight="700">BREAK</text></g>}
+      {retestIndex >= 0 && <g opacity=".78"><circle cx={x(retestIndex)} cy={y(setup.direction==='BUY'?setup.zoneHigh:setup.zoneLow)} r="4" fill={accent} stroke="#080e19" strokeWidth="1.5"/><text x={x(retestIndex)+6} y={y(setup.direction==='BUY'?setup.zoneHigh:setup.zoneLow)-7} fill={accent} fontSize="10" fontWeight="700">RETEST</text></g>}
       <line x1={P.left} x2={W-P.right} y1={y(setup.stopLoss)} y2={y(setup.stopLoss)} stroke="#fb7185" strokeWidth="2" strokeDasharray="8 6"/>
       <rect x={W-P.right+4} y={y(setup.stopLoss)-12} width="104" height="24" rx="4" fill="#be123c"/><text x={W-P.right+56} y={y(setup.stopLoss)+4} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">STOP {fmt(setup.stopLoss)}</text>
       <line x1={P.left} x2={W-P.right} y1={y(setup.target)} y2={y(setup.target)} stroke="#fbbf24" strokeWidth="2" strokeDasharray="8 6"/>
       <rect x={W-P.right+4} y={y(setup.target)-12} width="104" height="24" rx="4" fill="#b7791f"/><text x={W-P.right+56} y={y(setup.target)+4} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">TARGET {fmt(setup.target)}</text>
       {data.map((c,i)=>{const up=c.close>=c.open;const color=up?'#34d399':'#fb7185';const top=y(Math.max(c.open,c.close));const bottom=y(Math.min(c.open,c.close));return <g key={c.epoch}><line x1={x(i)} x2={x(i)} y1={y(c.high)} y2={y(c.low)} stroke={color} strokeWidth="2"/><rect x={x(i)-body/2} y={top} width={body} height={Math.max(2,bottom-top)} rx="1.2" fill={color}/></g>;})}
-      {(() => { const index = confirmIndex; const candle = data[index]; if (!candle) return null; const cy = y(setup.confirmationPrice); const labelY = bullish ? cy + 12 : cy - 30; const labelWidth = 54; const labelX = Math.max(P.left, Math.min(W - P.right - labelWidth, x(index) - labelWidth / 2)); const label = bullish ? 'BUY' : 'SELL'; return <g><line x1={x(index)} x2={x(index)} y1={P.top} y2={H-P.bottom} stroke={accent} strokeOpacity=".45" strokeDasharray="4 6"/><circle cx={x(index)} cy={cy} r={6} fill={accent} stroke="#08111f" strokeWidth="2"/><rect x={labelX} y={labelY} width={labelWidth} height="21" rx="5" fill={accent}/><text x={labelX+labelWidth/2} y={labelY+14} textAnchor="middle" fill="#07111d" fontSize="10" fontWeight="800">{label}</text></g>; })()}
+      {(() => { const index = confirmIndex; const candle = data[index]; if (!candle) return null; const cy = y(setup.confirmationPrice); const labelY = bullish ? cy + 10 : cy - 22; const labelWidth = 38; const labelX = Math.max(P.left, Math.min(W - P.right - labelWidth, x(index) - labelWidth / 2)); const label = bullish ? 'BUY' : 'SELL'; return <g opacity=".9"><line x1={x(index)} x2={x(index)} y1={P.top+42} y2={H-P.bottom} stroke={accent} strokeOpacity=".28" strokeDasharray="2 7"/><circle cx={x(index)} cy={cy} r={4} fill={accent} stroke="#08111f" strokeWidth="1.5"/><rect x={labelX} y={labelY} width={labelWidth} height="17" rx="4" fill={accent}/><text x={labelX+labelWidth/2} y={labelY+12} textAnchor="middle" fill="#07111d" fontSize="9" fontWeight="800">{label}</text></g>; })()}
       <line x1={P.left} x2={W-P.right} y1={y(setup.entry)} y2={y(setup.entry)} stroke="#e2e8f0" strokeWidth="1.8" strokeDasharray="3 5" opacity=".95"/><rect x={W-P.right+4} y={y(setup.entry)-12} width="104" height="24" rx="4" fill="#475569"/><text x={W-P.right+56} y={y(setup.entry)+4} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">ENTRY {fmt(setup.entry)}</text>
       <text x={P.left+6} y={H-10} fill="#64748b" fontSize="11" fontWeight="700">SUPERTECH AI · PURE PRICE ACTION · {setup.timeframe}</text>
     </svg>
