@@ -6,7 +6,9 @@ The independent Cloudflare Worker lives in `workers/independent-api` and is deli
 
 - `GET /api/health`: returns service identity and explicitly reports that database operations are not ready.
 - `GET /api/me`: accepts a short-lived Appwrite JWT as a Bearer token, validates it against the Appwrite Account API, and returns only the verified member identity.
-- All other routes return `404`. There is no generic Appwrite proxy and no browser-controlled user ID.
+- `GET /api/profile` and `PATCH /api/profile`: member-scoped profile access.
+- `GET /api/signals` and `POST /api/signals`: member-scoped signal history with bounded batches and deterministic idempotent row IDs.
+- Broker routes are documented separately in `INDEPENDENT_BROKER_MIGRATION.md`. There is no generic Appwrite proxy and no browser-controlled user ID.
 
 ## Authentication flow
 
@@ -24,7 +26,7 @@ The Worker currently needs only public Appwrite endpoint/project identifiers and
 
 ## Current limits
 
-This is an authenticated API foundation, not the completed member backend. It does not read or write Appwrite database tables yet. The sandbox schema is only partially provisioned and security settings have not been reverified. Do not enable profile writes, roles, entitlements, payments, referrals, or trading execution until schema/indexes/permissions and negative access tests are complete.
+This is an authenticated API foundation with narrowly scoped profile and signal-history routes, not the completed member backend. The sandbox schema is only partially provisioned and security settings have not been reverified. The proposed signal_records table is not yet created. Do not enable roles, entitlements, payments, referrals, or trading execution until schema/indexes/permissions and negative access tests are complete.
 
 Set `VITE_INDEPENDENT_API_URL` in the Pages project to the deployed independent Worker URL before connecting the browser helper in a live preview. Until then the helper fails closed with a clear configuration error.
 
@@ -44,3 +46,10 @@ Create an Appwrite API key in the sandbox project with only the database row sco
 The database and member profile table IDs are configured as non-secret Worker variables. The profile endpoint fails closed with `503 member_data_not_configured` until the secret is configured. It also requires the table columns recorded in `appwrite/schema/member-access.tables.json`; the Appwrite console schema and row-level permissions must be verified before using real member data.
 
 The profile API is not an entitlement or role API. It cannot grant paid access, admin status, payment approval, referrals, withdrawals or trading permissions.
+
+## Signal history persistence
+
+- `GET /api/signals` reads only rows whose `user_id` matches the verified Appwrite account.
+- `POST /api/signals` accepts 1–50 validated records per request, enforces the M30–W1 timeframe/granularity map, and derives a deterministic member-specific row ID from the signal key.
+- Signal rows are Worker-only (`permissions: []`). The browser retains a device-local cache and syncs to Appwrite when the Worker and table are configured; it falls back locally when the service is unavailable.
+- Configure `SIGNAL_RECORDS_TABLE_ID` as a non-secret Worker variable after creating the table exactly as defined in `appwrite/schema/member-access.tables.json`. The table is still proposed and must not be treated as provisioned.
