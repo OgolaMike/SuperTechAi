@@ -57,11 +57,9 @@ export async function upsertSignalRecords(rows: SignalRecordRow[]): Promise<void
   rows.forEach(row => byKey.set(row.signal_key, row));
   const merged = [...byKey.values()].sort((a, b) => b.signal_epoch - a.signal_epoch).slice(0, RECORD_LIMIT);
   cacheRows(merged);
-  try {
-    if (rows.length) await syncRowsInBatches(rows);
-  } catch {
-    // Keep device-local history working while the independent API or Appwrite table is unavailable.
-  }
+  // Keep the local cache available offline, but propagate remote failures so the
+  // trading terminal can clearly show that cross-device sync is not complete.
+  if (rows.length) await syncRowsInBatches(rows);
 }
 
 export async function fetchSignalRecords(): Promise<SignalRecordRow[]> {
