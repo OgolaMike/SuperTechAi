@@ -259,7 +259,7 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
     headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY!, "Content-Type": "application/json" },
     body: JSON.stringify(existingGrant.ok
       ? { data: grantData, permissions: [] }
-      : { rowId: grantId, data: grantData }),
+      : { rowId: grantId, data: grantData, permissions: [] }),
   });
   if (!save.ok) return json({ error: "ctrader_secure_grant_storage_failed" }, 503);
   const safePath = row.redirect_path?.startsWith("/") && !row.redirect_path.startsWith("//") ? row.redirect_path : "/";
