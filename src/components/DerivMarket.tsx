@@ -5,7 +5,7 @@ import type { SignalLearningModel } from '@/lib/aiLearning';
 import type { Asset, TfState, Timeframe } from '@/lib/sma';
 import { TIMEFRAMES, formatPrice } from '@/lib/sma';
 
-type Props = {
+export type DerivMarketProps = {
   assets: Asset[];
   states: Record<string, Record<number, TfState>>;
   prices: Record<string, number>;
@@ -45,7 +45,7 @@ function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']):
   return { asset, price, changePct, candles: hourly.length };
 }
 
-export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel, onNavigate }: Props) {
+export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel, onNavigate }: DerivMarketProps) {
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M30') ?? TIMEFRAMES[0]);
   const [visibleCount, setVisibleCount] = useState(60);
