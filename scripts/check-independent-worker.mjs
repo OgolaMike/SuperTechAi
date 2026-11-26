@@ -16,6 +16,7 @@ for (const [label, condition] of [
   ['profile ownership is checked', worker.includes('row.user_id !== account.$id')],
   ['row read permission is member-scoped', worker.includes('read("user:')],
   ['row update permission is member-scoped', worker.includes('update("user:')],
+  ['new profile rows receive member-scoped read/update permissions', worker.slice(worker.indexOf('if (method === "GET")'), worker.indexOf('if (method === "PATCH")')).includes('permissions: [`read("user:')],
   ['only display name is accepted from profile payload', worker.includes('typeof body.displayName !== "string"')],
   ['unknown routes are rejected', worker.includes('error: "not_found"')],
   ['cTrader OAuth start requires a verified Appwrite account', worker.includes('startCTraderOAuth(env as BrokerEnv, account')],
