@@ -15,6 +15,7 @@ type AuthState = {
   isAdmin: boolean;
   isApproved: boolean;
   accessError: boolean;
+  accessErrorMessage: string | null;
   isPasswordRecovery: boolean;
   isEmailConfirmed: boolean;
 };
@@ -25,6 +26,7 @@ const emptyState: AuthState = {
   isAdmin: false,
   isApproved: false,
   accessError: false,
+  accessErrorMessage: null,
   isPasswordRecovery: false,
   isEmailConfirmed: false,
 };
@@ -65,14 +67,15 @@ export function useAuthSession(): AuthState {
       const userId = params.get('userId');
       const secret = params.get('secret');
       if (!userId || !secret) {
-        setState({ ...emptyState, ready: true, accessError: true });
+        setState({ ...emptyState, ready: true, accessError: true, accessErrorMessage: 'The verification link is missing its account ID or secure token. Open the newest verification email.' });
         return;
       }
       try {
         await appwriteAccount.completeEmailVerification(userId, secret);
         setState({ ...emptyState, ready: true, isEmailConfirmed: true });
-      } catch {
-        setState({ ...emptyState, ready: true, accessError: true });
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : 'Unknown Appwrite verification error';
+        setState({ ...emptyState, ready: true, accessError: true, accessErrorMessage: `Appwrite could not confirm this email: ${detail}` });
       }
       return;
     }
@@ -94,6 +97,7 @@ export function useAuthSession(): AuthState {
         ...emptyState,
         ready: true,
         accessError: !isUnauthenticated(error),
+        accessErrorMessage: isUnauthenticated(error) ? null : (error instanceof Error ? error.message : 'The Appwrite account service could not be reached.'),
       });
     }
   }, []);
