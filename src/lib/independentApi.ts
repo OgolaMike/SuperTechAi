@@ -55,10 +55,22 @@ export function updateIndependentProfile(displayName: string): Promise<Independe
   });
 }
 
+export type CTraderAccount = {
+  accountId: string;
+  isLive: boolean;
+  traderLogin: string | null;
+  broker: string;
+  accountType: string | null;
+  permissionScope: string;
+};
+
 export type CTraderConnectionStatus = {
   connected: boolean;
   status: string;
   tokenExpiresAt?: string | null;
+  accounts?: CTraderAccount[];
+  selectedAccountId?: string | null;
+  permissionScope?: string | null;
 };
 
 export function getCTraderConnectionStatus(): Promise<CTraderConnectionStatus> {
@@ -72,6 +84,19 @@ export function startCTraderConnection(redirectPath = '/'): Promise<{ authorizat
   });
 }
 
+export function discoverCTraderAccounts(): Promise<{ accounts: CTraderAccount[]; permissionScope: string; tradingEnabled: false }> {
+  return authenticatedRequest<{ accounts: CTraderAccount[]; permissionScope: string; tradingEnabled: false }>('/api/brokers/ctrader/discover', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function selectCTraderAccount(accountId: string): Promise<{ selectedAccount: CTraderAccount; tradingEnabled: false }> {
+  return authenticatedRequest<{ selectedAccount: CTraderAccount; tradingEnabled: false }>('/api/brokers/ctrader/select-account', {
+    method: 'POST',
+    body: JSON.stringify({ accountId }),
+  });
+}
 export function refreshCTraderConnection(): Promise<{ connected: boolean; refreshed: boolean; tokenExpiresAt?: string; status?: string }> {
   return authenticatedRequest<{ connected: boolean; refreshed: boolean; tokenExpiresAt?: string; status?: string }>('/api/brokers/ctrader/refresh', {
     method: 'POST',
