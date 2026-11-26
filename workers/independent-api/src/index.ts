@@ -225,7 +225,7 @@ async function encryptBrokerToken(value: string, keyText: string): Promise<strin
 }
 async function appwriteRow(env: BrokerEnv, tableId: string, rowId: string, method: string, data?: Record<string, unknown>) {
   if (!env.APPWRITE_API_KEY) throw new Error("appwrite_server_key_not_configured");
-  const base = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${tableId}/rows`;
+  const base = env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/tablesdb/" + env.APPWRITE_DATABASE_ID + "/tables/" + tableId + "/rows";
   const response = await fetch(`${base}/${encodeURIComponent(rowId)}`, {
     method,
     headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" },
@@ -262,7 +262,7 @@ async function binanceSpotRow(env: BrokerEnv, accountId: string, method: "GET" |
   return await response.json() as Record<string, unknown>;
 }
 function base64Url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 async function derivApi(env: BrokerEnv, token: string, path: string, init: RequestInit = {}) {
   const response = await fetch(`https://api.derivws.com${path}`, {
@@ -275,7 +275,7 @@ async function derivApi(env: BrokerEnv, token: string, path: string, init: Reque
 }
 async function derivRow(env: BrokerEnv, tableId: string, rowId: string, method: "GET" | "POST" | "PATCH" | "DELETE", data?: Record<string, unknown>) {
   if (!env.APPWRITE_API_KEY) throw new Error("appwrite_server_key_not_configured");
-  const base = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${tableId}/rows`;
+  const base = env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/tablesdb/" + env.APPWRITE_DATABASE_ID + "/tables/" + tableId + "/rows";
   const endpoint = `${base}/${encodeURIComponent(rowId)}`;
   const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
   if (method === "GET" || method === "DELETE") {
@@ -322,7 +322,7 @@ async function handleDerivCallback(request: Request, env: BrokerEnv): Promise<Re
   if (url.searchParams.has("error")) return json({ error: "deriv_authorization_denied" }, 400);
   if (!state || state.length > 256 || !code || code.length > 2048) return json({ error: "invalid_deriv_oauth_response" }, 400);
   if (!DERIV_CLIENT_ID || !DERIV_REDIRECT_URI || !DERIV_OAUTH_STATES_TABLE_ID || !DERIV_GRANTS_TABLE_ID || !BROKER_TOKEN_ENCRYPTION_KEY || !configured.APPWRITE_API_KEY) return json({ error: "deriv_oauth_not_configured" }, 503);
-  const queryUrl = new URL(`${configured.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${DERIV_OAUTH_STATES_TABLE_ID}/rows`);
+  const queryUrl = new URL(configured.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/tablesdb/" + configured.APPWRITE_DATABASE_ID + "/tables/" + DERIV_OAUTH_STATES_TABLE_ID + "/rows");
   queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "state_hash", values: [await sha256(state)] }));
   const lookup = await fetch(queryUrl, { headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY } });
   if (!lookup.ok) return json({ error: "deriv_state_lookup_failed" }, 503);
@@ -343,7 +343,7 @@ async function handleDerivCallback(request: Request, env: BrokerEnv): Promise<Re
   const accounts = Array.isArray(raw) ? raw.filter((item): item is Record<string, unknown> => !!item && typeof item === "object").map(item => ({
     accountId: String(item.account_id ?? item.id ?? ""), accountType: String(item.account_type ?? item.type ?? "unknown"),
     currency: String(item.currency ?? ""), isDemo: String(item.account_type ?? item.type ?? "").toLowerCase().includes("demo"),
-  })).filter(item => /^\\d{1,32}$/.test(item.accountId)) : [];
+  })).filter(item => /^[A-Za-z0-9_-]{1,64}$/.test(item.accountId)) : [];
   const grantId = row.user_id.replace(/-/g, "").slice(0, 32);
   await derivRow(configured, DERIV_GRANTS_TABLE_ID, grantId, "POST", {
     user_id: row.user_id, encrypted_access_token: encrypted,
@@ -364,7 +364,7 @@ async function startCTraderOAuth(env: BrokerEnv, account: AppwriteAccount, redir
   const state = `${crypto.randomUUID()}.${crypto.randomUUID()}`;
   const stateId = crypto.randomUUID().replace(/-/g, "");
   const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
-  const base = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${CTRADER_OAUTH_STATES_TABLE_ID}/rows`;
+  const base = env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/tablesdb/" + env.APPWRITE_DATABASE_ID + "/tables/" + tableId + "/rows";
   const response = await fetch(base, {
     method: "POST",
     headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY!, "Content-Type": "application/json" },
@@ -413,7 +413,7 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
     encryptBrokerToken(token.refreshToken, BROKER_TOKEN_ENCRYPTION_KEY),
   ]);
   const grantId = row.user_id.replace(/-/g, "").slice(0, 32);
-  const base = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${CTRADER_GRANTS_TABLE_ID}/rows`;
+  const base = env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/tablesdb/" + env.APPWRITE_DATABASE_ID + "/tables/" + tableId + "/rows";
   const grantData = { user_id: row.user_id, encrypted_access_token: access, encrypted_refresh_token: refresh, token_expires_at: new Date(Date.now() + Math.max(60, Math.min(Number(token.expiresIn) || 3600, 31536000)) * 1000).toISOString(), granted_scopes: "trading", status: "account_discovery_pending" };
   const existingGrant = await fetch(`${base}/${encodeURIComponent(grantId)}`, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY! } });
   const save = await fetch(existingGrant.ok ? `${base}/${encodeURIComponent(grantId)}` : base, {
