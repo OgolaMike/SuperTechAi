@@ -25,6 +25,7 @@ for (const [label, condition] of [
   ['signal records enforce the ten official timeframes', worker.includes('M30: 1800, H1: 3600, H2: 7200, H3: 10800, H4: 14400, H6: 21600, H8: 28800, H12: 43200, D1: 86400, W1: 604800')],
   ['signal records remain Worker-only', worker.includes('permissions: []')],
   ['alert preferences are scoped to the authenticated member', worker.includes('ALERT_PREFERENCES_TABLE_ID') && worker.includes('row.user_id !== account.$id')],
+  ['missing alert preference rows preserve local choices', worker.includes('exists: false') && worker.includes('exists: true')],
   ['alert preference writes accept only bounded modes and assets', worker.includes('entries.length > 100') && worker.includes('modes.includes(String(mode))')],
   ['alert preferences are Worker-only', worker.includes('default_asset_mode: String(settings.defaultAssetMode)') && worker.includes('permissions: []')],
   ['signal history writes whitelist accepted columns', worker.includes('const safeRecord = {') && !worker.slice(worker.indexOf('if (url.pathname === "/api/signals" && request.method === "POST")'), worker.indexOf('if (url.pathname === "/api/profile"')).includes('...record, user_id:')],
