@@ -264,7 +264,7 @@ async function binanceSpotRow(env: BrokerEnv, accountId: string, method: "GET" |
 function base64Url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
-async function derivApi(env: BrokerEnv, token: string, path: string, init: RequestInit = {}) {
+async function derivApi(token: string, path: string, init: RequestInit = {}) {
   const response = await fetch(`https://api.derivws.com${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers },
@@ -338,7 +338,7 @@ async function handleDerivCallback(request: Request, env: BrokerEnv): Promise<Re
   const tokenData = await tokenResponse.json() as { access_token?: string; expires_in?: number };
   if (!tokenResponse.ok || !tokenData.access_token || !Number.isFinite(tokenData.expires_in)) return json({ error: "deriv_token_exchange_failed" }, 502);
   const encrypted = await encryptBrokerToken(tokenData.access_token, BROKER_TOKEN_ENCRYPTION_KEY);
-  const accountsResponse = await derivApi(configured, tokenData.access_token, "/trading/v1/options/accounts");
+  const accountsResponse = await derivApi(tokenData.access_token, "/trading/v1/options/accounts");
   const raw = (accountsResponse.data && typeof accountsResponse.data === "object" ? (accountsResponse.data as Record<string, unknown>).accounts : accountsResponse.accounts);
   const accounts = Array.isArray(raw) ? raw.filter((item): item is Record<string, unknown> => !!item && typeof item === "object").map(item => ({
     accountId: String(item.account_id ?? item.id ?? ""), accountType: String(item.account_type ?? item.type ?? "unknown"),
