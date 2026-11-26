@@ -54,3 +54,34 @@ export function updateIndependentProfile(displayName: string): Promise<Independe
     body: JSON.stringify({ displayName }),
   });
 }
+
+export type CTraderConnectionStatus = {
+  connected: boolean;
+  status: string;
+  tokenExpiresAt?: string | null;
+};
+
+export function getCTraderConnectionStatus(): Promise<CTraderConnectionStatus> {
+  return authenticatedRequest<CTraderConnectionStatus>('/api/brokers/ctrader/status');
+}
+
+export function startCTraderConnection(redirectPath = '/'): Promise<{ authorizationUrl: string; expiresAt: string }> {
+  return authenticatedRequest('/api/brokers/ctrader/connect', {
+    method: 'POST',
+    body: JSON.stringify({ redirectPath }),
+  });
+}
+
+export function refreshCTraderConnection(): Promise<{ connected: boolean; refreshed: boolean; tokenExpiresAt?: string; status?: string }> {
+  return authenticatedRequest('/api/brokers/ctrader/refresh', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function disconnectCTraderConnection(): Promise<{ disconnected: boolean; providerTokenRevoked: false; note: string }> {
+  return authenticatedRequest('/api/brokers/ctrader/disconnect', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
