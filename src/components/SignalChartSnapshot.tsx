@@ -158,7 +158,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Live price and current candle countdown">
-            <span className="text-cyan-200/70">LIVE</span><span>{currentPrice.toFixed(digits)}</span><span className="text-cyan-200/40">·</span><span className="text-cyan-200/70">CLOSES IN</span><span>{countdown}</span>
+            <span className="text-cyan-200/70">LIVE</span><span>{currentPrice.toFixed(digits)}</span><span className="text-cyan-200/40">·</span><span className="text-cyan-200/70">CLOSES IN</span><CandleCountdown candleEpoch={latest.epoch} granularity={granularity} />
           </span>
           <span className="mr-1 text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
           <button type="button" onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))} disabled={zoom === MIN_ZOOM} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 hover:border-amber-200/60 hover:bg-white/10 disabled:opacity-30" aria-label="Zoom out chart" title="Zoom out chart"><ZoomOut className="h-4 w-4" /></button>
