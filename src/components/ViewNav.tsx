@@ -12,6 +12,7 @@ type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof Lay
 
 const PRIMARY: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+  { id: 'personal-ai', label: 'AI Companion', mobileLabel: 'AI', icon: BrainCircuit },
   { id: 'super', label: 'Super Signals', icon: Sparkles },
   { id: 'crypto', label: 'Crypto Market', mobileLabel: 'Crypto', icon: BarChart3 },
   { id: 'deriv-market', label: 'Deriv Market', mobileLabel: 'Deriv', icon: Activity },
@@ -21,7 +22,6 @@ const PRIMARY: NavItem[] = [
 ];
 
 const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
-  { title: 'Personal AI', items: [ { id: 'personal-ai', label: 'My AI Companion', icon: BrainCircuit } ] },
   { title: 'Intelligence', items: [
     { id: 'strategies', label: 'Strategies', icon: BarChart3 },
     { id: 'options', label: 'Deriv Options', icon: Bot },
