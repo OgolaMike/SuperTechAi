@@ -5,6 +5,7 @@ export interface Env {
   MEMBER_PROFILES_TABLE_ID: string;
   SIGNAL_RECORDS_TABLE_ID?: string;
   ALERT_PREFERENCES_TABLE_ID?: string;
+  SUPER_SIGNAL_RECORDS_TABLE_ID?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
 }
@@ -416,6 +417,43 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/super-signals" && (request.method === "GET" || request.method === "POST")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const tableId = env.SUPER_SIGNAL_RECORDS_TABLE_ID;
+        if (!tableId || !env.APPWRITE_API_KEY) return json({ error: "super_signal_storage_not_configured" }, 503, cors);
+        const base = env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/tablesdb/" + env.APPWRITE_DATABASE_ID + "/tables/" + tableId + "/rows";
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
+        if (request.method === "GET") {
+          const target = new URL(base);
+          target.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] }));
+          target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", attribute: "signal_epoch" }));
+          target.searchParams.set("limit", "300");
+          const response = await fetch(target, { headers });
+          if (!response.ok) return json({ error: "super_signal_history_read_failed" }, 503, cors);
+          const payload = await response.json() as { rows?: Array<Record<string, unknown>> };
+          const records = (payload.rows || []).filter(row => row.user_id === account.$id).flatMap(row => { try { const value = JSON.parse(String(row.payload_json || "")); return value && typeof value === "object" ? [value] : []; } catch { return []; } });
+          return json({ records }, 200, cors);
+        }
+        if (Number(request.headers.get("content-length") || 0) > 1000000) return json({ error: "super_signal_batch_too_large" }, 413, cors);
+        const body = await request.json().catch(() => null) as { records?: Array<Record<string, unknown>> } | null;
+        if (!body || !Array.isArray(body.records) || body.records.length < 1 || body.records.length > 50) return json({ error: "invalid_super_signal_batch" }, 400, cors);
+        for (const record of body.records) {
+          if (typeof record.signal_key !== "string" || !record.signal_key.length || record.signal_key.length > 160 || !Number.isSafeInteger(record.signal_epoch) || Number(record.signal_epoch) <= 0 || Number(record.signal_epoch) > Date.now() / 1000 + 60 || typeof record.symbol !== "string" || record.symbol.length > 64 || !["BUY", "SELL"].includes(String(record.direction))) return json({ error: "invalid_super_signal_record" }, 400, cors);
+          const payloadJson = JSON.stringify(record);
+          if (payloadJson.length > 24000) return json({ error: "super_signal_record_too_large" }, 413, cors);
+          const rowId = (await sha256(account.$id + "|" + record.signal_key)).slice(0, 32);
+          const rowUrl = base + "/" + encodeURIComponent(rowId);
+          const existing = await fetch(rowUrl, { headers });
+          const data = { user_id: account.$id, signal_key: record.signal_key, signal_epoch: record.signal_epoch, payload_json: payloadJson, updated_at: new Date().toISOString() };
+          if (existing.ok) { const prior = await existing.json() as { user_id?: string }; if (prior.user_id !== account.$id) return json({ error: "super_signal_ownership_mismatch" }, 403, cors); const update = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data, permissions: [] }) }); if (!update.ok) return json({ error: "super_signal_update_failed" }, 503, cors); }
+          else if (existing.status === 404) { const create = await fetch(base, { method: "POST", headers, body: JSON.stringify({ rowId, data: { ...data, created_at: new Date().toISOString() }, permissions: [] }) }); if (!create.ok && create.status !== 409) return json({ error: "super_signal_create_failed" }, 503, cors); if (create.status === 409) { const retry = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data, permissions: [] }) }); if (!retry.ok) return json({ error: "super_signal_upsert_failed" }, 503, cors); } }
+          else return json({ error: "super_signal_read_failed" }, 503, cors);
+        }
+        return json({ saved: body.records.length }, 200, cors);
+      } catch { return json({ error: "super_signal_history_failed" }, 503, cors); }
+    }
     if (url.pathname === "/api/signals" && request.method === "GET") {
       try {
         const account = await authenticate(request, env);
