@@ -41,7 +41,7 @@ The Worker also exposes a narrowly scoped profile API:
 
 ### Required Worker secret
 
-Create an Appwrite API key in the sandbox project with only the database row scopes required by this Worker (`rows.read` and `rows.write`), then add it as the Cloudflare Worker secret named `APPWRITE_API_KEY`. Never put it in `wrangler.toml`, Pages variables, source code, or the browser. The key is used only after the Worker validates the caller's Appwrite JWT and derives the row ID itself.
+Create an Appwrite API key in the sandbox project with only the database row scopes required by this Worker (`rows.read`, `rows.write` and `rows.delete`), then add it as the Cloudflare Worker secret named `APPWRITE_API_KEY`. Never put it in `wrangler.toml`, Pages variables, source code, or the browser. The key is used only after the Worker validates the caller's Appwrite JWT and derives the row ID itself.
 
 The database and member profile table IDs are configured as non-secret Worker variables. The profile endpoint fails closed with `503 member_data_not_configured` until the secret is configured. It also requires the table columns recorded in `appwrite/schema/member-access.tables.json`; the Appwrite console schema and row-level permissions must be verified before using real member data.
 
