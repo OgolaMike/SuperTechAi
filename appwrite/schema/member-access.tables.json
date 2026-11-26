@@ -205,7 +205,8 @@
     "The latest browser run did not perform final verification. RLS and permissions values are from the preceding direct inspection and must be rechecked before member data is enabled.",
     "No member, payment, referral or broker records have been created or migrated.",
     "Appwrite system columns such as $id, $createdAt and $updatedAt are platform-managed; application timestamps are retained in this proposed schema until the application code explicitly maps to system fields.",
-    "cTrader OAuth state and grant tables are proposed only; they have not been created. Token ciphertext must remain inaccessible to member SDK sessions."
+    "cTrader OAuth state and grant tables are proposed only; they have not been created. Token ciphertext must remain inaccessible to member SDK sessions.",
+    "Signal history is stored per member through the authenticated Worker; the proposed signal_records table remains uncreated until Appwrite schema provisioning is verified."
   ],
   "proposedTables": [
     {
@@ -306,6 +307,162 @@
           "type": "unique",
           "columns": [
             "user_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "signal_records",
+      "id": null,
+      "status": "not_created_worker_only",
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "signal_key",
+          "type": "varchar",
+          "size": 160,
+          "required": true
+        },
+        {
+          "key": "symbol",
+          "type": "varchar",
+          "size": 64,
+          "required": true
+        },
+        {
+          "key": "asset_name",
+          "type": "varchar",
+          "size": 120,
+          "required": true
+        },
+        {
+          "key": "timeframe",
+          "type": "varchar",
+          "size": 4,
+          "required": true
+        },
+        {
+          "key": "granularity",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "digits",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "direction",
+          "type": "varchar",
+          "size": 4,
+          "required": true
+        },
+        {
+          "key": "signal_epoch",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "entry",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "stop_loss",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "tp1",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "tp2",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "tp3",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "band_mean",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "band_deviation",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "tp1_hit_epoch",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "key": "tp2_hit_epoch",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "key": "tp3_hit_epoch",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "key": "sl_hit_epoch",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "key": "status",
+          "type": "varchar",
+          "size": 16,
+          "required": true
+        },
+        {
+          "key": "closed",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "updated_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "signal_records_member_key_unique",
+          "type": "unique",
+          "columns": [
+            "user_id",
+            "signal_key"
+          ]
+        },
+        {
+          "key": "signal_records_member_epoch",
+          "type": "key",
+          "columns": [
+            "user_id",
+            "signal_epoch"
           ]
         }
       ]
