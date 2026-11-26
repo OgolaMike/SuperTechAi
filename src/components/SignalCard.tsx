@@ -20,7 +20,9 @@ type Props = {
 
 export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount, unifiedOnly = false }: Props) {
   const [chartOpen, setChartOpen] = useState(false);
-  const signal = unifiedOnly ? null : tf.latestSignal;
+  // Keep this timeframe's own signal and price levels visible. In unified mode
+  // these are contextual levels, not additional dashboard trade instructions.
+  const signal = tf.latestSignal;
   const loading = !loaded || tf.candles.length === 0;
   const isWeekend = [0, 6].includes(new Date().getDay());
   const marketGroup = (asset.market ?? '').toLowerCase();
@@ -50,7 +52,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
             <span className="text-lg font-semibold text-ink">{tf.label}</span>
             <span className="break-words whitespace-normal text-xs uppercase tracking-wider text-ink-3">{tf.role}</span>
           </div>
-          {signal && <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent/100">Tap anywhere to open live chart</p>}
+          {signal && <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent/100">{unifiedOnly ? 'This timeframe’s own entry, stop and targets · tap for chart' : 'Tap anywhere to open live chart'}</p>}
         </div>
         {signal && (
           <span className={`max-w-full whitespace-normal break-words rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-relaxed sm:px-3 sm:text-xs ${statusTone(signal.outcome.status)}`}>
@@ -75,7 +77,7 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
             </div>
           </div>
 
-          {confluenceCount !== undefined && (
+          {!unifiedOnly && confluenceCount !== undefined && (
             <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 px-4 py-3 ${gradeTone}`}>
               <div className="min-w-0 flex-1">
                 <div className="break-words text-[10px] font-bold uppercase leading-relaxed tracking-[0.12em] opacity-80">10-timeframe signal grade</div>
