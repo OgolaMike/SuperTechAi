@@ -104,8 +104,7 @@ async function profileRequest(
             created_at: now,
             updated_at: now,
           },
-          permissions: [`read("user:${account.$id}")`, `update("user:${account.$id}")`],
-        }),
+            }),
       });
       if (!create.ok) return json({ error: "profile_initialization_failed" }, 503);
       const created = await create.json() as ProfileRow;
@@ -239,14 +238,13 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
   const grantId = row.user_id.replace(/-/g, "").slice(0, 32);
   const base = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${CTRADER_GRANTS_TABLE_ID}/rows`;
   const grantData = { user_id: row.user_id, encrypted_access_token: access, encrypted_refresh_token: refresh, token_expires_at: new Date(Date.now() + Math.max(60, Math.min(Number(token.expiresIn) || 3600, 31536000)) * 1000).toISOString(), granted_scopes: "trading", status: "account_discovery_pending" };
-  const grantPermissions = [`read("user:${row.user_id}")`, `update("user:${row.user_id}")`];
   const existingGrant = await fetch(`${base}/${encodeURIComponent(grantId)}`, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY! } });
   const save = await fetch(existingGrant.ok ? `${base}/${encodeURIComponent(grantId)}` : base, {
     method: existingGrant.ok ? "PATCH" : "POST",
     headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY!, "Content-Type": "application/json" },
     body: JSON.stringify(existingGrant.ok
-      ? { data: grantData, permissions: grantPermissions }
-      : { rowId: grantId, data: grantData, permissions: grantPermissions }),
+      ? { data: grantData }
+      : { rowId: grantId, data: grantData }),
   });
   if (!save.ok) return json({ error: "ctrader_secure_grant_storage_failed" }, 503);
   return json({ connected: true, next: "account_discovery_required", automated_trading_enabled: false });
