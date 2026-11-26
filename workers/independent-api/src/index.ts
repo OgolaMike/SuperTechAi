@@ -398,7 +398,11 @@ export default {
         });
         if (!response.ok) return json({ error: "signal_history_read_failed" }, 503, cors);
         const payload = await response.json() as { rows?: Array<Record<string, unknown>> };
-        const rows = (payload.rows || []).filter(row => row.user_id === account.$id).map(({ $id, $createdAt, $updatedAt, $permissions, user_id, ...record }) => record);
+        const rows = (payload.rows || []).filter(row => row.user_id === account.$id).map(row => {
+          const record = { ...row };
+          for (const key of ["$id", "$createdAt", "$updatedAt", "$permissions", "user_id"]) delete record[key];
+          return record;
+        });
         return json({ records: rows }, 200, cors);
       } catch {
         return json({ error: "signal_history_read_failed" }, 503, cors);
