@@ -120,7 +120,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                   <button key={timeframe.granularity} type="button" onClick={() => setSelectedTimeframe(timeframe.label)} aria-pressed={selectedTimeframe === timeframe.label}
                     className={`min-w-10 shrink-0 snap-start rounded-lg border px-3 py-2 text-xs font-bold tracking-wide transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-95 ${selectedTimeframe === timeframe.label ? 'border-amber-300/70 bg-gradient-to-b from-amber-300 to-yellow-500 text-[#111827] shadow-[0_0_16px_rgba(245,190,65,0.25)]' : 'border-transparent bg-transparent text-slate-300 hover:border-slate-500/60 hover:bg-white/[0.06] hover:text-white'}`}>{timeframe.label}</button>
                 ))}
-              </div>
+              </div></div>
             </div>
             <div key={`${symbol}-${selectedTimeframe}`} className="mt-4 hud-panel animate-[timeframe-slide-in_420ms_cubic-bezier(0.2,0.8,0.2,1)] rounded-2xl"><SignalCard asset={asset} tf={selectedState} loaded={loaded} price={prices[symbol]} unifiedOnly /></div>
             <div className="mt-4 overflow-hidden rounded-2xl border border-line/15 bg-surface/[0.025]">
