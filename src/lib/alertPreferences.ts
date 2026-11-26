@@ -68,7 +68,7 @@ export async function loadMemberAlertModes(userId: string): Promise<AlertModeSet
   }
 }
 
-export async function saveMemberAlertModes(settings: AlertModeSettings, userId: string): Promise<void> {
+export async function saveMemberAlertModes(settings: AlertModeSettings, userId: string): Promise<boolean> {
   cacheAlertModes(settings, userId);
   try {
     await saveIndependentAlertPreferences({
@@ -76,8 +76,10 @@ export async function saveMemberAlertModes(settings: AlertModeSettings, userId: 
       assets: settings.assets,
       defaultAssetMode: settings.defaultAssetMode,
     });
+    return true;
   } catch {
     // Device-local preferences remain available while the independent API is offline.
+    return false;
   }
 }
 
