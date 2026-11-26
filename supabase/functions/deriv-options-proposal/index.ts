@@ -204,14 +204,20 @@ Deno.serve(async req => {
     const savedRows = await persisted.json();
     let saved = Array.isArray(savedRows) ? savedRows[0] : null;
     if (!saved) {
-      const lookup = await fetch(`${base}/rest/v1/options_proposal_snapshots?user_id=eq.${encodeURIComponent(user.id)}&account_id=eq.${encodeURIComponent(accountId)}&proposal_id=eq.${encodeURIComponent(proposalId)}&select=id,expires_at,consumed_at&limit=1`, {
+      const lookup = await fetch(`${base}/rest/v1/options_proposal_snapshots?user_id=eq.${encodeURIComponent(user.id)}&account_id=eq.${encodeURIComponent(accountId)}&proposal_id=eq.${encodeURIComponent(proposalId)}&select=id,expires_at,consumed_at,user_id,signal_snapshot,stake,symbol,contract_type,barrier,account_mode&limit=1`, {
         headers: { apikey: service, Authorization: `Bearer ${service}` }
       });
       if (!lookup.ok) return reply({ error: "proposal_snapshot_lookup_failed" }, 503, origin);
       const rows = await lookup.json();
       saved = rows[0] ?? null;
     }
-    if (!saved?.id || saved.consumed_at || Date.parse(saved.expires_at) <= Date.now()) {
+    const savedSignal = saved?.signal_snapshot as Record<string, unknown> | undefined;
+    if (!saved?.id || saved.user_id !== user.id || saved.consumed_at ||
+      Date.parse(saved.expires_at) <= Date.now() ||
+      Number(saved.stake) !== stake || saved.symbol !== symbol ||
+      saved.contract_type !== contractType || saved.barrier !== barrier ||
+      saved.account_mode !== account.account_type ||
+      savedSignal?.signalId !== signalId) {
       return reply({ error: "proposal_snapshot_unavailable" }, 409, origin);
     }
     return reply({
