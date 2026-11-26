@@ -340,6 +340,29 @@ export default {
       catch { return json({ error: "ctrader_callback_failed" }, 500); }
     }
 
+    if (url.pathname === "/api/brokers/ctrader/status" && request.method === "GET") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY) {
+          return json({ error: "ctrader_status_not_configured" }, 503, cors);
+        }
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const endpoint = `${configured.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.CTRADER_GRANTS_TABLE_ID}/rows/${encodeURIComponent(grantId)}`;
+        const response = await fetch(endpoint, {
+          headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY },
+        });
+        if (response.status === 404) return json({ connected: false, status: "not_connected" }, 200, cors);
+        if (!response.ok) return json({ error: "ctrader_status_failed" }, 503, cors);
+        const grant = await response.json() as { user_id?: string; token_expires_at?: string; status?: string };
+        if (grant.user_id !== account.$id) return json({ error: "ctrader_grant_ownership_mismatch" }, 403, cors);
+        return json({ connected: true, tokenExpiresAt: grant.token_expires_at || null, status: grant.status || "connected" }, 200, cors);
+      } catch {
+        return json({ error: "ctrader_status_failed" }, 503, cors);
+      }
+    }
+
     if (url.pathname === "/api/brokers/ctrader/refresh" && request.method === "POST") {
       try {
         const account = await authenticate(request, env);
