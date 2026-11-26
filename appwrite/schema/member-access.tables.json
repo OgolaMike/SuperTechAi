@@ -11,11 +11,37 @@
       "id": "6b074d7f001787b0d0c8",
       "status": "partial_columns_created_indexes_not_created",
       "columns": [
-        { "key": "user_id", "type": "varchar", "size": 36, "required": true, "verified": "browser run reports updated to required" },
-        { "key": "display_name", "type": "varchar", "size": 120, "required": false },
-        { "key": "onboarding_status", "type": "varchar", "size": 24, "required": false },
-        { "key": "created_at", "type": "datetime", "required": false, "verified": "added in latest browser run; nullable" },
-        { "key": "updated_at", "type": "datetime", "required": false, "verified": "added in latest browser run; nullable" }
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true,
+          "verified": "browser run reports updated to required"
+        },
+        {
+          "key": "display_name",
+          "type": "varchar",
+          "size": 120,
+          "required": false
+        },
+        {
+          "key": "onboarding_status",
+          "type": "varchar",
+          "size": 24,
+          "required": false
+        },
+        {
+          "key": "created_at",
+          "type": "datetime",
+          "required": false,
+          "verified": "added in latest browser run; nullable"
+        },
+        {
+          "key": "updated_at",
+          "type": "datetime",
+          "required": false,
+          "verified": "added in latest browser run; nullable"
+        }
       ],
       "indexes": [],
       "rls": "ON at last direct inspection; reverify",
@@ -26,12 +52,32 @@
       "id": "6b074e04002c1011d8df",
       "status": "partial_columns_created_indexes_not_created",
       "columns": [
-        { "key": "user_id", "type": "varchar", "size": 36, "required": true, "verified": "added in latest browser run; creation status reported Available/Processing" }
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true,
+          "verified": "added in latest browser run; creation status reported Available/Processing"
+        }
       ],
       "pendingColumns": [
-        { "key": "role", "type": "varchar", "size": 24, "required": true },
-        { "key": "granted_by", "type": "varchar", "size": 36, "required": false },
-        { "key": "created_at", "type": "datetime", "required": true }
+        {
+          "key": "role",
+          "type": "varchar",
+          "size": 24,
+          "required": true
+        },
+        {
+          "key": "granted_by",
+          "type": "varchar",
+          "size": 36,
+          "required": false
+        },
+        {
+          "key": "created_at",
+          "type": "datetime",
+          "required": true
+        }
       ],
       "indexes": [],
       "rls": "ON at last direct inspection; reverify",
@@ -43,13 +89,45 @@
       "status": "empty_schema_pending",
       "columns": [],
       "pendingColumns": [
-        { "key": "user_id", "type": "varchar", "size": 36, "required": true },
-        { "key": "tier", "type": "varchar", "size": 32, "required": true },
-        { "key": "status", "type": "varchar", "size": 24, "required": true },
-        { "key": "starts_at", "type": "datetime", "required": false },
-        { "key": "ends_at", "type": "datetime", "required": false },
-        { "key": "source_payment_id", "type": "varchar", "size": 64, "required": false },
-        { "key": "updated_at", "type": "datetime", "required": true }
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "tier",
+          "type": "varchar",
+          "size": 32,
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "varchar",
+          "size": 24,
+          "required": true
+        },
+        {
+          "key": "starts_at",
+          "type": "datetime",
+          "required": false
+        },
+        {
+          "key": "ends_at",
+          "type": "datetime",
+          "required": false
+        },
+        {
+          "key": "source_payment_id",
+          "type": "varchar",
+          "size": 64,
+          "required": false
+        },
+        {
+          "key": "updated_at",
+          "type": "datetime",
+          "required": true
+        }
       ],
       "indexes": [],
       "rls": "OFF at last direct inspection; must enable and verify",
@@ -61,29 +139,176 @@
       "status": "not_created_confirm_before_retry",
       "columns": [],
       "pendingColumns": [
-        { "key": "user_id", "type": "varchar", "size": 36, "required": true },
-        { "key": "event_type", "type": "varchar", "size": 32, "required": true },
-        { "key": "actor_user_id", "type": "varchar", "size": 36, "required": false },
-        { "key": "details", "type": "varchar", "size": 2000, "required": false },
-        { "key": "idempotency_key", "type": "varchar", "size": 80, "required": true },
-        { "key": "created_at", "type": "datetime", "required": true }
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "event_type",
+          "type": "varchar",
+          "size": 32,
+          "required": true
+        },
+        {
+          "key": "actor_user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": false
+        },
+        {
+          "key": "details",
+          "type": "varchar",
+          "size": 2000,
+          "required": false
+        },
+        {
+          "key": "idempotency_key",
+          "type": "varchar",
+          "size": 80,
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "datetime",
+          "required": true
+        }
       ],
       "indexes": [
-        { "key": "membership_events_idempotency_unique", "type": "unique", "columns": ["idempotency_key"] },
-        { "key": "membership_events_user_id", "type": "key", "columns": ["user_id"] }
+        {
+          "key": "membership_events_idempotency_unique",
+          "type": "unique",
+          "columns": [
+            "idempotency_key"
+          ]
+        },
+        {
+          "key": "membership_events_user_id",
+          "type": "key",
+          "columns": [
+            "user_id"
+          ]
+        }
       ]
     }
   ],
   "security": {
     "clientPermissions": "none_configured_at_last_inspection_but_reverify",
     "rule": "Do not grant client permissions. All writes must go through authenticated trusted server-side functions.",
-    "readyForMemberData": false
+    "readyForMemberData": false,
+    "brokerTokenRows": "Worker API-key only; no client read, update, or delete permissions. Enable row security."
   },
   "notes": [
     "Latest browser run was interrupted by execution budget after partially creating member_profiles and member_roles columns. It did not complete indexes, membership_entitlements, or membership_events.",
     "connection_probe (ID 6b06e4ec000a9c8a0f94) was not modified.",
     "The latest browser run did not perform final verification. RLS and permissions values are from the preceding direct inspection and must be rechecked before member data is enabled.",
     "No member, payment, referral or broker records have been created or migrated.",
-    "Appwrite system columns such as $id, $createdAt and $updatedAt are platform-managed; application timestamps are retained in this proposed schema until the application code explicitly maps to system fields."
+    "Appwrite system columns such as $id, $createdAt and $updatedAt are platform-managed; application timestamps are retained in this proposed schema until the application code explicitly maps to system fields.",
+    "cTrader OAuth state and grant tables are proposed only; they have not been created. Token ciphertext must remain inaccessible to member SDK sessions."
+  ],
+  "proposedTables": [
+    {
+      "name": "ctrader_oauth_states",
+      "id": null,
+      "status": "not_created_worker_only",
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "state_hash",
+          "type": "varchar",
+          "size": 64,
+          "required": true
+        },
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "redirect_path",
+          "type": "varchar",
+          "size": 512,
+          "required": true
+        },
+        {
+          "key": "expires_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "consumed_at",
+          "type": "varchar",
+          "size": 40,
+          "required": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "ctrader_oauth_state_hash_unique",
+          "type": "unique",
+          "columns": [
+            "state_hash"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ctrader_oauth_grants",
+      "id": null,
+      "status": "not_created_worker_only",
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "encrypted_access_token",
+          "type": "varchar",
+          "size": 4096,
+          "required": true
+        },
+        {
+          "key": "encrypted_refresh_token",
+          "type": "varchar",
+          "size": 4096,
+          "required": true
+        },
+        {
+          "key": "token_expires_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "granted_scopes",
+          "type": "varchar",
+          "size": 128,
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "varchar",
+          "size": 64,
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "ctrader_grants_user_id_unique",
+          "type": "unique",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
+    }
   ]
 }
