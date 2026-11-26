@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [feat/appwrite-independent-platform-foundation]
+    branches: [feat/appwrite-independent-platform-foundation, feat/appwrite-broker-security-and-persistence]
 
 permissions:
   contents: read
@@ -32,5 +32,7 @@ jobs:
       - run: npm run build
       - name: Check independent Worker security contract
         run: npm run check:independent-worker
+      - name: Validate Appwrite schema verifier syntax
+        run: node --check scripts/verify-appwrite-schema.mjs
       - name: Validate independent Cloudflare Worker bundle (dry run only)
         run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
