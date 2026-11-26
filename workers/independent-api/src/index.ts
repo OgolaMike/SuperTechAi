@@ -361,6 +361,16 @@ export default {
             optionalEpochFields.every(key => record[key] === null || (Number.isSafeInteger(record[key]) && Number(record[key]) > 0)) &&
             ["Open", "TP1", "TP2", "TP3", "Stopped"].includes(String(record.status)) && typeof record.closed === "boolean";
           if (!valid) return json({ error: "invalid_signal_record" }, 400, cors);
+          const safeRecord = {
+            signal_key: record.signal_key, symbol: record.symbol, asset_name: record.asset_name,
+            timeframe: record.timeframe, granularity: record.granularity, digits: record.digits,
+            direction: record.direction, signal_epoch: record.signal_epoch,
+            entry: record.entry, stop_loss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3,
+            band_mean: record.band_mean, band_deviation: record.band_deviation,
+            tp1_hit_epoch: record.tp1_hit_epoch, tp2_hit_epoch: record.tp2_hit_epoch,
+            tp3_hit_epoch: record.tp3_hit_epoch, sl_hit_epoch: record.sl_hit_epoch,
+            status: record.status, closed: record.closed,
+          };
           const rowId = (await sha256(`${account.$id}|${record.signal_key}`)).slice(0, 32);
           const rowUrl = `${base}/${encodeURIComponent(rowId)}`;
           const existing = await fetch(rowUrl, { headers });
@@ -369,17 +379,17 @@ export default {
             if (prior.user_id !== account.$id) return json({ error: "signal_record_ownership_mismatch" }, 403, cors);
             const update = await fetch(rowUrl, {
               method: "PATCH", headers,
-              body: JSON.stringify({ data: { ...record, user_id: account.$id, updated_at: new Date().toISOString() }, permissions: [] }),
+              body: JSON.stringify({ data: { ...safeRecord, user_id: account.$id, updated_at: new Date().toISOString() }, permissions: [] }),
             });
             if (!update.ok) return json({ error: "signal_record_update_failed" }, 503, cors);
           } else if (existing.status === 404) {
             const create = await fetch(base, {
               method: "POST", headers,
-              body: JSON.stringify({ rowId, data: { ...record, user_id: account.$id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, permissions: [] }),
+              body: JSON.stringify({ rowId, data: { ...safeRecord, user_id: account.$id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, permissions: [] }),
             });
             if (!create.ok && create.status !== 409) return json({ error: "signal_record_create_failed" }, 503, cors);
             if (create.status === 409) {
-              const retry = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { ...record, user_id: account.$id, updated_at: new Date().toISOString() }, permissions: [] }) });
+              const retry = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { ...safeRecord, user_id: account.$id, updated_at: new Date().toISOString() }, permissions: [] }) });
               if (!retry.ok) return json({ error: "signal_record_upsert_failed" }, 503, cors);
             }
           } else return json({ error: "signal_record_read_failed" }, 503, cors);
