@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Clock3, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { formatDateTime, formatPrice } from '@/lib/sma';
+import type { SignalLearningModel } from '@/lib/aiLearning';
 import type { SuperSignal } from '@/lib/intelligence';
 import type { SuperSignalRecord } from '@/hooks/useSuperSignalRecords';
 import type { TfState } from '@/lib/sma';
@@ -15,6 +16,7 @@ type Props = {
   onRefreshRecords: () => void;
   prices: Record<string, number>;
   loaded: boolean;
+  aiModel?: SignalLearningModel;
   states: Record<string, Record<number, TfState>>;
   onOpenDashboard: (symbol: string, granularity: number) => void;
 };
