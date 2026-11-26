@@ -165,6 +165,41 @@ const sha256 = async (value: string) => {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
+async function openCTraderSocket(host: string): Promise<WebSocket> {
+  const socket = new WebSocket(`wss://${host}:5036`);
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => { socket.close(); reject(new Error("ctrader_socket_timeout")); }, 8000);
+    socket.addEventListener("open", () => { clearTimeout(timer); resolve(); }, { once: true });
+    socket.addEventListener("error", () => { clearTimeout(timer); reject(new Error("ctrader_socket_error")); }, { once: true });
+  });
+  return socket;
+}
+
+async function sendCTraderJsonMessage(socket: WebSocket, payloadType: number, payload: Record<string, unknown>, expectedType: number): Promise<Record<string, unknown>> {
+  const clientMsgId = crypto.randomUUID();
+  return new Promise((resolve, reject) => {
+    const cleanup = () => { clearTimeout(timer); socket.removeEventListener("message", onMessage); socket.removeEventListener("error", onError); socket.removeEventListener("close", onClose); };
+    const timer = setTimeout(() => { cleanup(); reject(new Error("ctrader_message_timeout")); }, 8000);
+    const onMessage = (event: MessageEvent) => {
+      if (typeof event.data !== "string") return;
+      let message: { payloadType?: number; payload?: Record<string, unknown>; clientMsgId?: string };
+      try { message = JSON.parse(event.data) as typeof message; } catch { return; }
+      if (message.payloadType === 2142) { cleanup(); reject(new Error("ctrader_open_api_error")); return; }
+      if (message.payloadType === expectedType && (!message.clientMsgId || message.clientMsgId === clientMsgId)) { cleanup(); resolve(message.payload || {}); }
+    };
+    const onError = () => { cleanup(); reject(new Error("ctrader_socket_error")); };
+    const onClose = () => { cleanup(); reject(new Error("ctrader_socket_closed")); };
+    socket.addEventListener("message", onMessage);
+    socket.addEventListener("error", onError);
+    socket.addEventListener("close", onClose);
+    socket.send(JSON.stringify({ clientMsgId, payloadType, payload }));
+  });
+}
+
+async function authenticateCTraderApplication(socket: WebSocket, env: BrokerEnv): Promise<void> {
+  if (!env.CTRADER_CLIENT_ID || !env.CTRADER_CLIENT_SECRET) throw new Error("ctrader_app_credentials_missing");
+  await sendCTraderJsonMessage(socket, 2100, { clientId: env.CTRADER_CLIENT_ID, clientSecret: env.CTRADER_CLIENT_SECRET }, 2101);
+}
 async function decryptBrokerToken(value: string, keyText: string): Promise<string> {
   const [version, ivText, cipherText] = value.split(".");
   if (version !== "v1" || !ivText || !cipherText) throw new Error("invalid_encrypted_broker_token");
