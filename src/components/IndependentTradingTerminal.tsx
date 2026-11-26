@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { SessionContext } from '@/lib/sessionContext';
 import { AmbientBackground } from '@/components/AmbientBackground';
-import { AssetSelector } from '@/components/AssetSelector';
+import { IndependentAssetSelector } from '@/components/IndependentAssetSelector';
 import { StatusBar } from '@/components/StatusBar';
 import { ViewNav, type View } from '@/components/ViewNav';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -42,7 +42,7 @@ import { loadMemberAlertModes } from '@/lib/alertPreferences';
 const ASSET_KEY='supertech-selected-assets';
 const SOUND_KEY='supertech-signal-sounds';
 type Props={email:string;userId:string};
-function readSelected():string[]{try{const value=JSON.parse(localStorage.getItem(ASSET_KEY)??'[]');if(Array.isArray(value)&&value.every(x=>typeof x==='string')&&value.length)return value.slice(0,1)}catch{/* Invalid saved selection; use the default market. */}return[DEFAULT_ASSET]}
+function readSelected():string[]{try{const value=JSON.parse(localStorage.getItem(ASSET_KEY)??'[]');if(Array.isArray(value)&&value.every(x=>typeof x==='string')&&value.length)return [...new Set(value)].slice(0,10)}catch{/* Invalid saved selection; use the default market. */}return[DEFAULT_ASSET]}
 function epoch(){return Math.floor(Date.now()/1000)}
 
 export function IndependentTradingTerminal({email,userId}:Props){
@@ -69,7 +69,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
  const sync=useSignalRecordSync(views,loaded);
  useEffect(()=>{let cancelled=false;fetchSignalRecords().then(rows=>{if(!cancelled)setAiModel(trainSignalLearningModel(rows))}).catch(()=>{if(!cancelled)setAiModel(trainSignalLearningModel([]))});return()=>{cancelled=true}},[sync.version]);
  useEffect(()=>{const timer=window.setInterval(()=>setNow(epoch()),3000);return()=>window.clearInterval(timer)},[]);
- const updateSelected=(symbols:string[])=>{const next=symbols.slice(0,1);setSelectedSymbols(next);localStorage.setItem(ASSET_KEY,JSON.stringify(next))};
+ const updateSelected=(symbols:string[])=>{const next=[...new Set(symbols)].slice(0,10);setSelectedSymbols(next);localStorage.setItem(ASSET_KEY,JSON.stringify(next))};
  const monitorAsset=(symbol:string)=>{updateSelected([symbol]);setView('dashboard')};
  const openChart=(symbol:string)=>{updateSelected([symbol]);setView('dashboard');window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>document.getElementById(`asset-dashboard-${encodeURIComponent(symbol)}`)?.scrollIntoView({behavior:'smooth',block:'start'})))};
  const toggleSounds=()=>{const next=!soundsEnabled;setSoundsEnabled(next);localStorage.setItem(SOUND_KEY,String(next));if(next){playAlertTone('BUY');ensureNotificationPermission()}};
@@ -83,7 +83,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
       <div><p className="text-xs font-black tracking-[.2em] text-ink">SUPERTECH <span className="text-accent">AI</span></p><p className="mt-1 text-[10px] uppercase tracking-[.18em] text-ink-3">Be part of the AI revolution.</p></div>
       <div className="flex items-center gap-3"><span className="hidden max-w-52 truncate text-xs text-ink-3 sm:block">{email}</span><ThemeToggle theme={theme} onToggle={toggleTheme}/><button onClick={()=>window.dispatchEvent(new Event('supertech-independent-signout'))} className="rounded-xl border border-line/15 px-3 py-2 text-xs text-ink-2 hover:bg-surface/10">Sign out</button></div>
      </div>
-     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><ViewNav view={view} isAdmin={false} onChange={setView}/><AssetSelector assets={assets} selected={selectedSymbols} onChange={updateSelected} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/></div>
+     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><ViewNav view={view} isAdmin={false} onChange={setView}/><IndependentAssetSelector assets={assets} selected={selectedSymbols} onChange={updateSelected} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/></div>
     </header>
     <div className="mt-6"><StatusBar status={status.status} detail={status.detail} lastTick={lastTick} monitoredCount={selectedSymbols.length} saveError={sync.error}/></div>
     <Suspense fallback={<div className="mt-8 min-h-[40vh] animate-pulse rounded-2xl border border-line/15 bg-surface/[0.025]"/>}>
