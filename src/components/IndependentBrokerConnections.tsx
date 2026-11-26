@@ -13,6 +13,9 @@ import {
   disconnectBinanceSpot,
   getBinanceSpotConnectionStatus,
   type BinanceSpotConnectionStatus,
+  connectBinanceFutures,
+  disconnectBinanceFutures,
+  getBinanceFuturesConnectionStatus,
 } from '@/lib/independentApi';
 
 export function IndependentBrokerConnections() {
@@ -26,6 +29,10 @@ export function IndependentBrokerConnections() {
   const [binanceApiKey, setBinanceApiKey] = useState('');
   const [binanceApiSecret, setBinanceApiSecret] = useState('');
   const [showBinanceSecret, setShowBinanceSecret] = useState(false);
+  const [futuresStatus, setFuturesStatus] = useState<BinanceSpotConnectionStatus | null>(null);
+  const [futuresApiKey, setFuturesApiKey] = useState('');
+  const [futuresApiSecret, setFuturesApiSecret] = useState('');
+  const [showFuturesSecret, setShowFuturesSecret] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -48,6 +55,7 @@ export function IndependentBrokerConnections() {
     }
     void loadStatus();
     void getBinanceSpotConnectionStatus().then(setBinanceStatus).catch(() => setBinanceStatus(null));
+    void getBinanceFuturesConnectionStatus().then(setFuturesStatus).catch(() => setFuturesStatus(null));
   }, [loadStatus]);
 
   const connect = async () => {
@@ -169,9 +177,21 @@ export function IndependentBrokerConnections() {
       </div>}
       <p className="mt-3 text-[11px] leading-5 text-ink-2">Use a dedicated API key with Spot trading permission only. Disable withdrawals and enable IP restrictions in Binance. Credentials are encrypted before storage; this connection does not enable automated orders.</p>
     </article>
+    <article className="rounded-2xl border border-line/15 bg-surface/[.04] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><div className="flex items-center gap-2"><span className="text-base font-semibold text-ink">Binance USDⓈ-M Futures</span>{futuresStatus?.connected && <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-500">Connected</span>}</div><p className="mt-1 text-xs text-ink-2">{futuresStatus?.connected ? `API key ending ${futuresStatus.apiKeyLast4 || '••••'} verified. Trading automation is OFF.` : 'Connect a dedicated Binance Futures API key.'}</p></div>
+        {futuresStatus?.connected && <button type="button" disabled={busy} onClick={() => { setBusy(true); void disconnectBinanceFutures().then(result => { setFuturesStatus({ connected: false, status: 'not_connected', tradingEnabled: false }); setMessage(result.note); }).catch(cause => setError(cause instanceof Error ? cause.message : 'Could not disconnect Binance Futures.')).finally(() => setBusy(false)); }} className="rounded-lg border border-line/20 px-3 py-2 text-xs font-semibold text-ink disabled:opacity-50"><Unplug className="mr-1 inline h-3.5 w-3.5"/>Disconnect</button>}
+      </div>
+      {!futuresStatus?.connected && <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="block text-xs text-ink-2">Futures API key<input autoComplete="off" value={futuresApiKey} onChange={event => setFuturesApiKey(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-surface px-3 py-2 text-sm text-ink" placeholder="Paste API key"/></label>
+        <label className="block text-xs text-ink-2">Futures API secret<span className="mt-1 flex rounded-lg border border-line/20 bg-surface"><input autoComplete="new-password" type={showFuturesSecret ? 'text' : 'password'} value={futuresApiSecret} onChange={event => setFuturesApiSecret(event.target.value)} className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-ink outline-none" placeholder="Paste API secret"/><button type="button" onClick={() => setShowFuturesSecret(value => !value)} className="px-3 text-ink-2" aria-label={showFuturesSecret ? 'Hide API secret' : 'Show API secret'}>{showFuturesSecret ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</button></span></label>
+        <div className="sm:col-span-2"><button type="button" disabled={busy || !futuresApiKey.trim() || !futuresApiSecret.trim()} onClick={() => { setBusy(true); setError(''); setMessage(''); void connectBinanceFutures(futuresApiKey, futuresApiSecret).then(result => { setFuturesStatus({ connected: true, status: 'connected', apiKeyLast4: result.apiKeyLast4, tradingEnabled: false }); setFuturesApiKey(''); setFuturesApiSecret(''); setMessage('Binance Futures account verified and encrypted. Trading automation remains OFF.'); }).catch(cause => setError(cause instanceof Error ? cause.message : 'Could not connect Binance Futures.')).finally(() => setBusy(false)); }} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Verifying…' : 'Connect Binance Futures'}</button></div>
+      </div>}
+      <p className="mt-3 text-[11px] leading-5 text-ink-2">Use a dedicated key, disable withdrawals, restrict IP access and grant only the permissions needed for Futures account verification. No orders can be placed from this connection yet.</p>
+    </article>
     <article className="rounded-2xl border border-dashed border-line/15 bg-surface/[.02] p-5">
       <p className="text-sm font-semibold text-ink">Other brokers</p>
-      <p className="mt-1 text-xs text-ink-2">MT5, Binance Futures, OKX Futures and Deriv Options are being connected through the same independent secure service. They remain unavailable until their account and order checks are complete.</p>
+      <p className="mt-1 text-xs text-ink-2">MT5 and OKX Futures are being connected through the same independent secure service. They remain unavailable until their account and order checks are complete.</p>
     </article>
   </section>;
 }
