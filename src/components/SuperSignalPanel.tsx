@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Clock3, Info, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Clock3, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { formatDateTime, formatPrice } from '@/lib/sma';
 import type { SuperSignal } from '@/lib/intelligence';
 import type { SuperSignalRecord } from '@/hooks/useSuperSignalRecords';
@@ -170,7 +170,6 @@ export function SuperSignalPanel({
       )}
 
       {selected && <button type="button" onClick={() => onOpenDashboard(selected.symbol, 14400)} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-canvas">VIEW ON DASHBOARD</button>}
-      <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3"><Info className="mt-0.5 h-4 w-4 shrink-0" />Super Signals remain in this history after the live alert disappears. Profit and stop outcomes update from the matching recorded M30 signal.</p>
     </div>
   );
 }
