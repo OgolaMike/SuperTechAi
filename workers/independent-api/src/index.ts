@@ -159,6 +159,7 @@ type BrokerEnv = Env & {
   CTRADER_REDIRECT_URI?: string;
   BROKER_TOKEN_ENCRYPTION_KEY?: string;
   BINANCE_SPOT_CREDENTIALS_TABLE_ID?: string;
+  BINANCE_FUTURES_CREDENTIALS_TABLE_ID?: string;
   DERIV_CLIENT_ID?: string;
   DERIV_REDIRECT_URI?: string;
   DERIV_OAUTH_STATES_TABLE_ID?: string;
@@ -244,6 +245,17 @@ async function binanceSpotAccount(apiKey: string, apiSecret: string): Promise<{ 
   if (data.canTrade !== true) throw new Error("binance_spot_trading_permission_not_enabled");
   if (data.canWithdraw !== false) throw new Error("binance_withdrawal_permission_must_be_disabled");
   return { canTrade: data.canTrade, canWithdraw: data.canWithdraw, accountType: data.accountType };
+}
+async function binanceFuturesAccount(apiKey: string, apiSecret: string): Promise<{ canTrade: boolean; canWithdraw: boolean }> {
+  const params = new URLSearchParams({ timestamp: String(Date.now()), recvWindow: "5000" });
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(apiSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = [...new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(params.toString())))].map(value => value.toString(16).padStart(2, "0")).join("");
+  const response = await fetch("https://fapi.binance.com/fapi/v3/account?" + params.toString() + "&signature=" + signature, { headers: { "X-MBX-APIKEY": apiKey } });
+  const data = await response.json() as { canTrade?: boolean; canWithdraw?: boolean };
+  if (!response.ok) throw new Error(response.status === 401 ? "binance_invalid_api_credentials" : "binance_futures_account_verification_failed");
+  if (data.canTrade !== true) throw new Error("binance_futures_trading_permission_not_enabled");
+  if (data.canWithdraw !== false) throw new Error("binance_withdrawal_permission_must_be_disabled");
+  return { canTrade: true, canWithdraw: false };
 }
 async function binanceSpotRow(env: BrokerEnv, accountId: string, method: "GET" | "POST" | "PATCH" | "DELETE", data?: Record<string, unknown>) {
   if (!env.BINANCE_SPOT_CREDENTIALS_TABLE_ID || !env.APPWRITE_API_KEY) throw new Error("binance_spot_not_configured");
@@ -813,6 +825,53 @@ export default {
       } catch { return json({ error: "deriv_disconnect_failed" }, 503, cors); }
     }
 
+    if (url.pathname === "/api/brokers/binance-futures/connect" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.BINANCE_FUTURES_CREDENTIALS_TABLE_ID || !configured.BROKER_TOKEN_ENCRYPTION_KEY || !configured.APPWRITE_API_KEY) return json({ error: "binance_futures_not_configured" }, 503, cors);
+        const body = await request.json().catch(() => null) as { apiKey?: string; apiSecret?: string } | null;
+        const apiKey = typeof body?.apiKey === "string" ? body.apiKey.trim() : "";
+        const apiSecret = typeof body?.apiSecret === "string" ? body.apiSecret.trim() : "";
+        if (apiKey.length < 16 || apiKey.length > 256 || apiSecret.length < 16 || apiSecret.length > 512) return json({ error: "invalid_binance_credentials" }, 400, cors);
+        const verified = await binanceFuturesAccount(apiKey, apiSecret);
+        const encryptedKey = await encryptBrokerToken(apiKey, configured.BROKER_TOKEN_ENCRYPTION_KEY);
+        const encryptedSecret = await encryptBrokerToken(apiSecret, configured.BROKER_TOKEN_ENCRYPTION_KEY);
+        await binanceSpotRow({ ...configured, BINANCE_SPOT_CREDENTIALS_TABLE_ID: configured.BINANCE_FUTURES_CREDENTIALS_TABLE_ID }, account.$id, "PATCH", { user_id: account.$id, encrypted_api_key: encryptedKey, encrypted_api_secret: encryptedSecret, api_key_last4: apiKey.slice(-4), status: "connected", verified_at: new Date().toISOString(), can_trade: verified.canTrade, can_withdraw: verified.canWithdraw });
+        return json({ connected: true, provider: "binance_futures", apiKeyLast4: apiKey.slice(-4), tradingEnabled: false }, 200, cors);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "binance_futures_connection_failed";
+        const status = code === "binance_futures_not_configured" ? 503 : code.startsWith("invalid_") ? 400 : 502;
+        return json({ error: code }, status, cors);
+      }
+    }
+
+    if (url.pathname === "/api/brokers/binance-futures/status" && request.method === "GET") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.BINANCE_FUTURES_CREDENTIALS_TABLE_ID || !configured.APPWRITE_API_KEY) return json({ error: "binance_futures_not_configured" }, 503, cors);
+        const row = await binanceSpotRow({ ...configured, BINANCE_SPOT_CREDENTIALS_TABLE_ID: configured.BINANCE_FUTURES_CREDENTIALS_TABLE_ID }, account.$id, "GET") as { user_id?: string; api_key_last4?: string; status?: string; verified_at?: string } | null;
+        if (!row) return json({ connected: false, status: "not_connected", tradingEnabled: false }, 200, cors);
+        if (row.user_id !== account.$id) return json({ error: "binance_futures_ownership_mismatch" }, 403, cors);
+        return json({ connected: row.status === "connected", status: row.status || "unknown", apiKeyLast4: row.api_key_last4 || null, verifiedAt: row.verified_at || null, tradingEnabled: false }, 200, cors);
+      } catch { return json({ error: "binance_futures_status_failed" }, 503, cors); }
+    }
+
+    if (url.pathname === "/api/brokers/binance-futures/disconnect" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.BINANCE_FUTURES_CREDENTIALS_TABLE_ID || !configured.APPWRITE_API_KEY) return json({ error: "binance_futures_not_configured" }, 503, cors);
+        const row = await binanceSpotRow({ ...configured, BINANCE_SPOT_CREDENTIALS_TABLE_ID: configured.BINANCE_FUTURES_CREDENTIALS_TABLE_ID }, account.$id, "GET") as { user_id?: string } | null;
+        if (row && row.user_id !== account.$id) return json({ error: "binance_futures_ownership_mismatch" }, 403, cors);
+        await binanceSpotRow({ ...configured, BINANCE_SPOT_CREDENTIALS_TABLE_ID: configured.BINANCE_FUTURES_CREDENTIALS_TABLE_ID }, account.$id, "DELETE");
+        return json({ disconnected: true, providerKeyRevoked: false, note: "The encrypted local copy was deleted. Revoke this API key in Binance API Management as well." }, 200, cors);
+      } catch { return json({ error: "binance_futures_disconnect_failed" }, 503, cors); }
+    }
     if (url.pathname === "/api/brokers/ctrader/connect" && request.method === "POST") {
       try {
         const account = await authenticate(request, env);
@@ -1004,7 +1063,7 @@ export default {
       return json({
         providers: {
           ctrader: Boolean(configured.CTRADER_CLIENT_ID && configured.CTRADER_CLIENT_SECRET && configured.CTRADER_REDIRECT_URI && configured.CTRADER_OAUTH_STATES_TABLE_ID && configured.CTRADER_GRANTS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY),
-          mt5: false, binance_spot: Boolean(configured.BINANCE_SPOT_CREDENTIALS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY && configured.APPWRITE_API_KEY), deriv_options: Boolean(configured.DERIV_CLIENT_ID && configured.DERIV_REDIRECT_URI && configured.DERIV_OAUTH_STATES_TABLE_ID && configured.DERIV_GRANTS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY && configured.APPWRITE_API_KEY), binance_futures: false, okx_futures: false,
+          mt5: false, binance_spot: Boolean(configured.BINANCE_SPOT_CREDENTIALS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY && configured.APPWRITE_API_KEY), deriv_options: Boolean(configured.DERIV_CLIENT_ID && configured.DERIV_REDIRECT_URI && configured.DERIV_OAUTH_STATES_TABLE_ID && configured.DERIV_GRANTS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY && configured.APPWRITE_API_KEY), binance_futures: Boolean(configured.BINANCE_FUTURES_CREDENTIALS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY && configured.APPWRITE_API_KEY), okx_futures: false,
         },
         executionEnabled: false,
         note: "Provider execution remains disabled until each provider's account, risk, order, and reconciliation tables pass security checks.",
