@@ -571,9 +571,11 @@ export default {
         });
         if (response.status === 404) return json({ connected: false, status: "not_connected" }, 200, cors);
         if (!response.ok) return json({ error: "ctrader_status_failed" }, 503, cors);
-        const grant = await response.json() as { user_id?: string; token_expires_at?: string; status?: string };
+        const grant = await response.json() as { user_id?: string; token_expires_at?: string; status?: string; accounts_json?: string; selected_account_id?: string; permission_scope?: string };
         if (grant.user_id !== account.$id) return json({ error: "ctrader_grant_ownership_mismatch" }, 403, cors);
-        return json({ connected: true, tokenExpiresAt: grant.token_expires_at || null, status: grant.status || "connected" }, 200, cors);
+        let accounts: unknown[] = [];
+        try { const parsed = JSON.parse(grant.accounts_json || "[]"); if (Array.isArray(parsed)) accounts = parsed.slice(0, 100); } catch { accounts = []; }
+        return json({ connected: true, tokenExpiresAt: grant.token_expires_at || null, status: grant.status || "connected", accounts, selectedAccountId: grant.selected_account_id || null, permissionScope: grant.permission_scope || null }, 200, cors);
       } catch {
         return json({ error: "ctrader_status_failed" }, 503, cors);
       }
@@ -603,7 +605,7 @@ export default {
               if (!/^\d{1,20}$/.test(accountId)) continue;
               const isLive = item.isLive === true;
               if ((host.startsWith("live") && !isLive) || (host.startsWith("demo") && isLive)) continue;
-              discovered.push({ accountId, isLive, traderLogin: item.traderLogin == null ? null : String(item.traderLogin), broker: String(item.brokerTitleShort || item.brokerName || "cTrader broker").slice(0, 100), accountType: item.accountType == null ? null : String(item.accountType), permissionScope: String(response.permissionScope || "unknown") });
+              discovered.push({ accountId, isLive, traderLogin: item.traderLogin == null ? null : String(item.traderLogin), broker: String(item.brokerTitleShort || item.brokerName || "cTrader broker").slice(0, 100), accountType: item.accountType == null ? null : ((["HEDGED", "NETTED", "SPREAD_BETTING"] as string[])[Number(item.accountType)] || "UNKNOWN"), permissionScope: Number(response.permissionScope) === 1 ? "SCOPE_TRADE" : Number(response.permissionScope) === 0 ? "SCOPE_VIEW" : "unknown" });
             }
           } catch (error) { lastError = error; }
           finally { try { socket?.close(1000, "account discovery complete"); } catch { /* ignore close errors */ } }
@@ -626,7 +628,7 @@ export default {
         if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.CTRADER_CLIENT_ID || !configured.CTRADER_CLIENT_SECRET || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "ctrader_account_selection_not_configured" }, 503, cors);
         const body = await request.json().catch(() => null) as { accountId?: string } | null;
         const accountId = String(body?.accountId || "");
-        if (!/^\d{1,20}$/.test(accountId)) return json({ error: "invalid_ctrader_account_id" }, 400, cors);
+        if (!/^\d{1,20}$/.test(accountId) || !Number.isSafeInteger(Number(accountId))) return json({ error: "invalid_ctrader_account_id" }, 400, cors);
         const grantId = account.$id.replace(/-/g, "").slice(0, 32);
         const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string; accounts_json?: string } | null;
         if (!grant || grant.user_id !== account.$id || !grant.encrypted_access_token) return json({ error: "ctrader_not_connected" }, 404, cors);
