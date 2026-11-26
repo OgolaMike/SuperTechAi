@@ -12,7 +12,6 @@ export type DerivMarketProps = {
   selectedSymbols: string[];
   onMonitorAsset: (symbol: string) => void;
   aiModel: SignalLearningModel;
-  onNavigate?: (view: 'options' | 'connections' | 'strategies') => void;
 };
 
 type Mover = { asset: Asset; price: number | null; changePct: number | null; candles: number };
@@ -45,7 +44,7 @@ function getRoc(asset: Asset, states: DerivMarketProps['states'], prices: DerivM
   return { asset, price, changePct, candles: hourly.length };
 }
 
-export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel, onNavigate }: DerivMarketProps) {
+export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel }: DerivMarketProps) {
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M30') ?? TIMEFRAMES[0]);
   const [visibleCount, setVisibleCount] = useState(60);
@@ -123,13 +122,13 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <button type="button" onClick={() => onNavigate?.('options')} className="group flex items-center justify-between gap-3 rounded-2xl border border-accent/25 bg-accent/[0.045] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-accent/50">
+        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('supertech:navigate', { detail: 'options' })) className="group flex items-center justify-between gap-3 rounded-2xl border border-accent/25 bg-accent/[0.045] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-accent/50">
           <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent"><Bot className="h-5 w-5"/></span><span><span className="block text-sm font-semibold text-ink">Deriv Options Trader</span><span className="mt-1 block text-xs text-ink-3">Options setups and contract ideas</span></span></span><ArrowUpRight className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"/>
         </button>
-        <button type="button" onClick={() => onNavigate?.('connections')} className="group flex items-center justify-between gap-3 rounded-2xl border border-line/15 bg-surface/[0.03] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-accent/35">
+        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('supertech:navigate', { detail: 'connections' })) className="group flex items-center justify-between gap-3 rounded-2xl border border-line/15 bg-surface/[0.03] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-accent/35">
           <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface/[0.08] text-ink"><Cable className="h-5 w-5"/></span><span><span className="block text-sm font-semibold text-ink">Account connection</span><span className="mt-1 block text-xs text-ink-3">Manage secure broker connections</span></span></span><ArrowUpRight className="h-4 w-4 shrink-0 text-ink-3"/>
         </button>
-        <button type="button" onClick={() => onNavigate?.('strategies')} className="group flex items-center justify-between gap-3 rounded-2xl border border-line/15 bg-surface/[0.03] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-accent/35">
+        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('supertech:navigate', { detail: 'strategies' })) className="group flex items-center justify-between gap-3 rounded-2xl border border-line/15 bg-surface/[0.03] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-accent/35">
           <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface/[0.08] text-ink"><Activity className="h-5 w-5"/></span><span><span className="block text-sm font-semibold text-ink">Trading strategies</span><span className="mt-1 block text-xs text-ink-3">Explore independent strategy engines</span></span></span><ArrowUpRight className="h-4 w-4 shrink-0 text-ink-3"/>
         </button>
       </div>
