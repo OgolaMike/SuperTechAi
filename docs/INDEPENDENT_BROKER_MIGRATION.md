@@ -39,6 +39,11 @@ Create these TablesDB tables in database `supertech_ai_sandbox`. Add the columns
 | token_expires_at | string(40) | yes |
 | granted_scopes | string(128) | yes |
 | status | string(64) | yes |
+| accounts_json | string(30000) | no |
+| accounts_discovered_at | string(40) | no |
+| permission_scope | string(32) | no |
+| selected_account_id | string(32) | no |
+| selected_account_is_live | boolean | no |
 
 Use a unique index on `user_id` for grants and on `state_hash` for states. Grant rows must only be readable/writable by the Worker API key. The callback uses a deterministic row ID per member, so a member has one active grant row.
 
@@ -56,7 +61,7 @@ Set these as Worker secrets, never as Pages variables:
 - `CTRADER_CLIENT_SECRET`
 - `BROKER_TOKEN_ENCRYPTION_KEY`: base64 encoding of exactly 32 cryptographically random bytes.
 
-The Appwrite server API key must have only the TablesDB permissions needed for the two tables and existing profile rows. Keep it in the Worker secret `APPWRITE_API_KEY`.
+The Appwrite server API key must have only the TablesDB `rows.read`, `rows.write` and `rows.delete` permissions needed for the configured tables and existing profile rows. Keep it in the Worker secret `APPWRITE_API_KEY`.
 
 ## Remaining migration work (not represented as complete)
 
