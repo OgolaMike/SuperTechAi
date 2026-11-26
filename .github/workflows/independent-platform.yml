@@ -1,0 +1,36 @@
+name: Independent Appwrite platform checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feat/appwrite-independent-platform-foundation]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: independent-platform-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  independent-web:
+    name: Verify zero-Supabase web entrypoint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Enforce zero-Supabase dependency boundary
+        run: npm run check:independent
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - name: Check independent Worker security contract
+        run: npm run check:independent-worker
+      - name: Validate independent Cloudflare Worker bundle (dry run only)
+        run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml

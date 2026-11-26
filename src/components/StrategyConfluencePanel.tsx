@@ -1,54 +1,9 @@
+import { CheckCircle2, CircleDashed, XCircle } from 'lucide-react';
 import type { ConfluenceResult } from '@/lib/strategyConfluence';
-
-type Props = { results: ConfluenceResult[]; assets: { symbol: string; name: string }[] };
-
-export function StrategyConfluencePanel({ results, assets }: Props) {
-  const names = new Map(assets.map((asset) => [asset.symbol, asset.name]));
-  const high = results.filter((result) => result.status === 'HIGH_CONFLUENCE');
-  const conflicts = results.filter((result) => result.status === 'CONFLICT');
-  return (
-    <section className="mt-6 space-y-4" aria-label="Strategy confluence intelligence">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Collaborative strategy intelligence</p>
-        <h3 className="mt-1 text-xl font-semibold text-ink">Strategy Confluence</h3>
-        <p className="mt-1 max-w-3xl text-sm text-ink-2">Every strategy keeps its own rules and signal. This layer compares fresh conclusions, finds agreement and highlights conflicts without rewriting any strategy decision.</p>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label="Assets assessed" value={results.length} />
-        <Metric label="High confluence" value={high.length} />
-        <Metric label="Conflicts" value={conflicts.length} />
-      </div>
-      {results.length === 0 ? <p className="rounded-xl border border-line/15 bg-surface/[0.025] p-4 text-sm text-ink-2">Waiting for fresh strategy assessments.</p> : (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {results.map((result) => (
-            <article key={result.symbol} className="rounded-2xl border border-line/20 bg-surface/[0.035] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div><p className="font-semibold text-ink">{names.get(result.symbol) ?? result.symbol}</p><p className="text-xs text-ink-3">{result.symbol}</p></div>
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${result.status === 'HIGH_CONFLUENCE' ? 'bg-up/10 text-up' : result.status === 'CONFLICT' ? 'bg-down/10 text-down' : 'border border-line/20 text-ink-3'}`}>
-                  {result.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <div className="mt-4 flex items-end justify-between gap-3">
-                <div><p className="text-xs text-ink-3">Combined direction</p><p className={`mt-1 text-lg font-bold ${result.direction === 'BUY' ? 'text-up' : result.direction === 'SELL' ? 'text-down' : 'text-ink-2'}`}>{result.direction ?? 'WAIT'}</p></div>
-                <div className="text-right"><p className="text-xs text-ink-3">Confluence score</p><p className="mt-1 text-lg font-bold tabular-nums text-ink">{result.score}/100</p></div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {result.assessments.map((item) => (
-                  <span key={item.strategyId} className="rounded-lg border border-line/15 bg-surface/[0.04] px-2 py-1 text-[11px] text-ink-2">
-                    {item.strategyName}: {item.status === 'SIGNAL' ? item.direction : item.status}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-3 text-xs leading-5 text-ink-2">{result.explanation}</p>
-            </article>
-          ))}
-        </div>
-      )}
-      <p className="text-[11px] leading-5 text-ink-3">The score measures directional agreement and strategy strength, not the probability of a winning trade. Conflicts are visible rather than hidden. This layer does not place orders.</p>
-    </section>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-xl border border-line/15 bg-surface/[0.025] p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">{label}</p><p className="mt-1 text-lg font-semibold tabular-nums text-ink">{value}</p></div>;
+type Props={results:ConfluenceResult[]};
+export function StrategyConfluencePanel({results}:Props){
+ return <section className="mt-6 space-y-4"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-accent">Independent engines · agreement only</p><h3 className="mt-1 text-xl font-semibold text-ink">Strategy Confluence</h3><p className="mt-1 text-sm text-ink-2">Each strategy keeps its own rules and output. This layer only compares direction and freshness; it does not rewrite signals or estimate win probability.</p></div>
+ {results.length?<div className="grid gap-3 lg:grid-cols-2">{results.map(result=><article key={result.symbol} className="rounded-2xl border border-line/15 bg-surface/[.035] p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold text-ink">{result.symbol}</p><p className="text-xs text-ink-3">{result.agreementCount} agreeing · {result.opposingCount} opposing</p></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${result.status==='HIGH_CONFLUENCE'?'bg-up/10 text-up':result.status==='CONFLICT'?'bg-down/10 text-down':'bg-surface/10 text-ink-2'}`}>{result.status.replace('_',' ')}</span></div><p className="mt-3 text-xs leading-5 text-ink-2">{result.explanation}</p><div className="mt-3 space-y-2">{result.assessments.map((row,index)=><div key={row.strategyId+index} className="flex items-center justify-between gap-2 border-t border-line/10 pt-2 text-xs"><span className="text-ink-2">{row.strategyName}</span><span className={`font-semibold ${row.status==='SIGNAL'?(row.direction==='BUY'?'text-up':'text-down'):'text-ink-3'}`}>{row.status==='SIGNAL'?row.direction:row.status}</span></div>)}</div></article>)}</div>:<div className="rounded-xl border border-line/15 bg-surface/[.03] p-4 text-sm text-ink-3">Waiting for independent strategy assessments to form.</div>}
+ <div className="flex flex-wrap gap-3 text-[10px] text-ink-3"><span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-up"/>Independent confirmation</span><span className="inline-flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-down"/>Opposing signal</span><span className="inline-flex items-center gap-1"><CircleDashed className="h-3.5 w-3.5"/>Waiting / stale</span></div>
+ </section>;
 }

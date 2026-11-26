@@ -21,14 +21,14 @@ type Props = {
   onOpenDashboard: (symbol: string, granularity: number) => void;
 };
 
-const TIMEFRAMES = ['D1', 'H8', 'H4', 'H3', 'H2', 'H1', 'M30', 'M15', 'M5', 'M1'];
+const TIMEFRAMES = ['M30', 'H1', 'H2', 'H3', 'H4', 'H6', 'H8', 'H12', 'D1', 'W1'];
 
 function statesForRecord(record: SuperSignalRecord, states: Record<string, Record<number, TfState>>) {
-  return states[record.symbol]?.[900]?.candles ?? [];
+  return states[record.symbol]?.[1800]?.candles ?? [];
 }
 
 function signalKey(signal: Pick<SuperSignal, 'symbol' | 'direction' | 'signalEpoch'>) {
-  return `${signal.symbol}|900|${signal.signalEpoch}|${signal.direction}`;
+  return `${signal.symbol}|1800|${signal.signalEpoch}|${signal.direction}`;
 }
 
 function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
@@ -153,7 +153,7 @@ export function SuperSignalPanel({
                     </button>
                     {isSelected && chartCandles.length > 0 && (
                       <div className="min-w-0 overflow-hidden rounded-xl border border-accent/25 bg-surface/[0.025] p-2">
-                        <SignalChartSnapshot candles={chartCandles} livePrice={prices[record.symbol]} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M15" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
+                        <SignalChartSnapshot candles={chartCandles} livePrice={prices[record.symbol]} levels={{ entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3, mean: record.band_mean, deviation: record.band_deviation }} signalEpoch={record.signal_epoch} direction={record.direction} timeframe="M30" digits={record.digits} assetName={record.asset_name} symbol={record.symbol} anchorId={`super-signal-chart-${encodeURIComponent(record.symbol)}-${record.signal_epoch}-${record.direction}`} />
                       </div>
                     )}
                   </div>
@@ -173,7 +173,7 @@ export function SuperSignalPanel({
       )}
 
       {selected && <button type="button" onClick={() => onOpenDashboard(selected.symbol, 14400)} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-canvas">VIEW ON DASHBOARD</button>}
-      <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3"><Info className="mt-0.5 h-4 w-4 shrink-0" />Super Signals remain in this history after the live alert disappears. Profit and stop outcomes update from the matching recorded M15 signal.</p>
+      <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3"><Info className="mt-0.5 h-4 w-4 shrink-0" />Super Signals remain in this history after the live alert disappears. Profit and stop outcomes update from the matching recorded M30 signal.</p>
     </div>
   );
 }
@@ -192,7 +192,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
     { label: 'Take-profit 2', value: record.tp2, tone: 'text-up', hit: record.tp2_hit_epoch },
     { label: 'Take-profit 3', value: record.tp3, tone: 'text-up', hit: record.tp3_hit_epoch },
   ];
-  const score = getAiPatternScore(aiModel, 900, record.direction, {
+  const score = getAiPatternScore(aiModel, 1800, record.direction, {
     entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3,
     mean: record.band_mean, deviation: record.band_deviation,
   });
@@ -203,7 +203,7 @@ function SuperSignalDetails({ record, price, aiModel }: {
         <div className="min-w-0">
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-3">Selected Super Signal · 10TF</div>
           <h3 className="mt-1 break-words text-xl font-bold text-ink">{record.asset_name}</h3>
-          <p className="text-sm text-ink-3">{record.symbol} · M15 trigger</p>
+          <p className="text-sm text-ink-3">{record.symbol} · M30 trigger</p>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-black ${isBuy ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'}`}><DirectionIcon className="h-4 w-4" />{record.direction}</span>
       </header>

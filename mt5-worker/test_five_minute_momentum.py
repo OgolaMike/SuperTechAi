@@ -21,9 +21,9 @@ class FiveMinuteMomentumTests(unittest.TestCase):
         self.assertAlmostEqual(normalize_volume(0.59, 0.1, 5.0, 0.1), 0.5)
         self.assertAlmostEqual(normalize_volume(10.0, 0.1, 1.0, 0.1), 1.0)
 
-    def test_close_occurs_at_exact_five_minute_boundary(self):
-        self.assertFalse(position_is_due_to_close(600, 899))
-        self.assertTrue(position_is_due_to_close(600, 900))
+    def test_close_occurs_at_exact_thirty_minute_boundary(self):
+        self.assertFalse(position_is_due_to_close(1800, 3599))
+        self.assertTrue(position_is_due_to_close(1800, 3600))
 
 
 if __name__ == "__main__":

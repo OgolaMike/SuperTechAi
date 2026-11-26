@@ -23,7 +23,7 @@ export type PendingOrderIdea = {
   strengthScore: number;
 };
 
-const PRIMARY_GRANULARITY = 900;
+const PRIMARY_GRANULARITY = 1800;
 const SIGNAL_MAX_AGE_BARS = 8;
 const MIN_SUPPORTING_ALIGNMENT = 6;
 
@@ -46,7 +46,7 @@ function makeLevels(direction: Direction, entry: number, deviation: number): Pic
 
 /**
  * Creates pending-order ideas from the official ten-timeframe analysis set.
- * The primary trigger is always a confirmed 15-minute signal; M1/M5 are timing-only confirmations. It never
+ * The primary trigger is always a confirmed M30 signal; no sub-M30 timing frames are used. It never
  * requests or uses any timeframe outside TIMEFRAMES and never places an order.
  */
 export function buildPendingOrderIdeas(

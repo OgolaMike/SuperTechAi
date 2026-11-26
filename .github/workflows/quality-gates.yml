@@ -25,12 +25,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Enforce Appwrite-only frontend boundary
+        run: npm run check:independent
+      - name: Check independent Worker security contract
+        run: npm run check:independent-worker
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+      - name: Validate independent Cloudflare Worker bundle (dry run only)
+        run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
 
   edge-functions:
-    name: Supabase Edge Function static checks
+    if: github.ref != 'refs/heads/feat/appwrite-independent-platform-foundation' && github.head_ref != 'feat/appwrite-independent-platform-foundation'
+    name: Legacy Supabase Edge Function static checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

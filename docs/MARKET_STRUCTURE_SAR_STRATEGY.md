@@ -1,13 +1,13 @@
 # Market Structure SAR strategy
 
-Market Structure SAR is an independent M15 signal strategy in the scanner. It uses only confirmed candles and the official SuperTechAi timeframe set; its execution trigger is M15.
+Market Structure SAR is an independent M30 signal strategy in the scanner. It uses only confirmed candles and the official SuperTechAi timeframe set; its execution trigger is M30.
 
 ## Entry rules
 
 - BUY: the latest two confirmed swing highs form a Higher High (HH), the latest two confirmed swing lows form a Higher Low (HL), and Parabolic SAR flips from above the prior close to below the latest confirmed close.
 - SELL: the latest two confirmed swing lows form a Lower Low (LL), the latest two confirmed swing highs form a Lower High (LH), and Parabolic SAR flips from below the prior close to above the latest confirmed close.
 - Swing points require two candles on each side, so the newest pivot is not used until confirmed.
-- The signal is keyed by symbol, M15 candle epoch, direction and strategy version to prevent duplicate alerts.
+- The signal is keyed by symbol, M30 candle epoch, direction and strategy version to prevent duplicate alerts.
 
 ## Protection proposal
 

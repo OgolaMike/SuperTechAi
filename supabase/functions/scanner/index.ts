@@ -14,24 +14,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
-// H4 is the single primary trigger. M15, M5 and M1 contribute confirmation only;
-// no lower timeframe can publish a competing dashboard BUY/SELL instruction.
-// H2/H3/H4/H8 are built from complete hourly candles for consistent market bars.
+// H4 remains the primary direction. M30 is the lowest supported timeframe; all ten frames run through W1.
+// H2/H3/H6/H12 are aggregated from complete hourly candles; W1 is aggregated from complete daily candles.
 const TIMEFRAMES = [
-  { granularity: 86400, label: "D1", candleCount: 366 },
-  { granularity: 28800, label: "H8", candleCount: 200 },
-  { granularity: 14400, label: "H4", candleCount: 200 },
-  { granularity: 10800, label: "H3", candleCount: 200 },
-  { granularity: 7200, label: "H2", candleCount: 200 },
-  { granularity: 3600, label: "H1", candleCount: 603 },
   { granularity: 1800, label: "M30", candleCount: 200 },
-  { granularity: 900, label: "M15", candleCount: 200 },
-  { granularity: 300, label: "M5", candleCount: 300 },
-  { granularity: 60, label: "M1", candleCount: 300 },
+  { granularity: 3600, label: "H1", candleCount: 200 },
+  { granularity: 7200, label: "H2", candleCount: 200 },
+  { granularity: 10800, label: "H3", candleCount: 200 },
+  { granularity: 14400, label: "H4", candleCount: 200 },
+  { granularity: 21600, label: "H6", candleCount: 200 },
+  { granularity: 28800, label: "H8", candleCount: 200 },
+  { granularity: 43200, label: "H12", candleCount: 200 },
+  { granularity: 86400, label: "D1", candleCount: 366 },
+  { granularity: 604800, label: "W1", candleCount: 200 },
 ];
 type Timeframe = (typeof TIMEFRAMES)[number];
 
 function latestClosedEpoch(granularity: number, nowEpoch: number): number {
+  if (granularity === 604800) {
+    const mondayOffset = 3 * 86400;
+    return Math.floor((nowEpoch + mondayOffset) / granularity) * granularity - mondayOffset - granularity;
+  }
   return Math.floor(nowEpoch / granularity) * granularity - granularity;
 }
 
@@ -59,6 +62,29 @@ function aggregateHourlyCandles(hourly: Candle[], targetGranularity: number): Ca
   });
 }
 
+function aggregateDailyCandles(daily: Candle[], targetGranularity: number): Candle[] {
+  const daysPerCandle = targetGranularity / 86400;
+  if (!Number.isInteger(daysPerCandle) || daysPerCandle < 2) return [];
+  const buckets = new Map<number, Candle[]>();
+  for (const candle of daily) {
+    const weekOffset = targetGranularity === 604800 ? 3 * 86400 : 0;
+    const epoch = Math.floor((candle.epoch + weekOffset) / targetGranularity) * targetGranularity - weekOffset;
+    const bucket = buckets.get(epoch) ?? [];
+    bucket.push(candle);
+    buckets.set(epoch, bucket);
+  }
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).flatMap(([epoch, items]) => {
+    const ordered = items.sort((a, b) => a.epoch - b.epoch);
+    if (ordered.length !== daysPerCandle || ordered.some((candle, index) => candle.epoch !== epoch + index * 86400)) return [];
+    return [{
+      epoch, open: ordered[0].open ?? ordered[0].close,
+      high: Math.max(...ordered.map((candle) => candle.high ?? candle.close)),
+      low: Math.min(...ordered.map((candle) => candle.low ?? candle.close)),
+      close: ordered[ordered.length - 1].close,
+    }];
+  });
+}
+
 async function loadTimeframeCandles(
   feed: DerivFeed | null,
   symbol: SymbolInfo,
@@ -69,8 +95,20 @@ async function loadTimeframeCandles(
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
 
+  // W1 is derived from seven complete D1 candles so the weekly source is consistent across feeds.
+  if (timeframe.granularity === 604800) {
+    const dailyFrame = TIMEFRAMES.find((frame) => frame.granularity === 86400)!;
+    const daily = await loadTimeframeCandles(
+      feed, symbol, { ...dailyFrame, candleCount: Math.min(1000, Math.max(dailyFrame.candleCount, timeframe.candleCount * 7 + 7)) },
+      nowEpoch, cache,
+    );
+    const aggregated = aggregateDailyCandles(daily, timeframe.granularity);
+    cache.set(timeframe.granularity, aggregated);
+    return aggregated;
+  }
+
   // H2/H3 use fully formed UTC hourly buckets across Deriv, Binance Spot and Futures.
-  if (timeframe.granularity === 7200 || timeframe.granularity === 10800) {
+  if ([7200, 10800, 21600, 43200].includes(timeframe.granularity)) {
     const hoursPerCandle = timeframe.granularity / 3600;
     const hourlyFrame = TIMEFRAMES.find((frame) => frame.granularity === 3600)!;
     const hourlyCount = Math.min(1000, Math.max(hourlyFrame.candleCount, timeframe.candleCount * hoursPerCandle + hoursPerCandle));
@@ -278,7 +316,7 @@ async function processTimeframe(
   }
 
   if (previousMark !== undefined) {
-    const events = timeframe.granularity === 900
+    const events = timeframe.granularity === 1800
       ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch)).filter((event) => event.kind !== "signal")
       : timeframe.granularity === 14400
         ? rows.flatMap((row) => eventsFor(row, previousMark, nowEpoch)).filter((event) => event.kind !== "signal")
@@ -302,7 +340,7 @@ function evaluateSuperSignal(
   const primaryCandles = (candlesByFrame.get(primaryFrame.granularity) ?? [])
     .filter((candle) => candle.epoch + primaryFrame.granularity <= nowEpoch)
     .sort((a, b) => a.epoch - b.epoch);
-  if (primaryCandles.length < 60) return null;
+  if (primaryCandles.length < 20) return null;
   const latestPrimary = primaryCandles[primaryCandles.length - 1];
   if (nowEpoch - (latestPrimary.epoch + primaryFrame.granularity) > 2 * primaryFrame.granularity) return null;
 
@@ -319,12 +357,12 @@ function evaluateSuperSignal(
     const candles = (candlesByFrame.get(frame.granularity) ?? [])
       .filter((candle) => candle.epoch + frame.granularity <= nowEpoch)
       .sort((a, b) => a.epoch - b.epoch);
-    if (candles.length < 60) return null;
+    if (candles.length < 20) return null;
     const latest = candles[candles.length - 1];
     if (nowEpoch - (latest.epoch + frame.granularity) > 2 * frame.granularity) return null;
-    const window = candles.slice(-60).map((candle) => candle.close);
-    const mean = window.reduce((sum, value) => sum + value, 0) / 60;
-    const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
+    const window = candles.slice(-20).map((candle) => candle.close);
+    const mean = window.reduce((sum, value) => sum + value, 0) / 20;
+    const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 20;
     const deviation = Math.sqrt(variance);
     const gap = latest.close - mean;
     const bias = gap > deviation * 0.1 ? "BUY" : gap < -deviation * 0.1 ? "SELL" : "NEUTRAL";
@@ -332,7 +370,7 @@ function evaluateSuperSignal(
     if (bias !== "NEUTRAL" && bias !== expected) anyTimeframeOpposes = true;
   }
 
-  // Require at least six of nine supporting frames; no supporting timeframe, including M1/M5, may oppose H4.
+  // Require at least six of nine supporting frames; no supporting timeframe, may oppose H4.
   if (supporting.length !== 9 || supportingAligned < 6 || anyTimeframeOpposes) return null;
   return {
     direction: primary.direction,
@@ -474,7 +512,7 @@ async function runScan(): Promise<Record<string, unknown>> {
       strengthScore?: number,
     ) {
       if (!accounts.length) return;
-      const expiresAt = new Date((intent.signalEpoch + 8 * 900) * 1000).toISOString();
+      const expiresAt = new Date((intent.signalEpoch + 8 * 1800) * 1000).toISOString();
       const rows = accounts.map((account) => {
         const unattendedEligible = account.auto_trade_enabled === true &&
           account.unattended_execution_enabled === true &&
@@ -483,8 +521,8 @@ async function runScan(): Promise<Record<string, unknown>> {
           account.bridge_status === "connected";
         return {
           user_id: account.user_id, account_login: account.login, account_server: account.server,
-          source_signal_key: `${symbolName}|900|${intent.signalEpoch}|${intent.direction}|${intent.orderType}`,
-          strategy_version: intent.strategyVersion, symbol: intent.symbol, timeframe: "M15",
+          source_signal_key: `${symbolName}|1800|${intent.signalEpoch}|${intent.direction}|${intent.orderType}`,
+          strategy_version: intent.strategyVersion, symbol: intent.symbol, timeframe: "M30",
           signal_epoch: intent.signalEpoch, direction: intent.direction, order_type: intent.orderType,
           entry: intent.entry, stop_loss: intent.stopLoss, take_profit: intent.takeProfit,
           idempotency_key: account.user_id + "|" + intent.idempotencyKey,
@@ -522,36 +560,26 @@ async function runScan(): Promise<Record<string, unknown>> {
         try {
           const candles = await loadTimeframeCandles(feed, symbol, timeframe, nowEpoch, candleCache);
           fetchedCount += 1;
-          // M1/M5 are confirmation-only inputs. Do not persist them as independent
-          // trade signals or emit their own signal events.
-          if (timeframe.granularity === 60 || timeframe.granularity === 300) {
-            const latestConfirmed = candles.filter((candle) => candle.epoch + timeframe.granularity <= nowEpoch).at(-1);
-            if (latestConfirmed) {
-              newMarks.push({ symbol: symbol.symbol, granularity: timeframe.granularity, epoch: latestConfirmed.epoch });
-              marks.set(markKey, latestConfirmed.epoch);
-            }
-            continue;
-          }
           const result = await processTimeframe(symbol, timeframe, candles, nowEpoch, previousMark);
           rowsWritten += result.rowsWritten;
 
-          // Create review-only backend LIMIT proposals from the separate M15 entry-pattern strategy.
-          if (timeframe.granularity === 900 && result.lastEpoch !== null &&
+          // Create review-only backend LIMIT proposals from the separate M30 entry-pattern strategy.
+          if (timeframe.granularity === 1800 && result.lastEpoch !== null &&
               (previousMark === undefined || result.lastEpoch > previousMark)) {
             const m15Signals = result.signals;
             const latestSignal = m15Signals[m15Signals.length - 1];
             const isFreshSignal = latestSignal && !latestSignal.outcome.closed &&
-              nowEpoch - (latestSignal.signalEpoch + 900) <= 2 * 900 &&
+              nowEpoch - (latestSignal.signalEpoch + 1800) <= 2 * 1800 &&
               (previousMark === undefined || latestSignal.signalEpoch > previousMark);
             // High ROC is an independent signal-only strategy. It never calls a trade executor.
             try {
-              const highRoc = buildHighRocStopSignal(symbol.symbol, candleCache.get(900) ?? [], nowEpoch);
+              const highRoc = buildHighRocStopSignal(symbol.symbol, candleCache.get(1800) ?? [], nowEpoch);
               if (highRoc && highRoc.signalEpoch === latestClosed) {
                 const signalKey = highRoc.idempotencyKey;
                 const { error: highRocEventError } = await db.from("push_events").upsert([{
                   event_key: signalKey + "|signal", signal_key: signalKey, kind: "high_roc_stop",
                   payload: { label: highRoc.orderType, strategy: "HIGH ROC", strategyVersion: highRoc.strategyVersion,
-                    symbol: symbol.symbol, assetName: symbol.name, timeframe: "M15", direction: highRoc.direction, orderType: highRoc.orderType,
+                    symbol: symbol.symbol, assetName: symbol.name, timeframe: "M30", direction: highRoc.direction, orderType: highRoc.orderType,
                     digits: symbol.digits, signalEpoch: highRoc.signalEpoch, entry: highRoc.entry, stopLoss: highRoc.stopLoss,
                     tp1: highRoc.takeProfit, tp2: highRoc.takeProfit, tp3: highRoc.takeProfit, price: highRoc.currentPrice, eventEpoch: nowEpoch,
                     expiresAt: new Date(highRoc.expiresAtEpoch * 1000).toISOString(), expiryEpoch: highRoc.expiresAtEpoch,
@@ -566,7 +594,7 @@ async function runScan(): Promise<Record<string, unknown>> {
             // Independent Market Structure SAR strategy: confirmed HH/HL or LL/LH plus a fresh SAR flip.
             // Signal-only until a separately tested, strategy-owned execution path is approved.
             try {
-              const structureSar = buildMarketStructureSarSignal(symbol.symbol, candleCache.get(900) ?? [], nowEpoch);
+              const structureSar = buildMarketStructureSarSignal(symbol.symbol, candleCache.get(1800) ?? [], nowEpoch);
               if (structureSar && structureSar.signalEpoch === latestClosed) {
                 const signalKey = structureSar.idempotencyKey;
                 const { error: structureSarError } = await db.from("push_events").upsert([{
@@ -579,7 +607,7 @@ async function runScan(): Promise<Record<string, unknown>> {
                     strategyVersion: structureSar.strategyVersion,
                     symbol: symbol.symbol,
                     assetName: symbol.name,
-                    timeframe: "M15",
+                    timeframe: "M30",
                     direction: structureSar.direction,
                     digits: symbol.digits,
                     signalEpoch: structureSar.signalEpoch,
@@ -604,16 +632,16 @@ async function runScan(): Promise<Record<string, unknown>> {
 
             if (isFreshSignal) {
               try {
-                // Limit proposals use the confirmed M15 setup only.
+                // Limit proposals use the confirmed M30 setup only.
                 const limitIntents = buildBackendLimitIntent(symbol.symbol, candleCache, nowEpoch).filter((intent) => intent.signalEpoch === latestSignal.signalEpoch);
                 for (const limitIntent of limitIntents) {
-                  const limitSignalKey = symbol.symbol + "|M15|" + limitIntent.signalEpoch + "|LIMIT";
+                  const limitSignalKey = symbol.symbol + "|M30|" + limitIntent.signalEpoch + "|LIMIT";
                   const { error: limitEventError } = await db.from("push_events").upsert([{
                     event_key: limitIntent.idempotencyKey + "|limit_order",
                     signal_key: limitSignalKey,
                     kind: "limit_order",
                     payload: {
-                      label: "LIMIT", symbol: symbol.symbol, assetName: symbol.name, timeframe: "M15",
+                      label: "LIMIT", symbol: symbol.symbol, assetName: symbol.name, timeframe: "M30",
                       direction: limitIntent.direction, digits: symbol.digits, signalEpoch: limitIntent.signalEpoch,
                       entry: limitIntent.entry, stopLoss: limitIntent.stopLoss,
                       tp1: limitIntent.takeProfit, tp2: limitIntent.takeProfit, tp3: limitIntent.takeProfit,

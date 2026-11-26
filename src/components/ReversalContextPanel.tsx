@@ -12,8 +12,9 @@ type Bias = 'Bullish' | 'Bearish' | 'Neutral' | 'No data';
 
 type Read = { label: string; bias: Bias };
 
-const PRIMARY_GRANULARITY = 900;
+const PRIMARY_GRANULARITY = 1800;
 const DAY = 86400;
+const WEEK = 604800;
 const LOOKBACK_SECONDS = 8 * PRIMARY_GRANULARITY;
 
 function biasFromState(state: TfState | undefined, nowEpoch: number): Bias {
@@ -35,10 +36,10 @@ function expectedBias(direction: Direction): Bias {
 
 function interpretation(direction: Direction, reads: Read[]): { title: string; detail: string; confirmation: string } {
   const expected = expectedBias(direction);
-  const higher = reads.filter((read) => ['H1', 'H4', 'H8', 'D1'].includes(read.label));
+  const higher = reads.filter((read) => ['H1', 'H2', 'H3', 'H4', 'H6', 'H8', 'H12', 'D1', 'W1'].includes(read.label));
   const opposing = higher.filter((read) => read.bias !== 'No data' && read.bias !== 'Neutral' && read.bias !== expected);
   const aligned = higher.filter((read) => read.bias === expected);
-  const majorOpposition = opposing.some((read) => ['H4', 'H8', 'D1'].includes(read.label));
+  const majorOpposition = opposing.some((read) => ['H4', 'H6', 'H8', 'H12', 'D1', 'W1'].includes(read.label));
 
   if (opposing.length === 0 && aligned.length >= 2) {
     return {
@@ -51,20 +52,20 @@ function interpretation(direction: Direction, reads: Read[]): { title: string; d
     return {
       title: 'Likely pullback risk — not a confirmed trend change',
       detail: `The ${direction} move conflicts with ${opposing.map((read) => read.label).join(', ')}. It may be a short-term retracement against the broader trend rather than a durable reversal.`,
-      confirmation: 'Do not promote this to a high-confluence reversal until H1/M30 structure turns and a completed candle confirms the change; major H4/H8/D1 opposition must be resolved.',
+      confirmation: 'Do not promote this to a high-confluence reversal until H1/M30 structure turns and a completed candle confirms the change; major H4/H6/H8/H12/D1/W1 opposition must be resolved.',
     };
   }
   if (opposing.length > 0) {
     return {
       title: 'Potential reversal — confirmation pending',
       detail: `The short-term move has some higher-timeframe support, but ${opposing.map((read) => read.label).join(', ')} still disagree. Treat this as developing evidence, not a confirmed trend change.`,
-      confirmation: 'Wait for a completed M30 and H1 candle to confirm the direction, then reassess H4 and daily context.',
+      confirmation: 'Wait for a completed M30 and H1 candle to confirm the direction, then reassess H4, daily and weekly context.',
     };
   }
   return {
     title: 'Insufficient higher-timeframe evidence',
     detail: 'One or more important timeframe readings are unavailable or neutral. The system should not infer a reversal from missing data.',
-    confirmation: 'Wait until valid H1, H4, H8 and D1 context is available before assigning high-confluence status.',
+    confirmation: 'Wait until valid H1, H4, H8, D1 and W1 context is available before assigning high-confluence status.',
   };
 }
 
@@ -76,9 +77,14 @@ export function ReversalContextPanel({ assets, states, nowEpoch }: Props) {
     if (!signal || signal.outcome.closed || nowEpoch - signal.signalEpoch > LOOKBACK_SECONDS) return [];
     const reads: Read[] = [
       { label: 'H1', bias: biasFromState(byTimeframe?.[3600], nowEpoch) },
+      { label: 'H2', bias: biasFromState(byTimeframe?.[7200], nowEpoch) },
+      { label: 'H3', bias: biasFromState(byTimeframe?.[10800], nowEpoch) },
       { label: 'H4', bias: biasFromState(byTimeframe?.[14400], nowEpoch) },
+      { label: 'H6', bias: biasFromState(byTimeframe?.[21600], nowEpoch) },
       { label: 'H8', bias: biasFromState(byTimeframe?.[28800], nowEpoch) },
+      { label: 'H12', bias: biasFromState(byTimeframe?.[43200], nowEpoch) },
       { label: 'D1', bias: biasFromState(byTimeframe?.[DAY], nowEpoch) },
+      { label: 'W1', bias: biasFromState(byTimeframe?.[WEEK], nowEpoch) },
     ];
     const expected = expectedBias(signal.direction);
     if (!reads.some((read) => read.bias !== 'No data' && read.bias !== 'Neutral' && read.bias !== expected)) return [];
@@ -96,7 +102,7 @@ export function ReversalContextPanel({ assets, states, nowEpoch }: Props) {
       </div>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-5 text-sm text-ink-2">
-          No recent M15 reversal conflicts detected. The panel only appears when a recent, open M15 signal disagrees with valid higher-timeframe context.
+          No recent M30 reversal conflicts detected. The panel only appears when a recent, open M30 signal disagrees with valid higher-timeframe context.
         </div>
       ) : items.map(({ asset, signal, reads, title, detail, confirmation }) => {
         const Icon = signal.direction === 'BUY' ? ArrowUpRight : ArrowDownRight;
@@ -105,7 +111,7 @@ export function ReversalContextPanel({ assets, states, nowEpoch }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold text-ink">{asset.name} <span className="text-ink-3">({asset.symbol})</span></p>
-                <p className="mt-1 flex items-center gap-1 text-xs text-ink-3"><Icon className="h-3.5 w-3.5" /> M15 {signal.direction} reversal attempt · completed signal candle</p>
+                <p className="mt-1 flex items-center gap-1 text-xs text-ink-3"><Icon className="h-3.5 w-3.5" /> M30 {signal.direction} reversal attempt · completed signal candle</p>
               </div>
               <span className="rounded-full border border-warn/30 bg-warn/10 px-3 py-1 text-xs font-semibold text-warn">{title}</span>
             </div>

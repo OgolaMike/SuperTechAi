@@ -12,22 +12,22 @@ export type Timeframe = {
 const CHART_HISTORY_CANDLES = 1440;
 
 export const TIMEFRAMES: Timeframe[] = [
-  { granularity: 86400, label: 'D1', role: 'Highest timeframe · daily bias', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 1800, label: 'M30', role: 'Lowest analysis and execution timeframe', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 3600, label: 'H1', role: 'Short-term confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 7200, label: 'H2', role: 'Short-term structure', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 10800, label: 'H3', role: 'Intermediate structure', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 14400, label: 'H4', role: 'Primary signal timeframe', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 21600, label: 'H6', role: 'Higher-timeframe confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 28800, label: 'H8', role: 'Higher-timeframe trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 14400, label: 'H4', role: 'Major trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 10800, label: 'H3', role: 'Major structure confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 7200, label: 'H2', role: 'Intermediate trend', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 3600, label: 'H1', role: 'Trend confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 1800, label: 'M30', role: 'Opportunity validation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 900, label: 'M15', role: 'Short-term confirmation', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 300, label: 'M5', role: 'Entry refinement', candleCount: CHART_HISTORY_CANDLES },
-  { granularity: 60, label: 'M1', role: 'Entry timing', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 43200, label: 'H12', role: 'Major market context', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 86400, label: 'D1', role: 'Daily market context', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 604800, label: 'W1', role: 'Highest timeframe · weekly bias', candleCount: CHART_HISTORY_CANDLES },
 ];
 
 
-export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([60, 300, 900, 1800, 3600, 86400]);
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([1800, 3600, 14400, 28800, 86400]);
 
-// Build higher timeframes from hourly candles where a source interval is unavailable.
+// Build H2/H3/H6/H12 from complete hourly candles and W1 from complete daily candles.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
 export function aggregateHourlyCandles(hourly: Candle[], targetGranularity: number, nowEpoch = Math.floor(Date.now() / 1000)): Candle[] {
   const hoursPerCandle = targetGranularity / 3600;
@@ -45,6 +45,31 @@ export function aggregateHourlyCandles(hourly: Candle[], targetGranularity: numb
     const isCurrent = epoch === currentBucket;
     if (!isCurrent && ordered.length !== hoursPerCandle) return [];
     if (ordered.length === 0) return [];
+    return [{
+      epoch,
+      open: ordered[0].open,
+      high: Math.max(...ordered.map((item) => item.high)),
+      low: Math.min(...ordered.map((item) => item.low)),
+      close: ordered[ordered.length - 1].close,
+      symbol: ordered[0].symbol,
+    }];
+  });
+}
+
+export function aggregateDailyCandles(daily: Candle[], targetGranularity: number): Candle[] {
+  const daysPerCandle = targetGranularity / 86400;
+  if (!Number.isInteger(daysPerCandle) || daysPerCandle < 2) return [];
+  const buckets = new Map<number, Candle[]>();
+  for (const candle of daily) {
+    const weekOffset = targetGranularity === 604800 ? 3 * 86400 : 0;
+    const epoch = Math.floor((candle.epoch + weekOffset) / targetGranularity) * targetGranularity - weekOffset;
+    const bucket = buckets.get(epoch) ?? [];
+    bucket.push(candle);
+    buckets.set(epoch, bucket);
+  }
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).flatMap(([epoch, items]) => {
+    const ordered = items.sort((a, b) => a.epoch - b.epoch);
+    if (ordered.length !== daysPerCandle || ordered.some((candle, index) => candle.epoch !== epoch + index * 86400)) return [];
     return [{
       epoch,
       open: ordered[0].open,

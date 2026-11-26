@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Clock3, Info } from 'lucide-react';
-import { buildM15StopOrderIdeas, mergeTrackedStopOrders, type M15StopIdea } from '@/lib/stopOrders';
+import { buildStopOrderIdeas, mergeTrackedStopOrders, type StopOrderIdea } from '@/lib/stopOrders';
 import { LevelList } from '@/components/SignalParts';
 import { PendingOrderChart } from '@/components/PendingOrderChart';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
@@ -19,10 +19,10 @@ type Props = {
   onOpenDashboard: (symbol: string, granularity: number) => void;
 };
 
-function loadTrackedOrders(): M15StopIdea[] {
+function loadTrackedOrders(): StopOrderIdea[] {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-    return Array.isArray(stored) ? stored.filter((order: M15StopIdea) =>
+    return Array.isArray(stored) ? stored.filter((order: StopOrderIdea) =>
       TIMEFRAMES.some((timeframe) => timeframe.granularity === order.granularity && timeframe.label === order.timeframeLabel) &&
       (order.patternType === 'TRIPLE BOTTOM' || order.patternType === 'TRIPLE TOP') &&
       Number.isFinite(order.entry) && Number.isFinite(order.stopLoss) && Number.isFinite(order.takeProfit)) : [];
@@ -30,11 +30,11 @@ function loadTrackedOrders(): M15StopIdea[] {
 }
 
 export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, loaded, onOpenDashboard }: Props) {
-  const [trackedOrders, setTrackedOrders] = useState<M15StopIdea[]>(loadTrackedOrders);
+  const [trackedOrders, setTrackedOrders] = useState<StopOrderIdea[]>(loadTrackedOrders);
   const [category, setCategory] = useState<'TRIPLE BOTTOM' | 'TRIPLE TOP'>('TRIPLE BOTTOM');
   const [filter, setFilter] = useState<'active' | 'results' | 'all'>('active');
   const liveIdeas = useMemo(
-    () => buildM15StopOrderIdeas(assets, states, prices, aiModel, nowEpoch),
+    () => buildStopOrderIdeas(assets, states, prices, aiModel, nowEpoch),
     [assets, states, prices, aiModel, nowEpoch],
   );
 
@@ -161,7 +161,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
 function Summary({ label, value }: { label: string; value: number }) {
   return <div className="min-w-0 rounded-xl border border-line/25 bg-surface/[0.03] p-3 sm:p-4"><p className="text-xs text-ink-3">{label}</p><p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p></div>;
 }
-function StatusPill({ status }: { status: M15StopIdea['status'] }) {
+function StatusPill({ status }: { status: StopOrderIdea['status'] }) {
   const label = status === 'ENTRY HIT' ? 'ENTRY REACHED' : status;
   const tone = status === 'TARGET HIT' ? 'border-up/40 bg-up/10 text-up'
     : status === 'STOP-LOSS HIT' || status === 'INVALIDATED' ? 'border-down/40 bg-down/10 text-down'

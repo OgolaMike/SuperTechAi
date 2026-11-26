@@ -6,7 +6,7 @@ export type PendingPatternType = 'TRIPLE BOTTOM' | 'TRIPLE TOP';
 export type PendingZone = { startEpoch: number; endEpoch: number; low: number; high: number };
 export type PendingTimeframeReading = { label: string; bias: 'PRICE ACTION' | 'BUILDING'; momentum: 'RISING' | 'FALLING' | 'FLAT' | '—'; bandPosition: '—'; aligned: boolean | null };
 
-export type M15StopIdea = {
+export type StopOrderIdea = {
   id: string; symbol: string; assetName: string; digits: number;
   type: 'BUY LIMIT' | 'SELL LIMIT'; direction: Direction;
   patternType: PendingPatternType; zone: PendingZone;
@@ -63,7 +63,7 @@ function resolveOutcome(direction: Direction, entry: number, stop: number, targe
   return { entryHitEpoch, stopLossHitEpoch, takeProfitHitEpoch, status, resolvedEpoch };
 }
 
-function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: number, nowEpoch: number): M15StopIdea[] {
+function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: number, nowEpoch: number): StopOrderIdea[] {
   if (!state || state.candles.length < 30 || !Number.isFinite(currentPrice) || currentPrice <= 0) return [];
   const candles = state.candles;
   const granularity = state.granularity;
@@ -71,7 +71,7 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
   const recentRanges = candles.slice(-20).map(c => Math.max(0, c.high - c.low));
   const avgRange = recentRanges.reduce((a, b) => a + b, 0) / Math.max(1, recentRanges.length);
   const tolerance = Math.max(avgRange * 0.35, currentPrice * 0.00005, 10 ** (-asset.digits) * 3);
-  const ideas: M15StopIdea[] = [];
+  const ideas: StopOrderIdea[] = [];
 
   for (const side of ['low', 'high'] as const) {
     const found = pivots(candles, side, from);
@@ -133,11 +133,11 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
 /** Pure price-action double-touch scanner: two swing lows stage a BUY LIMIT at support;
  * two swing highs stage a SELL LIMIT at resistance. Both wait for a possible third test
  * and use a 3R target. This scanner tracks ideas only; it never places broker orders. */
-export function buildM15StopOrderIdeas(
+export function buildStopOrderIdeas(
   assets: Asset[], statesBySymbol: Record<string, Record<number, TfState>>,
   prices: Record<string, number>, _aiModel: unknown, nowEpoch: number,
-): M15StopIdea[] {
-  const ideas: M15StopIdea[] = [];
+): StopOrderIdea[] {
+  const ideas: StopOrderIdea[] = [];
   for (const asset of assets) {
     const price = prices[asset.symbol];
     if (price == null) continue;
@@ -148,7 +148,7 @@ export function buildM15StopOrderIdeas(
   return ideas.sort((a, b) => b.signalEpoch - a.signalEpoch);
 }
 
-export function mergeTrackedStopOrders(previous: M15StopIdea[], updates: M15StopIdea[], limit = 2000): M15StopIdea[] {
+export function mergeTrackedStopOrders(previous: StopOrderIdea[], updates: StopOrderIdea[], limit = 2000): StopOrderIdea[] {
   const merged = new Map(previous.map(idea => [idea.id, idea]));
   for (const update of updates) {
     const existing = merged.get(update.id);

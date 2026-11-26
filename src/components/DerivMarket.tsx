@@ -46,7 +46,7 @@ function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']):
 
 export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitorAsset, aiModel }: Props) {
   const [selectedSymbol, setSelectedSymbol] = useState('');
-  const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M15') ?? TIMEFRAMES[0]);
+  const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M30') ?? TIMEFRAMES[0]);
   const [visibleCount, setVisibleCount] = useState(60);
   const [spacing, setSpacing] = useState(12);
   const [showSma, setShowSma] = useState(true);
@@ -80,9 +80,9 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
     if (visible.length < 2) return null;
     const stats = visible.map((_, index) => {
       const absoluteIndex = candles.length - visible.length + index;
-      if (absoluteIndex < 59) return null;
-      const closes = candles.slice(absoluteIndex - 59, absoluteIndex + 1).map((item) => item.close);
-      const mean = closes.reduce((sum, value) => sum + value, 0) / 60;
+      if (absoluteIndex < 19) return null;
+      const closes = candles.slice(absoluteIndex - 19, absoluteIndex + 1).map((item) => item.close);
+      const mean = closes.reduce((sum, value) => sum + value, 0) / 20;
       const variance = closes.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
       const deviation = Math.sqrt(variance);
       return { mean, upper: mean + 2.5 * deviation, lower: mean - 2.5 * deviation };

@@ -25,7 +25,7 @@ function describeMarket(state: TfState) {
   const price = state.lastClose;
   const sma = state.currentSma;
   const deviation = state.stdDev;
-  if (price == null || sma == null || deviation == null || state.candles.length < 60) {
+  if (price == null || sma == null || deviation == null || state.candles.length < 20) {
     return {
       bias: 'Building analysis',
       detail: 'More confirmed candles are needed before the market structure can be assessed.',
@@ -52,10 +52,10 @@ function describeMarket(state: TfState) {
   return {
     bias,
     detail: price > sma
-      ? 'Price is trading above its 60-period average. Watch for sustained closes and pullbacks before treating the move as a confirmed entry.'
+      ? 'Price is trading above its 20-period average. Watch for sustained closes and pullbacks before treating the move as a confirmed entry.'
       : price < sma
-      ? 'Price is trading below its 60-period average. Watch for sustained closes and rebounds before treating the move as a confirmed entry.'
-      : 'Price is close to its 60-period average; direction is not yet established.',
+      ? 'Price is trading below its 20-period average. Watch for sustained closes and rebounds before treating the move as a confirmed entry.'
+      : 'Price is close to its 20-period average; direction is not yet established.',
     momentum,
     band,
     volatility: `${volatilityPct.toFixed(2)}% band distance from the mean`,
@@ -64,7 +64,7 @@ function describeMarket(state: TfState) {
 }
 
 export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitored, canMonitor, onMonitor, aiModel }: Props) {
-  const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M15') ?? TIMEFRAMES[2]);
+  const [timeframe, setTimeframe] = useState<Timeframe>(TIMEFRAMES.find((item) => item.label === 'M30') ?? TIMEFRAMES[2]);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,9 +118,9 @@ export function CryptoMoverAnalysis({ symbol, name, changePct, close, isMonitore
   const stats = useMemo(() => {
     const closes = state.candles.map((item) => item.close);
     return state.candles.map((_, index) => {
-      if (index < 59) return null;
-      const window = closes.slice(index - 59, index + 1);
-      const mean = window.reduce((sum, value) => sum + value, 0) / 60;
+      if (index < 19) return null;
+      const window = closes.slice(index - 19, index + 1);
+      const mean = window.reduce((sum, value) => sum + value, 0) / 20;
       const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
       const deviation = Math.sqrt(variance);
       return { mean, upper: mean + 2.5 * deviation, lower: mean - 2.5 * deviation };

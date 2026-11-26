@@ -1,6 +1,11 @@
 import type { Candle } from './deriv';
 
 export type WickDirection = 'BUY' | 'SELL';
+export type UnifiedConfirmation = {
+  symbol: string;
+  direction: WickDirection;
+  signalEpoch: number;
+};
 export type ThreeHourWickCandidate = {
   symbol: string;
   direction: WickDirection;
@@ -13,20 +18,21 @@ export type ThreeHourWickCandidate = {
   body: number;
   rejectionWick: number;
   wickToBodyRatio: number;
+  confirmationEpoch: number;
   idempotencyKey: string;
 };
 
 export type ThreeHourWickEvaluation =
-  | { status: 'WAITING_FOR_DATA' | 'NO_REJECTION' | 'STALE_H4_CANDLE' }
+  | { status: 'WAITING_FOR_DATA' | 'NO_REJECTION' | 'AWAITING_UNIFIED_CONFIRMATION' | 'CONFIRMATION_MISMATCH' | 'STALE_CONFIRMATION' | 'STALE_H4_CANDLE' }
   | { status: 'CONFIRMED'; candidate: ThreeHourWickCandidate };
 
 export const THREE_HOUR_WICK_CONFIG = {
   timeframeSeconds: 4 * 60 * 60,
   bollingerPeriod: 20,
-  bollingerDeviation: 2,
+  bollingerDeviation: 2.5,
   wickToBodyMinimum: 2,
   stopBufferDeviationFraction: 0.1,
-  maxSignalAgeCandles: 8,
+  unifiedMaxAgeCandles: 8,
   forcedExitAfterSeconds: 3 * 60 * 60,
   trailingActivationPercent: 0.7,
   trailingStepPercent: 0.5,
@@ -52,6 +58,7 @@ export function evaluateThreeHourWick(
   symbol: string,
   candles: Candle[],
   nowEpoch: number,
+  confirmation: UnifiedConfirmation | null,
 ): ThreeHourWickEvaluation {
   const closed = [...candles]
     .filter((candle) => candle.epoch + THREE_HOUR_WICK_CONFIG.timeframeSeconds <= nowEpoch)
@@ -60,7 +67,7 @@ export function evaluateThreeHourWick(
 
   const candle = closed[closed.length - 1];
   if (nowEpoch - (candle.epoch + THREE_HOUR_WICK_CONFIG.timeframeSeconds) >
-      THREE_HOUR_WICK_CONFIG.maxSignalAgeCandles * THREE_HOUR_WICK_CONFIG.timeframeSeconds) {
+      THREE_HOUR_WICK_CONFIG.unifiedMaxAgeCandles * THREE_HOUR_WICK_CONFIG.timeframeSeconds) {
     return { status: 'STALE_H4_CANDLE' };
   }
   const stats = bands(closed.slice(0, -1).concat(candle));
@@ -77,6 +84,13 @@ export function evaluateThreeHourWick(
   if (buy === sell) return { status: 'NO_REJECTION' };
   const direction: WickDirection = buy ? 'BUY' : 'SELL';
 
+  if (!confirmation || confirmation.symbol !== symbol) return { status: 'AWAITING_UNIFIED_CONFIRMATION' };
+  if (confirmation.direction !== direction) return { status: 'CONFIRMATION_MISMATCH' };
+  if (confirmation.signalEpoch > nowEpoch ||
+      nowEpoch - confirmation.signalEpoch > THREE_HOUR_WICK_CONFIG.unifiedMaxAgeCandles * THREE_HOUR_WICK_CONFIG.timeframeSeconds) {
+    return { status: 'STALE_CONFIRMATION' };
+  }
+
   const entry = candle.close;
   const buffer = stats.deviation * THREE_HOUR_WICK_CONFIG.stopBufferDeviationFraction;
   const initialStopLoss = direction === 'BUY' ? stats.lower - buffer : stats.upper + buffer;
@@ -92,6 +106,7 @@ export function evaluateThreeHourWick(
       middleBand: stats.mean, upperBand: stats.upper, lowerBand: stats.lower,
       body, rejectionWick: buy ? lowerWick : upperWick,
       wickToBodyRatio: (buy ? lowerWick : upperWick) / safeBody,
+      confirmationEpoch: confirmation.signalEpoch,
       idempotencyKey: `${symbol}|H4|${candle.epoch}|${direction}|3H_WICK_V1`,
     },
   };

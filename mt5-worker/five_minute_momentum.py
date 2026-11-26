@@ -1,8 +1,8 @@
-"""Pure rules for the raw five-minute Higher High / Lower Low strategy."""
+"""Pure rules for the raw 30-minute Higher High / Lower Low strategy."""
 from decimal import Decimal, ROUND_FLOOR
 from typing import Any
 
-BAR_SECONDS = 300
+BAR_SECONDS = 1800
 MOMENTUM_MAGIC = 601026
 MOMENTUM_COMMENT_PREFIX = "STAI5M:"
 
@@ -30,6 +30,6 @@ def normalize_volume(requested: float, minimum: float, maximum: float, step: flo
 
 
 def position_is_due_to_close(position_open_epoch: int, now_epoch: int) -> bool:
-    """Close at the end of the M5 candle in which the position was opened."""
+    """Close at the end of the M30 candle in which the position was opened."""
     candle_open = (int(position_open_epoch) // BAR_SECONDS) * BAR_SECONDS
     return int(now_epoch) >= candle_open + BAR_SECONDS

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { playAlertTone, type AlertTone } from '@/lib/alertSound';
 import { showSignalNotification } from '@/lib/deviceNotify';
 import { formatPrice } from '@/lib/sma';
-import type { M15StopIdea } from '@/lib/stopOrders';
+import type { StopOrderIdea } from '@/lib/stopOrders';
 import type { Toast } from './useSignalAlerts';
 import { saveBubble } from '@/lib/bubbleHistory';
 import { getAlertMode } from '@/lib/alertPreferences';
@@ -21,7 +21,7 @@ function loadSeen(): SeenEvents {
 }
 
 /** Member preferences affect delivery only; setup calculation and order tracking continue unchanged. */
-export function usePendingOrderAlerts(ideas: M15StopIdea[], loaded: boolean, soundsEnabled: boolean) {
+export function usePendingOrderAlerts(ideas: StopOrderIdea[], loaded: boolean, soundsEnabled: boolean) {
   const { session } = useSession();
   const userId = session.user.id;
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -37,7 +37,7 @@ export function usePendingOrderAlerts(ideas: M15StopIdea[], loaded: boolean, sou
 
     const notify = (
       key: string, epoch: number, tone: AlertTone, category: 'pendingOrders' | 'targets' | 'stops',
-      title: string, body: string, idea: M15StopIdea, price: number, message: string,
+      title: string, body: string, idea: StopOrderIdea, price: number, message: string,
     ) => {
       if (now - epoch > FRESH_SECONDS || epoch > now + 60 || seen[key]) return;
       seen[key] = now;

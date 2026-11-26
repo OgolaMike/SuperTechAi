@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { useCallback, useEffect, useState } from 'react';
+import { appwriteAccount, type AppwriteUser } from '@/lib/appwrite';
+
+type AppwriteIdentity = {
+  user: {
+    id: string;
+    email: string;
+    emailConfirmed: boolean;
+  };
+};
 
 type AuthState = {
   ready: boolean;
-  session: Session | null;
+  session: AppwriteIdentity | null;
   isAdmin: boolean;
   isApproved: boolean;
   accessError: boolean;
@@ -12,129 +19,95 @@ type AuthState = {
   isEmailConfirmed: boolean;
 };
 
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: number | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timer = window.setTimeout(() => reject(new Error('Authentication request timed out')), ms);
-      }),
-    ]);
-  } finally {
-    if (timer !== undefined) window.clearTimeout(timer);
-  }
+const emptyState: AuthState = {
+  ready: false,
+  session: null,
+  isAdmin: false,
+  isApproved: false,
+  accessError: false,
+  isPasswordRecovery: false,
+  isEmailConfirmed: false,
+};
+
+function isUnauthenticated(error: unknown): boolean {
+  const candidate = error as { code?: number | string; message?: string };
+  return candidate?.code === 401 || candidate?.code === '401'
+    || /unauthorized|missing.*session|not authenticated/i.test(candidate?.message ?? '');
 }
 
-async function checkAccess(userId: string): Promise<{ isAdmin: boolean; isApproved: boolean }> {
-  const admin = await supabase.from('admin_users').select('user_id').eq('user_id', userId).maybeSingle();
-  if (admin.error) throw admin.error;
-  if (admin.data) return { isAdmin: true, isApproved: true };
-  const member = await supabase.from('member_access').select('user_id').eq('user_id', userId).maybeSingle();
-  if (member.error) throw member.error;
-  return { isAdmin: false, isApproved: member.data !== null };
+function identity(user: AppwriteUser): AppwriteIdentity {
+  return {
+    user: {
+      id: user.$id,
+      email: user.email,
+      emailConfirmed: user.emailVerification,
+    },
+  };
 }
 
 export function useAuthSession(): AuthState {
-  const [state, setState] = useState<AuthState>({
-    ready: false,
-    session: null,
-    isAdmin: false,
-    isApproved: false,
-    accessError: false,
-    isPasswordRecovery: false,
-    isEmailConfirmed: false,
-  });
+  const [state, setState] = useState<AuthState>(emptyState);
 
-  useEffect(() => {
-    let active = true;
+  const refresh = useCallback(async () => {
     const params = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    let recovery = params.get('auth') === 'recovery' || hashParams.get('type') === 'recovery';
-    const confirmationRequested = params.get('auth') === 'confirmed';
+    const flow = params.get('auth');
 
-    const apply = async (session: Session | null, isRecovery = recovery) => {
-      recovery = isRecovery;
-      if (!session) {
-        if (active) setState({
-          ready: true,
-          session: null,
-          isAdmin: false,
-          isApproved: false,
-          accessError: false,
-          isPasswordRecovery: isRecovery,
-          isEmailConfirmed: false,
-        });
+    if (flow === 'recovery' && params.get('userId') && params.get('secret')) {
+      setState({
+        ...emptyState,
+        ready: true,
+        isPasswordRecovery: true,
+      });
+      return;
+    }
+
+    if (flow === 'verify') {
+      const userId = params.get('userId');
+      const secret = params.get('secret');
+      if (!userId || !secret) {
+        setState({ ...emptyState, ready: true, accessError: true });
         return;
       }
       try {
-        const access = await withTimeout(checkAccess(session.user.id), 12000);
-        if (active) setState({
-          ready: true,
-          session,
-          ...access,
-          accessError: false,
-          isPasswordRecovery: isRecovery,
-          isEmailConfirmed: confirmationRequested && Boolean(session.user.email_confirmed_at),
-        });
+        await appwriteAccount.completeEmailVerification(userId, secret);
+        setState({ ...emptyState, ready: true, isEmailConfirmed: true });
       } catch {
-        if (active) setState(s => ({
-          ...s,
-          ready: true,
-          session,
-          accessError: true,
-          isPasswordRecovery: isRecovery,
-          isEmailConfirmed: confirmationRequested && Boolean(session.user.email_confirmed_at),
-        }));
+        setState({ ...emptyState, ready: true, accessError: true });
       }
-    };
+      return;
+    }
 
-    void withTimeout(supabase.auth.getSession(), 10000).then(({ data, error }) => {
-      if (error) {
-        if (active) setState(s => ({ ...s, ready: true, accessError: true }));
+    try {
+      const user = await appwriteAccount.get();
+      if (!user.emailVerification) {
+        await appwriteAccount.signOut().catch(() => undefined);
+        setState({ ...emptyState, ready: true });
         return;
       }
-      void apply(data.session, recovery);
-    }).catch(() => {
-      if (active) setState(s => ({ ...s, ready: true, accessError: true }));
-    });
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') recovery = true;
-      if (event === 'SIGNED_OUT') recovery = false;
-      window.setTimeout(() => {
-        if (active) void apply(session, recovery);
-      }, 0);
-    });
-
-    const retry = () => {
-      if (navigator.onLine) {
-        void withTimeout(supabase.auth.getSession(), 10000).then(({ data }) => apply(data.session, recovery)).catch(() => {
-          if (active) setState(s => ({ ...s, ready: true, accessError: true }));
-        });
-      }
-    };
-    window.addEventListener('online', retry);
-    return () => {
-      active = false;
-      window.removeEventListener('online', retry);
-      subscription.subscription.unsubscribe();
-    };
+      setState({
+        ...emptyState,
+        ready: true,
+        session: identity(user),
+      });
+    } catch (error) {
+      setState({
+        ...emptyState,
+        ready: true,
+        accessError: !isUnauthenticated(error),
+      });
+    }
   }, []);
 
   useEffect(() => {
-    const userId = state.session?.user.id;
-    if (!userId || state.isApproved || state.accessError || state.isPasswordRecovery || state.isEmailConfirmed) return;
-    let active = true;
-    const timer = window.setInterval(() => {
-      withTimeout(checkAccess(userId), 12000).then(access => {
-        if (active) setState(s => s.session?.user.id === userId ? { ...s, ...access, accessError: false } : s);
-      }).catch(() => {
-        if (active) setState(s => s.session?.user.id === userId ? { ...s, accessError: true } : s);
-      });
-    }, 10000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, [state.session?.user.id, state.isApproved, state.accessError, state.isPasswordRecovery, state.isEmailConfirmed]);
+    void refresh();
+    const retry = () => { if (navigator.onLine) void refresh(); };
+    window.addEventListener('appwrite-auth-changed', retry);
+    window.addEventListener('online', retry);
+    return () => {
+      window.removeEventListener('appwrite-auth-changed', retry);
+      window.removeEventListener('online', retry);
+    };
+  }, [refresh]);
 
   return state;
 }

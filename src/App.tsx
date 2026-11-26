@@ -46,12 +46,8 @@ import { playAlertTone } from '@/lib/alertSound';
 import { ensureNotificationPermission } from '@/lib/deviceNotify';
 import { trainSignalLearningModel, type SignalLearningModel } from '@/lib/aiLearning';
 import { buildSuperSignals } from '@/lib/intelligence';
-import { buildBreakRetestSetups } from '@/lib/breakRetest';
-import { evaluateThreeHourWick } from '@/lib/threeHourWick';
-import { evaluateStrategyConfluence, type StrategyAssessment } from '@/lib/strategyConfluence';
-import { StrategyConfluencePanel } from '@/components/StrategyConfluencePanel';
 import { fetchSignalRecords } from '@/lib/signalRecords';
-import { buildM15StopOrderIdeas } from '@/lib/stopOrders';
+import { buildStopOrderIdeas } from '@/lib/stopOrders';
 import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET } from '@/lib/sma';
@@ -87,7 +83,7 @@ function App() {
   const { theme, toggle: toggleTheme } = useTheme();
   const { assets, states, status, lastTick, prices, loaded } = useDerivSignals(selectedSymbols);
   const pendingOrderIdeas = useMemo(
-    () => buildM15StopOrderIdeas(assets, states, prices, aiModel, now),
+    () => buildStopOrderIdeas(assets, states, prices, aiModel, now),
     [assets, states, prices, aiModel, now],
   );
   const { toasts: pendingToasts, dismiss: dismissPendingToast } = usePendingOrderAlerts(pendingOrderIdeas, loaded && alertPreferencesReady, soundsEnabled);
@@ -103,34 +99,6 @@ function App() {
   const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.symbol, asset])), [assets]);
   const views = useMemo(() => flattenSignals(assets, states), [assets, states]);
   const superSignals = useMemo(() => buildSuperSignals(assets, states, now), [assets, states, now]);
-  // Independent strategy engines publish their own assessments. Confluence only
-  // compares them; it never changes or suppresses an engine's original decision.
-  const confluenceResults = useMemo(() => {
-    const assessments: StrategyAssessment[] = [];
-    const superBySymbol = new Map(superSignals.map((signal) => [signal.symbol, signal]));
-    const breakRetestBySymbol = new Map<string, ReturnType<typeof buildBreakRetestSetups>[number]>();
-    for (const setup of buildBreakRetestSetups(assets, states)) {
-      const current = breakRetestBySymbol.get(setup.symbol);
-      if (!current || setup.confirmationEpoch > current.confirmationEpoch) breakRetestBySymbol.set(setup.symbol, setup);
-    }
-    for (const asset of assets) {
-      const tenFrame = superBySymbol.get(asset.symbol);
-      assessments.push({ strategyId: 'ten-timeframe', strategyName: 'Ten-Timeframe Intelligence', symbol: asset.symbol, direction: tenFrame?.direction ?? null, status: tenFrame ? 'SIGNAL' : 'WAIT', signalEpoch: tenFrame?.signalEpoch ?? now, strength: tenFrame?.gradePercent ?? 0, reason: tenFrame?.explanation ?? 'No qualified ten-timeframe signal.' });
-      const m5 = [...(states[asset.symbol]?.[300]?.candles ?? [])].sort((a, b) => a.epoch - b.epoch);
-      const previous = m5[m5.length - 2];
-      const latest = m5[m5.length - 1];
-      const m5Fresh = Boolean(latest && previous && latest.epoch + 300 <= now && now - (latest.epoch + 300) <= 600);
-      const m5Direction = m5Fresh && latest && previous ? latest.high > previous.high ? 'BUY' : latest.low < previous.low ? 'SELL' : null : null;
-      assessments.push({ strategyId: 'm5-hh-ll', strategyName: 'M5 HH/LL Momentum', symbol: asset.symbol, direction: m5Direction, status: m5Direction ? 'SIGNAL' : 'WAIT', signalEpoch: latest?.epoch ?? now, strength: m5Direction ? 70 : 0, reason: m5Direction ? 'Completed M5 candle made a higher high or lower low.' : 'No fresh completed M5 trigger.' });
-      const setup = breakRetestBySymbol.get(asset.symbol);
-      const setupFresh = Boolean(setup && setup.confirmationEpoch <= now && now - setup.confirmationEpoch <= Math.max(1800, setup.granularity * 2));
-      assessments.push({ strategyId: 'break-retest', strategyName: 'Break & Retest', symbol: asset.symbol, direction: setupFresh ? setup?.direction ?? null : null, status: setupFresh ? 'SIGNAL' : 'WAIT', signalEpoch: setup?.confirmationEpoch ?? now, strength: setupFresh ? 85 : 0, reason: setupFresh ? 'Closed-candle breakout, retest and confirmation.' : 'No fresh confirmed break-and-retest setup.' });
-      const wick = evaluateThreeHourWick(asset.symbol, states[asset.symbol]?.[14400]?.candles ?? [], now);
-      const candidate = wick.status === 'CONFIRMED' ? wick.candidate : null;
-      assessments.push({ strategyId: '3h-wick', strategyName: '3H Wick Intelligence', symbol: asset.symbol, direction: candidate?.direction ?? null, status: candidate ? 'SIGNAL' : 'WAIT', signalEpoch: candidate?.signalEpoch ?? now, strength: candidate ? Math.min(100, Math.round(candidate.wickToBodyRatio / 4 * 100)) : 0, reason: candidate ? 'Independent completed H4 wick rejection.' : 'No fresh qualifying wick rejection.' });
-    }
-    return evaluateStrategyConfluence(assessments, now);
-  }, [assets, states, superSignals, now]);
   // H4 is the single primary trigger. It is allowed to alert only after the
   // complete ten-timeframe confluence engine confirms the same direction.
   const unifiedViews = useMemo(() => views.filter((item) => item.granularity === 14400 && superSignals.some((signal) =>
@@ -250,7 +218,6 @@ function App() {
 
         {view === 'strategies' && (
           <section className="mt-8 space-y-7">
-            <StrategyConfluencePanel results={confluenceResults} assets={assets} />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Learn the setup · follow the live scan</p>
               <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Trading Strategies</h2>
@@ -272,7 +239,7 @@ function App() {
               <article className="rounded-2xl border border-accent/30 bg-accent/[0.045] p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-bold uppercase tracking-wider text-accent">04 · Market Structure SAR</p>
-                  <span className="rounded-full border border-accent/25 px-2.5 py-1 text-[10px] font-semibold text-accent">M15 strategy</span>
+                  <span className="rounded-full border border-accent/25 px-2.5 py-1 text-[10px] font-semibold text-accent">M30 strategy</span>
                 </div>
                 <h3 className="mt-2 text-lg font-semibold text-ink">Follow confirmed swings with Parabolic SAR</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">This setup looks for two confirmed rising swing highs and two rising swing lows before considering a BUY. For a SELL, it looks for falling swing lows and falling swing highs. Parabolic SAR must also switch sides on a completed candle before an alert is created.</p>
@@ -286,7 +253,7 @@ function App() {
                 <p className="text-xs font-bold uppercase tracking-wider text-accent">05 · 3H Wick Intelligence</p>
                 <h3 className="mt-2 text-lg font-semibold text-ink">Trade confirmed H4 wick rejection</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">A bullish lower-wick rejection can qualify a BUY; a bearish upper-wick rejection can qualify a SELL. The same asset's fresh Unified Signal must confirm the same direction before the setup is authorised.</p>
-                <p className="mt-3 text-xs leading-relaxed text-ink-3">Initial protection uses H4 Bollinger Bands (20, 2.0). The strategy's planned trailing activates at +0.7%, advances in +0.5% steps and has a three-hour maximum holding time from actual execution. Manual trades remain separate.</p>
+                <p className="mt-3 text-xs leading-relaxed text-ink-3">Initial protection uses H4 Bollinger Bands (20, 2.5). The strategy's planned trailing activates at +0.7%, advances in +0.5% steps and has a three-hour maximum holding time from actual execution. Manual trades remain separate.</p>
               </article>
               <article className="rounded-2xl border border-line/20 bg-surface/[0.035] p-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-down">03 · Triple Top</p>
@@ -297,18 +264,17 @@ function App() {
             </div>
             <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink-2">These are pattern scans and tracked trade ideas. “Entry reached” is not proof of a broker fill. Check the live chart, market conditions and risk before placing any trade.</div>
             <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />
-            <ThreeHourWickStrategy assets={assets} states={states} nowEpoch={now} selectedSymbol={selectedSymbols[0]} />
+            <ThreeHourWickStrategy assets={assets} states={states} unifiedSignals={superSignals} nowEpoch={now} selectedSymbol={selectedSymbols[0]} />
             <div className="border-t border-line/15 pt-6">
               <PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} onOpenDashboard={openSignalChart} />
             </div>
           </section>
         )}
         {view === 'break-retest' && <BreakRetestPanel assets={assets} states={states} prices={prices} onOpenDashboard={openSignalChart} />}
-        {view === 'five-minute' && <FiveMinuteMomentum asset={assetMap.get(selectedSymbols[0])} state={states[selectedSymbols[0]]?.[300]} currentPrice={prices[selectedSymbols[0]] ?? null} nowEpoch={now} loaded={loaded} />}
+        {view === 'five-minute' && <FiveMinuteMomentum asset={assetMap.get(selectedSymbols[0])} state={states[selectedSymbols[0]]?.[1800]} currentPrice={prices[selectedSymbols[0]] ?? null} nowEpoch={now} loaded={loaded} />}
 
         {view === 'super' && (
           <section className="mt-8">
-            <StrategyConfluencePanel results={confluenceResults} assets={assets} />
             <div className="mb-5 flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Super Signal</p>
               <h2 className="text-xl font-semibold tracking-tight text-ink">One clear signal from ten timeframes</h2>
