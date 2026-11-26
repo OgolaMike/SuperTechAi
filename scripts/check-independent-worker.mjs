@@ -26,7 +26,7 @@ for (const [label, condition] of [
   ['encrypted cTrader grants are Worker-only', !worker.slice(worker.indexOf('async function handleCTraderCallback'), worker.indexOf('export default')).includes('grantPermissions') && !worker.slice(worker.indexOf('async function handleCTraderCallback'), worker.indexOf('export default')).includes('read(\"user:') && !worker.slice(worker.indexOf('async function handleCTraderCallback'), worker.indexOf('export default')).includes('update(\"user:')],
   ['cTrader tokens are AES-GCM encrypted before storage', worker.includes('AES-GCM') && worker.includes('encrypted_access_token: access')],
   ['cTrader callback returns members to the app without exposing tokens', worker.includes('destination.searchParams.set("ctrader", "connected")') && worker.includes('Response.redirect(destination.toString(), 302)')],
-  ['cTrader OAuth callback consumes state before token exchange', worker.indexOf('appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID') < worker.indexOf('https://openapi.ctrader.com/apps/token')],
+  ['cTrader OAuth state is atomically deleted before token exchange', worker.includes('appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID, row.$id, \"DELETE\")') && worker.indexOf('appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID, row.$id, \"DELETE\")') < worker.indexOf('https://openapi.ctrader.com/apps/token')],
   ['broker execution remains disabled by capability response', worker.includes('executionEnabled: false')],
   ['broker POST routes are allowed by CORS', worker.includes('GET, POST, PATCH, OPTIONS')],
   ['cTrader status endpoint returns no token material', worker.includes('/api/brokers/ctrader/status') && worker.includes('tokenExpiresAt: grant.token_expires_at')],
