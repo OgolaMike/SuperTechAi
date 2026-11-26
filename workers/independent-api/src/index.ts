@@ -327,10 +327,14 @@ export default {
           if (!response.ok) return json({ error: "alert_preferences_read_failed" }, 503, cors);
           const row = await response.json() as { user_id?: string; categories_json?: string; assets_json?: string; default_asset_mode?: string };
           if (row.user_id !== account.$id) return json({ error: "alert_preferences_ownership_mismatch" }, 403, cors);
-          let categories: Record<string, string> = defaults;
-          let assets: Record<string, string> = {};
-          try { categories = JSON.parse(row.categories_json || "{}") as Record<string, string>; } catch { categories = defaults; }
-          try { assets = JSON.parse(row.assets_json || "{}") as Record<string, string>; } catch { assets = {}; }
+          let categoriesValue: unknown = defaults;
+          let assetsValue: unknown = {};
+          try { categoriesValue = JSON.parse(row.categories_json || "{}"); } catch { categoriesValue = defaults; }
+          try { assetsValue = JSON.parse(row.assets_json || "{}"); } catch { assetsValue = {}; }
+          const categories = categoriesValue && typeof categoriesValue === "object" && !Array.isArray(categoriesValue)
+            ? categoriesValue as Record<string, string> : defaults;
+          const assets = assetsValue && typeof assetsValue === "object" && !Array.isArray(assetsValue)
+            ? assetsValue as Record<string, string> : {};
           const safeCategories = Object.fromEntries(categoryKeys.map(key => [key, modes.includes(categories[key]) ? categories[key] : defaults[key]]));
           const safeAssets = Object.fromEntries(Object.entries(assets).filter(([symbol, mode]) => /^[A-Za-z0-9._:-]{1,64}$/.test(symbol) && modes.includes(mode)).slice(0, 100));
           return json({ settings: { categories: safeCategories, assets: safeAssets, defaultAssetMode: modes.includes(row.default_asset_mode || "") ? row.default_asset_mode : "bubble" } }, 200, cors);
@@ -340,7 +344,7 @@ export default {
         const body = await request.json().catch(() => null) as { settings?: { categories?: Record<string, unknown>; assets?: Record<string, unknown>; defaultAssetMode?: unknown } } | null;
         const settings = body?.settings;
         if (!settings || !settings.categories || typeof settings.categories !== "object" ||
-            !settings.assets || typeof settings.assets !== "object" || !modes.includes(String(settings.defaultAssetMode))) {
+            !settings.assets || typeof settings.assets !== "object" || Array.isArray(settings.assets) || Array.isArray(settings.categories) || !modes.includes(String(settings.defaultAssetMode))) {
           return json({ error: "invalid_alert_preferences" }, 400, cors);
         }
         const categories: Record<string, string> = {};
