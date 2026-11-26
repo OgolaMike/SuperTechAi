@@ -37,6 +37,13 @@ function isSignalRecordRow(value: unknown): value is SignalRecordRow {
     typeof row.closed === 'boolean';
 }
 
+async function syncRowsInBatches(rows: SignalRecordRow[]): Promise<void> {
+  for (let index = 0; index < rows.length; index += 50) {
+    const batch = rows.slice(index, index + 50);
+    await upsertIndependentSignalRecords(batch as unknown as Array<Record<string, unknown>>);
+  }
+}
+
 function cacheRows(rows: SignalRecordRow[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(
     [...new Map(rows.map(row => [row.signal_key, row])).values()]
@@ -51,7 +58,7 @@ export async function upsertSignalRecords(rows: SignalRecordRow[]): Promise<void
   const merged = [...byKey.values()].sort((a, b) => b.signal_epoch - a.signal_epoch).slice(0, RECORD_LIMIT);
   cacheRows(merged);
   try {
-    if (rows.length) await upsertIndependentSignalRecords(rows as unknown as Array<Record<string, unknown>>);
+    if (rows.length) await syncRowsInBatches(rows);
   } catch {
     // Keep device-local history working while the independent API or Appwrite table is unavailable.
   }
@@ -65,7 +72,7 @@ export async function fetchSignalRecords(): Promise<SignalRecordRow[]> {
     const byKey = new Map(remote.map(row => [row.signal_key, row]));
     local.forEach(row => byKey.set(row.signal_key, row));
     const merged = [...byKey.values()].sort((a, b) => b.signal_epoch - a.signal_epoch).slice(0, RECORD_LIMIT);
-    if (local.length) await upsertIndependentSignalRecords(local as unknown as Array<Record<string, unknown>>);
+    if (local.length) await syncRowsInBatches(local);
     cacheRows(merged);
     return merged;
   } catch {
