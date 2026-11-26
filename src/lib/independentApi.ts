@@ -175,3 +175,13 @@ export function selectDerivAccount(accountId: string): Promise<{ selectedAccount
 export function disconnectDerivConnection(): Promise<{ disconnected: boolean; providerTokenRevoked: false; tradingEnabled: false; note: string }> {
   return authenticatedRequest('/api/brokers/deriv/disconnect', { method: 'POST', body: JSON.stringify({}) });
 }
+
+export function getBinanceFuturesConnectionStatus(): Promise<BinanceSpotConnectionStatus> {
+  return authenticatedRequest<BinanceSpotConnectionStatus>('/api/brokers/binance-futures/status');
+}
+export function connectBinanceFutures(apiKey: string, apiSecret: string): Promise<{ connected: boolean; apiKeyLast4: string; tradingEnabled: false }> {
+  return authenticatedRequest('/api/brokers/binance-futures/connect', { method: 'POST', body: JSON.stringify({ apiKey, apiSecret }) });
+}
+export function disconnectBinanceFutures(): Promise<{ disconnected: boolean; providerKeyRevoked: false; note: string }> {
+  return authenticatedRequest('/api/brokers/binance-futures/disconnect', { method: 'POST', body: JSON.stringify({}) });
+}
