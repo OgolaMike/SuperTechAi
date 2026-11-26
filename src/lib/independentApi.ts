@@ -157,3 +157,21 @@ export function connectBinanceSpot(apiKey: string, apiSecret: string): Promise<{
 export function disconnectBinanceSpot(): Promise<{ disconnected: boolean; providerKeyRevoked: false; note: string }> {
   return authenticatedRequest('/api/brokers/binance-spot/disconnect', { method: 'POST', body: JSON.stringify({}) });
 }
+
+export type DerivAccount = { accountId: string; accountType: string; currency: string; isDemo: boolean };
+export type DerivConnectionStatus = {
+  connected: boolean; status: string; expiresAt?: string | null;
+  accounts: DerivAccount[]; selectedAccountId: string; tradingEnabled: false;
+};
+export function getDerivConnectionStatus(): Promise<DerivConnectionStatus> {
+  return authenticatedRequest<DerivConnectionStatus>('/api/brokers/deriv/status');
+}
+export function startDerivConnection(redirectPath = '/'): Promise<{ authorizationUrl: string; expiresAt: string }> {
+  return authenticatedRequest('/api/brokers/deriv/connect', { method: 'POST', body: JSON.stringify({ redirectPath }) });
+}
+export function selectDerivAccount(accountId: string): Promise<{ selectedAccountId: string; tradingEnabled: false }> {
+  return authenticatedRequest('/api/brokers/deriv/select-account', { method: 'POST', body: JSON.stringify({ accountId }) });
+}
+export function disconnectDerivConnection(): Promise<{ disconnected: boolean; providerTokenRevoked: false; tradingEnabled: false; note: string }> {
+  return authenticatedRequest('/api/brokers/deriv/disconnect', { method: 'POST', body: JSON.stringify({}) });
+}
