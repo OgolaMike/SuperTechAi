@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { exchangeGatewayFetch } from "../_shared/exchange-gateway.ts";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const enc = new TextEncoder();
@@ -35,7 +36,7 @@ async function sign(secret: string, query: string) {
 async function binanceAccount(apiKey: string, apiSecret: string) {
   const params = new URLSearchParams({ timestamp: String(Date.now()), recvWindow: "5000" });
   const signature = await sign(apiSecret, params.toString());
-  const response = await fetch("https://api.binance.com/api/v3/account?" + params.toString() + "&signature=" + encodeURIComponent(signature), { headers: { "X-MBX-APIKEY": apiKey } });
+  const response = await exchangeGatewayFetch("binance_spot", "https://api.binance.com/api/v3/account?" + params.toString() + "&signature=" + encodeURIComponent(signature), { headers: { "X-MBX-APIKEY": apiKey } });
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data?.msg === "string" ? data.msg : "binance_account_check_failed");
   if (data?.canTrade !== true) throw new Error("binance_spot_trading_permission_not_enabled");
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : "binance_spot_error";
     const rejected = /invalid api-key, ip, or permissions/i.test(message);
     const userMessage = rejected
-      ? "Binance rejected this API key. Verify the API key and secret, enable Spot trading permission, and check API Management IP restrictions. Recent SuperTech server logs show outbound IPs 35.180.109.45 and 15.237.127.167; confirm the active egress IP before allowlisting. Keep withdrawals disabled."
+      ? "Binance rejected this API key. Verify the API key and secret, enable Spot trading permission, and allowlist the static SuperTech execution-gateway IP supplied by the administrator. Do not allowlist changing cloud egress IPs. Keep withdrawals disabled."
       : message.slice(0, 180);
     return json({ code: rejected ? "binance_api_key_ip_or_permission_rejected" : "binance_spot_error", error: userMessage, message: userMessage }, 400);
   }
