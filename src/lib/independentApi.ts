@@ -66,21 +66,21 @@ export function getCTraderConnectionStatus(): Promise<CTraderConnectionStatus> {
 }
 
 export function startCTraderConnection(redirectPath = '/'): Promise<{ authorizationUrl: string; expiresAt: string }> {
-  return authenticatedRequest('/api/brokers/ctrader/connect', {
+  return authenticatedRequest<{ authorizationUrl: string; expiresAt: string }>('/api/brokers/ctrader/connect', {
     method: 'POST',
     body: JSON.stringify({ redirectPath }),
   });
 }
 
 export function refreshCTraderConnection(): Promise<{ connected: boolean; refreshed: boolean; tokenExpiresAt?: string; status?: string }> {
-  return authenticatedRequest('/api/brokers/ctrader/refresh', {
+  return authenticatedRequest<{ connected: boolean; refreshed: boolean; tokenExpiresAt?: string; status?: string }>('/api/brokers/ctrader/refresh', {
     method: 'POST',
     body: JSON.stringify({}),
   });
 }
 
 export function disconnectCTraderConnection(): Promise<{ disconnected: boolean; providerTokenRevoked: false; note: string }> {
-  return authenticatedRequest('/api/brokers/ctrader/disconnect', {
+  return authenticatedRequest<{ disconnected: boolean; providerTokenRevoked: false; note: string }>('/api/brokers/ctrader/disconnect', {
     method: 'POST',
     body: JSON.stringify({}),
   });
