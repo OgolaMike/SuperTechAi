@@ -232,8 +232,14 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
   const payload = await lookup.json() as { rows?: Array<{ $id: string; user_id: string; redirect_path?: string; expires_at: string; consumed_at?: string }> };
   const row = payload.rows?.[0];
   if (!row || row.consumed_at || Date.parse(row.expires_at) <= Date.now()) return json({ error: "oauth_state_expired_or_used" }, 400);
-  const consumed = await appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID, row.$id, "PATCH", { consumed_at: new Date().toISOString() });
-  if (!consumed) return json({ error: "oauth_state_consume_failed" }, 503);
+  // Delete the state row before exchanging the code. A single successful DELETE
+  // consumes the state atomically; concurrent callbacks cannot both proceed.
+  const consumeUrl = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${CTRADER_OAUTH_STATES_TABLE_ID}/rows/${encodeURIComponent(row.$id)}`;
+  const consume = await fetch(consumeUrl, {
+    method: "DELETE",
+    headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY! },
+  });
+  if (!consume.ok) return json({ error: "oauth_state_expired_or_used" }, 400);
   const tokenUrl = new URL("https://openapi.ctrader.com/apps/token");
   tokenUrl.search = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: CTRADER_REDIRECT_URI, client_id: CTRADER_CLIENT_ID, client_secret: CTRADER_CLIENT_SECRET }).toString();
   const tokenResponse = await fetch(tokenUrl, { headers: { Accept: "application/json" } });
