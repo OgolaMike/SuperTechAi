@@ -314,9 +314,9 @@ export default {
         const base = `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.SIGNAL_RECORDS_TABLE_ID}/rows`;
         const query = JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] });
         const target = new URL(base);
-        target.searchParams.set("queries[]", query);
+        target.searchParams.append("queries[]", query);
+        target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", attribute: "signal_epoch" }));
         target.searchParams.set("limit", "500");
-        target.searchParams.set("orderDesc", "signal_epoch");
         const response = await fetch(target, {
           headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY },
         });
