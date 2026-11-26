@@ -490,7 +490,7 @@
         {
           "key": "assets_json",
           "type": "varchar",
-          "size": 8000,
+          "size": 12000,
           "required": true
         },
         {
