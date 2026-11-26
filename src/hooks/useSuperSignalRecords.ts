@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SuperSignal } from '@/lib/intelligence';
+import { fetchIndependentSuperSignalRecords, upsertIndependentSuperSignalRecords } from '@/lib/independentApi';
 
 export type SuperSignalRecord = {
   signal_key:string; symbol:string; asset_name:string; digits:number; direction:'BUY'|'SELL';
@@ -30,13 +31,13 @@ export function useSuperSignalRecords(signals:SuperSignal[],loaded:boolean){
  const [refreshKey,setRefreshKey]=useState(0);
  const refresh=useCallback(()=>setRefreshKey(v=>v+1),[]);
  useEffect(()=>{const timer=window.setInterval(refresh,10000);return()=>window.clearInterval(timer)},[refresh]);
- useEffect(()=>{setRecords(readRows());setLoading(false);setError(null)},[refreshKey]);
+ useEffect(()=>{let active=true;setRecords(readRows());fetchIndependentSuperSignalRecords().then(({records:remote})=>{if(!active)return;const valid=remote.filter((row):row is SuperSignalRecord=>Boolean(row&&typeof row.signal_key==='string'&&typeof row.signal_epoch==='number'));const merged=[...new Map([...valid,...readRows()].map(row=>[row.signal_key,row])).values()].sort((a,b)=>b.signal_epoch-a.signal_epoch).slice(0,300);localStorage.setItem(KEY,JSON.stringify(merged));setRecords(merged);setError(null)}).catch(()=>{if(active)setError('History is saved on this device; cross-device sync is not configured yet')}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[refreshKey]);
  useEffect(()=>{
   if(!loaded||!signals.length)return;
   const byKey=new Map(readRows().map(row=>[row.signal_key,row]));
   for(const signal of signals){const row=toRow(signal);if(!seen.current.has(row.signal_key)){seen.current.add(row.signal_key);if(!byKey.has(row.signal_key))byKey.set(row.signal_key,row)}}
   const next=[...byKey.values()].sort((a,b)=>b.signal_epoch-a.signal_epoch).slice(0,300);
-  try{localStorage.setItem(KEY,JSON.stringify(next));setRecords(next);setError(null)}catch{setError('This device could not save signal history')}
+  try{localStorage.setItem(KEY,JSON.stringify(next));setRecords(next);setError(null);void (async()=>{for(let i=0;i<next.length;i+=50)await upsertIndependentSuperSignalRecords(next.slice(i,i+50) as unknown as Array<Record<string,unknown>>);})().catch(()=>setError('History is saved on this device; cross-device sync is not configured yet'))}catch{setError('This device could not save signal history')}
  },[signals,loaded]);
  return {records,loading,error,refresh};
 }
