@@ -1,0 +1,373 @@
+{
+  "version": 1,
+  "edition": "appwrite",
+  "purpose": "Options Trader durable ledger. Provision only in the independent Appwrite project.",
+  "defaults": {
+    "rowSecurity": true,
+    "clientPermissions": []
+  },
+  "tables": [
+    {
+      "name": "options_trader_settings",
+      "id": null,
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "account_id",
+          "type": "varchar",
+          "size": 32,
+          "required": true
+        },
+        {
+          "key": "account_mode",
+          "type": "varchar",
+          "size": 8,
+          "required": true
+        },
+        {
+          "key": "contract_kind",
+          "type": "varchar",
+          "size": 8,
+          "required": true
+        },
+        {
+          "key": "stake",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "automation_enabled",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "key": "real_trading_consent_at",
+          "type": "varchar",
+          "size": 40,
+          "required": false
+        },
+        {
+          "key": "updated_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "options_settings_user_unique",
+          "type": "unique",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "options_proposal_snapshots",
+      "id": null,
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "account_id",
+          "type": "varchar",
+          "size": 32,
+          "required": true
+        },
+        {
+          "key": "account_mode",
+          "type": "varchar",
+          "size": 8,
+          "required": true
+        },
+        {
+          "key": "proposal_id",
+          "type": "varchar",
+          "size": 128,
+          "required": true
+        },
+        {
+          "key": "symbol",
+          "type": "varchar",
+          "size": 32,
+          "required": true
+        },
+        {
+          "key": "contract_type",
+          "type": "varchar",
+          "size": 8,
+          "required": true
+        },
+        {
+          "key": "currency",
+          "type": "varchar",
+          "size": 12,
+          "required": true
+        },
+        {
+          "key": "stake",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "ask_price",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "payout",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "spot",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "barrier",
+          "type": "varchar",
+          "size": 32,
+          "required": true
+        },
+        {
+          "key": "duration_minutes",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "signal_snapshot_json",
+          "type": "varchar",
+          "size": 12000,
+          "required": true
+        },
+        {
+          "key": "broker_snapshot_json",
+          "type": "varchar",
+          "size": 12000,
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "expires_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "consumed_at",
+          "type": "varchar",
+          "size": 40,
+          "required": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "options_proposal_account_id_unique",
+          "type": "unique",
+          "columns": [
+            "account_id",
+            "proposal_id"
+          ]
+        },
+        {
+          "key": "options_proposal_member_expiry",
+          "type": "key",
+          "columns": [
+            "user_id",
+            "expires_at"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "options_execution_ledger",
+      "id": null,
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "proposal_record_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "idempotency_key",
+          "type": "varchar",
+          "size": 512,
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "varchar",
+          "size": 16,
+          "required": true
+        },
+        {
+          "key": "broker_contract_id",
+          "type": "varchar",
+          "size": 64,
+          "required": false
+        },
+        {
+          "key": "buy_price",
+          "type": "double",
+          "required": false
+        },
+        {
+          "key": "payout",
+          "type": "double",
+          "required": false
+        },
+        {
+          "key": "profit_loss",
+          "type": "double",
+          "required": false
+        },
+        {
+          "key": "broker_status",
+          "type": "varchar",
+          "size": 32,
+          "required": false
+        },
+        {
+          "key": "last_reconciled_at",
+          "type": "varchar",
+          "size": 40,
+          "required": false
+        },
+        {
+          "key": "created_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "updated_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "settled_at",
+          "type": "varchar",
+          "size": 40,
+          "required": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "options_execution_idempotency_unique",
+          "type": "unique",
+          "columns": [
+            "idempotency_key"
+          ]
+        },
+        {
+          "key": "options_execution_proposal_unique",
+          "type": "unique",
+          "columns": [
+            "proposal_record_id"
+          ]
+        },
+        {
+          "key": "options_execution_member_status",
+          "type": "key",
+          "columns": [
+            "user_id",
+            "status"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "options_execution_events",
+      "id": null,
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "execution_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "from_status",
+          "type": "varchar",
+          "size": 16,
+          "required": false
+        },
+        {
+          "key": "to_status",
+          "type": "varchar",
+          "size": 16,
+          "required": true
+        },
+        {
+          "key": "event_type",
+          "type": "varchar",
+          "size": 48,
+          "required": true
+        },
+        {
+          "key": "broker_message_json",
+          "type": "varchar",
+          "size": 12000,
+          "required": false
+        },
+        {
+          "key": "created_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "options_execution_events_execution_time",
+          "type": "key",
+          "columns": [
+            "execution_id",
+            "created_at"
+          ]
+        }
+      ]
+    }
+  ],
+  "security": {
+    "clientPermissions": [],
+    "rule": "Worker/function credentials only. No browser SDK reads or writes. Row security enabled on every table. Persist only server-validated snapshots."
+  },
+  "releaseGates": [
+    "Create tables in the independent Appwrite project only after review.",
+    "Keep automatic purchases disabled until Demo buy, timeout reconciliation, open-contract monitoring and settlement tests pass.",
+    "Never store plaintext Deriv tokens in these tables."
+  ]
+}
