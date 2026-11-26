@@ -579,6 +579,73 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/brokers/ctrader/discover" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.CTRADER_CLIENT_ID || !configured.CTRADER_CLIENT_SECRET || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "ctrader_discovery_not_configured" }, 503, cors);
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string } | null;
+        if (!grant || grant.user_id !== account.$id || !grant.encrypted_access_token) return json({ error: "ctrader_not_connected" }, 404, cors);
+        const accessToken = await decryptBrokerToken(grant.encrypted_access_token, configured.BROKER_TOKEN_ENCRYPTION_KEY);
+        const discovered: Array<{ accountId: string; isLive: boolean; traderLogin: string | null; broker: string; accountType: string | null; permissionScope: string }> = [];
+        let lastError: unknown = null;
+        for (const host of ["live.ctraderapi.com", "demo.ctraderapi.com"]) {
+          let socket: WebSocket | null = null;
+          try {
+            socket = await openCTraderSocket(host);
+            await authenticateCTraderApplication(socket, configured);
+            const response = await sendCTraderJsonMessage(socket, 2149, { accessToken }, 2150);
+            const rows = Array.isArray(response.ctidTraderAccount) ? response.ctidTraderAccount as Array<Record<string, unknown>> : [];
+            for (const item of rows) {
+              const accountId = String(item.ctidTraderAccountId || "");
+              if (!/^\\d{1,20}$/.test(accountId)) continue;
+              const isLive = item.isLive === true;
+              if ((host.startsWith("live") && !isLive) || (host.startsWith("demo") && isLive)) continue;
+              discovered.push({ accountId, isLive, traderLogin: item.traderLogin == null ? null : String(item.traderLogin), broker: String(item.brokerTitleShort || item.brokerName || "cTrader broker").slice(0, 100), accountType: item.accountType == null ? null : String(item.accountType), permissionScope: String(response.permissionScope || "unknown") });
+            }
+          } catch (error) { lastError = error; }
+          finally { try { socket?.close(1000, "account discovery complete"); } catch { /* ignore close errors */ } }
+        }
+        const unique = [...new Map(discovered.map(item => [item.accountId, item])).values()].slice(0, 100);
+        if (!unique.length && lastError) return json({ error: "ctrader_account_discovery_failed" }, 502, cors);
+        const scope = unique.some(item => item.permissionScope.includes("TRADE")) ? "SCOPE_TRADE" : unique[0]?.permissionScope || "unknown";
+        const base = `${configured.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.CTRADER_GRANTS_TABLE_ID}/rows/${encodeURIComponent(grantId)}`;
+        const saved = await fetch(base, { method: "PATCH", headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ data: { accounts_json: JSON.stringify(unique), accounts_discovered_at: new Date().toISOString(), permission_scope: scope, status: unique.length ? "accounts_discovered" : "no_accounts_found" }, permissions: [] }) });
+        if (!saved.ok) return json({ error: "ctrader_account_storage_failed" }, 503, cors);
+        return json({ accounts: unique, permissionScope: scope, tradingEnabled: false }, 200, cors);
+      } catch { return json({ error: "ctrader_account_discovery_failed" }, 503, cors); }
+    }
+
+    if (url.pathname === "/api/brokers/ctrader/select-account" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.CTRADER_CLIENT_ID || !configured.CTRADER_CLIENT_SECRET || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "ctrader_account_selection_not_configured" }, 503, cors);
+        const body = await request.json().catch(() => null) as { accountId?: string } | null;
+        const accountId = String(body?.accountId || "");
+        if (!/^\\d{1,20}$/.test(accountId)) return json({ error: "invalid_ctrader_account_id" }, 400, cors);
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string; accounts_json?: string } | null;
+        if (!grant || grant.user_id !== account.$id || !grant.encrypted_access_token) return json({ error: "ctrader_not_connected" }, 404, cors);
+        let accounts: Array<{ accountId: string; isLive: boolean; traderLogin: string | null; broker: string; accountType: string | null; permissionScope: string }> = [];
+        try { accounts = JSON.parse(grant.accounts_json || "[]") as typeof accounts; } catch { accounts = []; }
+        const selected = accounts.find(item => item.accountId === accountId);
+        if (!selected) return json({ error: "ctrader_account_not_authorized_for_member" }, 403, cors);
+        const accessToken = await decryptBrokerToken(grant.encrypted_access_token, configured.BROKER_TOKEN_ENCRYPTION_KEY);
+        const socket = await openCTraderSocket(selected.isLive ? "live.ctraderapi.com" : "demo.ctraderapi.com");
+        try {
+          await authenticateCTraderApplication(socket, configured);
+          await sendCTraderJsonMessage(socket, 2102, { ctidTraderAccountId: Number(accountId), accessToken }, 2103);
+        } finally { try { socket.close(1000, "account authorized"); } catch { /* ignore close errors */ } }
+        const endpoint = `${configured.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.CTRADER_GRANTS_TABLE_ID}/rows/${encodeURIComponent(grantId)}`;
+        const saved = await fetch(endpoint, { method: "PATCH", headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ data: { selected_account_id: accountId, selected_account_is_live: selected.isLive, status: "account_authorized" }, permissions: [] }) });
+        if (!saved.ok) return json({ error: "ctrader_selected_account_storage_failed" }, 503, cors);
+        return json({ selectedAccount: selected, tradingEnabled: false }, 200, cors);
+      } catch { return json({ error: "ctrader_account_authorization_failed" }, 502, cors); }
+    }
     if (url.pathname === "/api/brokers/ctrader/refresh" && request.method === "POST") {
       try {
         const account = await authenticate(request, env);
