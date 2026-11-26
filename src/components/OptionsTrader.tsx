@@ -47,7 +47,7 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
   const [quoteError, setQuoteError] = useState('');
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
-  const [quotes, setQuotes] = useState<Record<string, Array<{ contractType: string; askPrice: number; payout: number; currency: string; barrier: string }>>>({});
+  const [quotes, setQuotes] = useState<Record<string, Array<{ contractType: string; askPrice: number; payout: number; currency: string; barrier: string; snapshotId: string }>>>({});
 
   const loadConnection = useCallback(async () => {
     setConnectionBusy(true);
@@ -186,10 +186,26 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
     try {
       const responses = await Promise.all(kinds.map(async contractType => {
         const { data, error } = await supabase.functions.invoke('deriv-options-proposal', {
-          body: { accountId: selectedAccount.account_id, symbol: item.asset.symbol, contractType, barrier, stake: amount },
+          body: {
+            accountId: selectedAccount.account_id,
+            symbol: item.asset.symbol,
+            contractType,
+            barrier,
+            stake: amount,
+            signalSnapshot: {
+              signalId: `${item.asset.symbol}:${item.signal.signalEpoch}:${item.result.direction}`,
+              direction: item.result.direction,
+              signalEpoch: item.signal.signalEpoch,
+              confluenceScore: item.result.score,
+              upperBand: bands.bbHigh,
+              lowerBand: bands.bbLow,
+              middleBand: bands.bbMid,
+            },
+          },
         });
         if (error || data?.error || !data?.proposal) throw new Error(data?.error ?? error?.message ?? 'Could not get Deriv quote.');
-        return { contractType, askPrice: Number(data.proposal.askPrice), payout: Number(data.proposal.payout), currency: String(data.proposal.currency), barrier: String(data.proposal.barrier) };
+        if (typeof data.proposal.snapshotId !== 'string' || !data.proposal.snapshotId) throw new Error('Deriv quote was not saved securely. Please request a fresh quote.');
+        return { contractType, askPrice: Number(data.proposal.askPrice), payout: Number(data.proposal.payout), currency: String(data.proposal.currency), barrier: String(data.proposal.barrier), snapshotId: data.proposal.snapshotId };
       }));
       setQuotes(current => ({ ...current, [item.asset.symbol]: responses }));
     } catch (error) {
@@ -292,7 +308,7 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
               <p className="text-[11px] text-ink-3">Barrier uses the completed M30 Bollinger boundary.</p>
               <button type="button" onClick={() => void requestQuotes(opportunities.find(item => item.asset.symbol === asset.symbol)!)} disabled={quoteBusySymbol === asset.symbol || !selectedAccount} className="rounded-lg border border-accent/40 px-3 py-2 text-xs font-semibold text-ink disabled:opacity-40">{quoteBusySymbol === asset.symbol ? 'Getting quote…' : 'Get Deriv quote'}</button>
             </div>
-            {quotes[asset.symbol]?.map(quote => <p key={quote.contractType} className="mt-2 text-xs text-ink-2">{quote.contractType === 'ONETOUCH' ? 'Touch' : 'No Touch'} · Stake {quote.askPrice.toFixed(2)} {quote.currency} · Payout {quote.payout.toFixed(2)} {quote.currency} · Barrier {quote.barrier}</p>)}
+            {quotes[asset.symbol]?.map(quote => <p key={quote.contractType} className="mt-2 text-xs text-ink-2">{quote.contractType === 'ONETOUCH' ? 'Touch' : 'No Touch'} · Stake {quote.askPrice.toFixed(2)} {quote.currency} · Payout {quote.payout.toFixed(2)} {quote.currency} · Barrier {quote.barrier} · Quote saved</p>)}
           </div>)}</div>}
       {quoteError && <p role="alert" className="mt-3 text-xs text-rose-400">{quoteError}</p>}
     </div>
