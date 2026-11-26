@@ -50,7 +50,7 @@ for (const [label, condition] of [
   ['cTrader refresh clears legacy client row permissions', worker.includes('permissions: [],')],
   ['cTrader disconnect deletes only the member grant', worker.includes('/api/brokers/ctrader/disconnect') && worker.includes('method: \"DELETE\"')],
   ['cTrader disconnect does not falsely claim provider revocation', worker.includes('providerTokenRevoked: false')],
-  ['allowed origin is configured', config.includes('ALLOWED_ORIGIN = "https://supertechai.pages.dev"')],
+  ['allowed origin is configured', config.includes('ALLOWED_ORIGIN = "https://main.supertechai.pages.dev"')],
   ['API key is not hard-coded in Wrangler vars', !/^APPWRITE_API_KEY\\s*=/m.test(config)],
   ['legacy Worker is not targeted', config.includes('name = "supertechai-independent-api"') && !config.includes('name = "supertechai-api"')],
 ]) {
