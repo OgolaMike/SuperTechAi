@@ -124,7 +124,9 @@ function App() {
   }, [sync.version]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setNow(currentEpoch()), 3000);
+    // Freshness windows are candle-based; a 15s UI clock avoids rerunning the full-market
+    // confluence and pending-idea calculations every three seconds without delaying feed updates.
+    const id = window.setInterval(() => setNow(currentEpoch()), 15000);
     return () => window.clearInterval(id);
   }, []);
 
