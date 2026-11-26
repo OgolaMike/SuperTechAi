@@ -21,6 +21,8 @@ for (const [label, condition] of [
   ['cTrader OAuth start requires a verified Appwrite account', worker.includes('startCTraderOAuth(env as BrokerEnv, account')],
   ['cTrader OAuth state is hashed', worker.includes('state_hash: await sha256(state)')],
   ['cTrader OAuth state expires', worker.includes('Date.now() + 10 * 60_000')],
+  ['cTrader OAuth state rows are Worker-only', !worker.slice(worker.indexOf('async function startCTraderOAuth'), worker.indexOf('async function handleCTraderCallback')).includes('permissions:')],
+  ['encrypted cTrader grants are Worker-only', !worker.slice(worker.indexOf('async function handleCTraderCallback'), worker.indexOf('export default')).includes('grantPermissions') && !worker.slice(worker.indexOf('async function handleCTraderCallback'), worker.indexOf('export default')).includes('permissions:')],
   ['cTrader tokens are AES-GCM encrypted before storage', worker.includes('AES-GCM') && worker.includes('encrypted_access_token: access')],
   ['cTrader OAuth callback consumes state before token exchange', worker.indexOf('appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID') < worker.indexOf('https://openapi.ctrader.com/apps/token')],
   ['broker execution remains disabled by capability response', worker.includes('executionEnabled: false')],
