@@ -56,7 +56,7 @@ function CandleCountdown({ candleEpoch, granularity }: { candleEpoch: number; gr
   const minutes = Math.floor((remaining % 3600) / 60);
   const seconds = remaining % 60;
   const countdown = `${days > 0 ? `${days}d ` : ''}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  return <CandleCountdown candleEpoch={latest.epoch} granularity={granularity} />;
+  return <span>{countdown}</span>;
 }
 
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 1800, digits, assetName, symbol, anchorId, livePrice }: Props) {
