@@ -21,7 +21,7 @@ function eatDate(epoch: number): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(epoch * 1000));
 }
 
-function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['prices'], date: string, today: string): Mover {
+function getDailyRoc(asset: Asset, states: DerivMarketProps['states'], prices: DerivMarketProps['prices'], date: string, today: string): Mover {
   const hourly = states[asset.symbol]?.[3600]?.candles ?? [];
   const dayCandles = hourly.filter((candle) => eatDate(candle.epoch) === date);
   const priorCandles = hourly.filter((candle) => eatDate(candle.epoch) < date);
@@ -34,7 +34,7 @@ function getDailyRoc(asset: Asset, states: Props['states'], prices: Props['price
   return { asset, price, changePct, candles: dayCandles.length };
 }
 
-function getRoc(asset: Asset, states: Props['states'], prices: Props['prices']): Mover {
+function getRoc(asset: Asset, states: DerivMarketProps['states'], prices: DerivMarketProps['prices']): Mover {
   const hourly = states[asset.symbol]?.[3600]?.candles ?? [];
   const latest = hourly[hourly.length - 1];
   const previous = hourly[hourly.length - 25];
