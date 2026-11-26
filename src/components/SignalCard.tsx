@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, Clock, Loader2, Minus, Target, X } from 'lucide-react';
 import { EntryTime, LevelList, STATUS_TEXT, CurrentPrice, directionExplanation, statusTone } from '@/components/SignalParts';
-import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
 import type { Signal } from '@/lib/signals';
 import type { Candle } from '@/lib/deriv';
@@ -13,12 +12,11 @@ type Props = {
   tf: TfState;
   loaded: boolean;
   price: number | undefined;
-  aiModel: SignalLearningModel;
   confluenceCount?: number;
   unifiedOnly?: boolean;
 };
 
-export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount, unifiedOnly = false }: Props) {
+export function SignalCard({ asset, tf, loaded, price, confluenceCount, unifiedOnly = false }: Props) {
   const [chartOpen, setChartOpen] = useState(false);
   // Keep this timeframe's own signal and price levels visible. In unified mode
   // these are contextual levels, not additional dashboard trade instructions.
@@ -30,7 +28,6 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
   const marketClosed = asset.exchange === 'DERIV' && isWeekend && !weekendTrading;
   const isBuy = signal?.direction === 'BUY';
   const isSell = signal?.direction === 'SELL';
-  const aiScore = signal ? getAiPatternScore(aiModel, tf.granularity, signal.direction, signal.levels) : null;
   const gradeTone = confluenceCount === 10
     ? 'border-up/60 bg-up/15 text-up shadow-[0_0_22px_rgba(34,197,94,0.18)]'
     : confluenceCount !== undefined && confluenceCount >= 7
@@ -87,21 +84,6 @@ export function SignalCard({ asset, tf, loaded, price, aiModel, confluenceCount,
               <div className="text-3xl font-black tabular-nums">{confluenceCount}<span className="text-lg font-bold opacity-70">/10</span></div>
             </div>
           )}
-
-          <div className="min-w-0 rounded-xl border border-line/10 bg-surface/[0.03] px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-ink-3">AI pattern score</div>
-            {aiScore === null ? (
-              <p className="mt-1 text-sm text-ink-2">AI is still learning from completed signals. No score yet.</p>
-            ) : (
-              <>
-                <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <span className="text-2xl font-bold text-accent">{aiScore}/100</span>
-                  <span className="text-xs text-ink-3">match with past results</span>
-                </div>
-                <p className="mt-1 text-xs text-ink-3">This is a pattern score, not a promise or a guaranteed chance of profit.</p>
-              </>
-            )}
-          </div>
 
           <EntryTime epoch={signal.signalEpoch} direction={signal.direction} />
           <CurrentPrice price={price} entry={signal.levels.entry} direction={signal.direction} digits={asset.digits} />
