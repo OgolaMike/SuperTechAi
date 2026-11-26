@@ -24,6 +24,7 @@ for (const [label, condition] of [
   ['signal history batches are bounded', worker.includes('body.records.length > 50') && worker.includes('contentLength > 64_000')],
   ['signal records enforce the ten official timeframes', worker.includes('M30: 1800, H1: 3600, H2: 7200, H3: 10800, H4: 14400, H6: 21600, H8: 28800, H12: 43200, D1: 86400, W1: 604800')],
   ['signal records remain Worker-only', worker.includes('permissions: []')],
+  ['signal history writes whitelist accepted columns', worker.includes('const safeRecord = {') && !worker.slice(worker.indexOf('if (url.pathname === "/api/signals" && request.method === "POST")'), worker.indexOf('if (url.pathname === "/api/profile"')).includes('...record, user_id:')],
   ['cTrader OAuth start requires a verified Appwrite account', worker.includes('startCTraderOAuth(env as BrokerEnv, account')],
   ['cTrader OAuth state is hashed', worker.includes('state_hash: await sha256(state)')],
   ['cTrader OAuth state expires', worker.includes('Date.now() + 10 * 60_000')],
