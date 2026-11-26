@@ -17,6 +17,7 @@ import { ThreeHourWickStrategy } from '@/components/ThreeHourWickStrategy';
 import { FiveMinuteMomentum } from '@/components/FiveMinuteMomentum';
 import { IndependentOptionsBoard } from '@/components/IndependentOptionsBoard';
 import { IndependentBrokerConnections } from '@/components/IndependentBrokerConnections';
+import { IndependentAlertSettings } from '@/components/IndependentAlertSettings';
 import { MarketStructureSarPanel } from '@/components/MarketStructureSarPanel';
 import { StrategyConfluencePanel } from '@/components/StrategyConfluencePanel';
 import { buildIndependentStrategyAssessments } from '@/lib/independentStrategies';
@@ -99,7 +100,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
       {view==='deriv-market'&&<DerivMarket assets={assets.filter(a=>a.exchange==='DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol])=>assets.some(a=>a.symbol===symbol&&a.exchange==='DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol])=>assets.some(a=>a.symbol===symbol&&a.exchange==='DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel}/>}
       {['ctrader','connections'].includes(view)&&<IndependentBrokerConnections/>}{['mt5','binance','okx'].includes(view)&&<section className="mt-8 rounded-2xl border border-amber-400/20 bg-amber-400/[.04] p-5"><p className="text-sm font-semibold text-ink">Broker automation connection</p><p className="mt-2 text-sm leading-6 text-ink-2">This broker is being connected through the independent authenticated Worker. No credentials are requested in the browser until its secure account, risk and order workflows are ready.</p></section>}
       {view==='records'&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal history</h2><p className="mt-2 text-sm text-ink-2">Confirmed signal records saved on this device: {views.length} live signal readings.</p>{views.slice(0,30).map(item=><div key={item.key} className="flex flex-wrap justify-between gap-2 border-t border-line/10 py-3 text-xs"><span>{item.assetName} · {item.timeframe} · {item.signal.direction}</span><span>{new Date(item.signal.signalEpoch*1000).toLocaleString()}</span></div>)}</section>}
-      {view==='alerts'&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal alerts</h2><p className="mt-2 text-sm text-ink-2">Sound: {soundsEnabled?'On':'Off'}. Alert preferences are saved separately on this device.</p><button onClick={toggleSounds} className="mt-4 rounded-xl border border-line/15 px-4 py-2 text-xs">{soundsEnabled?'Mute alerts':'Enable alert sounds'}</button></section>}
+      {view==='alerts'&&<IndependentAlertSettings userId={userId} assets={assets} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/>}
       {['personal-ai','academy','referrals','earnings','finance','admin','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
      </div>
     </Suspense>
