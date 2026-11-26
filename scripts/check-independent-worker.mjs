@@ -25,6 +25,7 @@ for (const [label, condition] of [
   ['cTrader OAuth state rows are Worker-only', !worker.slice(worker.indexOf('async function startCTraderOAuth'), worker.indexOf('async function handleCTraderCallback')).includes('permissions:')],
   ['encrypted cTrader grants are Worker-only', !worker.slice(worker.indexOf('async function handleCTraderCallback'), worker.indexOf('export default')).includes('grantPermissions') && !worker.slice(worker.indexOf('async function handleCTraderCallback'), worker.indexOf('export default')).includes('read(\"user:') && !worker.slice(worker.indexOf('async function handleCTraderCallback'), worker.indexOf('export default')).includes('update(\"user:')],
   ['cTrader tokens are AES-GCM encrypted before storage', worker.includes('AES-GCM') && worker.includes('encrypted_access_token: access')],
+  ['cTrader callback returns members to the app without exposing tokens', worker.includes('destination.searchParams.set("ctrader", "connected")') && worker.includes('Response.redirect(destination.toString(), 302)')],
   ['cTrader OAuth callback consumes state before token exchange', worker.indexOf('appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID') < worker.indexOf('https://openapi.ctrader.com/apps/token')],
   ['broker execution remains disabled by capability response', worker.includes('executionEnabled: false')],
   ['broker POST routes are allowed by CORS', worker.includes('GET, POST, PATCH, OPTIONS')],
