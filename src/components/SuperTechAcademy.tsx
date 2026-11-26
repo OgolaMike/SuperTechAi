@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AcademyAIHub } from './AcademyAIHub';
+import { AcademyTradingProcedure } from './AcademyTradingProcedure';
 import { BookOpen, CheckCircle2, ChevronRight, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Video } from 'lucide-react';
 
 type Lesson = {
@@ -200,6 +201,8 @@ export function SuperTechAcademy({ isAdmin }: { isAdmin: boolean }) {
       </section>
 
       {videoError && <p className="rounded-xl border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-400">{videoError}</p>}
+
+      <AcademyTradingProcedure />
 
       <AcademyAIHub isAdmin={isAdmin} />
 
