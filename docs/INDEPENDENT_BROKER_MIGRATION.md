@@ -4,6 +4,10 @@ This document tracks the broker services being moved from Supabase Edge Function
 
 ## Implemented in the independent Worker
 
+- Binance Spot credential connection route: `POST /api/brokers/binance-spot/connect`; validates a signed Binance account request and requires trading permission with withdrawals disabled.
+- Binance Spot status route: `GET /api/brokers/binance-spot/status`; returns connection metadata only, never credential material.
+- Binance Spot local disconnect route: `POST /api/brokers/binance-spot/disconnect`; deletes the encrypted local credential row and reminds the member to revoke the key at Binance.
+- Binance Spot API key and secret are encrypted with AES-256-GCM and stored in a Worker-only Appwrite row scoped to the authenticated member. Order execution remains disabled.
 - Appwrite JWT identity validation (email verification remains required).
 - cTrader OAuth start route: `POST /api/brokers/ctrader/connect`.
 - cTrader callback route: `GET /api/brokers/ctrader/callback`.
@@ -20,6 +24,20 @@ This document tracks the broker services being moved from Supabase Edge Function
 ## Required Appwrite tables
 
 Create these TablesDB tables in database `supertech_ai_sandbox`. Add the columns exactly as listed; use string columns for timestamps and encrypted values. Set row security on and use server API-key access for writes. Never grant a client permission to read token ciphertext.
+
+### `binance_spot_credentials`
+| Column | Type | Required |
+|---|---|---|
+| user_id | string(36) | yes |
+| encrypted_api_key | string(4096) | yes |
+| encrypted_api_secret | string(4096) | yes |
+| api_key_last4 | string(4) | yes |
+| status | string(32) | yes |
+| verified_at | string(40) | yes |
+| can_trade | boolean | yes |
+| can_withdraw | boolean | yes |
+
+Use one row per member with row security enabled. Grant no client read, write, or delete permissions; only the Worker API key may access credential rows.
 
 ### `ctrader_oauth_states`
 | Column | Type | Required |
@@ -51,7 +69,7 @@ Use a unique index on `user_id` for grants and on `state_hash` for states. Grant
 
 Set these non-secret Worker vars after the tables exist:
 
-- `CTRADER_OAUTH_STATES_TABLE_ID`
+- `BINANCE_SPOT_CREDENTIALS_TABLE_ID`\n- `CTRADER_OAUTH_STATES_TABLE_ID`
 - `CTRADER_GRANTS_TABLE_ID`
 - `CTRADER_CLIENT_ID`
 - `CTRADER_REDIRECT_URI` (must exactly match the cTrader application callback URL)
@@ -69,7 +87,7 @@ The following original Supabase functions still require provider-specific ports 
 
 - cTrader provider-side token revocation, cloud reconciliation, risk preflight, order placement, position/order reconciliation and callbacks.
 - MT5 pairing, worker heartbeat/authentication, signal-intent delivery, order/position reconciliation and worker revocation.
-- Binance Spot credential verification, encrypted key vault, settings, order intents, execution, fills and reconciliation.
+- Binance Spot settings, order intents, execution, fills and reconciliation (credential verification and encrypted key storage are now implemented; order execution remains disabled).
 - Binance USDT-M Futures credential verification, risk sizing, idempotent order execution, protective orders and reconciliation.
 - OKX Futures credential verification, settings, signal intents, risk sizing, attached TP/SL, uncertain-order recovery and reconciliation.
 - Deriv Options account authorization, contract proposal, purchase, open-contract monitoring and settlement.
