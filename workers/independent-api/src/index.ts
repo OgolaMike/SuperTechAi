@@ -159,6 +159,10 @@ type BrokerEnv = Env & {
   CTRADER_REDIRECT_URI?: string;
   BROKER_TOKEN_ENCRYPTION_KEY?: string;
   BINANCE_SPOT_CREDENTIALS_TABLE_ID?: string;
+  DERIV_CLIENT_ID?: string;
+  DERIV_REDIRECT_URI?: string;
+  DERIV_OAUTH_STATES_TABLE_ID?: string;
+  DERIV_GRANTS_TABLE_ID?: string;
 };
 
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -256,6 +260,100 @@ async function binanceSpotRow(env: BrokerEnv, accountId: string, method: "GET" |
   const response = await fetch(existing.ok ? endpoint : base, { method: existing.ok ? "PATCH" : "POST", headers, body: JSON.stringify(existing.ok ? { data, permissions: [] } : { rowId: accountId, data, permissions: [] }) });
   if (!response.ok) throw new Error("binance_spot_storage_failed");
   return await response.json() as Record<string, unknown>;
+}
+function base64Url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+}
+async function derivApi(env: BrokerEnv, token: string, path: string, init: RequestInit = {}) {
+  const response = await fetch(`https://api.derivws.com${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers },
+  });
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(response.status === 401 ? "deriv_authorization_expired" : response.status === 403 ? "deriv_permission_denied" : "deriv_api_request_failed");
+  return payload;
+}
+async function derivRow(env: BrokerEnv, tableId: string, rowId: string, method: "GET" | "POST" | "PATCH" | "DELETE", data?: Record<string, unknown>) {
+  if (!env.APPWRITE_API_KEY) throw new Error("appwrite_server_key_not_configured");
+  const base = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${tableId}/rows`;
+  const endpoint = `${base}/${encodeURIComponent(rowId)}`;
+  const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
+  if (method === "GET" || method === "DELETE") {
+    const response = await fetch(endpoint, { method, headers });
+    if (response.status === 404) return null;
+    if (!response.ok && response.status !== 204) throw new Error("deriv_storage_failed");
+    return response.status === 204 ? null : await response.json() as Record<string, unknown>;
+  }
+  const existing = await fetch(endpoint, { headers });
+  const response = await fetch(existing.ok ? endpoint : base, {
+    method: existing.ok ? "PATCH" : "POST", headers,
+    body: JSON.stringify(existing.ok ? { data, permissions: [] } : { rowId, data, permissions: [] }),
+  });
+  if (!response.ok) throw new Error("deriv_storage_failed");
+  return await response.json() as Record<string, unknown>;
+}
+async function startDerivOAuth(env: BrokerEnv, account: AppwriteAccount, redirectPath: string) {
+  const { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, DERIV_OAUTH_STATES_TABLE_ID, BROKER_TOKEN_ENCRYPTION_KEY } = env;
+  if (!DERIV_CLIENT_ID || !DERIV_REDIRECT_URI || !DERIV_OAUTH_STATES_TABLE_ID || !BROKER_TOKEN_ENCRYPTION_KEY || !env.APPWRITE_API_KEY) throw new Error("deriv_oauth_not_configured");
+  const safePath = redirectPath.startsWith("/") && !redirectPath.startsWith("//") ? redirectPath : "/";
+  const state = base64Url(crypto.getRandomValues(new Uint8Array(32)));
+  const verifier = base64Url(crypto.getRandomValues(new Uint8Array(64)));
+  const challenge = base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
+  const stateId = crypto.randomUUID().replace(/-/g, "");
+  const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
+  await derivRow(env, DERIV_OAUTH_STATES_TABLE_ID, stateId, "POST", {
+    state_hash: await sha256(state), user_id: account.$id,
+    encrypted_code_verifier: await encryptBrokerToken(verifier, BROKER_TOKEN_ENCRYPTION_KEY),
+    redirect_path: safePath, expires_at: expiresAt,
+  });
+  const authorize = new URL("https://auth.deriv.com/oauth2/auth");
+  authorize.search = new URLSearchParams({
+    response_type: "code", client_id: DERIV_CLIENT_ID, redirect_uri: DERIV_REDIRECT_URI,
+    scope: "trade", state, code_challenge: challenge, code_challenge_method: "S256",
+  }).toString();
+  return { authorizationUrl: authorize.toString(), expiresAt };
+}
+async function handleDerivCallback(request: Request, env: BrokerEnv): Promise<Response> {
+  const url = new URL(request.url);
+  const state = url.searchParams.get("state") || "";
+  const code = url.searchParams.get("code") || "";
+  const configured = env as BrokerEnv;
+  const { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, DERIV_OAUTH_STATES_TABLE_ID, DERIV_GRANTS_TABLE_ID, BROKER_TOKEN_ENCRYPTION_KEY } = configured;
+  if (url.searchParams.has("error")) return json({ error: "deriv_authorization_denied" }, 400);
+  if (!state || state.length > 256 || !code || code.length > 2048) return json({ error: "invalid_deriv_oauth_response" }, 400);
+  if (!DERIV_CLIENT_ID || !DERIV_REDIRECT_URI || !DERIV_OAUTH_STATES_TABLE_ID || !DERIV_GRANTS_TABLE_ID || !BROKER_TOKEN_ENCRYPTION_KEY || !configured.APPWRITE_API_KEY) return json({ error: "deriv_oauth_not_configured" }, 503);
+  const queryUrl = new URL(`${configured.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${DERIV_OAUTH_STATES_TABLE_ID}/rows`);
+  queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "state_hash", values: [await sha256(state)] }));
+  const lookup = await fetch(queryUrl, { headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY } });
+  if (!lookup.ok) return json({ error: "deriv_state_lookup_failed" }, 503);
+  const found = await lookup.json() as { rows?: Array<{ $id: string; user_id: string; encrypted_code_verifier: string; redirect_path?: string; expires_at: string }> };
+  const row = found.rows?.[0];
+  if (!row || Date.parse(row.expires_at) <= Date.now()) return json({ error: "deriv_oauth_state_expired_or_used" }, 400);
+  await derivRow(configured, DERIV_OAUTH_STATES_TABLE_ID, row.$id, "DELETE");
+  const verifier = await decryptBrokerToken(row.encrypted_code_verifier, BROKER_TOKEN_ENCRYPTION_KEY);
+  const tokenResponse = await fetch("https://auth.deriv.com/oauth2/token", {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "authorization_code", client_id: DERIV_CLIENT_ID, code, code_verifier: verifier, redirect_uri: DERIV_REDIRECT_URI }),
+  });
+  const tokenData = await tokenResponse.json() as { access_token?: string; expires_in?: number };
+  if (!tokenResponse.ok || !tokenData.access_token || !Number.isFinite(tokenData.expires_in)) return json({ error: "deriv_token_exchange_failed" }, 502);
+  const encrypted = await encryptBrokerToken(tokenData.access_token, BROKER_TOKEN_ENCRYPTION_KEY);
+  const accountsResponse = await derivApi(configured, tokenData.access_token, "/trading/v1/options/accounts");
+  const raw = (accountsResponse.data && typeof accountsResponse.data === "object" ? (accountsResponse.data as Record<string, unknown>).accounts : accountsResponse.accounts);
+  const accounts = Array.isArray(raw) ? raw.filter((item): item is Record<string, unknown> => !!item && typeof item === "object").map(item => ({
+    accountId: String(item.account_id ?? item.id ?? ""), accountType: String(item.account_type ?? item.type ?? "unknown"),
+    currency: String(item.currency ?? ""), isDemo: String(item.account_type ?? item.type ?? "").toLowerCase().includes("demo"),
+  })).filter(item => /^\\d{1,32}$/.test(item.accountId)) : [];
+  const grantId = row.user_id.replace(/-/g, "").slice(0, 32);
+  await derivRow(configured, DERIV_GRANTS_TABLE_ID, grantId, "POST", {
+    user_id: row.user_id, encrypted_access_token: encrypted,
+    token_expires_at: new Date(Date.now() + Number(tokenData.expires_in) * 1000).toISOString(),
+    accounts_json: JSON.stringify(accounts), selected_account_id: "", status: "connected",
+  });
+  const safePath = row.redirect_path?.startsWith("/") && !row.redirect_path.startsWith("//") ? row.redirect_path : "/";
+  const destination = new URL(safePath, configured.ALLOWED_ORIGIN);
+  destination.searchParams.set("deriv", "connected");
+  return Response.redirect(destination.toString(), 302);
 }
 async function startCTraderOAuth(env: BrokerEnv, account: AppwriteAccount, redirectPath: string) {
   const { CTRADER_CLIENT_ID, CTRADER_REDIRECT_URI, CTRADER_OAUTH_STATES_TABLE_ID } = env;
@@ -651,6 +749,70 @@ export default {
         return json({ disconnected: true, providerKeyRevoked: false, note: "The encrypted local copy was deleted. Revoke this API key in Binance API Management as well." }, 200, cors);
       } catch { return json({ error: "binance_spot_disconnect_failed" }, 503, cors); }
     }
+    if (url.pathname === "/api/brokers/deriv/connect" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const body = await request.json().catch(() => ({})) as { redirectPath?: string };
+        const result = await startDerivOAuth(env as BrokerEnv, account, typeof body.redirectPath === "string" ? body.redirectPath : "/");
+        return json(result, 200, cors);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "deriv_connect_failed";
+        return json({ error: message }, message === "deriv_oauth_not_configured" ? 503 : 500, cors);
+      }
+    }
+    if (url.pathname === "/api/brokers/deriv/callback" && request.method === "GET") {
+      try { return await handleDerivCallback(request, env); }
+      catch { return json({ error: "deriv_callback_failed" }, 500); }
+    }
+    if (url.pathname === "/api/brokers/deriv/status" && request.method === "GET") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.DERIV_GRANTS_TABLE_ID || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "deriv_not_configured" }, 503, cors);
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await derivRow(configured, configured.DERIV_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string; token_expires_at?: string; accounts_json?: string; selected_account_id?: string; status?: string } | null;
+        if (!grant) return json({ connected: false, status: "not_connected", accounts: [], tradingEnabled: false }, 200, cors);
+        if (grant.user_id !== account.$id) return json({ error: "deriv_ownership_mismatch" }, 403, cors);
+        const expired = !grant.token_expires_at || Date.parse(grant.token_expires_at) <= Date.now() + 60_000;
+        let accounts: unknown[] = [];
+        try { accounts = JSON.parse(grant.accounts_json || "[]") as unknown[]; } catch { accounts = []; }
+        return json({ connected: !expired, status: expired ? "reconnect_required" : grant.status || "connected", expiresAt: grant.token_expires_at, accounts, selectedAccountId: grant.selected_account_id || "", tradingEnabled: false }, 200, cors);
+      } catch { return json({ error: "deriv_status_failed" }, 503, cors); }
+    }
+    if (url.pathname === "/api/brokers/deriv/select-account" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.DERIV_GRANTS_TABLE_ID || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "deriv_not_configured" }, 503, cors);
+        const body = await request.json().catch(() => ({})) as { accountId?: string };
+        const accountId = typeof body.accountId === "string" ? body.accountId : "";
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await derivRow(configured, configured.DERIV_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string; accounts_json?: string; token_expires_at?: string } | null;
+        if (!grant || grant.user_id !== account.$id || !grant.encrypted_access_token) return json({ error: "deriv_not_connected" }, 404, cors);
+        if (!grant.token_expires_at || Date.parse(grant.token_expires_at) <= Date.now()) return json({ error: "deriv_authorization_expired" }, 401, cors);
+        const list = JSON.parse(grant.accounts_json || "[]") as Array<{ accountId: string }>;
+        if (!list.some(item => item.accountId === accountId)) return json({ error: "deriv_account_not_authorized" }, 403, cors);
+        await derivRow(configured, configured.DERIV_GRANTS_TABLE_ID, grantId, "PATCH", { selected_account_id: accountId });
+        return json({ selectedAccountId: accountId, tradingEnabled: false }, 200, cors);
+      } catch { return json({ error: "deriv_account_selection_failed" }, 503, cors); }
+    }
+    if (url.pathname === "/api/brokers/deriv/disconnect" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.DERIV_GRANTS_TABLE_ID) return json({ error: "deriv_not_configured" }, 503, cors);
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await derivRow(configured, configured.DERIV_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string } | null;
+        if (grant && grant.user_id !== account.$id) return json({ error: "deriv_ownership_mismatch" }, 403, cors);
+        await derivRow(configured, configured.DERIV_GRANTS_TABLE_ID, grantId, "DELETE");
+        return json({ disconnected: true, providerTokenRevoked: false, tradingEnabled: false, note: "The local encrypted token was deleted. Revoke SuperTech AI access in your Deriv account settings as well." }, 200, cors);
+      } catch { return json({ error: "deriv_disconnect_failed" }, 503, cors); }
+    }
+
     if (url.pathname === "/api/brokers/ctrader/connect" && request.method === "POST") {
       try {
         const account = await authenticate(request, env);
@@ -842,7 +1004,7 @@ export default {
       return json({
         providers: {
           ctrader: Boolean(configured.CTRADER_CLIENT_ID && configured.CTRADER_CLIENT_SECRET && configured.CTRADER_REDIRECT_URI && configured.CTRADER_OAUTH_STATES_TABLE_ID && configured.CTRADER_GRANTS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY),
-          mt5: false, binance_spot: Boolean(configured.BINANCE_SPOT_CREDENTIALS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY && configured.APPWRITE_API_KEY), binance_futures: false, okx_futures: false, deriv_options: false,
+          mt5: false, binance_spot: Boolean(configured.BINANCE_SPOT_CREDENTIALS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY && configured.APPWRITE_API_KEY), deriv_options: Boolean(configured.DERIV_CLIENT_ID && configured.DERIV_REDIRECT_URI && configured.DERIV_OAUTH_STATES_TABLE_ID && configured.DERIV_GRANTS_TABLE_ID && configured.BROKER_TOKEN_ENCRYPTION_KEY && configured.APPWRITE_API_KEY), binance_futures: false, okx_futures: false,
         },
         executionEnabled: false,
         note: "Provider execution remains disabled until each provider's account, risk, order, and reconciliation tables pass security checks.",
