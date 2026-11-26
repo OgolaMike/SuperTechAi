@@ -78,6 +78,11 @@ function App() {
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(loadSelectedSymbols);
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => localStorage.getItem(SOUND_STORAGE_KEY) === 'true');
   const [view, setView] = useState<View>('dashboard');
+  useEffect(() => {
+    const handleServiceNavigation = (event: Event) => setView((event as CustomEvent<View>).detail);
+    window.addEventListener('supertech:navigate', handleServiceNavigation);
+    return () => window.removeEventListener('supertech:navigate', handleServiceNavigation);
+  }, []);
   const [now, setNow] = useState<number>(currentEpoch);
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
@@ -124,9 +129,7 @@ function App() {
   }, [sync.version]);
 
   useEffect(() => {
-    // Freshness windows are candle-based; a 15s UI clock avoids rerunning the full-market
-    // confluence and pending-idea calculations every three seconds without delaying feed updates.
-    const id = window.setInterval(() => setNow(currentEpoch()), 15000);
+    const id = window.setInterval(() => setNow(currentEpoch()), 3000);
     return () => window.clearInterval(id);
   }, []);
 

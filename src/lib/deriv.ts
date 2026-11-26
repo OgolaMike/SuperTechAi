@@ -47,9 +47,7 @@ const ENDPOINTS = ['wss://api.derivws.com/trading/v1/options/ws/public'];
 const MAX_RECONNECT_DELAY = 15000;
 const BASE_RECONNECT_DELAY = 1500;
 const PING_INTERVAL = 12000;
-// Keep a conservative request cadence while cutting selected-feed startup latency.
-// At 80ms, a 40-request batch is dispatched in ~3.1s instead of ~9.75s.
-const SUBSCRIBE_STAGGER = 80;
+const SUBSCRIBE_STAGGER = 250;
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

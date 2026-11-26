@@ -554,15 +554,3 @@ body, #root { touch-action: pan-y pinch-zoom; }
 .light .signal-bubble { border-color: currentColor; box-shadow: inset 0 1px 0 rgb(255 255 255 / .55), 0 10px 28px -12px currentColor, 0 0 24px -10px currentColor; }
 .signal-bubble:focus-visible { outline-offset: 6px; }
 @media (prefers-reduced-motion: reduce) { .signal-bubble::after { animation: none !important; } }
-
-
-/* Premium interaction layer: restrained motion that keeps the trading UI fast. */
-@keyframes stai-card-arrive { from { opacity: 0; transform: translateY(8px) scale(.992); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes stai-glow-breathe { 0%, 100% { box-shadow: 0 0 0 1px rgb(var(--accent) / .12), 0 10px 32px -28px rgb(var(--accent) / .2); } 50% { box-shadow: 0 0 0 1px rgb(var(--accent) / .28), 0 12px 36px -24px rgb(var(--accent) / .42); } }
-.magic-card { animation: stai-card-arrive 360ms cubic-bezier(.2,.75,.25,1) both; transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease; }
-.magic-card:hover { transform: translateY(-2px); border-color: rgb(var(--accent) / .32); box-shadow: 0 14px 36px -28px rgb(var(--accent) / .48); }
-.magic-selector { position: relative; isolation: isolate; transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
-.magic-selector:active { transform: scale(.96); }
-.magic-selector[aria-pressed="true"] { animation: stai-glow-breathe 3.8s ease-in-out infinite; }
-.timeframe-stage { animation: stai-card-arrive 260ms ease-out both; }
-@media (prefers-reduced-motion: reduce) { .magic-card, .magic-selector[aria-pressed="true"], .timeframe-stage { animation: none !important; } .magic-card, .magic-selector { transition: none !important; } }

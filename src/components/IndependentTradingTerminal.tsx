@@ -2,7 +2,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { SessionContext } from '@/lib/sessionContext';
 import { AmbientBackground } from '@/components/AmbientBackground';
 import { IndependentAssetSelector } from '@/components/IndependentAssetSelector';
-import { StatusBar } from '@/components/StatusBar';
+import { HeaderBrand, StatusBar } from '@/components/StatusBar';
 import { ViewNav, type View } from '@/components/ViewNav';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toasts } from '@/components/Toasts';
@@ -52,6 +52,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
 
 function IndependentTradingWorkspace({email,userId}:Props){
  const [view,setView]=useState<View>('dashboard');
+ useEffect(()=>{const handleServiceNavigation=(event:Event)=>setView((event as CustomEvent<View>).detail);window.addEventListener('supertech:navigate',handleServiceNavigation);return()=>window.removeEventListener('supertech:navigate',handleServiceNavigation)},[]);
  const [selectedSymbols,setSelectedSymbols]=useState<string[]>(readSelected);
  const [soundsEnabled,setSoundsEnabled]=useState(()=>localStorage.getItem(SOUND_KEY)==='true');
  const [alertReady,setAlertReady]=useState(false);
@@ -84,7 +85,7 @@ function IndependentTradingWorkspace({email,userId}:Props){
    <div className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 sm:py-10 lg:pb-10">
     <header className="flex flex-col gap-4">
      <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><p className="text-xs font-black tracking-[.2em] text-ink">SUPERTECH <span className="text-accent">AI</span></p><p className="mt-1 text-[10px] uppercase tracking-[.18em] text-ink-3">Be part of the AI revolution.</p></div>
+      <div className="flex min-w-0 items-center gap-3"><HeaderBrand/><div><p className="text-xs font-black tracking-[.2em] text-ink">SUPERTECH <span className="text-accent">AI</span></p><p className="mt-1 text-[10px] uppercase tracking-[.18em] text-ink-3">Be part of the AI revolution.</p></div></div>
       <div className="flex items-center gap-3"><span className="hidden max-w-52 truncate text-xs text-ink-3 sm:block">{email}</span><ThemeToggle theme={theme} onToggle={toggleTheme}/><button onClick={()=>window.dispatchEvent(new Event('supertech-independent-signout'))} className="rounded-xl border border-line/15 px-3 py-2 text-xs text-ink-2 hover:bg-surface/10">Sign out</button></div>
      </div>
      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><ViewNav view={view} isAdmin={false} onChange={setView}/><IndependentAssetSelector assets={assets} selected={selectedSymbols} onChange={updateSelected} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/></div>
