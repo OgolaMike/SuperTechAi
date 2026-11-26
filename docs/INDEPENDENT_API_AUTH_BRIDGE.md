@@ -53,3 +53,10 @@ The profile API is not an entitlement or role API. It cannot grant paid access, 
 - `POST /api/signals` accepts 1–50 validated records per request, enforces the M30–W1 timeframe/granularity map, and derives a deterministic member-specific row ID from the signal key.
 - Signal rows are Worker-only (`permissions: []`). The browser retains a device-local cache and syncs to Appwrite when the Worker and table are configured; it falls back locally when the service is unavailable.
 - Configure `SIGNAL_RECORDS_TABLE_ID` as a non-secret Worker variable after creating the table exactly as defined in `appwrite/schema/member-access.tables.json`. The table is still proposed and must not be treated as provisioned.
+
+## Alert preference persistence
+
+- `GET /api/alert-preferences` loads the verified member's categories, per-asset modes and default mode.
+- `PUT /api/alert-preferences` validates the supported modes, limits per-asset overrides to 100, and writes only the authenticated member's row.
+- Rows are Worker-only (`permissions: []`). The browser keeps its local preference cache if the Worker or table is unavailable.
+- Configure `ALERT_PREFERENCES_TABLE_ID` after creating the proposed table in `appwrite/schema/member-access.tables.json`.
