@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Clock3, Link2, RefreshCw, Unplug } from 'lucide-react';
+import { CheckCircle2, Clock3, Eye, EyeOff, Link2, RefreshCw, Unplug } from 'lucide-react';
 import {
   disconnectCTraderConnection,
   discoverCTraderAccounts,
@@ -9,6 +9,10 @@ import {
   startCTraderConnection,
   type CTraderAccount,
   type CTraderConnectionStatus,
+  connectBinanceSpot,
+  disconnectBinanceSpot,
+  getBinanceSpotConnectionStatus,
+  type BinanceSpotConnectionStatus,
 } from '@/lib/independentApi';
 
 export function IndependentBrokerConnections() {
@@ -18,6 +22,10 @@ export function IndependentBrokerConnections() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [binanceStatus, setBinanceStatus] = useState<BinanceSpotConnectionStatus | null>(null);
+  const [binanceApiKey, setBinanceApiKey] = useState('');
+  const [binanceApiSecret, setBinanceApiSecret] = useState('');
+  const [showBinanceSecret, setShowBinanceSecret] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -39,6 +47,7 @@ export function IndependentBrokerConnections() {
       window.history.replaceState({}, '', url.pathname + url.search + url.hash);
     }
     void loadStatus();
+    void getBinanceSpotConnectionStatus().then(setBinanceStatus).catch(() => setBinanceStatus(null));
   }, [loadStatus]);
 
   const connect = async () => {
@@ -145,9 +154,24 @@ export function IndependentBrokerConnections() {
       {message && <p className="mt-3 flex items-start gap-2 text-xs text-emerald-500"><CheckCircle2 className="h-4 w-4 shrink-0"/>{message}</p>}
       {error && <p role="alert" className="mt-3 text-xs text-rose-400">{error}</p>}
     </article>
+    <article className="rounded-2xl border border-line/15 bg-surface/[.04] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2"><span className="text-base font-semibold text-ink">Binance Spot</span>{binanceStatus?.connected && <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-500">Connected</span>}</div>
+          <p className="mt-1 text-xs text-ink-2">{binanceStatus?.connected ? `API key ending ${binanceStatus.apiKeyLast4 || '••••'} verified. Withdrawals must remain disabled.` : 'Connect with a Binance API key. Never use your Binance login password.'}</p>
+        </div>
+        {binanceStatus?.connected && <button type="button" disabled={busy} onClick={() => { setBusy(true); void disconnectBinanceSpot().then(result => { setBinanceStatus({ connected: false, status: 'not_connected', tradingEnabled: false }); setMessage(result.note); }).catch(cause => setError(cause instanceof Error ? cause.message : 'Could not disconnect Binance.')).finally(() => setBusy(false)); }} className="rounded-lg border border-line/20 px-3 py-2 text-xs font-semibold text-ink disabled:opacity-50"><Unplug className="mr-1 inline h-3.5 w-3.5"/>Disconnect</button>}
+      </div>
+      {!binanceStatus?.connected && <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="block text-xs text-ink-2">Binance API key<input autoComplete="off" value={binanceApiKey} onChange={event => setBinanceApiKey(event.target.value)} className="mt-1 w-full rounded-lg border border-line/20 bg-surface px-3 py-2 text-sm text-ink" placeholder="Paste API key"/></label>
+        <label className="block text-xs text-ink-2">Binance API secret<span className="mt-1 flex rounded-lg border border-line/20 bg-surface"><input autoComplete="new-password" type={showBinanceSecret ? 'text' : 'password'} value={binanceApiSecret} onChange={event => setBinanceApiSecret(event.target.value)} className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-ink outline-none" placeholder="Paste API secret"/><button type="button" onClick={() => setShowBinanceSecret(value => !value)} className="px-3 text-ink-2" aria-label={showBinanceSecret ? 'Hide API secret' : 'Show API secret'}>{showBinanceSecret ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</button></span></label>
+        <div className="sm:col-span-2"><button type="button" disabled={busy || !binanceApiKey.trim() || !binanceApiSecret.trim()} onClick={() => { setBusy(true); setError(''); setMessage(''); void connectBinanceSpot(binanceApiKey, binanceApiSecret).then(result => { setBinanceStatus({ connected: true, status: 'connected', apiKeyLast4: result.apiKeyLast4, tradingEnabled: false }); setBinanceApiKey(''); setBinanceApiSecret(''); setMessage('Binance Spot account verified and encrypted. Trading automation remains OFF.'); }).catch(cause => setError(cause instanceof Error ? cause.message : 'Could not connect Binance Spot.')).finally(() => setBusy(false)); }} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Verifying…' : 'Connect Binance Spot'}</button></div>
+      </div>}
+      <p className="mt-3 text-[11px] leading-5 text-ink-2">Use a dedicated API key with Spot trading permission only. Disable withdrawals and enable IP restrictions in Binance. Credentials are encrypted before storage; this connection does not enable automated orders.</p>
+    </article>
     <article className="rounded-2xl border border-dashed border-line/15 bg-surface/[.02] p-5">
       <p className="text-sm font-semibold text-ink">Other brokers</p>
-      <p className="mt-1 text-xs text-ink-2">MT5, Binance Spot, Binance Futures, OKX Futures and Deriv Options are being connected through the same independent secure service. They remain unavailable until their account and order checks are complete.</p>
+      <p className="mt-1 text-xs text-ink-2">MT5, Binance Futures, OKX Futures and Deriv Options are being connected through the same independent secure service. They remain unavailable until their account and order checks are complete.</p>
     </article>
   </section>;
 }
