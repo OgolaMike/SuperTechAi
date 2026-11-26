@@ -29,6 +29,7 @@ for (const [label, condition] of [
   ['cTrader OAuth callback consumes state before token exchange', worker.indexOf('appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID') < worker.indexOf('https://openapi.ctrader.com/apps/token')],
   ['broker execution remains disabled by capability response', worker.includes('executionEnabled: false')],
   ['broker POST routes are allowed by CORS', worker.includes('GET, POST, PATCH, OPTIONS')],
+  ['cTrader status endpoint returns no token material', worker.includes('/api/brokers/ctrader/status') && worker.includes('tokenExpiresAt: grant.token_expires_at')],
   ['cTrader token refresh decrypts the stored refresh token', worker.includes('decryptBrokerToken(grant.encrypted_refresh_token')],
   ['cTrader refresh rotates and re-encrypts tokens', worker.includes('ctrader_token_refresh_failed') && worker.includes('encryptBrokerToken(token.accessToken')],
   ['cTrader refresh clears legacy client row permissions', worker.includes('permissions: [],')],
