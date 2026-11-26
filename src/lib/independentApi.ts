@@ -85,3 +85,14 @@ export function disconnectCTraderConnection(): Promise<{ disconnected: boolean; 
     body: JSON.stringify({}),
   });
 }
+
+export function fetchIndependentSignalRecords(): Promise<{ records: Array<Record<string, unknown>> }> {
+  return authenticatedRequest<{ records: Array<Record<string, unknown>> }>('/api/signals');
+}
+
+export function upsertIndependentSignalRecords(records: Array<Record<string, unknown>>): Promise<{ saved: number }> {
+  return authenticatedRequest<{ saved: number }>('/api/signals', {
+    method: 'POST',
+    body: JSON.stringify({ records }),
+  });
+}
