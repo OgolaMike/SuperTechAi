@@ -10,8 +10,6 @@ export function useSignalRecordSync(views: SignalView[], loaded: boolean): SyncS
 
   useEffect(() => {
     if (!loaded) return;
-    let cancelled = false;
-
     // Candle/chart refreshes often produce a new views array without changing
     // any persisted signal fields. Skip those redundant remote upserts.
     const rows = views.map(toRecordRow);
@@ -21,19 +19,16 @@ export function useSignalRecordSync(views: SignalView[], loaded: boolean): SyncS
 
     void upsertSignalRecords(rows)
       .then(() => {
-        if (!cancelled) setState((previous) => ({ error: null, version: previous.version + 1 }));
+        setState((previous) => ({ error: null, version: previous.version + 1 }));
       })
       .catch((cause: unknown) => {
         if (lastSignatureRef.current === signature) lastSignatureRef.current = null;
-        if (!cancelled) {
-          setState((previous) => ({
-            error: cause instanceof Error ? cause.message : 'Could not save signal history',
-            version: previous.version + 1,
-          }));
-        }
+        setState((previous) => ({
+          error: cause instanceof Error ? cause.message : 'Could not save signal history',
+          version: previous.version + 1,
+        }));
       });
 
-    return () => { cancelled = true; };
   }, [views, loaded]);
 
   return state;
