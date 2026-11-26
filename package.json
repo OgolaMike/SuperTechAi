@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "check:independent": "node scripts/check-independent-boundary.mjs",
-    "check:independent-worker": "node scripts/check-independent-worker.mjs"
+    "check:independent-worker": "node scripts/check-independent-worker.mjs",
+    "provision:deriv": "node scripts/provision-deriv-oauth-tables.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
