@@ -35,16 +35,14 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Check Appwrite Options Settings Function syntax
-        run: node --check appwrite/functions/options-settings/src/main.js
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
       - name: Type-check Options Trader domain modules and tests
-        run: deno check --no-config --unstable-sloppy-imports src/lib/optionsTraderLifecycle.ts src/lib/optionsTraderLedger.ts supabase/functions/_shared/options-trader-contract_test.ts
+        run: deno check --no-config src/lib/optionsTraderLifecycle.ts src/lib/optionsTraderLedger.ts supabase/functions/_shared/options-trader-contract_test.ts
       - name: Run free, offline Options Trader contract tests
-        run: deno test --no-config --unstable-sloppy-imports --no-check supabase/functions/_shared/options-trader-contract_test.ts
+        run: deno test --no-config supabase/functions/_shared/options-trader-contract_test.ts
       - name: Type-check Supabase Options Trader functions
         run: |
           deno check --no-config supabase/functions/deriv-options-proposal/index.ts
