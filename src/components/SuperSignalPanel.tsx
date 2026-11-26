@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Clock3, Info, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { formatDateTime, formatPrice } from '@/lib/sma';
-import { getAiPatternScore, type SignalLearningModel } from '@/lib/aiLearning';
 import type { SuperSignal } from '@/lib/intelligence';
 import type { SuperSignalRecord } from '@/hooks/useSuperSignalRecords';
 import type { TfState } from '@/lib/sma';
@@ -16,7 +15,6 @@ type Props = {
   onRefreshRecords: () => void;
   prices: Record<string, number>;
   loaded: boolean;
-  aiModel: SignalLearningModel;
   states: Record<string, Record<number, TfState>>;
   onOpenDashboard: (symbol: string, granularity: number) => void;
 };
@@ -65,7 +63,7 @@ function fromLiveSignal(signal: SuperSignal): SuperSignalRecord {
 export function SuperSignalPanel({
   selectedSignalKey,
   signals, records, recordsLoading, recordsError, onRefreshRecords,
-  prices, loaded, aiModel, states, onOpenDashboard,
+  prices, loaded, states, onOpenDashboard,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState('');
 
@@ -166,7 +164,6 @@ export function SuperSignalPanel({
             <SuperSignalDetails
               record={selected}
               price={prices[selected.symbol]}
-              aiModel={aiModel}
             />
           )}
         </div>
@@ -178,10 +175,9 @@ export function SuperSignalPanel({
   );
 }
 
-function SuperSignalDetails({ record, price, aiModel }: {
+function SuperSignalDetails({ record, price }: {
   record: SuperSignalRecord;
   price?: number;
-  aiModel: SignalLearningModel;
 }) {
   const isBuy = record.direction === 'BUY';
   const DirectionIcon = isBuy ? ArrowUpRight : ArrowDownRight;
@@ -192,11 +188,6 @@ function SuperSignalDetails({ record, price, aiModel }: {
     { label: 'Take-profit 2', value: record.tp2, tone: 'text-up', hit: record.tp2_hit_epoch },
     { label: 'Take-profit 3', value: record.tp3, tone: 'text-up', hit: record.tp3_hit_epoch },
   ];
-  const score = getAiPatternScore(aiModel, 1800, record.direction, {
-    entry: record.entry, stopLoss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3,
-    mean: record.band_mean, deviation: record.band_deviation,
-  });
-
   return (
     <article className="min-w-0 space-y-4 rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -233,7 +224,6 @@ function SuperSignalDetails({ record, price, aiModel }: {
         <Metric label="Directional support grade" value={record.grade_percent == null ? "Not recorded" : `${record.grade_percent}%`} />
         <Metric label="Entry price" value={formatPrice(record.entry, record.digits)} />
         <Metric label="Current price" value={price == null ? 'Unavailable' : formatPrice(price, record.digits)} />
-        <Metric label="AI pattern score" value={score == null ? 'Learning' : `${score}/100`} />
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
