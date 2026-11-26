@@ -13,7 +13,21 @@ This guide completes the infrastructure configuration for the Deriv OAuth routes
 
 ## Appwrite TablesDB
 
-In database `supertech_ai_sandbox`, create the following tables. Use the exact table IDs you receive from Appwrite in the Cloudflare Worker variables `DERIV_OAUTH_STATES_TABLE_ID` and `DERIV_GRANTS_TABLE_ID`.
+In database `supertech_ai_sandbox`, the repository now includes an idempotent provisioner. From the repository root, run:
+
+```bash
+APPWRITE_API_KEY="YOUR_TEMPORARY_PROVISIONING_KEY" node scripts/provision-deriv-oauth-tables.mjs
+```
+
+Set `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, and `APPWRITE_DATABASE_ID` in your shell only if you are targeting a different Appwrite project. The script defaults to this project's known values. It creates only the two Deriv tables below, preserves existing tables and rows, verifies row security and empty table-level permissions, and stops if an existing column has an unexpected type. It is safe to rerun.
+
+Use a temporary provisioning API key with database/table/column/index read and write scopes. Do not use the key in the browser. After provisioning, revoke that temporary key if it is no longer needed. The Worker must use a separate, narrowly scoped runtime key for row operations; do not give the Worker schema-management scopes.
+
+The script uses fixed table IDs, so configure these exact values in Cloudflare after it succeeds:
+- `DERIV_OAUTH_STATES_TABLE_ID=deriv_oauth_states`
+- `DERIV_GRANTS_TABLE_ID=deriv_account_grants`
+
+If you prefer manual setup, the required schemas are below.
 
 ### Table: `deriv_oauth_states`
 
