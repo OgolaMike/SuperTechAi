@@ -1,7 +1,7 @@
 const ALLOWED_HOSTS = new Set([
   "www.okx.com","api.bybit.com","api.kucoin.com","api.gateio.ws",
   "api.bitget.com","api.mexc.com","api.coinex.com","open-api.bingx.com",
-  "api-cloud.bitmart.com",
+  "api-cloud.bitmart.com","api.binance.com",
 ]);
 export const onRequestGet: PagesFunction = async ({request}) => {
   const requestUrl=new URL(request.url);
