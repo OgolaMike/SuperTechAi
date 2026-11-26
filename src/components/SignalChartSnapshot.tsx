@@ -44,24 +44,10 @@ function timeLabel(epoch: number, granularity: number) {
     : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-function CandleCountdown({ candleEpoch, granularity }: { candleEpoch: number; granularity: number }) {
-  const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
-  useEffect(() => {
-    const timer = window.setInterval(() => setClockEpoch(Math.floor(Date.now() / 1000)), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-  const remaining = Math.max(0, candleEpoch + granularity - clockEpoch);
-  const days = Math.floor(remaining / 86400);
-  const hours = Math.floor((remaining % 86400) / 3600);
-  const minutes = Math.floor((remaining % 3600) / 60);
-  const seconds = remaining % 60;
-  const countdown = `${days > 0 ? `${days}d ` : ''}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  return <span>{countdown}</span>;
-}
-
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 1800, digits, assetName, symbol, anchorId, livePrice }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
+  const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
   const chartViewportRef = useRef<HTMLDivElement>(null);
 
   // Retain the full candle history for SMA/BB warm-up; display the latest 60 candles.
@@ -75,6 +61,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const data = history.slice(visibleStart);
   // Recalculate only the visible candles; the preceding history is used solely for SMA warm-up.
   const stats = data.map((_, index) => rolling(historyCloses, visibleStart + index));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockEpoch(Math.floor(Date.now() / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const viewport = chartViewportRef.current;
@@ -137,6 +128,12 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
   const rightRegime = direction === 'BUY' ? '#2563eb' : '#ef4444';
   const latest = data[data.length - 1];
   const currentPrice = livePrice ?? latest.close;
+  const secondsRemaining = Math.max(0, latest.epoch + granularity - clockEpoch);
+  const days = Math.floor(secondsRemaining / 86400);
+  const hours = Math.floor((secondsRemaining % 86400) / 3600);
+  const minutes = Math.floor((secondsRemaining % 3600) / 60);
+  const seconds = secondsRemaining % 60;
+  const countdown = `${days > 0 ? `${days}d ` : ''}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   const latestStats = stats[stats.length - 1];
   const gridPrices = Array.from({ length: 6 }, (_, index) => max - (range * index) / 5);
 
@@ -158,7 +155,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Live price and current candle countdown">
-            <span className="text-cyan-200/70">LIVE</span><span>{currentPrice.toFixed(digits)}</span><span className="text-cyan-200/40">·</span><span className="text-cyan-200/70">CLOSES IN</span><CandleCountdown candleEpoch={latest.epoch} granularity={granularity} />
+            <span className="text-cyan-200/70">LIVE</span><span>{currentPrice.toFixed(digits)}</span><span className="text-cyan-200/40">·</span><span className="text-cyan-200/70">CLOSES IN</span><span>{countdown}</span>
           </span>
           <span className="mr-1 text-[10px] tabular-nums text-slate-400">{data.length} candles</span>
           <button type="button" onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))} disabled={zoom === MIN_ZOOM} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-slate-200 hover:border-amber-200/60 hover:bg-white/10 disabled:opacity-30" aria-label="Zoom out chart" title="Zoom out chart"><ZoomOut className="h-4 w-4" /></button>

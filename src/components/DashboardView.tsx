@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import type { SignalLearningModel } from '@/lib/aiLearning';
 import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
-import type { SignalLearningModel } from '@/lib/aiLearning';
 import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
 import type { View } from '@/components/ViewNav';
 import type { SuperSignal } from '@/lib/intelligence';
@@ -14,12 +14,12 @@ type Props = {
   prices: Record<string, number>;
   loaded: boolean;
   soundsEnabled: boolean;
-  aiModel: SignalLearningModel;
+  aiModel?: SignalLearningModel;
   unifiedSignals: SuperSignal[];
   onNavigate: (view: View) => void;
 };
 
-export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, aiModel, unifiedSignals, onNavigate }: Props) {
+export function DashboardView({ selectedSymbols, assetMap, states, prices, loaded, soundsEnabled, unifiedSignals, onNavigate }: Props) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('H4');
   const [showAllTimeframes, setShowAllTimeframes] = useState(false);
   const unifiedSignal = unifiedSignals.find((signal) => signal.symbol === selectedSymbols[0]) ?? null;
@@ -34,6 +34,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
 
   return (
     <>
+      <style>{`@keyframes timeframe-slide-in { from { opacity: 0; transform: translateX(18px); filter: blur(3px); } to { opacity: 1; transform: translateX(0); filter: blur(0); } }`}</style>
       <section className="mt-7 overflow-hidden rounded-3xl border border-line/15 bg-gradient-to-br from-accent/[0.13] via-surface/[0.055] to-surface/[0.015] p-5 shadow-lg sm:p-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
@@ -66,7 +67,6 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-3">
           <span>{loaded ? 'Market feed connected · Signal data updating' : 'Connecting to market feed…'}</span>
-          <span>{aiModel.ready ? `AI learning from ${aiModel.sampleCount} completed signals` : `AI learning · ${aiModel.sampleCount} completed results collected`}</span>
         </div>
       </section>
 
@@ -91,13 +91,8 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
       <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">MARKET INTELLIGENCE</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">10 Timeframes. One Intelligence.</h2>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">One Intelligence. Every Timeframe.</h2>
           <p className="mt-1 max-w-2xl text-sm font-medium tracking-wide text-ink-2">SEE THE SIGNAL. OWN THE MOMENT.</p>
-          <p className="mt-1 text-xs text-ink-3">
-            {aiModel.ready
-              ? `AI has learned from ${aiModel.sampleCount} completed signals (${aiModel.wins} reached the final target, ${aiModel.losses} hit stop-loss).`
-              : `AI is collecting completed signals. It needs at least 30 results, including wins and losses, before showing a pattern score. Current completed results: ${aiModel.sampleCount}.`}
-          </p>
         </div>
       </div>
 
@@ -115,19 +110,19 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
               <h3 className="text-xs font-semibold uppercase tracking-[.16em] text-ink-2">{asset.fullName}</h3>
               <div className="h-px flex-1 bg-line/10" />
             </div>
-            <div className="hud-panel rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
+            <div className="hud-panel rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/[0.10] via-surface/[0.05] to-surface/[0.02] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.16)] sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-xs font-bold uppercase tracking-[.16em] text-accent">Select timeframe</p><p className="mt-1 text-xs text-ink-3">Choose one view. Every timeframe keeps its own signal levels.</p></div>
                 <span className="rounded-full border border-accent/25 px-3 py-1 text-[10px] font-semibold text-accent">10 timeframes monitored</span>
               </div>
-              <div className="mt-3 flex gap-2 overflow-x-auto pb-2" role="group" aria-label={`Select ${asset.fullName} timeframe`}>
+              <div className="mt-4 overflow-hidden rounded-xl border border-[#293244] bg-[#111722] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.035),0_8px_24px_rgba(0,0,0,0.18)]"><div className="mb-2 flex items-center justify-between gap-2 px-1"><span className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">Chart interval</span><span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-bold text-amber-200">{selectedTimeframe} selected</span></div><div className="flex snap-x gap-1 overflow-x-auto pb-1 [scrollbar-width:thin]" role="group" aria-label={`Select ${asset.fullName} timeframe`}>
                 {TIMEFRAMES.map((timeframe) => (
                   <button key={timeframe.granularity} type="button" onClick={() => setSelectedTimeframe(timeframe.label)} aria-pressed={selectedTimeframe === timeframe.label}
-                    className={`magic-selector min-w-[3.5rem] rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${selectedTimeframe === timeframe.label ? 'border-accent bg-accent text-canvas shadow-[0_0_18px_rgba(212,175,55,0.16)]' : 'border-line/15 bg-canvas/40 text-ink-2 hover:border-accent/40 hover:text-ink'}`}>{timeframe.label}</button>
+                    className={`magic-selector min-w-10 shrink-0 snap-start rounded-lg border px-3 py-2 text-xs font-bold tracking-wide transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-95 ${selectedTimeframe === timeframe.label ? 'border-amber-300/70 bg-gradient-to-b from-amber-300 to-yellow-500 text-[#111827] shadow-[0_0_16px_rgba(245,190,65,0.25)]' : 'border-transparent bg-transparent text-slate-300 hover:border-slate-500/60 hover:bg-white/[0.06] hover:text-white'}`}>{timeframe.label}</button>
                 ))}
-              </div>
+              </div></div>
             </div>
-            <div className="mt-4 hud-panel rounded-2xl"><SignalCard asset={asset} tf={selectedState} loaded={loaded} price={prices[symbol]} aiModel={aiModel} unifiedOnly /></div>
+            <div key={`${symbol}-${selectedTimeframe}`} className="mt-4 hud-panel animate-[timeframe-slide-in_420ms_cubic-bezier(0.2,0.8,0.2,1)] rounded-2xl"><SignalCard asset={asset} tf={selectedState} loaded={loaded} price={prices[symbol]} unifiedOnly /></div>
             <div className="magic-card mt-4 overflow-hidden rounded-2xl border border-line/15 bg-surface/[0.025]">
               <button type="button" onClick={() => setShowAllTimeframes((value) => !value)} aria-expanded={showAllTimeframes}
                 className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-surface/[0.04]">
