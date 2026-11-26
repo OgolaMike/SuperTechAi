@@ -47,6 +47,11 @@ export function cacheAlertModes(settings: AlertModeSettings, userId?: string): v
 export async function loadMemberAlertModes(userId: string): Promise<AlertModeSettings> {
   try {
     const response = await fetchIndependentAlertPreferences();
+    if (!response.exists) {
+      const local = loadAlertModes(userId);
+      await saveIndependentAlertPreferences({ categories: local.categories, assets: local.assets, defaultAssetMode: local.defaultAssetMode });
+      return local;
+    }
     const fallback = emptySettings();
     const categories = { ...fallback.categories };
     for (const item of ALERT_CATEGORIES) {
