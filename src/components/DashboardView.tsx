@@ -122,7 +122,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
                 ))}
               </div>
             </div>
-            <div className="mt-4 hud-panel animate-[timeframe-slide-in_420ms_cubic-bezier(0.2,0.8,0.2,1)] rounded-2xl"><SignalCard key={`${symbol}-${selectedTimeframe}`} asset={asset} tf={selectedState} loaded={loaded} price={prices[symbol]} unifiedOnly /></div>
+            <div key={`${symbol}-${selectedTimeframe}`} className="mt-4 hud-panel animate-[timeframe-slide-in_420ms_cubic-bezier(0.2,0.8,0.2,1)] rounded-2xl"><SignalCard asset={asset} tf={selectedState} loaded={loaded} price={prices[symbol]} unifiedOnly /></div>
             <div className="mt-4 overflow-hidden rounded-2xl border border-line/15 bg-surface/[0.025]">
               <button type="button" onClick={() => setShowAllTimeframes((value) => !value)} aria-expanded={showAllTimeframes}
                 className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-surface/[0.04]">
