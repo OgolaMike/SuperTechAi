@@ -3,6 +3,7 @@ export interface Env {
   APPWRITE_PROJECT_ID: string;
   APPWRITE_DATABASE_ID: string;
   MEMBER_PROFILES_TABLE_ID: string;
+  SIGNAL_RECORDS_TABLE_ID?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
 }
@@ -301,6 +302,92 @@ export default {
         }, 200, cors);
       } catch {
         return json({ error: "identity_service_unavailable" }, 503, cors);
+      }
+    }
+
+    if (url.pathname === "/api/signals" && request.method === "GET") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!env.SIGNAL_RECORDS_TABLE_ID || !env.APPWRITE_API_KEY) return json({ error: "signal_storage_not_configured" }, 503, cors);
+        const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
+        const base = `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.SIGNAL_RECORDS_TABLE_ID}/rows`;
+        const query = JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] });
+        const target = new URL(base);
+        target.searchParams.set("queries[]", query);
+        target.searchParams.set("limit", "500");
+        target.searchParams.set("orderDesc", "signal_epoch");
+        const response = await fetch(target, {
+          headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY },
+        });
+        if (!response.ok) return json({ error: "signal_history_read_failed" }, 503, cors);
+        const payload = await response.json() as { rows?: Array<Record<string, unknown>> };
+        const rows = (payload.rows || []).filter(row => row.user_id === account.$id).map(({ $id, $createdAt, $updatedAt, $permissions, user_id, ...record }) => record);
+        return json({ records: rows }, 200, cors);
+      } catch {
+        return json({ error: "signal_history_read_failed" }, 503, cors);
+      }
+    }
+
+    if (url.pathname === "/api/signals" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!env.SIGNAL_RECORDS_TABLE_ID || !env.APPWRITE_API_KEY) return json({ error: "signal_storage_not_configured" }, 503, cors);
+        const contentLength = Number(request.headers.get("content-length") || 0);
+        if (contentLength > 64_000) return json({ error: "signal_batch_too_large" }, 413, cors);
+        const body = await request.json().catch(() => null) as { records?: Array<Record<string, unknown>> } | null;
+        if (!body || !Array.isArray(body.records) || body.records.length < 1 || body.records.length > 50) {
+          return json({ error: "invalid_signal_batch" }, 400, cors);
+        }
+        const timeframeSeconds: Record<string, number> = { M30: 1800, H1: 3600, H2: 7200, H3: 10800, H4: 14400, H6: 21600, H8: 28800, H12: 43200, D1: 86400, W1: 604800 };
+        const numericFields = ["entry", "stop_loss", "tp1", "tp2", "tp3", "band_mean", "band_deviation"];
+        const optionalEpochFields = ["tp1_hit_epoch", "tp2_hit_epoch", "tp3_hit_epoch", "sl_hit_epoch"];
+        const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
+        const base = `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.SIGNAL_RECORDS_TABLE_ID}/rows`;
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
+        let saved = 0;
+        for (const raw of body.records) {
+          const record = raw || {};
+          const valid = typeof record.signal_key === "string" && record.signal_key.length > 0 && record.signal_key.length <= 160 &&
+            typeof record.symbol === "string" && record.symbol.length > 0 && record.symbol.length <= 64 &&
+            typeof record.asset_name === "string" && record.asset_name.length <= 120 &&
+            typeof record.timeframe === "string" && timeframeSeconds[record.timeframe] === record.granularity &&
+            Number.isInteger(record.digits) && Number(record.digits) >= 0 && Number(record.digits) <= 12 &&
+            (record.direction === "BUY" || record.direction === "SELL") &&
+            Number.isSafeInteger(record.signal_epoch) && Number(record.signal_epoch) > 0 && Number(record.signal_epoch) <= Date.now() / 1000 + 60 &&
+            numericFields.every(key => typeof record[key] === "number" && Number.isFinite(record[key]) && Number(record[key]) > 0) &&
+            Number(record.band_deviation) > 0 &&
+            optionalEpochFields.every(key => record[key] === null || (Number.isSafeInteger(record[key]) && Number(record[key]) > 0)) &&
+            ["Open", "TP1", "TP2", "TP3", "Stopped"].includes(String(record.status)) && typeof record.closed === "boolean";
+          if (!valid) return json({ error: "invalid_signal_record" }, 400, cors);
+          const rowId = (await sha256(`${account.$id}|${record.signal_key}`)).slice(0, 32);
+          const rowUrl = `${base}/${encodeURIComponent(rowId)}`;
+          const existing = await fetch(rowUrl, { headers });
+          if (existing.ok) {
+            const prior = await existing.json() as { user_id?: string };
+            if (prior.user_id !== account.$id) return json({ error: "signal_record_ownership_mismatch" }, 403, cors);
+            const update = await fetch(rowUrl, {
+              method: "PATCH", headers,
+              body: JSON.stringify({ data: { ...record, user_id: account.$id, updated_at: new Date().toISOString() }, permissions: [] }),
+            });
+            if (!update.ok) return json({ error: "signal_record_update_failed" }, 503, cors);
+          } else if (existing.status === 404) {
+            const create = await fetch(base, {
+              method: "POST", headers,
+              body: JSON.stringify({ rowId, data: { ...record, user_id: account.$id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, permissions: [] }),
+            });
+            if (!create.ok && create.status !== 409) return json({ error: "signal_record_create_failed" }, 503, cors);
+            if (create.status === 409) {
+              const retry = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { ...record, user_id: account.$id, updated_at: new Date().toISOString() }, permissions: [] }) });
+              if (!retry.ok) return json({ error: "signal_record_upsert_failed" }, 503, cors);
+            }
+          } else return json({ error: "signal_record_read_failed" }, 503, cors);
+          saved++;
+        }
+        return json({ saved }, 200, cors);
+      } catch {
+        return json({ error: "signal_history_write_failed" }, 503, cors);
       }
     }
 
