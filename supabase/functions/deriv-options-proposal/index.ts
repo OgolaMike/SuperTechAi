@@ -132,12 +132,92 @@ Deno.serve(async req => {
     const askPrice = Number(proposal.ask_price);
     const payout = Number(proposal.payout);
     const spot = Number(proposal.spot);
-    if (!proposalId || ![askPrice, payout, spot].every(Number.isFinite) || askPrice <= 0 || payout <= 0 || spot <= 0) {
-      return reply({ error: "invalid_deriv_proposal" }, 502, origin);
+    const expirySeconds = Number(proposal.date_expiry);
+    const expiresAt = Number.isFinite(expirySeconds) && expirySeconds > 0
+      ? new Date(expirySeconds * 1000).toISOString()
+      : "";
+    const signal = input.signalSnapshot && typeof input.signalSnapshot === "object"
+      ? input.signalSnapshot as Record<string, unknown>
+      : null;
+    const signalId = typeof signal?.signalId === "string" ? signal.signalId : "";
+    const signalDirection = signal?.direction;
+    const signalEpoch = Number(signal?.signalEpoch);
+    const signalScore = Number(signal?.confluenceScore);
+    const upperBand = Number(signal?.upperBand);
+    const lowerBand = Number(signal?.lowerBand);
+    const middleBand = Number(signal?.middleBand);
+    if (!proposalId || ![askPrice, payout, spot].every(Number.isFinite) || askPrice <= 0 || payout <= 0 || spot <= 0 ||
+      !expiresAt || Date.parse(expiresAt) <= Date.now() || !signalId ||
+      !["BUY", "SELL"].includes(String(signalDirection)) ||
+      ![signalEpoch, signalScore, upperBand, lowerBand, middleBand].every(Number.isFinite) ||
+      signalEpoch <= 0 || signalScore < 0 || signalScore > 100 || upperBand <= lowerBand ||
+      middleBand <= lowerBand || middleBand >= upperBand) {
+      return reply({ error: "invalid_deriv_proposal_or_signal_snapshot" }, 502, origin);
+    }
+
+    const snapshot = {
+      user_id: user.id,
+      account_id: accountId,
+      account_mode: account.account_type,
+      proposal_id: proposalId,
+      symbol,
+      contract_type: contractType,
+      currency: String(account.currency),
+      stake,
+      ask_price: askPrice,
+      payout,
+      spot,
+      barrier,
+      duration_minutes: 30,
+      signal_snapshot: {
+        signalId,
+        symbol,
+        direction: signalDirection,
+        signalCreatedAt: new Date(signalEpoch * 1000).toISOString(),
+        analysisTimeframe: "M30",
+        confluenceScore: signalScore,
+        upperBand,
+        lowerBand,
+        middleBand,
+        deviation: 2.5
+      },
+      broker_snapshot: {
+        id: proposalId,
+        ask_price: askPrice,
+        payout,
+        spot,
+        date_expiry: expirySeconds
+      },
+      expires_at: expiresAt
+    };
+    const persisted = await fetch(`${base}/rest/v1/options_proposal_snapshots?on_conflict=account_id,proposal_id`, {
+      method: "POST",
+      headers: {
+        apikey: service,
+        Authorization: `Bearer ${service}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=ignore-duplicates,return=representation"
+      },
+      body: JSON.stringify(snapshot)
+    });
+    if (!persisted.ok) return reply({ error: "proposal_snapshot_persistence_failed" }, 503, origin);
+    const savedRows = await persisted.json();
+    let saved = Array.isArray(savedRows) ? savedRows[0] : null;
+    if (!saved) {
+      const lookup = await fetch(`${base}/rest/v1/options_proposal_snapshots?user_id=eq.${encodeURIComponent(user.id)}&account_id=eq.${encodeURIComponent(accountId)}&proposal_id=eq.${encodeURIComponent(proposalId)}&select=id,expires_at,consumed_at&limit=1`, {
+        headers: { apikey: service, Authorization: `Bearer ${service}` }
+      });
+      if (!lookup.ok) return reply({ error: "proposal_snapshot_lookup_failed" }, 503, origin);
+      const rows = await lookup.json();
+      saved = rows[0] ?? null;
+    }
+    if (!saved?.id || saved.consumed_at || Date.parse(saved.expires_at) <= Date.now()) {
+      return reply({ error: "proposal_snapshot_unavailable" }, 409, origin);
     }
     return reply({
       proposal: {
         id: proposalId,
+        snapshotId: saved.id,
         symbol,
         contractType,
         accountType: account.account_type,
@@ -148,10 +228,10 @@ Deno.serve(async req => {
         spot,
         barrier,
         durationMinutes: 30,
-        expiresAt: Number(proposal.date_expiry) || null
+        expiresAt: expirySeconds
       },
       executionEnabled: false,
-      message: "Quote only. No contract has been purchased."
+      message: "Quote saved securely. No contract has been purchased."
     }, 200, origin);
   } catch (error) {
     const message = error instanceof Error ? error.message : "options_proposal_failed";
