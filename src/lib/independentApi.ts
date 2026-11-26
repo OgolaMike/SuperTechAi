@@ -138,3 +138,11 @@ export function saveIndependentAlertPreferences(settings: IndependentAlertPrefer
     body: JSON.stringify({ settings }),
   });
 }
+
+export function fetchIndependentSuperSignalRecords(): Promise<{ records: Array<Record<string, unknown>> }> {
+  return authenticatedRequest<{ records: Array<Record<string, unknown>> }>('/api/super-signals');
+}
+
+export function upsertIndependentSuperSignalRecords(records: Array<Record<string, unknown>>): Promise<{ saved: number }> {
+  return authenticatedRequest<{ saved: number }>('/api/super-signals', { method: 'POST', body: JSON.stringify({ records }) });
+}
