@@ -8,6 +8,7 @@ This document tracks the broker services being moved from Supabase Edge Function
 - Binance Spot status route: `GET /api/brokers/binance-spot/status`; returns connection metadata only, never credential material.
 - Binance Spot local disconnect route: `POST /api/brokers/binance-spot/disconnect`; deletes the encrypted local credential row and reminds the member to revoke the key at Binance.
 - Binance Spot API key and secret are encrypted with AES-256-GCM and stored in a Worker-only Appwrite row scoped to the authenticated member. Order execution remains disabled.
+- Binance USDⓈ-M Futures account verification: signed `/fapi/v3/account` request; encrypted API credentials in a separate member-scoped Worker-only Appwrite table; status and disconnect routes. Futures execution remains disabled.
 - Appwrite JWT identity validation (email verification remains required).
 - cTrader OAuth start route: `POST /api/brokers/ctrader/connect`.
 - cTrader callback route: `GET /api/brokers/ctrader/callback`.
@@ -48,6 +49,9 @@ Register the exact callback URL in the Deriv OAuth application. The Deriv applic
 ## Required Appwrite tables
 
 Create these TablesDB tables in database `supertech_ai_sandbox`. Add the columns exactly as listed; use string columns for timestamps and encrypted values. Set row security on and use server API-key access for writes. Never grant a client permission to read token ciphertext.
+
+### `binance_futures_credentials`
+Use the same columns and security rules as `binance_spot_credentials`, but configure a separate table ID and never reuse the Spot table.
 
 ### `binance_spot_credentials`
 | Column | Type | Required |
@@ -114,7 +118,8 @@ Use a unique index on `user_id` for grants and on `state_hash` for states. Grant
 
 Set these non-secret Worker vars after the tables exist:
 
-- `BINANCE_SPOT_CREDENTIALS_TABLE_ID`\n- `CTRADER_OAUTH_STATES_TABLE_ID`
+- `BINANCE_SPOT_CREDENTIALS_TABLE_ID`
+- `BINANCE_FUTURES_CREDENTIALS_TABLE_ID`\n- `CTRADER_OAUTH_STATES_TABLE_ID`
 - `CTRADER_GRANTS_TABLE_ID`
 - `CTRADER_CLIENT_ID`
 - `CTRADER_REDIRECT_URI` (must exactly match the cTrader application callback URL)
@@ -133,7 +138,7 @@ The following original Supabase functions still require provider-specific ports 
 - cTrader provider-side token revocation, cloud reconciliation, risk preflight, order placement, position/order reconciliation and callbacks.
 - MT5 pairing, worker heartbeat/authentication, signal-intent delivery, order/position reconciliation and worker revocation.
 - Binance Spot settings, order intents, execution, fills and reconciliation (credential verification and encrypted key storage are now implemented; order execution remains disabled).
-- Binance USDT-M Futures credential verification, risk sizing, idempotent order execution, protective orders and reconciliation.
+- Binance USDT-M Futures risk sizing, idempotent order execution, protective orders and reconciliation (account verification and encrypted credential storage are implemented; execution remains disabled).
 - OKX Futures credential verification, settings, signal intents, risk sizing, attached TP/SL, uncertain-order recovery and reconciliation.
 - Deriv Options proposal pricing, purchase, authenticated WebSocket OTP/session handling, open-contract monitoring, idempotent order intents, demo validation, risk checks and settlement reconciliation. Account OAuth and account selection are implemented, but contract execution remains disabled.
 
