@@ -46,6 +46,11 @@ function readSelected():string[]{try{const value=JSON.parse(localStorage.getItem
 function epoch(){return Math.floor(Date.now()/1000)}
 
 export function IndependentTradingTerminal({email,userId}:Props){
+ const context={session:{access_token:'',user:{id:userId,email,user_metadata:{}}},isAdmin:false};
+ return <SessionContext.Provider value={context}><IndependentTradingWorkspace email={email} userId={userId}/></SessionContext.Provider>;
+}
+
+function IndependentTradingWorkspace({email,userId}:Props){
  const [view,setView]=useState<View>('dashboard');
  const [selectedSymbols,setSelectedSymbols]=useState<string[]>(readSelected);
  const [soundsEnabled,setSoundsEnabled]=useState(()=>localStorage.getItem(SOUND_KEY)==='true');
@@ -73,9 +78,8 @@ export function IndependentTradingTerminal({email,userId}:Props){
  const monitorAsset=(symbol:string)=>{updateSelected([symbol]);setView('dashboard')};
  const openChart=(symbol:string)=>{updateSelected([symbol]);setView('dashboard');window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>document.getElementById(`asset-dashboard-${encodeURIComponent(symbol)}`)?.scrollIntoView({behavior:'smooth',block:'start'})))};
  const toggleSounds=()=>{const next=!soundsEnabled;setSoundsEnabled(next);localStorage.setItem(SOUND_KEY,String(next));if(next){playAlertTone('BUY');ensureNotificationPermission()}};
- const context={session:{access_token:'',user:{id:userId,email,user_metadata:{}}},isAdmin:false};
  const commonAlerts=[...pendingAlerts.toasts,...breakAlerts.toasts,...signalAlerts.toasts];
- return <SessionContext.Provider value={context}>
+ return <>
   <div className="relative min-h-screen overflow-x-clip bg-canvas text-ink"><AmbientBackground/>
    <div className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 sm:py-10 lg:pb-10">
     <header className="flex flex-col gap-4">
@@ -108,5 +112,5 @@ export function IndependentTradingTerminal({email,userId}:Props){
    </div>
    <Toasts toasts={commonAlerts} onDismiss={id=>{signalAlerts.dismiss(id);breakAlerts.dismiss(id);pendingAlerts.dismiss(id)}} onOpenChart={openChart}/>
   </div>
- </SessionContext.Provider>
+ </>
 }
