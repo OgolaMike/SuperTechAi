@@ -379,7 +379,7 @@ export default {
           method: "PATCH",
           headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY!, "Content-Type": "application/json" },
           body: JSON.stringify({
-            data: { ...grant, encrypted_access_token: access, encrypted_refresh_token: refresh, token_expires_at: nextExpiry, status: "account_discovery_pending" },
+            data: { user_id: account.$id, encrypted_access_token: access, encrypted_refresh_token: refresh, token_expires_at: nextExpiry, granted_scopes: grant.granted_scopes || "trading", status: "account_discovery_pending" },
             permissions: [],
           }),
         });
