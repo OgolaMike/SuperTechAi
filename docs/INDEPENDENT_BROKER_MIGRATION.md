@@ -10,9 +10,11 @@ This document tracks the broker services being moved from Supabase Edge Function
 - One-time, hashed OAuth state with a 10-minute expiry.
 - Immediate cTrader authorization-code exchange and AES-256-GCM encryption of access/refresh tokens before Appwrite storage.
 - Authenticated provider capability endpoint: `GET /api/brokers/capabilities`.
+- Authenticated account discovery: `POST /api/brokers/ctrader/discover` uses cTrader's JSON WebSocket protocol on port 5036 to list only accounts granted to the user's token.
+- Authenticated account selection: `POST /api/brokers/ctrader/select-account` re-authenticates the selected account session before storing its ID and environment.
 - Authenticated token refresh: `POST /api/brokers/ctrader/refresh`; refreshes before expiry, rotates tokens when returned, and re-encrypts them.
 - Authenticated local disconnect: `POST /api/brokers/ctrader/disconnect`; deletes the encrypted local grant and explicitly does not claim to revoke provider authorization.
-- OAuth state and encrypted grant rows have no member read/update permissions. Reconnect and refresh clear any legacy row permissions with an empty permission list.
+- OAuth state and encrypted grant rows have no member read/update permissions. Reconnect, refresh, account discovery and selection clear any legacy row permissions with an empty permission list.
 - Trading execution remains disabled.
 
 ## Required Appwrite tables
@@ -37,6 +39,11 @@ Create these TablesDB tables in database `supertech_ai_sandbox`. Add the columns
 | token_expires_at | string(40) | yes |
 | granted_scopes | string(128) | yes |
 | status | string(64) | yes |
+| accounts_json | string(30000) | no |
+| accounts_discovered_at | string(40) | no |
+| permission_scope | string(32) | no |
+| selected_account_id | string(32) | no |
+| selected_account_is_live | boolean | no |
 
 Use a unique index on `user_id` for grants and on `state_hash` for states. Grant rows must only be readable/writable by the Worker API key. The callback uses a deterministic row ID per member, so a member has one active grant row.
 
@@ -54,13 +61,13 @@ Set these as Worker secrets, never as Pages variables:
 - `CTRADER_CLIENT_SECRET`
 - `BROKER_TOKEN_ENCRYPTION_KEY`: base64 encoding of exactly 32 cryptographically random bytes.
 
-The Appwrite server API key must have only the TablesDB permissions needed for the two tables and existing profile rows. Keep it in the Worker secret `APPWRITE_API_KEY`.
+The Appwrite server API key must have only the TablesDB `rows.read`, `rows.write` and `rows.delete` permissions needed for the configured tables and existing profile rows. Keep it in the Worker secret `APPWRITE_API_KEY`.
 
 ## Remaining migration work (not represented as complete)
 
 The following original Supabase functions still require provider-specific ports and Appwrite persistence before they can be enabled:
 
-- cTrader account discovery, provider-side token revocation, cloud reconciliation, risk preflight, order placement, position/order reconciliation and callbacks.
+- cTrader provider-side token revocation, cloud reconciliation, risk preflight, order placement, position/order reconciliation and callbacks.
 - MT5 pairing, worker heartbeat/authentication, signal-intent delivery, order/position reconciliation and worker revocation.
 - Binance Spot credential verification, encrypted key vault, settings, order intents, execution, fills and reconciliation.
 - Binance USDT-M Futures credential verification, risk sizing, idempotent order execution, protective orders and reconciliation.

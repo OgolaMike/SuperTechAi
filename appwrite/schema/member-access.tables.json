@@ -205,7 +205,10 @@
     "The latest browser run did not perform final verification. RLS and permissions values are from the preceding direct inspection and must be rechecked before member data is enabled.",
     "No member, payment, referral or broker records have been created or migrated.",
     "Appwrite system columns such as $id, $createdAt and $updatedAt are platform-managed; application timestamps are retained in this proposed schema until the application code explicitly maps to system fields.",
-    "cTrader OAuth state and grant tables are proposed only; they have not been created. Token ciphertext must remain inaccessible to member SDK sessions."
+    "cTrader OAuth state and grant tables are proposed only; they have not been created. Token ciphertext must remain inaccessible to member SDK sessions.",
+    "Signal history is stored per member through the authenticated Worker; the proposed signal_records table remains uncreated until Appwrite schema provisioning is verified.",
+    "Alert preferences are synced through the authenticated Worker and stored in a Worker-only proposed table; client-side fallback remains enabled until schema provisioning is complete.",
+    "cTrader account discovery uses the Open API JSON WebSocket protocol. The grant row stores only the user's authorized account metadata and selected account ID; access and refresh tokens remain encrypted."
   ],
   "proposedTables": [
     {
@@ -298,11 +301,250 @@
           "type": "varchar",
           "size": 64,
           "required": true
+        },
+        {
+          "key": "accounts_json",
+          "type": "varchar",
+          "size": 30000,
+          "required": false
+        },
+        {
+          "key": "accounts_discovered_at",
+          "type": "varchar",
+          "size": 40,
+          "required": false
+        },
+        {
+          "key": "permission_scope",
+          "type": "varchar",
+          "size": 32,
+          "required": false
+        },
+        {
+          "key": "selected_account_id",
+          "type": "varchar",
+          "size": 32,
+          "required": false
+        },
+        {
+          "key": "selected_account_is_live",
+          "type": "boolean",
+          "required": false
         }
       ],
       "indexes": [
         {
           "key": "ctrader_grants_user_id_unique",
+          "type": "unique",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "signal_records",
+      "id": null,
+      "status": "not_created_worker_only",
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "signal_key",
+          "type": "varchar",
+          "size": 160,
+          "required": true
+        },
+        {
+          "key": "symbol",
+          "type": "varchar",
+          "size": 64,
+          "required": true
+        },
+        {
+          "key": "asset_name",
+          "type": "varchar",
+          "size": 120,
+          "required": true
+        },
+        {
+          "key": "timeframe",
+          "type": "varchar",
+          "size": 4,
+          "required": true
+        },
+        {
+          "key": "granularity",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "digits",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "direction",
+          "type": "varchar",
+          "size": 4,
+          "required": true
+        },
+        {
+          "key": "signal_epoch",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "entry",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "stop_loss",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "tp1",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "tp2",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "tp3",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "band_mean",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "band_deviation",
+          "type": "double",
+          "required": true
+        },
+        {
+          "key": "tp1_hit_epoch",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "key": "tp2_hit_epoch",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "key": "tp3_hit_epoch",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "key": "sl_hit_epoch",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "key": "status",
+          "type": "varchar",
+          "size": 16,
+          "required": true
+        },
+        {
+          "key": "closed",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "updated_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "signal_records_member_key_unique",
+          "type": "unique",
+          "columns": [
+            "user_id",
+            "signal_key"
+          ]
+        },
+        {
+          "key": "signal_records_member_epoch",
+          "type": "key",
+          "columns": [
+            "user_id",
+            "signal_epoch"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "alert_preferences",
+      "id": null,
+      "status": "not_created_worker_only",
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "categories_json",
+          "type": "varchar",
+          "size": 2000,
+          "required": true
+        },
+        {
+          "key": "assets_json",
+          "type": "varchar",
+          "size": 12000,
+          "required": true
+        },
+        {
+          "key": "default_asset_mode",
+          "type": "varchar",
+          "size": 8,
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "updated_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "alert_preferences_user_id_unique",
           "type": "unique",
           "columns": [
             "user_id"

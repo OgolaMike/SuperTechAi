@@ -3,6 +3,8 @@ export interface Env {
   APPWRITE_PROJECT_ID: string;
   APPWRITE_DATABASE_ID: string;
   MEMBER_PROFILES_TABLE_ID: string;
+  SIGNAL_RECORDS_TABLE_ID?: string;
+  ALERT_PREFERENCES_TABLE_ID?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
 }
@@ -40,7 +42,7 @@ function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
   if (!origin || origin !== allowedOrigin) return {};
   return {
     "access-control-allow-origin": origin,
-    "access-control-allow-methods": "GET, POST, PATCH, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-max-age": "600",
     "vary": "Origin",
@@ -163,6 +165,41 @@ const sha256 = async (value: string) => {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
+async function openCTraderSocket(host: string): Promise<WebSocket> {
+  const socket = new WebSocket(`wss://${host}:5036`);
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => { socket.close(); reject(new Error("ctrader_socket_timeout")); }, 8000);
+    socket.addEventListener("open", () => { clearTimeout(timer); resolve(); }, { once: true });
+    socket.addEventListener("error", () => { clearTimeout(timer); reject(new Error("ctrader_socket_error")); }, { once: true });
+  });
+  return socket;
+}
+
+async function sendCTraderJsonMessage(socket: WebSocket, payloadType: number, payload: Record<string, unknown>, expectedType: number): Promise<Record<string, unknown>> {
+  const clientMsgId = crypto.randomUUID();
+  return new Promise((resolve, reject) => {
+    const cleanup = () => { clearTimeout(timer); socket.removeEventListener("message", onMessage); socket.removeEventListener("error", onError); socket.removeEventListener("close", onClose); };
+    const timer = setTimeout(() => { cleanup(); reject(new Error("ctrader_message_timeout")); }, 8000);
+    const onMessage = (event: MessageEvent) => {
+      if (typeof event.data !== "string") return;
+      let message: { payloadType?: number; payload?: Record<string, unknown>; clientMsgId?: string };
+      try { message = JSON.parse(event.data) as typeof message; } catch { return; }
+      if (message.payloadType === 2142) { cleanup(); reject(new Error("ctrader_open_api_error")); return; }
+      if (message.payloadType === expectedType && (!message.clientMsgId || message.clientMsgId === clientMsgId)) { cleanup(); resolve(message.payload || {}); }
+    };
+    const onError = () => { cleanup(); reject(new Error("ctrader_socket_error")); };
+    const onClose = () => { cleanup(); reject(new Error("ctrader_socket_closed")); };
+    socket.addEventListener("message", onMessage);
+    socket.addEventListener("error", onError);
+    socket.addEventListener("close", onClose);
+    socket.send(JSON.stringify({ clientMsgId, payloadType, payload }));
+  });
+}
+
+async function authenticateCTraderApplication(socket: WebSocket, env: BrokerEnv): Promise<void> {
+  if (!env.CTRADER_CLIENT_ID || !env.CTRADER_CLIENT_SECRET) throw new Error("ctrader_app_credentials_missing");
+  await sendCTraderJsonMessage(socket, 2100, { clientId: env.CTRADER_CLIENT_ID, clientSecret: env.CTRADER_CLIENT_SECRET }, 2101);
+}
 async function decryptBrokerToken(value: string, keyText: string): Promise<string> {
   const [version, ivText, cipherText] = value.split(".");
   if (version !== "v1" || !ivText || !cipherText) throw new Error("invalid_encrypted_broker_token");
@@ -232,14 +269,12 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
   const payload = await lookup.json() as { rows?: Array<{ $id: string; user_id: string; redirect_path?: string; expires_at: string; consumed_at?: string }> };
   const row = payload.rows?.[0];
   if (!row || row.consumed_at || Date.parse(row.expires_at) <= Date.now()) return json({ error: "oauth_state_expired_or_used" }, 400);
-  // Delete the state row before exchanging the code. A single successful DELETE
-  // consumes the state atomically; concurrent callbacks cannot both proceed.
-  const consumeUrl = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${CTRADER_OAUTH_STATES_TABLE_ID}/rows/${encodeURIComponent(row.$id)}`;
-  const consume = await fetch(consumeUrl, {
-    method: "DELETE",
-    headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY! },
-  });
-  if (!consume.ok) return json({ error: "oauth_state_expired_or_used" }, 400);
+  try {
+    // Deleting the state row is an atomic one-time consume: concurrent callbacks cannot both proceed.
+    await appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID, row.$id, "DELETE");
+  } catch {
+    return json({ error: "oauth_state_expired_or_used" }, 400);
+  }
   const tokenUrl = new URL("https://openapi.ctrader.com/apps/token");
   tokenUrl.search = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: CTRADER_REDIRECT_URI, client_id: CTRADER_CLIENT_ID, client_secret: CTRADER_CLIENT_SECRET }).toString();
   const tokenResponse = await fetch(tokenUrl, { headers: { Accept: "application/json" } });
@@ -259,7 +294,7 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
     headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY!, "Content-Type": "application/json" },
     body: JSON.stringify(existingGrant.ok
       ? { data: grantData, permissions: [] }
-      : { rowId: grantId, data: grantData }),
+      : { rowId: grantId, data: grantData, permissions: [] }),
   });
   if (!save.ok) return json({ error: "ctrader_secure_grant_storage_failed" }, 503);
   const safePath = row.redirect_path?.startsWith("/") && !row.redirect_path.startsWith("//") ? row.redirect_path : "/";
@@ -303,6 +338,181 @@ export default {
         }, 200, cors);
       } catch {
         return json({ error: "identity_service_unavailable" }, 503, cors);
+      }
+    }
+
+    if (url.pathname === "/api/alert-preferences" && (request.method === "GET" || request.method === "PUT")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!env.ALERT_PREFERENCES_TABLE_ID || !env.APPWRITE_API_KEY) return json({ error: "alert_preferences_not_configured" }, 503, cors);
+        const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
+        const base = `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.ALERT_PREFERENCES_TABLE_ID}/rows`;
+        const rowUrl = `${base}/${encodeURIComponent(account.$id)}`;
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
+        const categoryKeys = ["signals", "targets", "stops", "limitOrders", "pendingOrders", "superSignals", "income", "business"];
+        const modes = ["full", "bubble", "muted"];
+        const defaults: Record<string, string> = {
+          signals: "bubble", targets: "bubble", stops: "bubble", limitOrders: "bubble",
+          pendingOrders: "bubble", superSignals: "bubble", income: "bubble", business: "bubble",
+        };
+        if (request.method === "GET") {
+          const response = await fetch(rowUrl, { headers });
+          if (response.status === 404) return json({ settings: { categories: defaults, assets: {}, defaultAssetMode: "bubble" }, exists: false }, 200, cors);
+          if (!response.ok) return json({ error: "alert_preferences_read_failed" }, 503, cors);
+          const row = await response.json() as { user_id?: string; categories_json?: string; assets_json?: string; default_asset_mode?: string };
+          if (row.user_id !== account.$id) return json({ error: "alert_preferences_ownership_mismatch" }, 403, cors);
+          let categoriesValue: unknown = defaults;
+          let assetsValue: unknown = {};
+          try { categoriesValue = JSON.parse(row.categories_json || "{}"); } catch { categoriesValue = defaults; }
+          try { assetsValue = JSON.parse(row.assets_json || "{}"); } catch { assetsValue = {}; }
+          const categories = categoriesValue && typeof categoriesValue === "object" && !Array.isArray(categoriesValue)
+            ? categoriesValue as Record<string, string> : defaults;
+          const assets = assetsValue && typeof assetsValue === "object" && !Array.isArray(assetsValue)
+            ? assetsValue as Record<string, string> : {};
+          const safeCategories = Object.fromEntries(categoryKeys.map(key => [key, modes.includes(categories[key]) ? categories[key] : defaults[key]]));
+          const safeAssets = Object.fromEntries(Object.entries(assets).filter(([symbol, mode]) => /^[A-Za-z0-9._:-]{1,64}$/.test(symbol) && modes.includes(mode)).slice(0, 100));
+          return json({ settings: { categories: safeCategories, assets: safeAssets, defaultAssetMode: modes.includes(row.default_asset_mode || "") ? row.default_asset_mode : "bubble" }, exists: true }, 200, cors);
+        }
+        const contentLength = Number(request.headers.get("content-length") || 0);
+        if (contentLength > 16_000) return json({ error: "alert_preferences_too_large" }, 413, cors);
+        const body = await request.json().catch(() => null) as { settings?: { categories?: Record<string, unknown>; assets?: Record<string, unknown>; defaultAssetMode?: unknown } } | null;
+        const settings = body?.settings;
+        if (!settings || !settings.categories || typeof settings.categories !== "object" ||
+            !settings.assets || typeof settings.assets !== "object" || Array.isArray(settings.assets) || Array.isArray(settings.categories) || !modes.includes(String(settings.defaultAssetMode))) {
+          return json({ error: "invalid_alert_preferences" }, 400, cors);
+        }
+        const categories: Record<string, string> = {};
+        for (const key of categoryKeys) {
+          if (!modes.includes(String(settings.categories[key]))) return json({ error: "invalid_alert_category_mode" }, 400, cors);
+          categories[key] = String(settings.categories[key]);
+        }
+        const entries = Object.entries(settings.assets);
+        if (entries.length > 100 || entries.some(([symbol, mode]) => !/^[A-Za-z0-9._:-]{1,64}$/.test(symbol) || !modes.includes(String(mode)))) {
+          return json({ error: "invalid_alert_asset_modes" }, 400, cors);
+        }
+        const assets = Object.fromEntries(entries.map(([symbol, mode]) => [symbol, String(mode)]));
+        const data = {
+          user_id: account.$id, categories_json: JSON.stringify(categories), assets_json: JSON.stringify(assets),
+          default_asset_mode: String(settings.defaultAssetMode), updated_at: new Date().toISOString(),
+        };
+        const existing = await fetch(rowUrl, { headers });
+        if (existing.ok) {
+          const prior = await existing.json() as { user_id?: string };
+          if (prior.user_id !== account.$id) return json({ error: "alert_preferences_ownership_mismatch" }, 403, cors);
+          const update = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data, permissions: [] }) });
+          if (!update.ok) return json({ error: "alert_preferences_update_failed" }, 503, cors);
+        } else if (existing.status === 404) {
+          const create = await fetch(base, { method: "POST", headers, body: JSON.stringify({ rowId: account.$id, data: { ...data, created_at: new Date().toISOString() }, permissions: [] }) });
+          if (!create.ok && create.status !== 409) return json({ error: "alert_preferences_create_failed" }, 503, cors);
+          if (create.status === 409) {
+            const retry = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data, permissions: [] }) });
+            if (!retry.ok) return json({ error: "alert_preferences_update_failed" }, 503, cors);
+          }
+        } else return json({ error: "alert_preferences_read_failed" }, 503, cors);
+        return json({ settings: { categories, assets, defaultAssetMode: String(settings.defaultAssetMode) } }, 200, cors);
+      } catch {
+        return json({ error: "alert_preferences_failed" }, 503, cors);
+      }
+    }
+
+    if (url.pathname === "/api/signals" && request.method === "GET") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!env.SIGNAL_RECORDS_TABLE_ID || !env.APPWRITE_API_KEY) return json({ error: "signal_storage_not_configured" }, 503, cors);
+        const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
+        const base = `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.SIGNAL_RECORDS_TABLE_ID}/rows`;
+        const query = JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] });
+        const target = new URL(base);
+        target.searchParams.append("queries[]", query);
+        target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", attribute: "signal_epoch" }));
+        target.searchParams.set("limit", "500");
+        const response = await fetch(target, {
+          headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY },
+        });
+        if (!response.ok) return json({ error: "signal_history_read_failed" }, 503, cors);
+        const payload = await response.json() as { rows?: Array<Record<string, unknown>> };
+        const rows = (payload.rows || []).filter(row => row.user_id === account.$id).map(row => {
+          const record = { ...row };
+          for (const key of ["$id", "$createdAt", "$updatedAt", "$permissions", "user_id"]) delete record[key];
+          return record;
+        });
+        return json({ records: rows }, 200, cors);
+      } catch {
+        return json({ error: "signal_history_read_failed" }, 503, cors);
+      }
+    }
+
+    if (url.pathname === "/api/signals" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!env.SIGNAL_RECORDS_TABLE_ID || !env.APPWRITE_API_KEY) return json({ error: "signal_storage_not_configured" }, 503, cors);
+        const contentLength = Number(request.headers.get("content-length") || 0);
+        if (contentLength > 64_000) return json({ error: "signal_batch_too_large" }, 413, cors);
+        const body = await request.json().catch(() => null) as { records?: Array<Record<string, unknown>> } | null;
+        if (!body || !Array.isArray(body.records) || body.records.length < 1 || body.records.length > 50) {
+          return json({ error: "invalid_signal_batch" }, 400, cors);
+        }
+        const timeframeSeconds: Record<string, number> = { M30: 1800, H1: 3600, H2: 7200, H3: 10800, H4: 14400, H6: 21600, H8: 28800, H12: 43200, D1: 86400, W1: 604800 };
+        const numericFields = ["entry", "stop_loss", "tp1", "tp2", "tp3", "band_mean", "band_deviation"];
+        const optionalEpochFields = ["tp1_hit_epoch", "tp2_hit_epoch", "tp3_hit_epoch", "sl_hit_epoch"];
+        const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
+        const base = `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.SIGNAL_RECORDS_TABLE_ID}/rows`;
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
+        let saved = 0;
+        for (const raw of body.records) {
+          const record = raw || {};
+          const valid = typeof record.signal_key === "string" && record.signal_key.length > 0 && record.signal_key.length <= 160 &&
+            typeof record.symbol === "string" && record.symbol.length > 0 && record.symbol.length <= 64 &&
+            typeof record.asset_name === "string" && record.asset_name.length <= 120 &&
+            typeof record.timeframe === "string" && timeframeSeconds[record.timeframe] === record.granularity &&
+            Number.isInteger(record.digits) && Number(record.digits) >= 0 && Number(record.digits) <= 12 &&
+            (record.direction === "BUY" || record.direction === "SELL") &&
+            Number.isSafeInteger(record.signal_epoch) && Number(record.signal_epoch) > 0 && Number(record.signal_epoch) <= Date.now() / 1000 + 60 &&
+            numericFields.every(key => typeof record[key] === "number" && Number.isFinite(record[key]) && Number(record[key]) > 0) &&
+            Number(record.band_deviation) > 0 &&
+            optionalEpochFields.every(key => record[key] === null || (Number.isSafeInteger(record[key]) && Number(record[key]) > 0)) &&
+            ["Open", "TP1", "TP2", "TP3", "Stopped"].includes(String(record.status)) && typeof record.closed === "boolean";
+          if (!valid) return json({ error: "invalid_signal_record" }, 400, cors);
+          const safeRecord = {
+            signal_key: record.signal_key, symbol: record.symbol, asset_name: record.asset_name,
+            timeframe: record.timeframe, granularity: record.granularity, digits: record.digits,
+            direction: record.direction, signal_epoch: record.signal_epoch,
+            entry: record.entry, stop_loss: record.stop_loss, tp1: record.tp1, tp2: record.tp2, tp3: record.tp3,
+            band_mean: record.band_mean, band_deviation: record.band_deviation,
+            tp1_hit_epoch: record.tp1_hit_epoch, tp2_hit_epoch: record.tp2_hit_epoch,
+            tp3_hit_epoch: record.tp3_hit_epoch, sl_hit_epoch: record.sl_hit_epoch,
+            status: record.status, closed: record.closed,
+          };
+          const rowId = (await sha256(`${account.$id}|${record.signal_key}`)).slice(0, 32);
+          const rowUrl = `${base}/${encodeURIComponent(rowId)}`;
+          const existing = await fetch(rowUrl, { headers });
+          if (existing.ok) {
+            const prior = await existing.json() as { user_id?: string };
+            if (prior.user_id !== account.$id) return json({ error: "signal_record_ownership_mismatch" }, 403, cors);
+            const update = await fetch(rowUrl, {
+              method: "PATCH", headers,
+              body: JSON.stringify({ data: { ...safeRecord, user_id: account.$id, updated_at: new Date().toISOString() }, permissions: [] }),
+            });
+            if (!update.ok) return json({ error: "signal_record_update_failed" }, 503, cors);
+          } else if (existing.status === 404) {
+            const create = await fetch(base, {
+              method: "POST", headers,
+              body: JSON.stringify({ rowId, data: { ...safeRecord, user_id: account.$id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, permissions: [] }),
+            });
+            if (!create.ok && create.status !== 409) return json({ error: "signal_record_create_failed" }, 503, cors);
+            if (create.status === 409) {
+              const retry = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { ...safeRecord, user_id: account.$id, updated_at: new Date().toISOString() }, permissions: [] }) });
+              if (!retry.ok) return json({ error: "signal_record_upsert_failed" }, 503, cors);
+            }
+          } else return json({ error: "signal_record_read_failed" }, 503, cors);
+          saved++;
+        }
+        return json({ saved }, 200, cors);
+      } catch {
+        return json({ error: "signal_history_write_failed" }, 503, cors);
       }
     }
 
@@ -361,14 +571,83 @@ export default {
         });
         if (response.status === 404) return json({ connected: false, status: "not_connected" }, 200, cors);
         if (!response.ok) return json({ error: "ctrader_status_failed" }, 503, cors);
-        const grant = await response.json() as { user_id?: string; token_expires_at?: string; status?: string };
+        const grant = await response.json() as { user_id?: string; token_expires_at?: string; status?: string; accounts_json?: string; selected_account_id?: string; permission_scope?: string };
         if (grant.user_id !== account.$id) return json({ error: "ctrader_grant_ownership_mismatch" }, 403, cors);
-        return json({ connected: true, tokenExpiresAt: grant.token_expires_at || null, status: grant.status || "connected" }, 200, cors);
+        let accounts: unknown[] = [];
+        try { const parsed = JSON.parse(grant.accounts_json || "[]"); if (Array.isArray(parsed)) accounts = parsed.slice(0, 100); } catch { accounts = []; }
+        return json({ connected: true, tokenExpiresAt: grant.token_expires_at || null, status: grant.status || "connected", accounts, selectedAccountId: grant.selected_account_id || null, permissionScope: grant.permission_scope || null }, 200, cors);
       } catch {
         return json({ error: "ctrader_status_failed" }, 503, cors);
       }
     }
 
+    if (url.pathname === "/api/brokers/ctrader/discover" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.CTRADER_CLIENT_ID || !configured.CTRADER_CLIENT_SECRET || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "ctrader_discovery_not_configured" }, 503, cors);
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string } | null;
+        if (!grant || grant.user_id !== account.$id || !grant.encrypted_access_token) return json({ error: "ctrader_not_connected" }, 404, cors);
+        const accessToken = await decryptBrokerToken(grant.encrypted_access_token, configured.BROKER_TOKEN_ENCRYPTION_KEY);
+        const discovered: Array<{ accountId: string; isLive: boolean; traderLogin: string | null; broker: string; accountType: string | null; permissionScope: string }> = [];
+        let lastError: unknown = null;
+        for (const host of ["live.ctraderapi.com", "demo.ctraderapi.com"]) {
+          let socket: WebSocket | null = null;
+          try {
+            socket = await openCTraderSocket(host);
+            await authenticateCTraderApplication(socket, configured);
+            const response = await sendCTraderJsonMessage(socket, 2149, { accessToken }, 2150);
+            const rows = Array.isArray(response.ctidTraderAccount) ? response.ctidTraderAccount as Array<Record<string, unknown>> : [];
+            for (const item of rows) {
+              const accountId = String(item.ctidTraderAccountId || "");
+              if (!/^\d{1,20}$/.test(accountId)) continue;
+              const isLive = item.isLive === true;
+              if ((host.startsWith("live") && !isLive) || (host.startsWith("demo") && isLive)) continue;
+              discovered.push({ accountId, isLive, traderLogin: item.traderLogin == null ? null : String(item.traderLogin), broker: String(item.brokerTitleShort || item.brokerName || "cTrader broker").slice(0, 100), accountType: item.accountType == null ? null : ((["HEDGED", "NETTED", "SPREAD_BETTING"] as string[])[Number(item.accountType)] || "UNKNOWN"), permissionScope: Number(response.permissionScope) === 1 ? "SCOPE_TRADE" : Number(response.permissionScope) === 0 ? "SCOPE_VIEW" : "unknown" });
+            }
+          } catch (error) { lastError = error; }
+          finally { try { socket?.close(1000, "account discovery complete"); } catch { /* ignore close errors */ } }
+        }
+        const unique = [...new Map(discovered.map(item => [item.accountId, item])).values()].slice(0, 100);
+        if (!unique.length && lastError) return json({ error: "ctrader_account_discovery_failed" }, 502, cors);
+        const scope = unique.some(item => item.permissionScope.includes("TRADE")) ? "SCOPE_TRADE" : unique[0]?.permissionScope || "unknown";
+        const base = `${configured.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.CTRADER_GRANTS_TABLE_ID}/rows/${encodeURIComponent(grantId)}`;
+        const saved = await fetch(base, { method: "PATCH", headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ data: { accounts_json: JSON.stringify(unique), accounts_discovered_at: new Date().toISOString(), permission_scope: scope, status: unique.length ? "accounts_discovered" : "no_accounts_found" }, permissions: [] }) });
+        if (!saved.ok) return json({ error: "ctrader_account_storage_failed" }, 503, cors);
+        return json({ accounts: unique, permissionScope: scope, tradingEnabled: false }, 200, cors);
+      } catch { return json({ error: "ctrader_account_discovery_failed" }, 503, cors); }
+    }
+
+    if (url.pathname === "/api/brokers/ctrader/select-account" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.CTRADER_CLIENT_ID || !configured.CTRADER_CLIENT_SECRET || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "ctrader_account_selection_not_configured" }, 503, cors);
+        const body = await request.json().catch(() => null) as { accountId?: string } | null;
+        const accountId = String(body?.accountId || "");
+        if (!/^\d{1,20}$/.test(accountId) || !Number.isSafeInteger(Number(accountId))) return json({ error: "invalid_ctrader_account_id" }, 400, cors);
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string; accounts_json?: string } | null;
+        if (!grant || grant.user_id !== account.$id || !grant.encrypted_access_token) return json({ error: "ctrader_not_connected" }, 404, cors);
+        let accounts: Array<{ accountId: string; isLive: boolean; traderLogin: string | null; broker: string; accountType: string | null; permissionScope: string }> = [];
+        try { accounts = JSON.parse(grant.accounts_json || "[]") as typeof accounts; } catch { accounts = []; }
+        const selected = accounts.find(item => item.accountId === accountId);
+        if (!selected) return json({ error: "ctrader_account_not_authorized_for_member" }, 403, cors);
+        const accessToken = await decryptBrokerToken(grant.encrypted_access_token, configured.BROKER_TOKEN_ENCRYPTION_KEY);
+        const socket = await openCTraderSocket(selected.isLive ? "live.ctraderapi.com" : "demo.ctraderapi.com");
+        try {
+          await authenticateCTraderApplication(socket, configured);
+          await sendCTraderJsonMessage(socket, 2102, { ctidTraderAccountId: Number(accountId), accessToken }, 2103);
+        } finally { try { socket.close(1000, "account authorized"); } catch { /* ignore close errors */ } }
+        const endpoint = `${configured.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.CTRADER_GRANTS_TABLE_ID}/rows/${encodeURIComponent(grantId)}`;
+        const saved = await fetch(endpoint, { method: "PATCH", headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ data: { selected_account_id: accountId, selected_account_is_live: selected.isLive, status: "account_authorized" }, permissions: [] }) });
+        if (!saved.ok) return json({ error: "ctrader_selected_account_storage_failed" }, 503, cors);
+        return json({ selectedAccount: selected, tradingEnabled: false }, 200, cors);
+      } catch { return json({ error: "ctrader_account_authorization_failed" }, 502, cors); }
+    }
     if (url.pathname === "/api/brokers/ctrader/refresh" && request.method === "POST") {
       try {
         const account = await authenticate(request, env);
