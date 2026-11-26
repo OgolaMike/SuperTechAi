@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { SignalLearningModel } from '@/lib/aiLearning';
 import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
@@ -13,6 +14,7 @@ type Props = {
   prices: Record<string, number>;
   loaded: boolean;
   soundsEnabled: boolean;
+  aiModel?: SignalLearningModel;
   unifiedSignals: SuperSignal[];
   onNavigate: (view: View) => void;
 };
@@ -91,7 +93,6 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">MARKET INTELLIGENCE</p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">One Intelligence. Every Timeframe.</h2>
           <p className="mt-1 max-w-2xl text-sm font-medium tracking-wide text-ink-2">SEE THE SIGNAL. OWN THE MOMENT.</p>
-/p>
         </div>
       </div>
 
