@@ -96,3 +96,20 @@ export function upsertIndependentSignalRecords(records: Array<Record<string, unk
     body: JSON.stringify({ records }),
   });
 }
+
+export type IndependentAlertPreferences = {
+  categories: Record<string, string>;
+  assets: Record<string, string>;
+  defaultAssetMode: string;
+};
+
+export function fetchIndependentAlertPreferences(): Promise<{ settings: IndependentAlertPreferences }> {
+  return authenticatedRequest<{ settings: IndependentAlertPreferences }>('/api/alert-preferences');
+}
+
+export function saveIndependentAlertPreferences(settings: IndependentAlertPreferences): Promise<{ settings: IndependentAlertPreferences }> {
+  return authenticatedRequest<{ settings: IndependentAlertPreferences }>('/api/alert-preferences', {
+    method: 'PUT',
+    body: JSON.stringify({ settings }),
+  });
+}
