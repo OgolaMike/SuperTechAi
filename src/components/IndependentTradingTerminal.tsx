@@ -52,6 +52,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
 
 function IndependentTradingWorkspace({email,userId}:Props){
  const [view,setView]=useState<View>('dashboard');
+ useEffect(()=>{const handleServiceNavigation=(event:Event)=>setView((event as CustomEvent<View>).detail);window.addEventListener('supertech:navigate',handleServiceNavigation);return()=>window.removeEventListener('supertech:navigate',handleServiceNavigation)},[]);
  const [selectedSymbols,setSelectedSymbols]=useState<string[]>(readSelected);
  const [soundsEnabled,setSoundsEnabled]=useState(()=>localStorage.getItem(SOUND_KEY)==='true');
  const [alertReady,setAlertReady]=useState(false);
@@ -99,7 +100,7 @@ function IndependentTradingWorkspace({email,userId}:Props){
       {view==='five-minute'&&<FiveMinuteMomentum asset={assetMap.get(selectedSymbols[0])} state={states[selectedSymbols[0]]?.[1800]} currentPrice={prices[selectedSymbols[0]]??null} nowEpoch={now} loaded={loaded}/>}
       {view==='options'&&<IndependentOptionsBoard assets={assets} states={states} prices={prices} signals={superSignals}/>}
       {view==='orders'&&<PendingOrdersPanel assets={assets} states={states} prices={prices} aiModel={aiModel} nowEpoch={now} loaded={loaded} onOpenDashboard={openChart}/>}
-      {view==='crypto'&&<CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} onNavigate={setView}/>}
+      {view==='crypto'&&<CryptoMovers selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel}/>}
       {view==='exchange-markets'&&<ExchangeMarkets aiModel={aiModel} onNavigate={setView}/>}
       {view==='deriv-market'&&<DerivMarket assets={assets.filter(a=>a.exchange==='DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol])=>assets.some(a=>a.symbol===symbol&&a.exchange==='DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol])=>assets.some(a=>a.symbol===symbol&&a.exchange==='DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel} onNavigate={setView}/>}
       {['ctrader','connections'].includes(view)&&<IndependentBrokerConnections/>}{['mt5','binance','okx'].includes(view)&&<section className="mt-8 rounded-2xl border border-amber-400/20 bg-amber-400/[.04] p-5"><p className="text-sm font-semibold text-ink">Broker automation connection</p><p className="mt-2 text-sm leading-6 text-ink-2">This broker is being connected through the independent authenticated Worker. No credentials are requested in the browser until its secure account, risk and order workflows are ready.</p></section>}
