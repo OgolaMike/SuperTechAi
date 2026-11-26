@@ -103,8 +103,8 @@ export type IndependentAlertPreferences = {
   defaultAssetMode: string;
 };
 
-export function fetchIndependentAlertPreferences(): Promise<{ settings: IndependentAlertPreferences }> {
-  return authenticatedRequest<{ settings: IndependentAlertPreferences }>('/api/alert-preferences');
+export function fetchIndependentAlertPreferences(): Promise<{ settings: IndependentAlertPreferences; exists: boolean }> {
+  return authenticatedRequest<{ settings: IndependentAlertPreferences; exists: boolean }>('/api/alert-preferences');
 }
 
 export function saveIndependentAlertPreferences(settings: IndependentAlertPreferences): Promise<{ settings: IndependentAlertPreferences }> {
