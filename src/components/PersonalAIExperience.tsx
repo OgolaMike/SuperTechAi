@@ -6,10 +6,10 @@ type SignalContextItem = { symbol: string; timeframe: string; direction: 'BUY' |
 type Props = { signalsCount?: number; monitoredAssets?: string[]; signalContext?: SignalContextItem[] };
 
 const starters = [
-  { icon: Compass, title: 'What should I focus on?', prompt: 'What should I focus on today?' },
-  { icon: ShieldAlert, title: 'Help me stay disciplined', prompt: 'Help me avoid emotional trading.' },
-  { icon: BookOpen, title: 'Explain a signal simply', prompt: 'How do I read a signal without rushing?' },
-  { icon: Target, title: 'Help me reflect', prompt: 'Help me review my trading habits and choose one improvement.' },
+  { icon: Compass, title: 'Explore SuperTech AI', prompt: 'Give me a simple guided tour of all SuperTech AI services and explain what each one helps me do.' },
+  { icon: ShieldAlert, title: 'Understand my account', prompt: 'Explain the account, membership, referrals and financial areas of SuperTech AI. Tell me what information you can and cannot access.' },
+  { icon: BookOpen, title: 'Understand the markets', prompt: 'Give me a plain-language overview of the trading, crypto, Deriv and strategy tools available in SuperTech AI.' },
+  { icon: Target, title: 'Set a personal goal', prompt: 'Help me set one practical goal for using SuperTech AI, then break it into achievable steps.' },
 ];
 
 export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], signalContext = [] }: Props) {
@@ -137,9 +137,9 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
         <div className="relative flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-accent/25 bg-accent/10"><BrainCircuit className="h-6 w-6 text-accent" /></div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-accent">Your personal intelligence</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">Welcome to your trading companion.</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">A space for your goals, market focus, signal guidance and trading discipline. Your watchlist and personal goal shape the guidance shown here.</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-accent">Your personal AI partner</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">Your companion for the entire SuperTech AI experience.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">One place to get help across trading, markets, strategies, automation, account services, referrals, learning and your personal goals. I will be clear about what I can access and what needs to be opened in its own service.</p>
           </div>
         </div>
         <div className="relative mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -167,14 +167,14 @@ export function PersonalAIExperience({ signalsCount = 0, monitoredAssets = [], s
       </section>
 
       <section className="rounded-2xl border border-line/15 bg-surface/[0.035] p-4 sm:p-5">
-        <div className="mb-3 flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent"/><h2 className="font-semibold text-ink">Talk with your AI companion</h2><button type="button" onClick={() => { setMessages([]); if (memoryOptIn) void supabase.functions.invoke('personal-ai', { body: { action: 'clear-history' } }); }} className="ml-auto text-xs text-ink-3 hover:text-ink">Clear conversation</button></div>
+        <div className="mb-3 flex items-center gap-2"><MessageCircle className="h-4 w-4 text-accent"/><h2 className="font-semibold text-ink">Talk with your SuperTech AI Companion</h2><button type="button" onClick={() => { setMessages([]); if (memoryOptIn) void supabase.functions.invoke('personal-ai', { body: { action: 'clear-history' } }); }} className="ml-auto text-xs text-ink-3 hover:text-ink">Clear conversation</button></div>
         <div className="max-h-80 space-y-3 overflow-y-auto rounded-xl bg-canvas/30 p-3">
-          {messages.length === 0 && <div className="py-5 text-center text-sm text-ink-3">Ask a question or choose a prompt. Your companion uses your goal, watchlist and available signal context to respond.</div>}
+          {messages.length === 0 && <div className="py-5 text-center text-sm text-ink-3">Ask about any SuperTech AI service. Your companion uses your saved goal, watchlist and available signal context; account actions and live data are only confirmed when connected services provide them.</div>}
           {messages.map((message, index) => <div key={index} className={'max-w-[92%] rounded-2xl p-3 text-sm leading-relaxed ' + (message.role === 'member' ? 'ml-auto bg-accent/10 text-ink' : 'mr-auto border border-line/10 bg-surface/[0.08] text-ink-2')}>{message.text}</div>)}
         </div>
         {loading && <p className="mt-2 text-xs text-ink-3 animate-pulse">Your companion is thinking…</p>}
         {error && <p className="mt-2 text-xs text-amber-400">{error}</p>}
-        <form onSubmit={(e) => { e.preventDefault(); void ask(question); }} className="mt-3 flex items-end gap-2"><textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={2} maxLength={500} placeholder="Ask your trading companion…" className="min-w-0 flex-1 resize-none rounded-xl border border-line/15 bg-canvas/60 p-3 text-sm text-ink outline-none focus:border-accent/50"/><button type="submit" disabled={!question.trim() || loading} aria-label="Send question" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-canvas disabled:opacity-40"><Send className="h-4 w-4"/></button></form>
+        <form onSubmit={(e) => { e.preventDefault(); void ask(question); }} className="mt-3 flex items-end gap-2"><textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={2} maxLength={500} placeholder="Ask your AI Companion anything…" className="min-w-0 flex-1 resize-none rounded-xl border border-line/15 bg-canvas/60 p-3 text-sm text-ink outline-none focus:border-accent/50"/><button type="submit" disabled={!question.trim() || loading} aria-label="Send question" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-canvas disabled:opacity-40"><Send className="h-4 w-4"/></button></form>
       </section>
     </main>
   );
