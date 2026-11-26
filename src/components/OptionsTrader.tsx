@@ -199,7 +199,7 @@ export function OptionsTrader({ assets, states, prices, superSignals, confluence
               confluenceScore: item.result.score,
               upperBand: bands.bbHigh,
               lowerBand: bands.bbLow,
-              middleBand: bands.bbMid,
+              middleBand: (Number(bands.bbHigh) + Number(bands.bbLow)) / 2,
             },
           },
         });
