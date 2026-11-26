@@ -1,3 +1,4 @@
+import { fetchIndependentAlertPreferences, saveIndependentAlertPreferences } from './independentApi';
 
 export type AlertMode = 'full' | 'bubble' | 'muted';
 export type AlertCategory = 'signals' | 'targets' | 'stops' | 'limitOrders' | 'pendingOrders' | 'superSignals' | 'income' | 'business';
@@ -44,11 +45,40 @@ export function cacheAlertModes(settings: AlertModeSettings, userId?: string): v
 }
 
 export async function loadMemberAlertModes(userId: string): Promise<AlertModeSettings> {
-  return loadAlertModes(userId);
+  try {
+    const response = await fetchIndependentAlertPreferences();
+    const fallback = emptySettings();
+    const categories = { ...fallback.categories };
+    for (const item of ALERT_CATEGORIES) {
+      const mode = response.settings.categories?.[item.key];
+      if (validMode(mode)) categories[item.key] = mode;
+    }
+    const assets: Record<string, AlertMode> = {};
+    for (const [symbol, mode] of Object.entries(response.settings.assets || {})) {
+      if (validMode(mode)) assets[symbol] = mode;
+    }
+    const settings: AlertModeSettings = {
+      categories, assets,
+      defaultAssetMode: validMode(response.settings.defaultAssetMode) ? response.settings.defaultAssetMode : 'bubble',
+    };
+    cacheAlertModes(settings, userId);
+    return settings;
+  } catch {
+    return loadAlertModes(userId);
+  }
 }
 
 export async function saveMemberAlertModes(settings: AlertModeSettings, userId: string): Promise<void> {
   cacheAlertModes(settings, userId);
+  try {
+    await saveIndependentAlertPreferences({
+      categories: settings.categories,
+      assets: settings.assets,
+      defaultAssetMode: settings.defaultAssetMode,
+    });
+  } catch {
+    // Device-local preferences remain available while the independent API is offline.
+  }
 }
 
 export function getAlertMode(category: AlertCategory, symbol?: string, userId?: string): AlertMode {
