@@ -6,12 +6,14 @@ import { formatDateTime, type Asset, type TfState } from '@/lib/sma';
 import type { Signal } from '@/lib/signals';
 import type { Candle } from '@/lib/deriv';
 import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
+import type { SignalLearningModel } from '@/lib/aiLearning';
 
 type Props = {
   asset: Asset;
   tf: TfState;
   loaded: boolean;
   price: number | undefined;
+  aiModel?: SignalLearningModel;
   confluenceCount?: number;
   unifiedOnly?: boolean;
 };
