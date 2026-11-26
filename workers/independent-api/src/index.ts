@@ -162,6 +162,15 @@ const sha256 = async (value: string) => {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
+async function decryptBrokerToken(value: string, keyText: string): Promise<string> {
+  const [version, ivText, cipherText] = value.split(".");
+  if (version !== "v1" || !ivText || !cipherText) throw new Error("invalid_encrypted_broker_token");
+  const raw = fromB64(keyText);
+  if (raw.length !== 32) throw new Error("broker_encryption_key_must_be_32_bytes_base64");
+  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(ivText) }, key, fromB64(cipherText));
+  return new TextDecoder().decode(plain);
+}
 async function encryptBrokerToken(value: string, keyText: string): Promise<string> {
   const raw = fromB64(keyText);
   if (raw.length !== 32) throw new Error("broker_encryption_key_must_be_32_bytes_base64");
@@ -243,7 +252,7 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
     method: existingGrant.ok ? "PATCH" : "POST",
     headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY!, "Content-Type": "application/json" },
     body: JSON.stringify(existingGrant.ok
-      ? { data: grantData }
+      ? { data: grantData, permissions: [] }
       : { rowId: grantId, data: grantData }),
   });
   if (!save.ok) return json({ error: "ctrader_secure_grant_storage_failed" }, 503);
@@ -326,6 +335,80 @@ export default {
     if (url.pathname === "/api/brokers/ctrader/callback" && request.method === "GET") {
       try { return await handleCTraderCallback(request, env as BrokerEnv); }
       catch { return json({ error: "ctrader_callback_failed" }, 500); }
+    }
+
+    if (url.pathname === "/api/brokers/ctrader/refresh" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        const { CTRADER_GRANTS_TABLE_ID, CTRADER_CLIENT_ID, CTRADER_CLIENT_SECRET, BROKER_TOKEN_ENCRYPTION_KEY } = configured;
+        if (!CTRADER_GRANTS_TABLE_ID || !CTRADER_CLIENT_ID || !CTRADER_CLIENT_SECRET || !BROKER_TOKEN_ENCRYPTION_KEY) {
+          return json({ error: "ctrader_refresh_not_configured" }, 503, cors);
+        }
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await appwriteRow(configured, CTRADER_GRANTS_TABLE_ID, grantId, "GET") as {
+          user_id?: string; encrypted_refresh_token?: string; encrypted_access_token?: string;
+          token_expires_at?: string; granted_scopes?: string; status?: string;
+        } | null;
+        if (!grant || grant.user_id !== account.$id || !grant.encrypted_refresh_token) {
+          return json({ error: "ctrader_not_connected" }, 404, cors);
+        }
+        const expiresAt = Date.parse(grant.token_expires_at || "");
+        if (Number.isFinite(expiresAt) && expiresAt > Date.now() + 120_000) {
+          return json({ connected: true, refreshed: false, tokenExpiresAt: grant.token_expires_at, status: grant.status }, 200, cors);
+        }
+        const refreshToken = await decryptBrokerToken(grant.encrypted_refresh_token, BROKER_TOKEN_ENCRYPTION_KEY);
+        const tokenUrl = new URL("https://openapi.ctrader.com/apps/token");
+        tokenUrl.search = new URLSearchParams({
+          grant_type: "refresh_token", refresh_token: refreshToken,
+          client_id: CTRADER_CLIENT_ID, client_secret: CTRADER_CLIENT_SECRET,
+        }).toString();
+        const tokenResponse = await fetch(tokenUrl, { headers: { Accept: "application/json" } });
+        if (!tokenResponse.ok) return json({ error: "ctrader_token_refresh_failed" }, 502, cors);
+        const token = await tokenResponse.json() as { accessToken?: string; refreshToken?: string; expiresIn?: number; errorCode?: string };
+        if (!token.accessToken || token.errorCode) return json({ error: "ctrader_invalid_refresh_response" }, 502, cors);
+        const [access, refresh] = await Promise.all([
+          encryptBrokerToken(token.accessToken, BROKER_TOKEN_ENCRYPTION_KEY),
+          token.refreshToken
+            ? encryptBrokerToken(token.refreshToken, BROKER_TOKEN_ENCRYPTION_KEY)
+            : Promise.resolve(grant.encrypted_refresh_token),
+        ]);
+        const nextExpiry = new Date(Date.now() + Math.max(60, Math.min(Number(token.expiresIn) || 3600, 31536000)) * 1000).toISOString();
+        const saved = await fetch(`${configured.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${CTRADER_GRANTS_TABLE_ID}/rows/${encodeURIComponent(grantId)}`, {
+          method: "PATCH",
+          headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY!, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: { ...grant, encrypted_access_token: access, encrypted_refresh_token: refresh, token_expires_at: nextExpiry, status: "account_discovery_pending" },
+            permissions: [],
+          }),
+        });
+        if (!saved.ok) return json({ error: "ctrader_refreshed_token_storage_failed" }, 503, cors);
+        return json({ connected: true, refreshed: true, tokenExpiresAt: nextExpiry, status: "account_discovery_pending" }, 200, cors);
+      } catch {
+        return json({ error: "ctrader_refresh_failed" }, 503, cors);
+      }
+    }
+
+    if (url.pathname === "/api/brokers/ctrader/disconnect" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as BrokerEnv;
+        if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY) {
+          return json({ error: "ctrader_disconnect_not_configured" }, 503, cors);
+        }
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const endpoint = `${configured.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.CTRADER_GRANTS_TABLE_ID}/rows/${encodeURIComponent(grantId)}`;
+        const response = await fetch(endpoint, {
+          method: "DELETE",
+          headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY },
+        });
+        if (!response.ok && response.status !== 404) return json({ error: "ctrader_disconnect_failed" }, 503, cors);
+        return json({ disconnected: true, providerTokenRevoked: false, note: "The local encrypted grant was deleted. Revoke access from your cTrader account settings to invalidate provider authorization." }, 200, cors);
+      } catch {
+        return json({ error: "ctrader_disconnect_failed" }, 503, cors);
+      }
     }
 
     if (url.pathname === "/api/brokers/capabilities" && request.method === "GET") {
