@@ -22,9 +22,13 @@ const PRIMARY: NavItem[] = [
 
 const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   { title: 'Personal AI', items: [ { id: 'personal-ai', label: 'My AI Companion', icon: BrainCircuit } ] },
-  { title: 'Intelligence', items: [
+  { title: 'Deriv services', items: [
+    { id: 'deriv-market', label: 'Deriv Market & Charts', icon: Activity },
+    { id: 'options', label: 'Deriv Options Trader', icon: Bot },
+    { id: 'connections', label: 'Connect Deriv Account', icon: Cable },
+  ] },
+  { title: 'Trading intelligence', items: [
     { id: 'strategies', label: 'Strategies', icon: BarChart3 },
-    { id: 'options', label: 'Deriv Options', icon: Bot },
     { id: 'five-minute', label: 'Thirty Minute Momentum', icon: Activity },
     { id: 'break-retest', label: 'Break & Retest', icon: Repeat2 },
     { id: 'orders', label: 'Pending Orders', icon: ListOrdered },
@@ -39,6 +43,10 @@ const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   ] },
   { title: 'Your space', items: [
     { id: 'alerts', label: 'Alerts & service health', icon: Bell },
+    { id: 'records', label: 'Signal History', icon: Archive },
+    { id: 'earnings', label: 'Earnings & Wallet', icon: CreditCard },
+    { id: 'network', label: 'My Network', icon: Users },
+    { id: 'referrals', label: 'Referrals', icon: UserRoundPlus },
     { id: 'smart-community', label: 'Smart Membership', icon: CreditCard },
   ] },
   { title: 'Owner tools', items: [
@@ -78,9 +86,9 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
         <div className="relative">
           <button type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${isMoreActive || moreOpen ? 'bg-surface/[0.12] text-ink' : 'text-ink-2 hover:bg-surface/[0.07] hover:text-ink'}`}>
-            <MoreHorizontal className="h-4 w-4" /> More <ChevronUp className={`h-3.5 w-3.5 transition-transform ${moreOpen ? '' : 'rotate-180'}`} />
+            <MoreHorizontal className="h-4 w-4" /> All services <ChevronUp className={`h-3.5 w-3.5 transition-transform ${moreOpen ? '' : 'rotate-180'}`} />
           </button>
-          {moreOpen && <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-2xl border border-line/15 bg-canvas p-3 shadow-2xl">
+          {moreOpen && <div className="absolute left-0 top-full z-50 mt-2 w-80 max-h-[75vh] overflow-y-auto rounded-2xl border border-line/15 bg-canvas p-3 shadow-2xl">
             {MORE_GROUPS.map((group) => {
               const items = group.items.filter((item) => !item.adminOnly || isAdmin);
               return items.length ? <div key={group.title} className="mb-3 last:mb-0">
@@ -97,7 +105,7 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
       </nav>
 
       <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-line/15 bg-canvas/95 px-2 pb-[max(env(safe-area-inset-bottom),0.45rem)] pt-2 shadow-[0_-12px_36px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden" aria-label="Main navigation">
-        <div className="mx-auto grid max-w-xl grid-cols-7 gap-1">
+        <div className="mx-auto grid max-w-xl grid-cols-8 gap-1">
           {PRIMARY.map(({ id, label, mobileLabel, icon: Icon }) => (
             <button key={id} type="button" onClick={() => choose(id)} aria-current={primaryActive(id) ? 'page' : undefined}
               className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors ${primaryActive(id) ? 'text-accent' : 'text-ink-3'}`}>
@@ -108,12 +116,12 @@ export function ViewNav({ view, isAdmin, onChange }: Props) {
           <button type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen}
             className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-semibold ${isMoreActive || moreOpen ? 'text-accent' : 'text-ink-3'}`}>
             <span className={`flex h-8 w-10 items-center justify-center rounded-xl ${isMoreActive || moreOpen ? 'bg-accent/10' : ''}`}><MoreHorizontal className="h-[19px] w-[19px]" /></span>
-            <span>More</span>
+            <span>Services</span>
           </button>
         </div>
         {moreOpen && <div className="absolute inset-x-3 bottom-full mb-2 max-h-[65vh] overflow-y-auto rounded-2xl border border-line/15 bg-canvas p-4 shadow-2xl">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-semibold text-ink">All services</p>
+            <p className="text-sm font-semibold text-ink">Explore all services</p>
             <button type="button" onClick={() => setMoreOpen(false)} aria-label="Close services" className="rounded-lg p-1.5 text-ink-2 hover:bg-surface/[0.08]"><X className="h-4 w-4" /></button>
           </div>
           {MORE_GROUPS.map((group) => {
