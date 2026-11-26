@@ -123,12 +123,12 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
               <div className="mt-3 flex gap-2 overflow-x-auto pb-2" role="group" aria-label={`Select ${asset.fullName} timeframe`}>
                 {TIMEFRAMES.map((timeframe) => (
                   <button key={timeframe.granularity} type="button" onClick={() => setSelectedTimeframe(timeframe.label)} aria-pressed={selectedTimeframe === timeframe.label}
-                    className={`min-w-[3.5rem] rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${selectedTimeframe === timeframe.label ? 'border-accent bg-accent text-canvas shadow-[0_0_18px_rgba(212,175,55,0.16)]' : 'border-line/15 bg-canvas/40 text-ink-2 hover:border-accent/40 hover:text-ink'}`}>{timeframe.label}</button>
+                    className={`magic-selector min-w-[3.5rem] rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${selectedTimeframe === timeframe.label ? 'border-accent bg-accent text-canvas shadow-[0_0_18px_rgba(212,175,55,0.16)]' : 'border-line/15 bg-canvas/40 text-ink-2 hover:border-accent/40 hover:text-ink'}`}>{timeframe.label}</button>
                 ))}
               </div>
             </div>
             <div className="mt-4 hud-panel rounded-2xl"><SignalCard asset={asset} tf={selectedState} loaded={loaded} price={prices[symbol]} aiModel={aiModel} unifiedOnly /></div>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-line/15 bg-surface/[0.025]">
+            <div className="magic-card mt-4 overflow-hidden rounded-2xl border border-line/15 bg-surface/[0.025]">
               <button type="button" onClick={() => setShowAllTimeframes((value) => !value)} aria-expanded={showAllTimeframes}
                 className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-surface/[0.04]">
                 <span><span className="block text-sm font-semibold text-ink">All timeframe insights</span><span className="mt-1 block text-xs text-ink-3">See the other {otherTimeframes.length} readings, direction and their individual trade levels.</span></span>
