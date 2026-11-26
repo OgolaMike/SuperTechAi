@@ -229,7 +229,7 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
   queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "state_hash", values: [stateHash] }));
   const lookup = await fetch(queryUrl, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY! } });
   if (!lookup.ok) return json({ error: "oauth_state_lookup_failed" }, 503);
-  const payload = await lookup.json() as { rows?: Array<{ $id: string; user_id: string; expires_at: string; consumed_at?: string }> };
+  const payload = await lookup.json() as { rows?: Array<{ $id: string; user_id: string; redirect_path?: string; expires_at: string; consumed_at?: string }> };
   const row = payload.rows?.[0];
   if (!row || row.consumed_at || Date.parse(row.expires_at) <= Date.now()) return json({ error: "oauth_state_expired_or_used" }, 400);
   const consumed = await appwriteRow(env, CTRADER_OAUTH_STATES_TABLE_ID, row.$id, "PATCH", { consumed_at: new Date().toISOString() });
@@ -256,7 +256,10 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
       : { rowId: grantId, data: grantData }),
   });
   if (!save.ok) return json({ error: "ctrader_secure_grant_storage_failed" }, 503);
-  return json({ connected: true, next: "account_discovery_required", automated_trading_enabled: false });
+  const safePath = row.redirect_path?.startsWith("/") && !row.redirect_path.startsWith("//") ? row.redirect_path : "/";
+  const destination = new URL(safePath, env.ALLOWED_ORIGIN);
+  destination.searchParams.set("ctrader", "connected");
+  return Response.redirect(destination.toString(), 302);
 }
 
 export default {
