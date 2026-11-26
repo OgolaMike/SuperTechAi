@@ -104,7 +104,8 @@ async function profileRequest(
             created_at: now,
             updated_at: now,
           },
-            }),
+          permissions: [`read("user:${account.$id}")`, `update("user:${account.$id}")`],
+        }),
       });
       if (!create.ok) return json({ error: "profile_initialization_failed" }, 503);
       const created = await create.json() as ProfileRow;
@@ -206,7 +207,6 @@ async function startCTraderOAuth(env: BrokerEnv, account: AppwriteAccount, redir
     body: JSON.stringify({
       rowId: stateId,
       data: { state_hash: await sha256(state), user_id: account.$id, redirect_path: safePath, expires_at: expiresAt, consumed_at: "" },
-      permissions: [`read("user:${account.$id}")`, `update("user:${account.$id}")`],
     }),
   });
   if (!response.ok) throw new Error("ctrader_oauth_state_create_failed");
