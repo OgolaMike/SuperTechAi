@@ -146,3 +146,14 @@ export function fetchIndependentSuperSignalRecords(): Promise<{ records: Array<R
 export function upsertIndependentSuperSignalRecords(records: Array<Record<string, unknown>>): Promise<{ saved: number }> {
   return authenticatedRequest<{ saved: number }>('/api/super-signals', { method: 'POST', body: JSON.stringify({ records }) });
 }
+
+export type BinanceSpotConnectionStatus = { connected: boolean; status: string; apiKeyLast4?: string | null; verifiedAt?: string | null; tradingEnabled: false };
+export function getBinanceSpotConnectionStatus(): Promise<BinanceSpotConnectionStatus> {
+  return authenticatedRequest<BinanceSpotConnectionStatus>('/api/brokers/binance-spot/status');
+}
+export function connectBinanceSpot(apiKey: string, apiSecret: string): Promise<{ connected: boolean; apiKeyLast4: string; tradingEnabled: false }> {
+  return authenticatedRequest('/api/brokers/binance-spot/connect', { method: 'POST', body: JSON.stringify({ apiKey, apiSecret }) });
+}
+export function disconnectBinanceSpot(): Promise<{ disconnected: boolean; providerKeyRevoked: false; note: string }> {
+  return authenticatedRequest('/api/brokers/binance-spot/disconnect', { method: 'POST', body: JSON.stringify({}) });
+}
