@@ -21,6 +21,30 @@ This document tracks the broker services being moved from Supabase Edge Function
 - OAuth state and encrypted grant rows have no member read/update permissions. Reconnect, refresh, account discovery and selection clear any legacy row permissions with an empty permission list.
 - Trading execution remains disabled.
 
+### Deriv Options OAuth connection (implemented; execution gated)
+
+The independent Worker now includes a Deriv OAuth 2.0 Authorization Code + PKCE connection flow:
+
+- POST /api/brokers/deriv/connect creates one-time state and encrypted PKCE verifier rows, then redirects to Deriv.
+- GET /api/brokers/deriv/callback validates state, exchanges the single-use code server-side, encrypts the access token and stores the member's Deriv Options accounts.
+- GET /api/brokers/deriv/status returns connection metadata and available account identifiers only.
+- POST /api/brokers/deriv/select-account verifies the selected account belongs to the member's authorised account list.
+- POST /api/brokers/deriv/disconnect deletes the encrypted local token copy. The member must also revoke SuperTech AI access from Deriv.
+- The Options board includes the secure account-connect journey and account selector.
+
+OAuth requests use only the trade scope. Deriv OAuth access tokens expire and Deriv does not issue refresh tokens; users must re-authorise after expiry. The token exchange is server-side and uses PKCE. The browser never receives the token.
+
+Required Worker vars:
+- DERIV_CLIENT_ID
+- DERIV_REDIRECT_URI (exact Worker callback URL: https://<worker-host>/api/brokers/deriv/callback)
+- DERIV_OAUTH_STATES_TABLE_ID
+- DERIV_GRANTS_TABLE_ID
+
+Required Worker secret:
+- Existing BROKER_TOKEN_ENCRYPTION_KEY (base64 encoding of exactly 32 cryptographically random bytes).
+
+Register the exact callback URL in the Deriv OAuth application. The Deriv application must permit the trade scope. Configure the Appwrite TablesDB tables below before enabling the Worker routes.
+
 ## Required Appwrite tables
 
 Create these TablesDB tables in database `supertech_ai_sandbox`. Add the columns exactly as listed; use string columns for timestamps and encrypted values. Set row security on and use server API-key access for writes. Never grant a client permission to read token ciphertext.
@@ -38,6 +62,27 @@ Create these TablesDB tables in database `supertech_ai_sandbox`. Add the columns
 | can_withdraw | boolean | yes |
 
 Use one row per member with row security enabled. Grant no client read, write, or delete permissions; only the Worker API key may access credential rows.
+
+### deriv_oauth_states
+| Column | Type | Required |
+|---|---|---|
+| state_hash | string(64) | yes |
+| user_id | string(36) | yes |
+| encrypted_code_verifier | string(4096) | yes |
+| redirect_path | string(512) | yes |
+| expires_at | string(40) | yes |
+
+### deriv_account_grants
+| Column | Type | Required |
+|---|---|---|
+| user_id | string(36) | yes |
+| encrypted_access_token | string(4096) | yes |
+| token_expires_at | string(40) | yes |
+| accounts_json | string(30000) | no |
+| selected_account_id | string(64) | no |
+| status | string(32) | yes |
+
+Use unique indexes on state_hash and user_id respectively. Enable row security and grant no client read, write, or delete permissions. Only the Worker API key may access these rows. Use deterministic row IDs derived from the Appwrite user ID for account grants.
 
 ### `ctrader_oauth_states`
 | Column | Type | Required |
@@ -90,7 +135,7 @@ The following original Supabase functions still require provider-specific ports 
 - Binance Spot settings, order intents, execution, fills and reconciliation (credential verification and encrypted key storage are now implemented; order execution remains disabled).
 - Binance USDT-M Futures credential verification, risk sizing, idempotent order execution, protective orders and reconciliation.
 - OKX Futures credential verification, settings, signal intents, risk sizing, attached TP/SL, uncertain-order recovery and reconciliation.
-- Deriv Options account authorization, contract proposal, purchase, open-contract monitoring and settlement.
+- Deriv Options proposal pricing, purchase, authenticated WebSocket OTP/session handling, open-contract monitoring, idempotent order intents, demo validation, risk checks and settlement reconciliation. Account OAuth and account selection are implemented, but contract execution remains disabled.
 
 ## Safety gates
 
