@@ -3,7 +3,7 @@ type BinanceTicker={symbol:string;priceChangePercent:string;lastPrice:string;ope
 let cache:{value:CryptoMover[];expiresAt:number}|null=null;
 let pending:Promise<CryptoMover[]>|null=null;
 async function loadMovers():Promise<CryptoMover[]>{
- const response=await fetch('https://api.binance.com/api/v3/ticker/24hr');
+ const response=await fetch(`/api/market-proxy?url=${encodeURIComponent('https://api.binance.com/api/v3/ticker/24hr')}`);
  if(!response.ok)throw new Error('Binance public market feed is unavailable');
  const data=await response.json() as BinanceTicker[];
  const rows=data.filter(row=>row.symbol.endsWith('USDT')&&Number.isFinite(Number(row.lastPrice))&&Number.isFinite(Number(row.priceChangePercent)))
