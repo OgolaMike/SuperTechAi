@@ -208,7 +208,8 @@
     "cTrader OAuth state and grant tables are proposed only; they have not been created. Token ciphertext must remain inaccessible to member SDK sessions.",
     "Signal history is stored per member through the authenticated Worker; the proposed signal_records table remains uncreated until Appwrite schema provisioning is verified.",
     "Alert preferences are synced through the authenticated Worker and stored in a Worker-only proposed table; client-side fallback remains enabled until schema provisioning is complete.",
-    "cTrader account discovery uses the Open API JSON WebSocket protocol. The grant row stores only the user's authorized account metadata and selected account ID; access and refresh tokens remain encrypted."
+    "cTrader account discovery uses the Open API JSON WebSocket protocol. The grant row stores only the user's authorized account metadata and selected account ID; access and refresh tokens remain encrypted.",
+    "Provision super_signal_records with Worker-only access and set SUPER_SIGNAL_RECORDS_TABLE_ID before cross-device Super Signal history sync can operate."
   ],
   "proposedTables": [
     {
@@ -548,6 +549,68 @@
           "type": "unique",
           "columns": [
             "user_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "super_signal_records",
+      "id": null,
+      "status": "not_created_worker_only",
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "signal_key",
+          "type": "varchar",
+          "size": 160,
+          "required": true
+        },
+        {
+          "key": "signal_epoch",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "payload_json",
+          "type": "varchar",
+          "size": 24000,
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "updated_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "super_signal_member_key_unique",
+          "type": "unique",
+          "columns": [
+            "user_id",
+            "signal_key"
+          ]
+        },
+        {
+          "key": "super_signal_member_epoch",
+          "type": "key",
+          "columns": [
+            "user_id",
+            "signal_epoch"
           ]
         }
       ]
