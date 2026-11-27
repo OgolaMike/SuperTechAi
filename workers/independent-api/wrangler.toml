@@ -9,3 +9,5 @@ ALLOWED_ORIGIN = "https://main.supertechai.pages.dev"
 APPWRITE_DATABASE_ID = "6b06e4d900325c304d98"
 MEMBER_PROFILES_TABLE_ID = "6b074d7f001787b0d0c8"
 MEMBER_NETWORK_TABLE_ID = "member_network"
+
+MEMBERSHIP_TABLE_ID = "membership_requests"
