@@ -1,5 +1,5 @@
 import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
-import { handleMembershipRequest } from "./membership";
+import { handleMembershipRequest, hasAutomationEntitlement } from "./membership";
 
 export interface Env {
   APPWRITE_ENDPOINT: string;
@@ -324,6 +324,15 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/brokers/") && url.pathname !== "/api/brokers/ctrader/callback") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!(await hasAutomationEntitlement(env, account))) return json({ error: "automation_membership_required" }, 403, cors);
+      } catch {
+        return json({ error: "membership_service_unavailable" }, 503, cors);
+      }
+    }
     if (url.pathname.startsWith("/api/membership/") || url.pathname.startsWith("/api/admin/members")) {
       try {
         const account = await authenticate(request, env);
