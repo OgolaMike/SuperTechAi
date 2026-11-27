@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { formatLocalDateTime } from '@/lib/localTime';
 import { Activity, ArrowUpRight, Bot, Cable, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import type { SignalLearningModel } from '@/lib/aiLearning';
@@ -17,7 +18,7 @@ export type DerivMarketProps = {
 type Mover = { asset: Asset; price: number | null; changePct: number | null; candles: number };
 
 function eatDate(epoch: number): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(epoch * 1000));
+  return new Intl.DateTimeFormat('en-CA', { timeZone: getLocalTimeZone(), year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(epoch * 1000));
 }
 
 function getDailyRoc(asset: Asset, states: DerivMarketProps['states'], prices: DerivMarketProps['prices'], date: string, today: string): Mover {
@@ -203,7 +204,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
             <Metric label="Market bias" value={activeState?.lastClose == null || activeState.currentSma == null ? 'Building analysis' : activeState.lastClose > activeState.currentSma ? 'Bullish bias' : activeState.lastClose < activeState.currentSma ? 'Bearish bias' : 'Neutral bias'} />
             <Metric label="24-hour ROC" value={rocText(hourlyMove?.changePct ?? null)} />
             <Metric label="Bollinger position" value={activeState?.lastClose == null || activeState.bbHigh == null || activeState.bbLow == null ? 'Not available' : activeState.lastClose >= activeState.bbHigh ? 'At / above upper band' : activeState.lastClose <= activeState.bbLow ? 'At / below lower band' : 'Inside bands'} />
-            <Metric label="Latest candle" value={activeState?.updatedEpoch ? new Date(activeState.updatedEpoch * 1000).toLocaleString() : 'Waiting for candle'} />
+            <Metric label="Latest candle" value={activeState?.updatedEpoch ? formatLocalDateTime(activeState.updatedEpoch * 1000) : 'Waiting for candle'} />
           </div>
 
           <div className="mx-4 mb-4 rounded-xl border border-line/10 bg-canvas/60 p-3">
