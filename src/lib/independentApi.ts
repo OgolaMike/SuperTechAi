@@ -165,10 +165,11 @@ export function reviewMembership(userId: string, action: 'approve' | 'reject' | 
 }
 
 
+export type IndependentAlertMode = 'full' | 'bubble' | 'muted';
 export type IndependentAlertPreferences = {
-  categories: string[];
-  assets: string[];
-  defaultAssetMode: 'all' | 'selected';
+  categories: Record<string, IndependentAlertMode>;
+  assets: Record<string, IndependentAlertMode>;
+  defaultAssetMode: IndependentAlertMode;
   updatedAt: string | null;
 };
 export function getIndependentAlertPreferences(): Promise<IndependentAlertPreferences> {
