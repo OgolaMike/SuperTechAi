@@ -21,7 +21,7 @@ type Props = {
   onOpenDashboard: (symbol: string, granularity: number) => void;
 };
 
-const TIMEFRAMES = ['M30', 'H1', 'H2', 'H3', 'H4', 'H6', 'H8', 'H12', 'D1', 'W1'];
+const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H2', 'H3', 'H4', 'H6', 'H8', 'H12', 'D1', 'W1'];
 
 function statesForRecord(record: SuperSignalRecord, states: Record<string, Record<number, TfState>>) {
   return states[record.symbol]?.[1800]?.candles ?? [];
