@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { formatLocalDateTime } from '@/lib/localTime';
 import { CheckCircle2, CircleAlert, FileText, MessageSquare, Megaphone, Plus, RefreshCw, ShieldCheck, Vote } from 'lucide-react';
 import { useSession } from '@/lib/sessionContext';
 import { supabase } from '@/lib/supabase';
@@ -120,7 +121,7 @@ export function GovernancePanel() {
 
   const count = (id: string, choice: VoteRow['choice']) => votes.filter(v => v.proposal_id === id && v.choice === choice).length;
   const myVote = (id: string) => votes.find(v => v.proposal_id === id && v.voter_id === userId)?.choice;
-  const fmt = (value: string) => new Date(value).toLocaleString();
+  const fmt = (value: string) => formatLocalDateTime(value);
 
   if (loading && !proposals.length && !owners.length) return <div className={panel + ' mt-8 text-sm text-ink-2'}>Loading governance records…</div>;
   if (error && !owners.length && !proposals.length) return <div className={panel + ' mt-8'}><p className="text-sm text-down">{error}</p><button onClick={() => void load()} className="mt-3 rounded-lg border border-line/20 px-3 py-2 text-sm">Retry</button></div>;
