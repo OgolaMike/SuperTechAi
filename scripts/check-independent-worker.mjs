@@ -13,6 +13,8 @@ const membership = fs.readFileSync(path.join(root, 'workers/independent-api/src/
 const preferences = fs.readFileSync(path.join(root, 'workers/independent-api/src/preferences.ts'), 'utf8');
 const signalHistory = fs.readFileSync(path.join(root, 'workers/independent-api/src/signalHistory.ts'), 'utf8');
 const payments = fs.readFileSync(path.join(root, 'workers/independent-api/src/payments.ts'), 'utf8');
+const academy = fs.readFileSync(path.join(root, 'workers/independent-api/src/academy.ts'), 'utf8');
+const academyClient = fs.readFileSync(path.join(root, 'src/lib/independentApi.ts'), 'utf8');
 const paymentPanel = fs.readFileSync(path.join(root, 'src/components/MembershipPaymentsPanel.tsx'), 'utf8');
 const signalRecordsClient = fs.readFileSync(path.join(root, 'src/lib/signalRecords.ts'), 'utf8');
 const adminPanel = fs.readFileSync(path.join(root, 'src/components/AdminPanel.tsx'), 'utf8');
@@ -84,6 +86,11 @@ for (const [label, condition] of [
   ['payment approval writes a financial ledger entry', payments.includes('entry_type:"membership_payment"')],
   ['member payment panel submits through independent Appwrite API', paymentPanel.includes('submitIndependentPayment(planCode,reference.trim())')],
   ['payment and ledger tables are configured', config.includes('PAYMENT_SUBMISSIONS_TABLE_ID = "payment_submissions"') && config.includes('FINANCIAL_LEDGER_TABLE_ID = "financial_ledger"')],
+  ['Academy progress requires an authenticated Appwrite account', worker.includes('handleAcademyProgress(request, env, account)')],
+  ['Academy progress records are scoped to their owner', academy.includes('row.user_id===account.$id') && academy.includes('user_id:account.$id')],
+  ['Academy progress is validated from zero to one hundred percent', academy.includes('body.progress<0||body.progress>100')],
+  ['Academy progress client uses independent API', academyClient.includes("'/api/academy/progress'")],
+  ['Academy progress table is configured', config.includes('ACADEMY_PROGRESS_TABLE_ID = "academy_progress"')],
   ['independent terminal hydrates alert preferences from Appwrite', independentTerminal.includes('getIndependentAlertPreferences()')],
   ['independent terminal persists alert preference changes to Appwrite', independentTerminal.includes('updateIndependentAlertPreferences({') && independentTerminal.includes("supertech-alert-controls-changed")],
 ]) {
