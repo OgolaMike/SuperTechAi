@@ -36,8 +36,8 @@ import { fetchSignalRecords } from '@/lib/signalRecords';
 import { buildStopOrderIdeas } from '@/lib/stopOrders';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET } from '@/lib/sma';
-import { loadMemberAlertModes } from '@/lib/alertPreferences';
-import { enableDevicePush, sendPushTest, getMembershipStatus } from '@/lib/independentApi';
+import { loadMemberAlertModes, loadAlertModes, cacheAlertModes } from '@/lib/alertPreferences';
+import { enableDevicePush, sendPushTest, getMembershipStatus, getIndependentAlertPreferences, updateIndependentAlertPreferences } from '@/lib/independentApi';
 import { MemberReferralsPanel } from '@/components/MemberReferralsPanel';
 import { AdminPanel } from '@/components/AdminPanel';
 
@@ -64,7 +64,35 @@ export function IndependentTradingTerminal({email,userId}:Props){
  const pendingIdeas=useMemo(()=>buildStopOrderIdeas(assets,states,prices,aiModel,now),[assets,states,prices,aiModel,now]);
  const pendingAlerts=usePendingOrderAlerts(pendingIdeas,loaded&&alertReady,soundsEnabled);
  useEffect(()=>{let cancelled=false;getMembershipStatus().then(s=>{if(!cancelled){setIsCompanyAdmin(s.isAdmin);setMembershipPlan(s.planCode)}}).catch(()=>{if(!cancelled)setIsCompanyAdmin(false)});return()=>{cancelled=true}},[userId]);
- useEffect(()=>{let cancelled=false;loadMemberAlertModes(userId).finally(()=>{if(!cancelled)setAlertReady(true)});return()=>{cancelled=true}},[userId]);
+ useEffect(()=>{
+  let cancelled=false;
+  let onChange: (()=>void)|undefined;
+  const sync=async()=>{
+   await loadMemberAlertModes(userId);
+   try{
+    const remote=await getIndependentAlertPreferences();
+    const local=loadAlertModes(userId);
+    cacheAlertModes({
+     categories:{...local.categories,...remote.categories},
+     assets:{...local.assets,...remote.assets},
+     defaultAssetMode:remote.defaultAssetMode,
+    },userId);
+   }catch{/* Keep the account-scoped local preferences available if the API is temporarily offline. */}
+   if(cancelled)return;
+   onChange=()=>{
+    const settings=loadAlertModes(userId);
+    void updateIndependentAlertPreferences({
+     categories:settings.categories,
+     assets:settings.assets,
+     defaultAssetMode:settings.defaultAssetMode,
+    }).catch(()=>{/* Local preferences remain available and will retry on the next change. */});
+   };
+   window.addEventListener('supertech-alert-controls-changed',onChange);
+   setAlertReady(true);
+  };
+  void sync();
+  return()=>{cancelled=true;if(onChange)window.removeEventListener('supertech-alert-controls-changed',onChange)};
+ },[userId]);
  useEffect(()=>{if(!('Notification' in window)||!('PushManager' in window)||!('serviceWorker' in navigator)){setPushState('unsupported');return}setPushState(Notification.permission==='granted'?'enabled':Notification.permission==='denied'?'blocked':'unknown')},[]);
  const activatePush=async()=>{setPushBusy(true);setPushMessage('');try{await enableDevicePush();setPushState('enabled');setPushMessage('This device is registered. Send a test notification to verify delivery.')}catch(error){setPushMessage(error instanceof Error?error.message:'Could not enable push notifications.');if(typeof Notification!=='undefined'&&Notification.permission==='denied')setPushState('blocked')}finally{setPushBusy(false)}};
  const testPush=async()=>{setPushBusy(true);setPushMessage('');try{const result=await sendPushTest();setPushMessage('Test notification accepted for '+result.sent+' of '+result.total+' registered device(s). Check your Android notification shade.')}catch(error){setPushMessage(error instanceof Error?error.message:'Test notification failed.')}finally{setPushBusy(false)}};
