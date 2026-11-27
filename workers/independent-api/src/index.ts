@@ -735,6 +735,23 @@ export default {
       }, 200, cors);
     }
 
+    if (url.pathname === "/health" && request.method === "GET") {
+      return json({
+        ok: true,
+        service: "supertechai-independent-api",
+        appwriteConfigured: Boolean(env.APPWRITE_ENDPOINT && env.APPWRITE_PROJECT_ID && env.APPWRITE_DATABASE_ID && env.APPWRITE_API_KEY),
+        storage: {
+          membership: Boolean(env.MEMBERSHIP_TABLE_ID),
+          profiles: Boolean(env.MEMBER_PROFILES_TABLE_ID),
+          payments: Boolean(env.PAYMENT_SUBMISSIONS_TABLE_ID),
+          finance: Boolean(env.FINANCIAL_LEDGER_TABLE_ID),
+          signals: Boolean(env.SIGNAL_RECORDS_TABLE_ID),
+          academy: Boolean(env.ACADEMY_PROGRESS_TABLE_ID),
+        },
+        timestamp: new Date().toISOString(),
+      }, 200, cors);
+    }
+
     return json({ error: "not_found" }, 404, cors);
   },
 };
