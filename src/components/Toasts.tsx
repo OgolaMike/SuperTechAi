@@ -129,7 +129,7 @@ function SignalDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toas
         <Detail label="Signal time" value={formatDateTime(toast.at)} />
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => { onDismiss(); onClose(); }} className="min-w-0 rounded-xl border border-line/25 bg-surface/10 px-3 py-3 text-sm font-bold text-ink">Close</button>
+        <button type="button" onClick={onClose} className="min-w-0 rounded-xl border border-line/25 bg-surface/10 px-3 py-3 text-sm font-bold text-ink">Close</button>
         <button type="button" onClick={() => { onOpenChart(); onDismiss(); onClose(); }} className="min-w-0 rounded-xl bg-accent px-3 py-3 text-sm font-bold text-canvas">Open Chart</button>
       </div>
     </section>
