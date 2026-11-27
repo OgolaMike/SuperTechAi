@@ -22,6 +22,7 @@ export interface Env {
   PAYMENT_SUBMISSIONS_TABLE_ID?: string;
   FINANCIAL_LEDGER_TABLE_ID?: string;
   ACADEMY_PROGRESS_TABLE_ID?: string;
+  COMMISSION_RECORDS_TABLE_ID?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
@@ -748,6 +749,7 @@ export default {
           finance: Boolean(env.FINANCIAL_LEDGER_TABLE_ID),
           signals: Boolean(env.SIGNAL_RECORDS_TABLE_ID),
           academy: Boolean(env.ACADEMY_PROGRESS_TABLE_ID),
+          commissions: Boolean(env.COMMISSION_RECORDS_TABLE_ID),
         },
         timestamp: new Date().toISOString(),
       }, 200, cors);
