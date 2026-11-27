@@ -71,7 +71,7 @@ for (const [label, condition] of [
   ['alert preference route requires authenticated Appwrite identity', worker.includes('handleAlertPreferences(request, env, account)')],
   ['alert preferences are stored in the private Appwrite table', preferences.includes('permissions: []') && preferences.includes('ALERT_PREFERENCES_TABLE_ID')],
   ['alert preference rows are scoped to the authenticated account', preferences.includes('row.user_id !== account.$id') && preferences.includes('user_id: account.$id')],
-  ['alert preference input is size-limited and validated', preferences.includes('serialized.length > 12000') && preferences.includes('categories_json: serialized')],
+  ['alert preference input is size-limited and validated', preferences.includes('serialized.length > 9000') && preferences.includes('categories_json: serialized')],
   ['alert preferences support read and update only', preferences.includes('["GET", "PATCH"]')],
   ['alert preferences table is configured in Worker vars', config.includes('ALERT_PREFERENCES_TABLE_ID = "alert_preferences"')],
   ['signal history route requires authenticated Appwrite identity', worker.includes('handleSignalHistory(request, env, account)')],
