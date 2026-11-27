@@ -457,7 +457,7 @@ function pushReady(env: Env): boolean {
   return Boolean(env.APPWRITE_API_KEY && env.PUSH_SUBSCRIPTIONS_TABLE_ID && env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT);
 }
 function pushBase(env: Env): string {
-  return `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`;
+  return `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`;
 }
 function pushHeaders(env: Env): Record<string, string> {
   return { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY || "", "Content-Type": "application/json" };
@@ -482,7 +482,7 @@ async function pushRowsForUser(env: Env, userId: string): Promise<PushRow[]> {
   return Array.isArray(result.rows) ? result.rows.filter(row => row.user_id === userId) : [];
 }
 function pushB64Url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 function pushFromB64Url(value: string): Uint8Array {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
@@ -493,10 +493,6 @@ function concatBytes(...parts: Uint8Array[]): Uint8Array {
   let offset = 0;
   for (const part of parts) { output.set(part, offset); offset += part.length; }
   return output;
-}
-async function hmacSha256(keyBytes: Uint8Array, value: Uint8Array): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  return new Uint8Array(await crypto.subtle.sign("HMAC", key, value));
 }
 async function hkdf(secret: Uint8Array, input: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey("raw", input, "HKDF", false, ["deriveBits"]);
@@ -533,11 +529,11 @@ async function sendPushToRow(env: Env, row: PushRow, payload: Record<string, unk
   const ephemeralPublic = new Uint8Array(await crypto.subtle.exportKey("raw", ephemeral.publicKey));
   const subscriberKey = await crypto.subtle.importKey("raw", userPublicKey, { name: "ECDH", namedCurve: "P-256" }, false, []);
   const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: subscriberKey }, ephemeral.privateKey, 256));
-  const info = concatBytes(new TextEncoder().encode("WebPush: info\\0"), userPublicKey, ephemeralPublic);
+  const info = concatBytes(new TextEncoder().encode("WebPush: info\0"), userPublicKey, ephemeralPublic);
   const inputKeyMaterial = await hkdf(authSecret, sharedSecret, info, 32);
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const contentKey = await hkdf(salt, inputKeyMaterial, new TextEncoder().encode("Content-Encoding: aes128gcm\\0"), 16);
-  const nonce = await hkdf(salt, inputKeyMaterial, new TextEncoder().encode("Content-Encoding: nonce\\0"), 12);
+  const contentKey = await hkdf(salt, inputKeyMaterial, new TextEncoder().encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdf(salt, inputKeyMaterial, new TextEncoder().encode("Content-Encoding: nonce\0"), 12);
   const aesKey = await crypto.subtle.importKey("raw", contentKey, { name: "AES-GCM" }, false, ["encrypt"]);
   const plaintext = concatBytes(new TextEncoder().encode(JSON.stringify(payload)), new Uint8Array([2]));
   const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aesKey, plaintext));
