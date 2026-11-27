@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Loader2, Clock3 } from 'lucide-react';
-import { activateMemberReferral, getMembershipStatus, type MembershipStatus } from '@/lib/independentApi';
+import { activateMemberReferral, getMembershipStatus, getMemberReferralProfile, type MembershipStatus } from '@/lib/independentApi';
 
 type Props = { children: ReactNode };
 
 export function MemberNetworkGate({ children }: Props) {
   const [ready, setReady] = useState(false);
   const [membership, setMembership] = useState<MembershipStatus | null>(null);
+  const [teamAssigned, setTeamAssigned] = useState<boolean | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -35,6 +36,10 @@ export function MemberNetworkGate({ children }: Props) {
               // Invalid/unconfigured referral? Keep the member's registration intact.
             }
           }
+          const profile = await getMemberReferralProfile();
+          if (active) setTeamAssigned(profile.assigned);
+        } else if (status.status === 'approved' && status.isAdmin) {
+          setTeamAssigned(true);
         }
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : 'Membership could not be verified.');
