@@ -6,7 +6,6 @@ const SuperTechAcademy = lazy(() => import('@/components/SuperTechAcademy').then
 const AdminPanel = lazy(() => import('@/components/AdminPanel').then((module) => ({ default: module.AdminPanel })));
 const GovernancePanel = lazy(() => import('@/components/GovernancePanel').then((module) => ({ default: module.GovernancePanel })));
 const FinancePanel = lazy(() => import('@/components/FinancePanel').then((module) => ({ default: module.FinancePanel })));
-const NetworkPanel = lazy(() => import('@/components/NetworkPanel').then((module) => ({ default: module.NetworkPanel })));
 const AccountHub = lazy(() => import('@/components/AccountHub').then((module) => ({ default: module.AccountHub })));
 const SmartCommunity = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.SmartCommunity })));
 import { AssetSelector } from '@/components/AssetSelector';
