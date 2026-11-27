@@ -53,7 +53,7 @@ export async function handleSignalHistory(request: Request, env: Env, account: A
       const response = await fetch(query, { headers: headers(env) });
       if (!response.ok) return json({ error: "signal_history_read_failed" }, 503);
       const result = await response.json() as { rows?: SignalRow[] };
-      return json({ rows: (result.rows || []).filter(row => row.user_id === account.$id).map(({ $id, user_id, ...row }) => row) });
+      return json({ rows: (result.rows || []).filter(row => row.user_id === account.$id).map(row => { const copy = { ...row }; delete copy.$id; delete copy.user_id; return copy; }) });
     }
     const body = await request.json().catch(() => null) as { rows?: unknown } | null;
     if (!body || !Array.isArray(body.rows) || body.rows.length > 100 || !body.rows.every(validRecord)) {
