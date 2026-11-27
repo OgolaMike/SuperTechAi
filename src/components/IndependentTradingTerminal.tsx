@@ -20,6 +20,7 @@ import { IndependentBrokerConnections } from '@/components/IndependentBrokerConn
 import { IndependentAlertSettings } from '@/components/IndependentAlertSettings';
 import { MarketStructureSarPanel } from '@/components/MarketStructureSarPanel';
 import { StrategyConfluencePanel } from '@/components/StrategyConfluencePanel';
+import { PlatformAIWidget } from '@/components/PlatformAIWidget';
 import { buildIndependentStrategyAssessments } from '@/lib/independentStrategies';
 import { evaluateStrategyConfluence } from '@/lib/strategyConfluence';
 import { useDerivSignals } from '@/hooks/useDerivSignals';
@@ -112,6 +113,14 @@ function IndependentTradingWorkspace({email,userId}:Props){
     <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[.03] p-5 text-xs leading-relaxed text-ink-2"><p className="font-medium text-ink">Trading involves risk. Past signals do not guarantee future results.</p><p className="mt-1">Signals and tracked ideas are not proof of broker execution.</p></footer>
    </div>
    <Toasts toasts={commonAlerts} onDismiss={id=>{signalAlerts.dismiss(id);breakAlerts.dismiss(id);pendingAlerts.dismiss(id)}} onOpenChart={openChart}/>
+   <PlatformAIWidget activeModule={view} monitoredAssets={selectedSymbols} signalsCount={superSignals.length} contextSummary={JSON.stringify({
+    feed:{loaded,status:status.status,detail:status.detail},
+    selectedMarkets:selectedSymbols,
+    currentPrices:Object.fromEntries(selectedSymbols.map(symbol=>[symbol,prices[symbol]??null])),
+    signals:superSignals.slice(0,8).map(signal=>({symbol:signal.symbol,direction:signal.direction,signalEpoch:signal.signalEpoch,levels:signal.levels})),
+    strategyAgreement:strategyConfluence.summary,
+    note:'App-reported context, not proof of broker execution.'
+   })}/>
   </div>
  </>
 }
