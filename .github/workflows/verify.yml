@@ -30,6 +30,10 @@ jobs:
         run: npm run lint
       - name: Production build
         run: npm run build
+      - name: Check independent Appwrite Worker contract
+        run: npm run check:independent-worker
+      - name: Validate Cloudflare Worker bundle (dry run only)
+        run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
