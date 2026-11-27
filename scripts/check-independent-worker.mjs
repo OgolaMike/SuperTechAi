@@ -108,6 +108,5 @@ if (failures.length) {
 
 console.log('Independent Worker contract check passed.');
 
-const workerIndex = readFileSync(new URL("../workers/independent-api/src/index.ts", import.meta.url), "utf8");
-assert(workerIndex.includes('url.pathname === "/health"'), "public Worker health endpoint is required");
-assert(workerIndex.includes('service: "supertechai-independent-api"'), "health endpoint must identify the independent API");
+assert(worker.includes('url.pathname === "/health"'), "public Worker health endpoint is required");
+assert(worker.includes('service: "supertechai-independent-api"'), "health endpoint must identify the independent API");
