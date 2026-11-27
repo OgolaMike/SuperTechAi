@@ -1316,7 +1316,8 @@ export default {
         if (!account) return json({ error: "unauthorized" }, 401, cors);
         const configured = env as BrokerEnv;
         if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.CTRADER_CLIENT_ID || !configured.CTRADER_CLIENT_SECRET || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "ctrader_discovery_not_configured" }, 503, cors);
-        const grantId = account.$id.replace(/-/g, "").slice(0, 32);\n        const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string } | null;
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string } | null;
         if (!grant || grant.user_id !== account.$id || !grant.encrypted_access_token) return json({ error: "ctrader_not_connected" }, 404, cors);
         const accessToken = await decryptBrokerToken(grant.encrypted_access_token, configured.BROKER_TOKEN_ENCRYPTION_KEY);
         const discovered: Array<{ accountId: string; isLive: boolean; traderLogin: string | null; broker: string; accountType: string | null; permissionScope: string }> = [];
