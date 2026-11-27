@@ -53,7 +53,7 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
         const remote = await fetchIndependentStrategyOutcomeEvents();
         if (cancelled) return;
         const history = remote.events
-          .filter((event) => event.payload && typeof event.payload === 'object')
+          .filter((event) => event.payload && typeof event.payload === 'object' && (event.payload as unknown as StrategyOutcome).symbol === activeSymbol)
           .sort((a, b) => a.event_epoch - b.event_epoch)
           .map((event) => event.payload as unknown as StrategyOutcome);
         setPersistedOutcomes(history);
