@@ -58,6 +58,7 @@ for (const [label, condition] of [
   ['membership approval supports free and both paid tiers', membership.includes('standard_300') && membership.includes('automation_500') && membership.includes('planCode')],
   ['membership records remain server-owned', membership.includes('permissions: []')],
   ['admin UI uses independent membership endpoints', adminPanel.includes('listAdminMembers') && adminPanel.includes('reviewMembership')],
+  ['broker automation APIs require approved Premium membership', worker.includes('hasAutomationEntitlement(env, account)') && membership.includes('row.plan_code === "automation_500"')],
 ]) {
   if (!condition) failures.push(label);
 }
