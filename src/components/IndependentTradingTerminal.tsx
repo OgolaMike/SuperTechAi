@@ -21,6 +21,7 @@ import { IndependentAlertSettings } from '@/components/IndependentAlertSettings'
 import { MarketStructureSarPanel } from '@/components/MarketStructureSarPanel';
 import { StrategyConfluencePanel } from '@/components/StrategyConfluencePanel';
 import { PlatformAIWidget } from '@/components/PlatformAIWidget';
+import { PersonalAIExperience } from '@/components/PersonalAIExperience';
 import { buildIndependentStrategyAssessments } from '@/lib/independentStrategies';
 import { evaluateStrategyConfluence } from '@/lib/strategyConfluence';
 import { useDerivSignals } from '@/hooks/useDerivSignals';
@@ -107,7 +108,8 @@ function IndependentTradingWorkspace({email,userId}:Props){
       {['ctrader','connections'].includes(view)&&<IndependentBrokerConnections/>}{['mt5','binance','okx'].includes(view)&&<section className="mt-8 rounded-2xl border border-amber-400/20 bg-amber-400/[.04] p-5"><p className="text-sm font-semibold text-ink">Broker automation connection</p><p className="mt-2 text-sm leading-6 text-ink-2">This broker is being connected through the independent authenticated Worker. No credentials are requested in the browser until its secure account, risk and order workflows are ready.</p></section>}
       {view==='records'&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal history</h2><p className="mt-2 text-sm text-ink-2">Confirmed signal records saved on this device: {views.length} live signal readings.</p>{views.slice(0,30).map(item=><div key={item.key} className="flex flex-wrap justify-between gap-2 border-t border-line/10 py-3 text-xs"><span>{item.assetName} · {item.timeframe} · {item.signal.direction}</span><span>{new Date(item.signal.signalEpoch*1000).toLocaleString()}</span></div>)}</section>}
       {view==='alerts'&&<IndependentAlertSettings userId={userId} assets={assets} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/>}
-      {['personal-ai','academy','referrals','earnings','finance','admin','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
+      {view==='personal-ai'&&<PersonalAIExperience signalsCount={superSignals.length} monitoredAssets={selectedSymbols} signalContext={superSignals.slice(0,10).map(signal=>({symbol:signal.symbol,timeframe:'H4',direction:signal.direction,signalEpoch:signal.signalEpoch,status:'ACTIVE',entry:signal.levels.entry,stopLoss:signal.levels.stopLoss,tp1:signal.levels.tp1,tp2:signal.levels.tp2,tp3:signal.levels.tp3}))}/>
+      {['academy','referrals','earnings','finance','admin','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
      </div>
     </Suspense>
     <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[.03] p-5 text-xs leading-relaxed text-ink-2"><p className="font-medium text-ink">Trading involves risk. Past signals do not guarantee future results.</p><p className="mt-1">Signals and tracked ideas are not proof of broker execution.</p></footer>
@@ -118,7 +120,7 @@ function IndependentTradingWorkspace({email,userId}:Props){
     selectedMarkets:selectedSymbols,
     currentPrices:Object.fromEntries(selectedSymbols.map(symbol=>[symbol,prices[symbol]??null])),
     signals:superSignals.slice(0,8).map(signal=>({symbol:signal.symbol,direction:signal.direction,signalEpoch:signal.signalEpoch,levels:signal.levels})),
-    strategyAgreement:strategyConfluence.summary,
+    strategyAgreement:strategyConfluence.slice(0,6).map(item=>({symbol:item.symbol,status:item.status,direction:item.direction,score:item.score,explanation:item.explanation})),
     note:'App-reported context, not proof of broker execution.'
    })}/>
   </div>
