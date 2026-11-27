@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatLocalDate } from '@/lib/localTime';
 import { BadgeCheck, Copy, CreditCard, ExternalLink, Loader2, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Users, CalendarDays, Plus, Wifi } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/sessionContext';
@@ -220,7 +221,7 @@ export function SmartCommunity() {
               <div className="mt-4 space-y-2">
                 <div className="flex items-center justify-between gap-3"><span className="text-sm text-ink-2">Card status</span><span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass(myCard.status)}`}>{myCard.status}</span></div>
                 <div className="flex items-center justify-between gap-3"><span className="text-sm text-ink-2">Card number</span><span className="font-mono text-sm text-ink">{myCard.card_code}</span></div>
-                <div className="flex items-center justify-between gap-3"><span className="text-sm text-ink-2">Issued</span><span className="text-xs text-ink-3">{new Date(myCard.created_at).toLocaleDateString()}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-sm text-ink-2">Issued</span><span className="text-xs text-ink-3">{formatLocalDate(myCard.created_at)}</span></div>
               </div>
             ) : <p className="mt-3 text-sm leading-relaxed text-ink-2">Your digital card has not been issued yet. Create it first, then write its link onto a standard NFC card.</p>}
           </div>
@@ -302,7 +303,7 @@ export function NfcPublicProfile() {
             <p className={`mt-3 text-xs font-semibold uppercase tracking-[0.18em] ${profile.verified ? 'text-emerald-300' : 'text-amber-300'}`}>{profile.verified ? 'Verified active member' : 'Membership not active'}</p>
             <h2 className="mt-3 text-2xl font-semibold">{profile.displayName}</h2>
             <p className="mt-2 font-mono text-xs tracking-[0.18em] text-white/45">{profile.cardCode}</p>
-            <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-left text-sm"><div className="flex justify-between gap-3"><span className="text-white/50">Card status</span><span className="capitalize">{profile.cardStatus}</span></div><div className="mt-3 flex justify-between gap-3"><span className="text-white/50">Membership</span><span className="capitalize">{profile.membershipStatus}</span></div><div className="mt-3 flex justify-between gap-3"><span className="text-white/50">Card issued</span><span>{new Date(profile.memberSince).toLocaleDateString()}</span></div></div>
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-left text-sm"><div className="flex justify-between gap-3"><span className="text-white/50">Card status</span><span className="capitalize">{profile.cardStatus}</span></div><div className="mt-3 flex justify-between gap-3"><span className="text-white/50">Membership</span><span className="capitalize">{profile.membershipStatus}</span></div><div className="mt-3 flex justify-between gap-3"><span className="text-white/50">Card issued</span><span>{formatLocalDate(profile.memberSince)}</span></div></div>
           </> : null}
           <a href={profile?.referralCode ? `/?ref=${encodeURIComponent(profile.referralCode)}` : '/'} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#c8a45c] px-4 py-3 text-sm font-semibold text-[#08101d]">Explore SuperTechAi <ExternalLink className="h-4 w-4" /></a>
           <p className="mt-4 text-[10px] leading-relaxed text-white/35">This page confirms card and membership status only. Private account information and trading access are never displayed here.</p>
