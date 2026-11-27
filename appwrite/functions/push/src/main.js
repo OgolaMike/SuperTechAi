@@ -67,7 +67,7 @@ export default async ({ req, res, log, error }) => {
 async function sendToUser(users, userId, notification, res, log) {
   const prefs = await users.getPrefs(userId);
   const push = prefs?.supertechPush || {};
-  const devices = Array.isArray(push.devices) ? push.devices : [];
+  const devices = push.enabled && Array.isArray(push.devices) ? push.devices : [];
   if (!devices.length) return res.json({ ok: false, delivered: 0, error: 'No push-enabled device is registered for this account.' }, 404);
 
   const message = JSON.stringify({
