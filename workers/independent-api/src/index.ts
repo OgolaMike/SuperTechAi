@@ -343,6 +343,7 @@ export default {
         backend: "appwrite",
         identityReady: true,
         memberProfilesReady: databaseReady(env),
+        memberNetworkConfigured: Boolean(env.APPWRITE_API_KEY && env.MEMBER_NETWORK_TABLE_ID && env.GENESIS_ACCOUNT_ID && env.GENESIS_ADMIN_TOKEN),
       }, 200, cors);
     }
 
