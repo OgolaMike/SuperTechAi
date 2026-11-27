@@ -9,8 +9,9 @@ export interface Env {
   STRATEGY_OUTCOME_EVENTS_TABLE_ID?: string;
   AI_PROFILES_TABLE_ID?: string;
   AI_CHAT_HISTORY_TABLE_ID?: string;
-  OPENAI_API_KEY?: string;
+  XAI_API_KEY?: string;
   PERSONAL_AI_MODEL?: string;
+  PERSONAL_AI_BASE_URL?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
   PUSH_SUBSCRIPTIONS_TABLE_ID?: string;
