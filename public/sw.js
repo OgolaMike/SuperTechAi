@@ -1,5 +1,5 @@
 // SuperTech AI service worker. Version bump clears stale shell caches after releases.
-const CACHE_NAME = 'supertech-ai-shell-v5';
+const CACHE_NAME = 'supertech-ai-shell-v6';
 const CACHE_PREFIX = 'supertech-ai-shell-';
 const BRAND_LOGO = '/supertechai-icon.png?v=5752d4b0';
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.webmanifest', BRAND_LOGO, '/supertechai-logo.png?v=32bbfde1'];
