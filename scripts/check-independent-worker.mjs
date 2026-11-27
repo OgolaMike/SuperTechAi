@@ -12,6 +12,8 @@ const memberGate = fs.readFileSync(path.join(root, 'src/components/MemberNetwork
 const membership = fs.readFileSync(path.join(root, 'workers/independent-api/src/membership.ts'), 'utf8');
 const preferences = fs.readFileSync(path.join(root, 'workers/independent-api/src/preferences.ts'), 'utf8');
 const signalHistory = fs.readFileSync(path.join(root, 'workers/independent-api/src/signalHistory.ts'), 'utf8');
+const payments = fs.readFileSync(path.join(root, 'workers/independent-api/src/payments.ts'), 'utf8');
+const paymentPanel = fs.readFileSync(path.join(root, 'src/components/MembershipPaymentsPanel.tsx'), 'utf8');
 const signalRecordsClient = fs.readFileSync(path.join(root, 'src/lib/signalRecords.ts'), 'utf8');
 const adminPanel = fs.readFileSync(path.join(root, 'src/components/AdminPanel.tsx'), 'utf8');
 const independentTerminal = fs.readFileSync(path.join(root, 'src/components/IndependentTradingTerminal.tsx'), 'utf8');
@@ -75,6 +77,13 @@ for (const [label, condition] of [
   ['signal history payload validates directions, outcomes and numeric levels', signalHistory.includes('row.direction === "BUY"') && signalHistory.includes('row.direction === "SELL"') && signalHistory.includes('validRecord')],
   ['signal history is synced to Appwrite by the independent client', signalRecordsClient.includes('saveIndependentSignalRecords(rows)') && signalRecordsClient.includes('getIndependentSignalRecords()')],
   ['signal history table is configured in Worker vars', config.includes('SIGNAL_RECORDS_TABLE_ID = "signal_records"')],
+  ['payment routes require authenticated Appwrite identity', worker.includes('handlePaymentRequest(request, env, account)')],
+  ['payment submissions bind plan price on the server', payments.includes('standard_300:300,automation_500:500')],
+  ['payment references cannot be reused', payments.includes('transaction_reference_already_submitted')],
+  ['paid membership activates only after admin review', payments.includes('payment.status!=="pending"') && payments.includes('reviewed_by:account.$id')],
+  ['payment approval writes a financial ledger entry', payments.includes('entry_type:"membership_payment"')],
+  ['member payment panel submits through independent Appwrite API', paymentPanel.includes('submitIndependentPayment(planCode,reference.trim())')],
+  ['payment and ledger tables are configured', config.includes('PAYMENT_SUBMISSIONS_TABLE_ID = "payment_submissions"') && config.includes('FINANCIAL_LEDGER_TABLE_ID = "financial_ledger"')],
   ['independent terminal hydrates alert preferences from Appwrite', independentTerminal.includes('getIndependentAlertPreferences()')],
   ['independent terminal persists alert preference changes to Appwrite', independentTerminal.includes('updateIndependentAlertPreferences({') && independentTerminal.includes("supertech-alert-controls-changed")],
 ]) {
