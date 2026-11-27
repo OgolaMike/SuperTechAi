@@ -1,3 +1,5 @@
+import webpush from "web-push";
+
 export interface Env {
   APPWRITE_ENDPOINT: string;
   APPWRITE_PROJECT_ID: string;
@@ -13,6 +15,10 @@ export interface Env {
   PERSONAL_AI_MODEL?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
+  PUSH_SUBSCRIPTIONS_TABLE_ID?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 type AppwriteAccount = {
@@ -447,6 +453,55 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
   return Response.redirect(destination.toString(), 302);
 }
 
+
+type PushRow = { $id: string; user_id: string; endpoint: string; p256dh: string; auth: string; };
+function pushReady(env: Env): boolean {
+  return Boolean(env.APPWRITE_API_KEY && env.PUSH_SUBSCRIPTIONS_TABLE_ID && env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT);
+}
+function pushBase(env: Env): string {
+  return `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`;
+}
+function pushHeaders(env: Env): Record<string, string> {
+  return { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY || "", "Content-Type": "application/json" };
+}
+function validPushEndpoint(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return false;
+    const host = url.hostname.toLowerCase();
+    return host === "fcm.googleapis.com" || host === "web.push.apple.com" ||
+      host === "updates.push.services.mozilla.com" || host.endsWith(".push.services.mozilla.com") ||
+      host.endsWith(".notify.windows.com");
+  } catch { return false; }
+}
+async function pushRowsForUser(env: Env, userId: string): Promise<PushRow[]> {
+  const url = new URL(pushBase(env));
+  url.searchParams.set("queries[]", `equal("user_id", ["${userId}"])`);
+  url.searchParams.set("limit", "100");
+  const response = await fetch(url, { headers: pushHeaders(env) });
+  if (!response.ok) throw new Error("push_subscription_list_failed");
+  const result = await response.json() as { rows?: PushRow[] };
+  return Array.isArray(result.rows) ? result.rows.filter(row => row.user_id === userId) : [];
+}
+async function sendPushToRow(env: Env, row: PushRow, payload: Record<string, unknown>): Promise<void> {
+  if (!pushReady(env)) throw new Error("push_service_not_configured");
+  webpush.setVapidDetails(env.VAPID_SUBJECT!, env.VAPID_PUBLIC_KEY!, env.VAPID_PRIVATE_KEY!);
+  try {
+    await webpush.sendNotification(
+      { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+      JSON.stringify(payload),
+      { TTL: 90, urgency: "high" },
+    );
+  } catch (error) {
+    const status = Number((error as { statusCode?: number }).statusCode || 0);
+    if (status === 404 || status === 410) {
+      await fetch(`${pushBase(env)}/${encodeURIComponent(row.$id)}`, { method: "DELETE", headers: pushHeaders(env) });
+      return;
+    }
+    throw error;
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get("origin") || "";
@@ -482,6 +537,77 @@ export default {
         }, 200, cors);
       } catch {
         return json({ error: "identity_service_unavailable" }, 503, cors);
+      }
+    }
+
+
+    if (url.pathname.startsWith("/api/push/")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!pushReady(env)) return json({ error: "push_service_not_configured" }, 503, cors);
+        const base = pushBase(env);
+        const headers = pushHeaders(env);
+        if (url.pathname === "/api/push/key" && request.method === "GET") {
+          return json({ publicKey: env.VAPID_PUBLIC_KEY }, 200, cors);
+        }
+        if (url.pathname === "/api/push/status" && request.method === "GET") {
+          const rows = await pushRowsForUser(env, account.$id);
+          return json({ enabled: rows.length > 0, devices: rows.length }, 200, cors);
+        }
+        if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+          const length = Number(request.headers.get("content-length") || 0);
+          if (length > 16_000) return json({ error: "push_subscription_too_large" }, 413, cors);
+          const body = await request.json().catch(() => null) as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } } | null;
+          const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
+          const p256dh = typeof body?.keys?.p256dh === "string" ? body.keys.p256dh : "";
+          const auth = typeof body?.keys?.auth === "string" ? body.keys.auth : "";
+          if (!validPushEndpoint(endpoint) || !p256dh || p256dh.length > 256 || !auth || auth.length > 128) {
+            return json({ error: "invalid_push_subscription" }, 400, cors);
+          }
+          const rowId = (await sha256(`${account.$id}:${endpoint}`)).slice(0, 32);
+          const rowUrl = `${base}/${rowId}`;
+          const now = new Date().toISOString();
+          const data = { user_id: account.$id, endpoint, p256dh, auth, created_at: now, updated_at: now };
+          const prior = await fetch(rowUrl, { headers });
+          let saved: Response;
+          if (prior.ok) {
+            const existing = await prior.json() as PushRow;
+            if (existing.user_id !== account.$id) return json({ error: "push_subscription_ownership_mismatch" }, 403, cors);
+            saved = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { ...data, created_at: undefined }, permissions: [] }) });
+          } else if (prior.status === 404) {
+            saved = await fetch(base, { method: "POST", headers, body: JSON.stringify({ rowId, data, permissions: [] }) });
+          } else return json({ error: "push_subscription_lookup_failed" }, 503, cors);
+          if (!saved.ok) return json({ error: "push_subscription_save_failed" }, 503, cors);
+          return json({ saved: true }, 200, cors);
+        }
+        if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
+          const body = await request.json().catch(() => null) as { endpoint?: unknown } | null;
+          const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
+          if (!validPushEndpoint(endpoint)) return json({ error: "invalid_push_endpoint" }, 400, cors);
+          const rowId = (await sha256(`${account.$id}:${endpoint}`)).slice(0, 32);
+          const rowUrl = `${base}/${rowId}`;
+          const existing = await fetch(rowUrl, { headers });
+          if (existing.status === 404) return json({ removed: true }, 200, cors);
+          if (!existing.ok) return json({ error: "push_subscription_lookup_failed" }, 503, cors);
+          const row = await existing.json() as PushRow;
+          if (row.user_id !== account.$id) return json({ error: "push_subscription_ownership_mismatch" }, 403, cors);
+          const removed = await fetch(rowUrl, { method: "DELETE", headers });
+          if (!removed.ok && removed.status !== 204) return json({ error: "push_subscription_remove_failed" }, 503, cors);
+          return json({ removed: true }, 200, cors);
+        }
+        if (url.pathname === "/api/push/test" && request.method === "POST") {
+          const rows = await pushRowsForUser(env, account.$id);
+          if (!rows.length) return json({ error: "no_push_devices_registered" }, 409, cors);
+          const payload = { title: "SuperTech AI", body: "Push notifications are connected to this device.", tag: "supertech-push-test", url: "/" };
+          const results = await Promise.allSettled(rows.map(row => sendPushToRow(env, row, payload)));
+          const sent = results.filter(result => result.status === "fulfilled").length;
+          if (!sent) return json({ error: "push_delivery_failed", devices: rows.length }, 502, cors);
+          return json({ sent, devices: rows.length }, 200, cors);
+        }
+        return json({ error: "push_route_not_found" }, 404, cors);
+      } catch {
+        return json({ error: "push_service_failed" }, 503, cors);
       }
     }
 
