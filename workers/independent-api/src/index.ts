@@ -43,7 +43,7 @@ function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
   if (!origin || origin !== allowedOrigin) return {};
   return {
     "access-control-allow-origin": origin,
-    "access-control-allow-methods": "GET, POST, PUT, PATCH, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-max-age": "600",
     "vary": "Origin",
@@ -1068,6 +1068,170 @@ export default {
         executionEnabled: false,
         note: "Provider execution remains disabled until each provider's account, risk, order, and reconciliation tables pass security checks.",
       }, 200, cors);
+    }
+
+    if (url.pathname.startsWith("/api/ai/")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as Env & { AI_PROFILES_TABLE_ID?: string; AI_CHAT_HISTORY_TABLE_ID?: string; OPENAI_API_KEY?: string; PERSONAL_AI_MODEL?: string };
+        const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY || "", "Content-Type": "application/json" };
+        if (!env.APPWRITE_API_KEY || !env.APPWRITE_DATABASE_ID) return json({ error: "ai_storage_not_configured" }, 503, cors);
+        const tableBase = (tableId: string) => `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${tableId}/rows`;
+        const profileId = (await sha256("ai-profile|" + account.$id)).slice(0, 32);
+        const readProfile = async () => {
+          if (!configured.AI_PROFILES_TABLE_ID) throw new Error("ai_profile_storage_not_configured");
+          const response = await fetch(tableBase(configured.AI_PROFILES_TABLE_ID) + "/" + profileId, { headers });
+          if (response.status === 404) return null;
+          if (!response.ok) throw new Error("ai_profile_read_failed");
+          const row = await response.json() as Record<string, unknown>;
+          if (row.user_id !== account.$id) throw new Error("ai_profile_ownership_mismatch");
+          return row;
+        };
+        const saveRow = async (tableId: string, rowId: string, data: Record<string, unknown>) => {
+          const base = tableBase(tableId);
+          const rowUrl = base + "/" + encodeURIComponent(rowId);
+          const prior = await fetch(rowUrl, { headers });
+          if (prior.ok) {
+            const existing = await prior.json() as { user_id?: string };
+            if (existing.user_id !== account.$id || data.user_id !== account.$id) throw new Error("ai_storage_ownership_mismatch");
+            const update = await fetch(rowUrl, {
+              method: "PATCH", headers,
+              body: JSON.stringify({ data, permissions: [] }),
+            });
+            if (!update.ok) throw new Error("ai_storage_write_failed");
+            return;
+          }
+          if (prior.status !== 404) throw new Error("ai_storage_read_failed");
+          const create = await fetch(base, {
+            method: "POST", headers,
+            body: JSON.stringify({ rowId, data, permissions: [] }),
+          });
+          if (!create.ok && create.status !== 409) throw new Error("ai_storage_write_failed");
+          if (create.status === 409) {
+            const retry = await fetch(rowUrl, { headers });
+            if (!retry.ok) throw new Error("ai_storage_write_failed");
+            const existing = await retry.json() as { user_id?: string };
+            if (existing.user_id !== account.$id || data.user_id !== account.$id) throw new Error("ai_storage_ownership_mismatch");
+            const update = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data, permissions: [] }) });
+            if (!update.ok) throw new Error("ai_storage_write_failed");
+          }
+        };
+        if (url.pathname === "/api/ai/profile" && request.method === "GET") {
+          if (!configured.AI_PROFILES_TABLE_ID) return json({ error: "ai_profile_storage_not_configured" }, 503, cors);
+          const row = await readProfile();
+          return json({ profile: { goal: String(row?.goal || "Build consistent trading habits and protect my capital"), memoryOptIn: row?.memory_opt_in === true } }, 200, cors);
+        }
+        if (url.pathname === "/api/ai/profile" && request.method === "PUT") {
+          if (!configured.AI_PROFILES_TABLE_ID) return json({ error: "ai_profile_storage_not_configured" }, 503, cors);
+          const body = await request.json().catch(() => null) as { goal?: unknown; memoryOptIn?: unknown } | null;
+          const goal = typeof body?.goal === "string" ? body.goal.trim() : "";
+          if (!goal || goal.length > 240 || typeof body?.memoryOptIn !== "boolean") return json({ error: "invalid_ai_profile" }, 400, cors);
+          const prior = await readProfile();
+          if (body.memoryOptIn && !configured.AI_CHAT_HISTORY_TABLE_ID) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
+          if (!body.memoryOptIn && prior?.memory_opt_in === true) {
+            if (!configured.AI_CHAT_HISTORY_TABLE_ID) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
+            const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
+            target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
+            target.searchParams.set("limit", "5000");
+            const list = await fetch(target, { headers });
+            if (!list.ok) return json({ error: "ai_history_clear_failed" }, 503, cors);
+            const rows = await list.json() as { rows?: Array<{ $id: string; user_id?: string }>; total?: number };
+            for (const row of rows.rows || []) if (row.user_id === account.$id) {
+              const removed = await fetch(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID) + "/" + encodeURIComponent(row.$id), { method: "DELETE", headers });
+              if (!removed.ok && removed.status !== 404) return json({ error: "ai_history_clear_failed" }, 503, cors);
+            }
+            if (Number(rows.total || 0) > (rows.rows || []).length) return json({ error: "ai_history_clear_incomplete_retry_required" }, 503, cors);
+          }
+          await saveRow(configured.AI_PROFILES_TABLE_ID, profileId, {
+            user_id: account.$id, goal, memory_opt_in: body.memoryOptIn,
+            created_at: prior?.created_at || new Date().toISOString(), updated_at: new Date().toISOString(),
+          });
+          return json({ profile: { goal, memoryOptIn: body.memoryOptIn } }, 200, cors);
+        }
+        if (url.pathname === "/api/ai/history" && request.method === "GET") {
+          const profile = await readProfile();
+          if (profile?.memory_opt_in !== true) return json({ history: [] }, 200, cors);
+          if (!configured.AI_CHAT_HISTORY_TABLE_ID) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
+          const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
+          target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
+          target.searchParams.append("queries[]", JSON.stringify({ method: "orderAsc", column: "created_at" }));
+          target.searchParams.set("limit", "40");
+          const response = await fetch(target, { headers });
+          if (!response.ok) return json({ error: "ai_history_read_failed" }, 503, cors);
+          const result = await response.json() as { rows?: Array<Record<string, unknown>> };
+          const history = (result.rows || []).filter(row => row.user_id === account.$id).map(row => ({ role: row.role === "assistant" ? "assistant" : "user", content: String(row.content || "") })).filter(row => row.content.length > 0);
+          return json({ history }, 200, cors);
+        }
+        if (url.pathname === "/api/ai/history" && request.method === "DELETE") {
+          if (!configured.AI_CHAT_HISTORY_TABLE_ID) {
+            const profile = await readProfile();
+            if (profile?.memory_opt_in === true) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
+            return json({ cleared: true }, 200, cors);
+          }
+          const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
+          target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
+          target.searchParams.set("limit", "5000");
+          const response = await fetch(target, { headers });
+          if (!response.ok) return json({ error: "ai_history_clear_failed" }, 503, cors);
+          const result = await response.json() as { rows?: Array<{ $id: string; user_id?: string }>; total?: number };
+          for (const row of result.rows || []) if (row.user_id === account.$id) {
+            const removed = await fetch(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID) + "/" + encodeURIComponent(row.$id), { method: "DELETE", headers });
+            if (!removed.ok && removed.status !== 404) return json({ error: "ai_history_clear_failed" }, 503, cors);
+          }
+          if (Number(result.total || 0) > (result.rows || []).length) return json({ error: "ai_history_clear_incomplete_retry_required" }, 503, cors);
+          return json({ cleared: true }, 200, cors);
+        }
+        if (url.pathname === "/api/ai/chat" && request.method === "POST") {
+          if (Number(request.headers.get("content-length") || 0) > 24_000) return json({ error: "ai_request_too_large" }, 413, cors);
+          if (!configured.OPENAI_API_KEY) return json({ error: "ai_model_not_configured" }, 503, cors);
+          const body = await request.json().catch(() => null) as { question?: unknown; assets?: unknown; signalsCount?: unknown; signalContext?: unknown } | null;
+          const question = typeof body?.question === "string" ? body.question.trim() : "";
+          if (!question || question.length > 1200) return json({ error: "invalid_ai_question" }, 400, cors);
+          const profile = configured.AI_PROFILES_TABLE_ID ? await readProfile() : null;
+          const memoryOptIn = profile?.memory_opt_in === true;
+          if (memoryOptIn && !configured.AI_CHAT_HISTORY_TABLE_ID) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
+          let history: Array<{ role: "user" | "assistant"; content: string }> = [];
+          if (memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID) {
+            const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
+            target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
+            target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", column: "created_at" }));
+            target.searchParams.set("limit", "12");
+            const response = await fetch(target, { headers });
+            if (!response.ok) return json({ error: "ai_history_read_failed" }, 503, cors);
+            const result = await response.json() as { rows?: Array<Record<string, unknown>> };
+            history = (result.rows || []).filter(row => row.user_id === account.$id).reverse().map(row => ({ role: row.role === "assistant" ? "assistant" as const : "user" as const, content: String(row.content || "").slice(0, 1600) }));
+          }
+          const signals = Array.isArray(body?.signalContext) ? body.signalContext.slice(0, 10).map((item) => {
+            if (!item || typeof item !== "object") return "";
+            const s = item as Record<string, unknown>;
+            return [s.symbol, s.timeframe, s.direction, s.status, s.entry, s.stopLoss, s.tp1, s.signalEpoch].map(v => String(v ?? "n/a")).join(" | ");
+          }).join("\n") : "No signal snapshot supplied.";
+          const system = "You are the SuperTech AI Companion for the entire platform, not just a trading bot. Be warm, concise, practical and clear. Help with Dashboard, unified signals, independent strategies, Deriv and crypto markets, Academy, automation connections, notifications, account, membership, referrals and business services. Explain where to go and how features relate. Never claim to place trades, change accounts, connect brokers, view balances or execute actions. Never invent live prices, news, market movements, broker fills, account balances or results. Treat supplied signal context as app-reported context, not verified exchange execution. Clearly flag stale signals. The official Super 13 timeframes are M1, M5, M15, M30, H1, H2, H3, H4, H6, H8, H12, D1 and W1. H4 remains the primary direction timeframe. M1, M5 and M15 are supported for lower-timeframe diversification; explain their higher noise and risk, and use higher-timeframe context rather than treating every timeframe as equally authoritative. Never promise returns or guarantee accuracy. Encourage patience, risk limits and learning. If asked for current external facts, say live web research is not available inside this companion. Member goal: " + String(profile?.goal || "not set") + ". Watchlist: " + (Array.isArray(body?.assets) ? body.assets.slice(0, 6).join(", ") : "not supplied") + ". App signal count: " + String(body?.signalsCount ?? "not supplied") + ". App-reported signals:\n" + signals;
+          const messages = [{ role: "system", content: system }, ...history, { role: "user", content: question }];
+          const modelResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST", headers: { Authorization: "Bearer " + configured.OPENAI_API_KEY, "Content-Type": "application/json" },
+            body: JSON.stringify({ model: configured.PERSONAL_AI_MODEL || "gpt-4.1-mini", messages, temperature: 0.35, max_tokens: 700 }),
+          });
+          const completion = await modelResponse.json().catch(() => ({})) as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } };
+          const answer = completion.choices?.[0]?.message?.content?.trim();
+          if (!modelResponse.ok || !answer) return json({ error: "ai_response_unavailable", detail: modelResponse.status === 429 ? "The AI service is busy. Please try again shortly." : undefined }, 502, cors);
+          if (memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID) {
+            const now = new Date().toISOString();
+            for (const item of [{ role: "user", content: question }, { role: "assistant", content: answer }]) {
+              const messageId = crypto.randomUUID();
+              const rowId = (await sha256(account.$id + "|ai|" + messageId)).slice(0, 32);
+              await saveRow(configured.AI_CHAT_HISTORY_TABLE_ID, rowId, { user_id: account.$id, message_id: messageId, role: item.role, content: item.content.slice(0, 4000), created_at: now });
+            }
+          }
+          return json({ answer, memorySaved: memoryOptIn }, 200, cors);
+        }
+        return json({ error: "not_found" }, 404, cors);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "ai_service_unavailable";
+        return json({ error: code.startsWith("ai_") ? code : "ai_service_unavailable" }, 503, cors);
+      }
     }
 
     return json({ error: "not_found" }, 404, cors);
