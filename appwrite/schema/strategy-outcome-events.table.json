@@ -46,12 +46,12 @@
     },
     {
       "key": "signal_epoch",
-      "type": "integer",
+      "type": "double",
       "required": true
     },
     {
       "key": "event_epoch",
-      "type": "integer",
+      "type": "double",
       "required": true
     },
     {
