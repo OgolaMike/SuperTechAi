@@ -10,6 +10,7 @@ const config = fs.readFileSync(configPath, 'utf8');
 const referrals = fs.readFileSync(path.join(root, 'workers/independent-api/src/referrals.ts'), 'utf8');
 const memberGate = fs.readFileSync(path.join(root, 'src/components/MemberNetworkGate.tsx'), 'utf8');
 const membership = fs.readFileSync(path.join(root, 'workers/independent-api/src/membership.ts'), 'utf8');
+const preferences = fs.readFileSync(path.join(root, 'workers/independent-api/src/preferences.ts'), 'utf8');
 const adminPanel = fs.readFileSync(path.join(root, 'src/components/AdminPanel.tsx'), 'utf8');
 const failures = [];
 
@@ -59,6 +60,12 @@ for (const [label, condition] of [
   ['membership records remain server-owned', membership.includes('permissions: []')],
   ['admin UI uses independent membership endpoints', adminPanel.includes('listAdminMembers') && adminPanel.includes('reviewMembership')],
   ['broker automation APIs require approved Premium membership', worker.includes('hasAutomationEntitlement(env, account)') && membership.includes('row.plan_code === "automation_500"')],
+  ['alert preference route requires authenticated Appwrite identity', worker.includes('handleAlertPreferences(request, env, account)')],
+  ['alert preferences are stored in the private Appwrite table', preferences.includes('permissions: []') && preferences.includes('ALERT_PREFERENCES_TABLE_ID')],
+  ['alert preference rows are scoped to the authenticated account', preferences.includes('row.user_id !== account.$id') && preferences.includes('user_id: account.$id')],
+  ['alert preference input is size-limited and validated', preferences.includes('categoriesJson.length > 12000') && preferences.includes('assetsJson.length > 1024')],
+  ['alert preferences support read and update only', preferences.includes('["GET", "PATCH"]')],
+  ['alert preferences table is configured in Worker vars', config.includes('ALERT_PREFERENCES_TABLE_ID = "alert_preferences"')],
 ]) {
   if (!condition) failures.push(label);
 }
