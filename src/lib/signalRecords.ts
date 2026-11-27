@@ -1,5 +1,6 @@
 import type { SignalStatus, SignalView } from './signals';
 import { TIMEFRAMES } from './sma';
+import { getIndependentSignalRecords, saveIndependentSignalRecords } from '@/lib/independentApi';
 
 export type SignalRecordRow = {
   signal_key: string; symbol: string; asset_name: string; timeframe: string; granularity: number;
@@ -27,9 +28,20 @@ function readRows(): SignalRecordRow[] {
 export async function upsertSignalRecords(rows: SignalRecordRow[]): Promise<void> {
   const byKey=new Map(readRows().map(row=>[row.signal_key,row]));
   rows.forEach(row=>byKey.set(row.signal_key,row));
-  localStorage.setItem(STORAGE_KEY,JSON.stringify([...byKey.values()].sort((a,b)=>b.signal_epoch-a.signal_epoch).slice(0,RECORD_LIMIT)));
+  const merged=[...byKey.values()].sort((a,b)=>b.signal_epoch-a.signal_epoch).slice(0,RECORD_LIMIT);
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(merged));
+  await saveIndependentSignalRecords(rows);
 }
 export async function fetchSignalRecords(): Promise<SignalRecordRow[]> {
   const official=new Map(TIMEFRAMES.map(timeframe=>[timeframe.label,timeframe.granularity]));
-  return readRows().filter(row=>official.get(row.timeframe)===row.granularity).sort((a,b)=>b.signal_epoch-a.signal_epoch).slice(0,RECORD_LIMIT);
+  try {
+    const remote=await getIndependentSignalRecords();
+    const byKey=new Map(readRows().map(row=>[row.signal_key,row]));
+    remote.forEach(row=>byKey.set(row.signal_key,row));
+    const merged=[...byKey.values()].sort((a,b)=>b.signal_epoch-a.signal_epoch).slice(0,RECORD_LIMIT);
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(merged));
+    return merged.filter(row=>official.get(row.timeframe)===row.granularity);
+  } catch {
+    return readRows().filter(row=>official.get(row.timeframe)===row.granularity).sort((a,b)=>b.signal_epoch-a.signal_epoch).slice(0,RECORD_LIMIT);
+  }
 }
