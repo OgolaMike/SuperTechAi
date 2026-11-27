@@ -24,6 +24,7 @@ export function NotificationSettings({ assets }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [saved, setSaved] = useState(true);
+  const [saveMessage, setSaveMessage] = useState('');
   const busy = status === 'working' || status === 'checking';
   const filteredAssets = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -41,7 +42,7 @@ export function NotificationSettings({ assets }: Props) {
       .finally(() => { if (!cancelled) setLoadingSettings(false); });
     return () => { cancelled = true; };
   }, [userId]);
-  const change = (next: AlertModeSettings) => { setSettings(next); setSaved(false); };
+  const change = (next: AlertModeSettings) => { setSettings(next); setSaved(false); setSaveMessage(''); };
   const setCategory = (key: keyof AlertModeSettings['categories'], mode: AlertMode) =>
     change({ ...settings, categories: { ...settings.categories, [key]: mode } });
   const setAsset = (symbol: string, mode: AlertMode) =>
@@ -49,9 +50,10 @@ export function NotificationSettings({ assets }: Props) {
   const save = async () => {
     setSaveError(null);
     try {
-      await saveMemberAlertModes(settings, userId);
+      const synced = await saveMemberAlertModes(settings, userId);
       await saveAlertControls(settings, assets.map((asset) => asset.symbol));
       setSaved(true);
+      setSaveMessage(synced ? 'Saved and synced across your devices.' : 'Saved on this device only. Cloud sync is not ready yet.');
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save your alert choices.');
     }
@@ -148,6 +150,7 @@ export function NotificationSettings({ assets }: Props) {
           <button type="button" onClick={save} disabled={saved || busy || loadingSettings} className="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-canvas disabled:cursor-not-allowed disabled:opacity-40">
             <Check className="mr-2 inline h-4 w-4" /> {saved ? 'Saved' : 'Save my choices'}
           </button>
+          {saveMessage && <p role="status" className="text-xs text-ink-2">{saveMessage}</p>}
         </div>
       </div>}
     </section>
