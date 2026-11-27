@@ -45,7 +45,8 @@ function withCors(response: Response, cors: HeadersInit): Response {
 }
 
 function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
-  if (!origin || origin !== allowedOrigin) return {};
+  const allowedOrigins = allowedOrigin.split(",").map((value) => value.trim()).filter(Boolean);
+  if (!origin || !allowedOrigins.includes(origin)) return {};
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET, POST, PUT, PATCH, OPTIONS",
@@ -497,8 +498,7 @@ export default {
         const categoryKeys = ["signals", "targets", "stops", "limitOrders", "pendingOrders", "superSignals", "income", "business"];
         const modes = ["full", "bubble", "muted"];
         const defaults: Record<string, string> = {
-          signals: "bubble", targets: "bubble", stops: "bubble", limitOrders: "bubble",
-          pendingOrders: "bubble", superSignals: "bubble", income: "bubble", business: "bubble",
+          signals: "bubble", targets: "bubble", stops: "bubble", limitOrders: "bubble",          pendingOrders: "bubble", superSignals: "bubble", income: "bubble", business: "bubble",
         };
         if (request.method === "GET") {
           const response = await fetch(rowUrl, { headers });          if (response.status === 404) return json({ settings: { categories: defaults, assets: {}, defaultAssetMode: "bubble" }, exists: false }, 200, cors);
@@ -997,8 +997,7 @@ export default {
         const account = await authenticate(request, env);
         if (!account) return json({ error: "unauthorized" }, 401, cors);
         const configured = env as BrokerEnv;
-        if (!configured.DERIV_GRANTS_TABLE_ID || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "deriv_not_configured" }, 503, cors);
-        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        if (!configured.DERIV_GRANTS_TABLE_ID || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "deriv_not_configured" }, 503, cors);        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
         const grant = await derivRow(configured, configured.DERIV_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string; token_expires_at?: string; accounts_json?: string; selected_account_id?: string; status?: string } | null;
         if (!grant) return json({ connected: false, status: "not_connected", accounts: [], tradingEnabled: false }, 200, cors);
         if (grant.user_id !== account.$id) return json({ error: "deriv_ownership_mismatch" }, 403, cors);
