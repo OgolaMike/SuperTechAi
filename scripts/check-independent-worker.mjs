@@ -20,6 +20,8 @@ for (const [label, condition] of [
   ['only display name is accepted from profile payload', worker.includes('typeof body.displayName !== "string"')],
   ['unknown routes are rejected', worker.includes('error: "not_found"')],
   ['AI routes authenticate Appwrite members', worker.includes('url.pathname.startsWith("/api/ai/")') && worker.includes('authenticate(request, env)')],
+  ['AI responses receive the active platform module', worker.includes('activeModule?: unknown') && worker.includes('The member is currently using:')],
+  ['AI page context is bounded and treated as app-reported data', worker.includes('contextSummary.slice(0, 5000)') && worker.includes('potentially delayed, never as verified exchange execution')],
   ['AI profile and history use server-only Appwrite tables', worker.includes('AI_PROFILES_TABLE_ID') && worker.includes('AI_CHAT_HISTORY_TABLE_ID') && worker.includes('permissions: []')],
   ['AI history is member-scoped', worker.includes('column: "user_id", values: [account.$id]') && worker.includes('row.user_id === account.$id')],
   ['AI memory requires explicit opt-in', worker.includes('profile?.memory_opt_in === true') && worker.includes('memoryOptIn')],
