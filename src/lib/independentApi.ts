@@ -196,3 +196,32 @@ export function appendIndependentStrategyOutcomeEvents(events: Array<{ event_key
     body: JSON.stringify({ events }),
   });
 }
+
+
+export type IndependentAIProfile = { goal: string; memoryOptIn: boolean };
+export type IndependentAIMessage = { role: 'user' | 'assistant'; content: string };
+
+export function getIndependentAIProfile(): Promise<{ profile: IndependentAIProfile }> {
+  return authenticatedRequest('/api/ai/profile');
+}
+
+export function saveIndependentAIProfile(profile: IndependentAIProfile): Promise<{ profile: IndependentAIProfile }> {
+  return authenticatedRequest('/api/ai/profile', { method: 'PUT', body: JSON.stringify(profile) });
+}
+
+export function fetchIndependentAIHistory(): Promise<{ history: IndependentAIMessage[] }> {
+  return authenticatedRequest('/api/ai/history');
+}
+
+export function clearIndependentAIHistory(): Promise<{ cleared: boolean }> {
+  return authenticatedRequest('/api/ai/history', { method: 'DELETE', body: JSON.stringify({}) });
+}
+
+export function askIndependentAI(input: {
+  question: string;
+  assets: string[];
+  signalsCount: number;
+  signalContext: Array<Record<string, unknown>>;
+}): Promise<{ answer: string; memorySaved: boolean }> {
+  return authenticatedRequest('/api/ai/chat', { method: 'POST', body: JSON.stringify(input) });
+}
