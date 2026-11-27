@@ -1,0 +1,54 @@
+name: Deploy SuperTech AI independent API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "workers/independent-api/**"
+      - ".github/workflows/deploy-independent-api.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-supertechai-independent-api
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Validate and deploy independent Cloudflare Worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate independent platform boundary
+        run: |
+          npm run check:independent
+          npm run check:independent-worker
+          npm run typecheck
+
+      - name: Require Cloudflare deployment token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::GitHub repository secret CLOUDFLARE_API_TOKEN is missing."
+            exit 1
+          fi
+
+      - name: Deploy independent API Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler deploy --config workers/independent-api/wrangler.toml
