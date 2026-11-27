@@ -155,3 +155,11 @@ export function activateMemberReferral(referralCode: string): Promise<MemberRefe
 export function getMemberNetwork(): Promise<MemberNetwork> {
   return authenticatedRequest<MemberNetwork>('/api/referrals/network');
 }
+
+export type MembershipStatus = { status: 'pending' | 'approved' | 'rejected' | 'suspended'; planCode: 'free' | 'standard_300' | 'automation_500'; isAdmin: boolean; createdAt?: string; reviewedAt?: string | null; reviewNote?: string | null };
+export type AdminMember = { userId: string; email: string; status: string; planCode: string; createdAt: string; reviewedAt: string | null; reviewedBy: string | null; reviewNote: string };
+export function getMembershipStatus(): Promise<MembershipStatus> { return authenticatedRequest<MembershipStatus>('/api/membership/status'); }
+export async function listAdminMembers(): Promise<AdminMember[]> { const result = await authenticatedRequest<{members: AdminMember[]}>('/api/admin/members'); return result.members; }
+export function reviewMembership(userId: string, action: 'approve' | 'reject' | 'suspend', planCode: 'free' | 'standard_300' | 'automation_500' = 'free', note = ''): Promise<{updated: boolean}> {
+ return authenticatedRequest('/api/admin/members/' + encodeURIComponent(userId), { method: 'POST', body: JSON.stringify({ action, planCode, note }) });
+}
