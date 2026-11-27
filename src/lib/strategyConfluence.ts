@@ -13,6 +13,12 @@ export type StrategyAssessment = {
   /** Optional relative reliability weight, capped by the engine. */
   weight?: number;
   reason?: string;
+  timeframe?: string;
+  granularity?: number;
+  entry?: number;
+  stopLoss?: number;
+  target?: number;
+  entryMode?: 'MARKET' | 'LIMIT';
 };
 
 export type ConfluenceResult = {
