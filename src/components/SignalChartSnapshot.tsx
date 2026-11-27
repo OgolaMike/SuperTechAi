@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { formatLocalDate, formatLocalTime } from '@/lib/localTime';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import type { Candle } from '@/lib/deriv';
 import type { SignalLevels } from '@/lib/signals';
@@ -40,8 +41,8 @@ function rolling(values: number[], index: number) {
 function timeLabel(epoch: number, granularity: number) {
   const date = new Date(epoch * 1000);
   return granularity >= 86400
-    ? date.toLocaleDateString([], { day: '2-digit', month: 'short', year: '2-digit' })
-    : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    ? formatLocalDate(date)
+    : formatLocalTime(date);
 }
 
 export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 1800, digits, assetName, symbol, anchorId, livePrice }: Props) {
