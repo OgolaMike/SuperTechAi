@@ -15,3 +15,5 @@ MEMBERSHIP_TABLE_ID = "membership_requests"
 PUSH_SUBSCRIPTIONS_TABLE_ID = "push_subscriptions"
 CTRADER_OAUTH_STATES_TABLE_ID = "ctrader_oauth_states"
 CTRADER_GRANTS_TABLE_ID = "ctrader_grants"
+
+ALERT_PREFERENCES_TABLE_ID = "alert_preferences"
