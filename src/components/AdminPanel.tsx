@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Clock3, Loader2, RefreshCw, ShieldCheck, UserX, XCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, RefreshCw, UserX, XCircle } from 'lucide-react';
 import { listAdminMembers, reviewMembership, type AdminMember } from '@/lib/independentApi';
 
 export function AdminPanel() {
