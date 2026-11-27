@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "check:independent": "node scripts/check-independent-boundary.mjs",
     "check:independent-worker": "node scripts/check-independent-worker.mjs",
-    "provision:appwrite-membership": "node scripts/provision-appwrite-membership.mjs"
+    "provision:appwrite-membership": "node scripts/provision-appwrite-membership.mjs",
+    "provision:appwrite-core": "node scripts/provision-appwrite-core.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
