@@ -185,3 +185,14 @@ export function connectBinanceFutures(apiKey: string, apiSecret: string): Promis
 export function disconnectBinanceFutures(): Promise<{ disconnected: boolean; providerKeyRevoked: false; note: string }> {
   return authenticatedRequest('/api/brokers/binance-futures/disconnect', { method: 'POST', body: JSON.stringify({}) });
 }
+
+export type IndependentStrategyOutcomeEvent = { event_epoch: number; payload: Record<string, unknown> };
+export function fetchIndependentStrategyOutcomeEvents(): Promise<{ events: IndependentStrategyOutcomeEvent[] }> {
+  return authenticatedRequest<{ events: IndependentStrategyOutcomeEvent[] }>('/api/strategy-outcomes');
+}
+export function appendIndependentStrategyOutcomeEvents(events: Array<{ event_key: string; event_epoch: number; payload: Record<string, unknown> }>): Promise<{ saved: number }> {
+  return authenticatedRequest<{ saved: number }>('/api/strategy-outcomes', {
+    method: 'POST',
+    body: JSON.stringify({ events }),
+  });
+}
