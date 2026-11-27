@@ -11,6 +11,8 @@ const referrals = fs.readFileSync(path.join(root, 'workers/independent-api/src/r
 const memberGate = fs.readFileSync(path.join(root, 'src/components/MemberNetworkGate.tsx'), 'utf8');
 const membership = fs.readFileSync(path.join(root, 'workers/independent-api/src/membership.ts'), 'utf8');
 const preferences = fs.readFileSync(path.join(root, 'workers/independent-api/src/preferences.ts'), 'utf8');
+const signalHistory = fs.readFileSync(path.join(root, 'workers/independent-api/src/signalHistory.ts'), 'utf8');
+const signalRecordsClient = fs.readFileSync(path.join(root, 'src/lib/signalRecords.ts'), 'utf8');
 const adminPanel = fs.readFileSync(path.join(root, 'src/components/AdminPanel.tsx'), 'utf8');
 const independentTerminal = fs.readFileSync(path.join(root, 'src/components/IndependentTradingTerminal.tsx'), 'utf8');
 const failures = [];
@@ -67,6 +69,12 @@ for (const [label, condition] of [
   ['alert preference input is size-limited and validated', preferences.includes('categoriesJson.length > 12000') && preferences.includes('assetsJson.length > 1024')],
   ['alert preferences support read and update only', preferences.includes('["GET", "PATCH"]')],
   ['alert preferences table is configured in Worker vars', config.includes('ALERT_PREFERENCES_TABLE_ID = "alert_preferences"')],
+  ['signal history route requires authenticated Appwrite identity', worker.includes('handleSignalHistory(request, env, account)')],
+  ['signal history rows are private and account-scoped', signalHistory.includes('permissions: []') && signalHistory.includes('row.user_id === account.$id')],
+  ['signal history writes derive row IDs from authenticated user and signal key', signalHistory.includes('rowId(account.$id, record.signal_key)')],
+  ['signal history payload validates directions, outcomes and numeric levels', signalHistory.includes('row.direction === "BUY"') && signalHistory.includes('row.direction === "SELL"') && signalHistory.includes('validRecord')],
+  ['signal history is synced to Appwrite by the independent client', signalRecordsClient.includes('saveIndependentSignalRecords(rows)') && signalRecordsClient.includes('getIndependentSignalRecords()')],
+  ['signal history table is configured in Worker vars', config.includes('SIGNAL_RECORDS_TABLE_ID = "signal_records"')],
   ['independent terminal hydrates alert preferences from Appwrite', independentTerminal.includes('getIndependentAlertPreferences()')],
   ['independent terminal persists alert preference changes to Appwrite', independentTerminal.includes('updateIndependentAlertPreferences({') && independentTerminal.includes("supertech-alert-controls-changed")],
 ]) {
