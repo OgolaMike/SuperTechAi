@@ -44,11 +44,11 @@ export async function onRequest({ request }: PagesContext): Promise<Response> {
   if (cookies.length > 0) {
     responseHeaders.delete('set-cookie');
     for (const cookie of cookies) {
-      responseHeaders.append('set-cookie', cookie.replace(/;\\s*domain=[^;]+/i, ''));
+      responseHeaders.append('set-cookie', cookie.replace(/; *domain=[^;]+/i, ''));
     }
   } else {
     const cookie = responseHeaders.get('set-cookie');
-    if (cookie) responseHeaders.set('set-cookie', cookie.replace(/;\\s*domain=[^;]+/i, ''));
+    if (cookie) responseHeaders.set('set-cookie', cookie.replace(/; *domain=[^;]+/i, ''));
   }
 
   return new Response(upstreamResponse.body, {
