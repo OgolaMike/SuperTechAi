@@ -642,14 +642,15 @@ export default {
           if (!body.memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID) {
             const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
             target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
-            target.searchParams.set("limit", "100");
+            target.searchParams.set("limit", "5000");
             const list = await fetch(target, { headers });
-            if (list.ok) {
-              const rows = await list.json() as { rows?: Array<{ $id: string; user_id?: string }> };
-              for (const row of rows.rows || []) if (row.user_id === account.$id) {
-                await fetch(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID) + "/" + encodeURIComponent(row.$id), { method: "DELETE", headers });
-              }
+            if (!list.ok) return json({ error: "ai_history_clear_failed" }, 503, cors);
+            const rows = await list.json() as { rows?: Array<{ $id: string; user_id?: string }>; total?: number };
+            for (const row of rows.rows || []) if (row.user_id === account.$id) {
+              const removed = await fetch(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID) + "/" + encodeURIComponent(row.$id), { method: "DELETE", headers });
+              if (!removed.ok && removed.status !== 404) return json({ error: "ai_history_clear_failed" }, 503, cors);
             }
+            if (Number(rows.total || 0) > (rows.rows || []).length) return json({ error: "ai_history_clear_incomplete_retry_required" }, 503, cors);
           }
           return json({ profile: { goal, memoryOptIn: body.memoryOptIn } }, 200, cors);
         }
@@ -671,14 +672,15 @@ export default {
           if (!configured.AI_CHAT_HISTORY_TABLE_ID) return json({ cleared: true }, 200, cors);
           const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
           target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
-          target.searchParams.set("limit", "100");
+          target.searchParams.set("limit", "5000");
           const response = await fetch(target, { headers });
           if (!response.ok) return json({ error: "ai_history_clear_failed" }, 503, cors);
-          const result = await response.json() as { rows?: Array<{ $id: string; user_id?: string }> };
+          const result = await response.json() as { rows?: Array<{ $id: string; user_id?: string }>; total?: number };
           for (const row of result.rows || []) if (row.user_id === account.$id) {
             const removed = await fetch(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID) + "/" + encodeURIComponent(row.$id), { method: "DELETE", headers });
             if (!removed.ok && removed.status !== 404) return json({ error: "ai_history_clear_failed" }, 503, cors);
           }
+          if (Number(result.total || 0) > (result.rows || []).length) return json({ error: "ai_history_clear_incomplete_retry_required" }, 503, cors);
           return json({ cleared: true }, 200, cors);
         }
         if (url.pathname === "/api/ai/chat" && request.method === "POST") {
