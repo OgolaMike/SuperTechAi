@@ -37,10 +37,9 @@ import { buildStopOrderIdeas } from '@/lib/stopOrders';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET } from '@/lib/sma';
 import { loadMemberAlertModes } from '@/lib/alertPreferences';
-import { enableDevicePush, sendPushTest } from '@/lib/independentApi';
+import { enableDevicePush, sendPushTest, getMembershipStatus } from '@/lib/independentApi';
 import { MemberReferralsPanel } from '@/components/MemberReferralsPanel';
 import { AdminPanel } from '@/components/AdminPanel';
-import { getMembershipStatus } from '@/lib/independentApi';
 
 const ASSET_KEY='supertech-selected-assets';
 const SOUND_KEY='supertech-signal-sounds';
