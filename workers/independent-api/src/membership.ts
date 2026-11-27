@@ -30,7 +30,7 @@ async function ensureMembership(env: Env, account: Account): Promise<MembershipR
     method: "POST", headers: headers(env),
     body: JSON.stringify({
       rowId: account.$id,
-      data: { user_id: account.$id, email: account.email.toLowerCase(), status: "pending", plan_code: "free", created_at: now, updated_at: now, reviewed_at: "", reviewed_by: "", review_note: "" },
+      data: { user_id: account.$id, email: account.email.toLowerCase(), status: "pending", plan_code: "free", created_at: now, updated_at: now },
       permissions: [],
     }),
   });
