@@ -28,7 +28,7 @@ export const TIMEFRAMES: Timeframe[] = [
 ];
 
 
-export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([1800, 3600, 14400, 28800, 86400]);
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([60, 300, 900, 1800, 3600, 14400, 28800, 86400]);
 
 // Build M15 from M1, M5 from M1, H2/H3/H6/H12 from complete hourly candles and W1 from complete daily candles.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
