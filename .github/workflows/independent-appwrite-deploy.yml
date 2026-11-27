@@ -118,8 +118,8 @@ jobs:
           if (!site.ok) throw new Error(`Pages smoke check failed: ${site.status}`);
           const html = await site.text();
           if (!html.includes('id="root"') || !html.includes("/assets/")) throw new Error("Pages response did not contain the application shell and built assets");
-          const scriptPath = html.match(/src="([^"]+\\.js)"/)?.[1];
-          if (!scriptPath) throw new Error("Pages response did not reference the application bundle");
+          const scriptPath = html.match(/src="([^"]+)"/)?.[1];
+          if (!scriptPath || !scriptPath.endsWith(".js")) throw new Error("Pages response did not reference the application bundle");
           const bundle = await fetch(new URL(scriptPath, site.url));
           if (!bundle.ok) throw new Error(`Pages JavaScript bundle failed: ${bundle.status}`);
           console.log("Live Worker health, Appwrite bindings, Pages shell and JavaScript bundle checks passed.");
