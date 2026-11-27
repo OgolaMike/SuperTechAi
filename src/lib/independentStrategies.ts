@@ -53,14 +53,13 @@ export function buildIndependentStrategyAssessments(
       entry: setup.entry,
       stopLoss: setup.stopLoss,
       target: setup.target,
-      entryMode: 'MARKET',
+      entryMode: 'LIMIT',
     });
   }
 
   for (const asset of assets) {
     const sar = buildMarketStructureSarSignal(asset.symbol, states[asset.symbol]?.[1800]?.candles ?? [], nowEpoch);
     if (sar) {
-      const risk = Math.abs(sar.entry - sar.stopLoss);
       rows.push({
         strategyId: 'market-structure-sar',
         strategyName: 'Market Structure SAR',
@@ -74,7 +73,6 @@ export function buildIndependentStrategyAssessments(
         granularity: 1800,
         entry: sar.entry,
         stopLoss: sar.stopLoss,
-        target: sar.direction === 'BUY' ? sar.entry + 2 * risk : sar.entry - 2 * risk,
         entryMode: 'MARKET',
       });
     }
@@ -110,7 +108,6 @@ export function buildIndependentStrategyAssessments(
     );
     if (wick.status !== 'CONFIRMED') continue;
     const candidate = wick.candidate;
-    const risk = Math.abs(candidate.entry - candidate.initialStopLoss);
     rows.push({
       strategyId: 'three-hour-wick',
       strategyName: '3H Wick Intelligence',
@@ -124,7 +121,6 @@ export function buildIndependentStrategyAssessments(
       granularity: 14400,
       entry: candidate.entry,
       stopLoss: candidate.initialStopLoss,
-      target: candidate.direction === 'BUY' ? candidate.entry + 2 * risk : candidate.entry - 2 * risk,
       entryMode: 'MARKET',
     });
   }
