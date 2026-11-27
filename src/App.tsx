@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { BrainCircuit, ShieldCheck } from 'lucide-react';
 const PersonalAIExperience = lazy(() => import('@/components/PersonalAIExperience').then((module) => ({ default: module.PersonalAIExperience })));
+const AnalysisPanel = lazy(() => import('@/components/AnalysisPanel').then((module) => ({ default: module.AnalysisPanel })));
 const MarketingStudio = lazy(() => import('@/components/MarketingStudio').then((module) => ({ default: module.MarketingStudio })));
 const SuperTechAcademy = lazy(() => import('@/components/SuperTechAcademy').then((module) => ({ default: module.SuperTechAcademy })));
 const AdminPanel = lazy(() => import('@/components/AdminPanel').then((module) => ({ default: module.AdminPanel })));
@@ -175,6 +176,7 @@ function App() {
             <HeaderBrand />
             <div className="flex items-center gap-3">
               <TrendIcons />
+              <button type="button" onClick={() => setView('personal-ai')} className="inline-flex items-center gap-2 rounded-xl border border-accent/25 bg-accent/[.08] px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/[.14]" aria-label="Open your AI Companion"><BrainCircuit className="h-4 w-4" /><span className="hidden sm:inline">AI Companion</span></button>
               <ThemeToggle theme={theme} onToggle={toggleTheme} />
               <SignOutButton />
             </div>
@@ -204,6 +206,8 @@ function App() {
         <Suspense fallback={<div className="mt-8 min-h-[40vh] animate-pulse rounded-2xl border border-line/15 bg-surface/[0.025]" aria-label="Loading section" />}>
         <div key={view} className="view-transition">
         {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
+
+        {view === 'analysis' && <AnalysisPanel assets={assets} states={states} prices={prices} superSignals={superSignals} pendingOrderIdeas={pendingOrderIdeas} loaded={loaded} nowEpoch={now} initialSymbol={selectedSymbols[0]} />}
 
         {view === 'personal-ai' && <PersonalAIExperience signalsCount={views.length} monitoredAssets={selectedSymbols} signalContext={views.filter((item) => !item.signal.outcome.closed).slice(0, 12).map((item) => ({ symbol: item.symbol, timeframe: item.timeframe, direction: item.signal.direction, signalEpoch: item.signal.signalEpoch, status: item.signal.outcome.status, entry: item.signal.levels.entry, stopLoss: item.signal.levels.stopLoss, tp1: item.signal.levels.tp1, tp2: item.signal.levels.tp2, tp3: item.signal.levels.tp3 }))} />}
 
