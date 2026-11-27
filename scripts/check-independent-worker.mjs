@@ -94,7 +94,7 @@ for (const [label, condition] of [
   ['VAPID private key is read only from Worker secret bindings', worker.includes('VAPID_PRIVATE_KEY') && !/^VAPID_PRIVATE_KEY\\s*=/m.test(config)],
   ['push test delivery is limited to the signed-in member', worker.includes('url.pathname === "/api/push/test"') && worker.includes('pushRowsForUser(env, account.$id)')],
   ['expired push endpoints are removed only for 404/410 responses', worker.includes('response.status === 404 || response.status === 410')],
-  ['production and AI preview origins are explicitly allowed', config.includes('ALLOWED_ORIGIN = "https://main.supertechai.pages.dev,https://feat-appwrite-ai-companion.supertechai.pages.dev"')],
+  ['production and AI preview origins are explicitly allowed', config.includes('https://main.supertechai.pages.dev') && config.includes('https://feat-appwrite-ai-companion.supertechai.pages.dev') && config.includes('https://fix-appwrite-push-notifications.supertechai.pages.dev')],
   ['API key is not hard-coded in Wrangler vars', !/^APPWRITE_API_KEY\\s*=/m.test(config)],
   ['legacy Worker is not targeted', config.includes('name = "supertechai-independent-api"') && !config.includes('name = "supertechai-api"')],
 ]) {
