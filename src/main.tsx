@@ -4,6 +4,16 @@ import { AuthGate } from '@/components/AuthGate';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import './index.css';
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((registration) => {
+      void registration.update().catch(() => undefined);
+    }).catch((error) => {
+      console.error('SuperTech AI service worker registration failed', error);
+    });
+  });
+}
+
 const rootElement = document.getElementById('root');
 
 if (rootElement) {
