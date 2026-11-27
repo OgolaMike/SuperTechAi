@@ -735,6 +735,7 @@ export default {
       }, 200, cors);
     }
 
+    // Public smoke-test endpoint; exposes readiness flags, never credentials.
     if (url.pathname === "/health" && request.method === "GET") {
       return json({
         ok: true,
