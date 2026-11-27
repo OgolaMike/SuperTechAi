@@ -47,7 +47,7 @@ for (const [label, condition] of [
   ['referral activation rejects invalid codes', referrals.includes('valid_upline_required') && referrals.includes('invalid_upline')],
   ['team attribution is inherited from the sponsor', referrals.includes('team_owner_id: sponsor.team_owner_id')],
   ['owner teams can only be created through Genesis authorization', referrals.includes('x-genesis-token') && referrals.includes('GENESIS_ADMIN_TOKEN')],
-  ['owner onboarding checks Appwrite email verification', referrals.includes('owner.emailVerification')],
+  ['owner onboarding checks Appwrite email verification', referrals.includes('user.emailVerification')],
   ['unassigned members are blocked at the app gate', memberGate.includes('Who invited you?') && memberGate.includes('activateMemberReferral')],
   ['referral links use opaque codes rather than Appwrite user IDs', referrals.includes('referral_code: code()') && !referrals.includes('referral_code: account.$id')],
 ]) {
