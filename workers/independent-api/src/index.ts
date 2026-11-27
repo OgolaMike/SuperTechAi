@@ -1146,7 +1146,11 @@ export default {
           return json({ history }, 200, cors);
         }
         if (url.pathname === "/api/ai/history" && request.method === "DELETE") {
-          if (!configured.AI_CHAT_HISTORY_TABLE_ID) return json({ cleared: true }, 200, cors);
+          if (!configured.AI_CHAT_HISTORY_TABLE_ID) {
+            const profile = await readProfile();
+            if (profile?.memory_opt_in === true) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
+            return json({ cleared: true }, 200, cors);
+          }
           const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
           target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
           target.searchParams.set("limit", "5000");
@@ -1176,10 +1180,9 @@ export default {
             target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", column: "created_at" }));
             target.searchParams.set("limit", "12");
             const response = await fetch(target, { headers });
-            if (response.ok) {
-              const result = await response.json() as { rows?: Array<Record<string, unknown>> };
-              history = (result.rows || []).filter(row => row.user_id === account.$id).reverse().map(row => ({ role: row.role === "assistant" ? "assistant" as const : "user" as const, content: String(row.content || "").slice(0, 1600) }));
-            }
+            if (!response.ok) return json({ error: "ai_history_read_failed" }, 503, cors);
+            const result = await response.json() as { rows?: Array<Record<string, unknown>> };
+            history = (result.rows || []).filter(row => row.user_id === account.$id).reverse().map(row => ({ role: row.role === "assistant" ? "assistant" as const : "user" as const, content: String(row.content || "").slice(0, 1600) }));
           }
           const signals = Array.isArray(body?.signalContext) ? body.signalContext.slice(0, 10).map((item) => {
             if (!item || typeof item !== "object") return "";
