@@ -116,7 +116,6 @@
       "AI_CHAT_HISTORY_TABLE_ID"
     ],
     "requiredSecret": "XAI_API_KEY",
-    "optionalVariable": "PERSONAL_AI_MODEL",
     "defaultModel": "grok-4.7",
     "optionalVariables": [
       "PERSONAL_AI_MODEL",
