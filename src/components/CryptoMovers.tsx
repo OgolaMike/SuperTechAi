@@ -87,7 +87,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Crypto watch list</p>
           <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">Crypto market movers</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            See live current EAT-day gainers and losers, then explore the last 7 completed market days. Current-day rankings refresh automatically every 60 seconds. Historical daily candles retain UTC market-day boundaries for historical snapshots. Select any mover to open its live chart and analysis.
+            See live current-day gainers and losers, then explore the last 7 completed market days. Current-day rankings refresh automatically every 60 seconds. Historical daily candles retain UTC market-day boundaries for historical snapshots. Select any mover to open its live chart and analysis.
           </p>
         </div>
         <button
@@ -103,7 +103,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
       <div className="rounded-2xl border border-accent/25 bg-accent/[0.04] p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Live market day · EAT</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Live market day</p>
             <h3 className="mt-1 text-lg font-semibold text-ink">Today's gainers and losers</h3>
             <p className="mt-1 text-xs text-ink-3">Rankings use current Kenya trading-day rate of change (ROC), not the previous rolling 24 hours.</p>
           </div>
