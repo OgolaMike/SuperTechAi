@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { BrainCircuit, ShieldCheck } from 'lucide-react';
 const PersonalAIExperience = lazy(() => import('@/components/PersonalAIExperience').then((module) => ({ default: module.PersonalAIExperience })));
 const AnalysisPanel = lazy(() => import('@/components/AnalysisPanel').then((module) => ({ default: module.AnalysisPanel })));
 const MarketingStudio = lazy(() => import('@/components/MarketingStudio').then((module) => ({ default: module.MarketingStudio })));
@@ -176,6 +176,7 @@ function App() {
             <HeaderBrand />
             <div className="flex items-center gap-3">
               <TrendIcons />
+              <button type="button" onClick={() => setView('personal-ai')} className="inline-flex items-center gap-2 rounded-xl border border-accent/25 bg-accent/[.08] px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/[.14]" aria-label="Open your AI Companion"><BrainCircuit className="h-4 w-4" /><span className="hidden sm:inline">AI Companion</span></button>
               <ThemeToggle theme={theme} onToggle={toggleTheme} />
               <SignOutButton />
             </div>
