@@ -24,17 +24,21 @@ function headers(env: Env) {
     "Content-Type": "application/json",
   };
 }
-function parseArray(value: string | undefined): string[] {
+type AlertMode = "full" | "bubble" | "muted";
+type ModeMap = Record<string, AlertMode>;
+const validMode = (value: unknown): value is AlertMode => value === "full" || value === "bubble" || value === "muted";
+function parseModes(value: string | undefined): ModeMap {
   try {
-    const parsed: unknown = JSON.parse(value || "[]");
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
-  } catch { return []; }
+    const parsed: unknown = JSON.parse(value || "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter(([key, mode]) => key.length <= 64 && validMode(mode))) as ModeMap;
+  } catch { return {}; }
 }
 function present(row: PreferenceRow) {
   return {
-    categories: parseArray(row.categories_json),
-    assets: parseArray(row.assets_json),
-    defaultAssetMode: row.default_asset_mode || "all",
+    categories: parseModes(row.categories_json),
+    assets: parseModes(row.assets_json),
+    defaultAssetMode: validMode(row.default_asset_mode) ? row.default_asset_mode : "bubble",
     updatedAt: row.updated_at || null,
   };
 }
@@ -61,9 +65,9 @@ export async function handleAlertPreferences(request: Request, env: Env, account
       if (row) return json(present(row));
       const defaults = {
         user_id: account.$id,
-        categories_json: JSON.stringify(["signals", "price_alerts"]),
-        assets_json: "[]",
-        default_asset_mode: "all",
+        categories_json: JSON.stringify({ signals: "bubble", targets: "bubble", stops: "bubble", limitOrders: "bubble", pendingOrders: "bubble", superSignals: "bubble", income: "bubble", business: "bubble" }),
+        assets_json: "{}",
+        default_asset_mode: "bubble",
         updated_at: new Date().toISOString(),
       };
       const created = await fetch(base, {
@@ -87,21 +91,21 @@ export async function handleAlertPreferences(request: Request, env: Env, account
     if (!body) return json({ error: "invalid_preferences_payload" }, 400);
     const current = row || {
       $id: rowId, user_id: account.$id,
-      categories_json: JSON.stringify(["signals", "price_alerts"]),
-      assets_json: "[]", default_asset_mode: "all",
+      categories_json: JSON.stringify({ signals: "bubble", targets: "bubble", stops: "bubble", limitOrders: "bubble", pendingOrders: "bubble", superSignals: "bubble", income: "bubble", business: "bubble" }),
+      assets_json: "{}", default_asset_mode: "bubble",
     };
-    const categories = body.categories === undefined ? parseArray(current.categories_json) : body.categories;
-    const assets = body.assets === undefined ? parseArray(current.assets_json) : body.assets;
-    const mode = body.defaultAssetMode === undefined ? current.default_asset_mode || "all" : body.defaultAssetMode;
-    if (!Array.isArray(categories) || categories.length > 50 || categories.some(x => typeof x !== "string" || x.length > 64)) {
-      return json({ error: "invalid_alert_categories" }, 400);
-    }
-    if (!Array.isArray(assets) || assets.length > 80 || assets.some(x => typeof x !== "string" || x.length > 32)) {
-      return json({ error: "invalid_alert_assets" }, 400);
-    }
-    if (!["all", "selected"].includes(String(mode))) return json({ error: "invalid_default_asset_mode" }, 400);
-    const categoriesJson = JSON.stringify([...new Set(categories as string[])]);
-    const assetsJson = JSON.stringify([...new Set(assets as string[])]);
+    const categories = body.categories === undefined ? parseModes(current.categories_json) : body.categories;
+    const assets = body.assets === undefined ? parseModes(current.assets_json) : body.assets;
+    const mode = body.defaultAssetMode === undefined ? current.default_asset_mode || "bubble" : body.defaultAssetMode;
+    const validModeMap = (value: unknown, maxItems: number) =>
+      Boolean(value && typeof value === "object" && !Array.isArray(value)
+        && Object.keys(value as object).length <= maxItems
+        && Object.entries(value as Record<string, unknown>).every(([key, item]) => key.length > 0 && key.length <= 64 && validMode(item)));
+    if (!validModeMap(categories, 50)) return json({ error: "invalid_alert_categories" }, 400);
+    if (!validModeMap(assets, 80)) return json({ error: "invalid_alert_assets" }, 400);
+    if (!validMode(mode)) return json({ error: "invalid_default_asset_mode" }, 400);
+    const categoriesJson = JSON.stringify(categories);
+    const assetsJson = JSON.stringify(assets);
     if (categoriesJson.length > 12000 || assetsJson.length > 1024) return json({ error: "alert_preferences_too_large" }, 413);
     const data = {
       user_id: account.$id, categories_json: categoriesJson, assets_json: assetsJson,
