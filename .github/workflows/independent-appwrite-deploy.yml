@@ -32,6 +32,8 @@ jobs:
       - run: npm run check:independent-worker
       - name: Validate Appwrite provisioning script syntax
         run: node --check scripts/provision-appwrite-membership.mjs
+      - name: Validate Appwrite core provisioning script syntax
+        run: node --check scripts/provision-appwrite-core.mjs
       - name: Validate Worker deployment bundle
         run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
 
@@ -69,6 +71,13 @@ jobs:
           APPWRITE_ENDPOINT: "https://fra.cloud.appwrite.io/v1"
           MEMBERSHIP_TABLE_ID: "membership_requests"
         run: npm run provision:appwrite-membership
+      - name: Provision and verify private Appwrite service tables
+        env:
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          APPWRITE_PROJECT_ID: "6b06de46003dde834eb6"
+          APPWRITE_DATABASE_ID: "6b06e4d900325c304d98"
+          APPWRITE_ENDPOINT: "https://fra.cloud.appwrite.io/v1"
+        run: npm run provision:appwrite-core
       - name: Deploy independent Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
