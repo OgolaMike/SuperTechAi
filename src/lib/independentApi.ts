@@ -218,3 +218,11 @@ export function listIndependentAdminPayments(): Promise<{ payments: IndependentA
 export function reviewIndependentPayment(id: string, action: 'approve' | 'reject', note = ''): Promise<{ updated: boolean; status: string }> {
   return authenticatedRequest('/api/admin/payments/' + encodeURIComponent(id), { method: 'POST', body: JSON.stringify({ action, note }) });
 }
+
+export type IndependentAcademyProgress = { lessonId: string; progress: number; completedAt: string | null; updatedAt: string };
+export function getIndependentAcademyProgress(): Promise<{ lessons: IndependentAcademyProgress[] }> {
+  return authenticatedRequest('/api/academy/progress');
+}
+export function saveIndependentAcademyProgress(lessonId: string, progress: number): Promise<IndependentAcademyProgress> {
+  return authenticatedRequest('/api/academy/progress', { method: 'PUT', body: JSON.stringify({ lessonId, progress }) });
+}
