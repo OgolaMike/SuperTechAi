@@ -302,9 +302,9 @@ function App() {
         </section>
 
         {view === 'smart-community' && <SmartCommunity />}
-        {view === 'network' && <NetworkPanel />}
+        {view === 'network' && <AccountHub initialTab="network" />}
         {view === 'referrals' && <AccountHub />}
-        {view === 'earnings' && <FinancePanel initialTab="wallet" />}
+        {view === 'earnings' && <AccountHub initialTab="earnings" />}
         {view === 'finance' && isAdmin && <FinancePanel initialTab="admin" />}
         {view === 'admin' && isAdmin && <AdminPanel />}
         {view === 'marketing' && isAdmin && <MarketingStudio />}
