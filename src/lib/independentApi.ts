@@ -163,3 +163,22 @@ export async function listAdminMembers(): Promise<AdminMember[]> { const result 
 export function reviewMembership(userId: string, action: 'approve' | 'reject' | 'suspend', planCode: 'free' | 'standard_300' | 'automation_500' = 'free', note = ''): Promise<{updated: boolean}> {
  return authenticatedRequest('/api/admin/members/' + encodeURIComponent(userId), { method: 'POST', body: JSON.stringify({ action, planCode, note }) });
 }
+
+
+export type IndependentAlertPreferences = {
+  categories: string[];
+  assets: string[];
+  defaultAssetMode: 'all' | 'selected';
+  updatedAt: string | null;
+};
+export function getIndependentAlertPreferences(): Promise<IndependentAlertPreferences> {
+  return authenticatedRequest<IndependentAlertPreferences>('/api/preferences/alerts');
+}
+export function updateIndependentAlertPreferences(
+  preferences: Partial<Pick<IndependentAlertPreferences, 'categories' | 'assets' | 'defaultAssetMode'>>,
+): Promise<IndependentAlertPreferences> {
+  return authenticatedRequest<IndependentAlertPreferences>('/api/preferences/alerts', {
+    method: 'PATCH',
+    body: JSON.stringify(preferences),
+  });
+}
