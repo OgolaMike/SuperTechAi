@@ -5,7 +5,6 @@ import type { SuperSignal } from '@/lib/intelligence';
 import type { StopOrderIdea } from '@/lib/stopOrders';
 
 type Props = { assets: Asset[]; states: Record<string, Record<number, TfState>>; prices: Record<string, number>; superSignals: SuperSignal[]; pendingOrderIdeas: StopOrderIdea[]; loaded: boolean; nowEpoch: number; initialSymbol?: string };
-type Decision = 'BUY' | 'SELL' | 'WAIT';
 
 export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrderIdeas, loaded, nowEpoch, initialSymbol }: Props) {
   const [symbol, setSymbol] = useState(initialSymbol ?? assets[0]?.symbol ?? '');
@@ -44,7 +43,7 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
   }, [assetStates, selectedState, nowEpoch]);
 
   const decision = signal?.direction ?? pendingIdea?.type ?? 'WAIT';
-  const levels = signal?.levels ?? h4Signal?.levels ?? null;
+  const levels = signal?.levels ?? null;
   const entryValue = levels?.entry ?? pendingIdea?.entry ?? null;
   const stopValue = levels?.stopLoss ?? pendingIdea?.stopLoss ?? null;
   const targetOne = levels?.tp1 ?? pendingIdea?.takeProfit ?? null;
