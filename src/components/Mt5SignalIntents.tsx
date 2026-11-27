@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { formatLocalDateTime } from '@/lib/localTime';
 import { RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -66,7 +67,7 @@ export function Mt5SignalIntents({ onSelect }: Props) {
               <span className="rounded-full border border-accent/20 px-2 py-1 text-[10px] font-semibold text-accent">{intent.payload?.timeframe_agreement ?? 3}/3 execution frames</span>
             </div>
             <p className="mt-2 text-xs text-ink-2">Entry {Number(intent.entry)} · Stop loss {Number(intent.stop_loss)} · Take profit {Number(intent.take_profit)}</p>
-            <p className="mt-1 text-xs text-ink-2">Signal: {new Date(intent.signal_epoch * 1000).toLocaleString()} · Expires: {intent.expires_at ? new Date(intent.expires_at).toLocaleString() : 'Not specified'}</p>
+            <p className="mt-1 text-xs text-ink-2">Signal: {formatLocalDateTime(intent.signal_epoch * 1000)} · Expires: {intent.expires_at ? formatLocalDateTime(intent.expires_at) : 'Not specified'}</p>
             <p className="mt-1 text-xs text-ink-2">Official timeframe confirmation recorded. Confirm current price and broker symbol before proceeding.</p>
             <button type="button" onClick={() => onSelect(intent)} className="mt-3 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white">Review in broker check</button>
           </article>
