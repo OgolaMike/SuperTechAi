@@ -5,6 +5,10 @@ export interface Env {
   MEMBER_PROFILES_TABLE_ID: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
+  PUSH_SUBSCRIPTIONS_TABLE_ID?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 type AppwriteAccount = {
@@ -147,6 +151,44 @@ async function profileRequest(
   return json({ error: "method_not_allowed" }, 405);
 }
 
+
+
+type PushEnv = Env;
+const base64Url = (value: string) => value.replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+const encodeJson = (value: unknown) => base64Url(btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value)))));
+function decodeBase64Url(value: string): Uint8Array {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+}
+async function sendWebPush(endpoint: string, env: PushEnv): Promise<void> {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) throw new Error("push_sender_not_configured");
+  const audience = new URL(endpoint).origin;
+  const unsigned = `${encodeJson({ typ: "JWT", alg: "ES256" })}.${encodeJson({ aud: audience, exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60, sub: env.VAPID_SUBJECT })}`;
+  const key = await crypto.subtle.importKey("pkcs8", decodeBase64Url(env.VAPID_PRIVATE_KEY), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(unsigned));
+  const token = `${unsigned}.${base64Url(btoa(String.fromCharCode(...new Uint8Array(signature))))}`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `vapid t=${token}, k=${env.VAPID_PUBLIC_KEY}`,
+      TTL: "60",
+      Urgency: "high",
+    },
+  });
+  if (!response.ok && response.status !== 201 && response.status !== 202) throw new Error(`push_provider_rejected_${response.status}`);
+}
+async function pushRow(env: PushEnv, rowId: string, method: string, data?: Record<string, unknown>) {
+  if (!env.APPWRITE_API_KEY || !env.PUSH_SUBSCRIPTIONS_TABLE_ID || !env.APPWRITE_DATABASE_ID) throw new Error("push_storage_not_configured");
+  const base = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`;
+  const response = await fetch(`${base}/${encodeURIComponent(rowId)}`, {
+    method,
+    headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" },
+    ...(data ? { body: JSON.stringify({ data, permissions: [] }) } : {}),
+  });
+  if (!response.ok && !(method === "GET" && response.status === 404)) throw new Error(`push_storage_failed_${response.status}`);
+  return response.status === 404 ? null : await response.json() as { $id: string; user_id?: string; endpoint?: string };
+}
 
 type BrokerEnv = Env & {
   CTRADER_OAUTH_STATES_TABLE_ID?: string;
@@ -321,6 +363,68 @@ export default {
       }
     }
 
+
+
+    if (url.pathname === "/api/push/config" && request.method === "GET") {
+      const account = await authenticate(request, env);
+      if (!account) return json({ error: "unauthorized" }, 401, cors);
+      const configured = env as PushEnv;
+      if (!configured.VAPID_PUBLIC_KEY) return json({ error: "push_sender_not_configured" }, 503, cors);
+      return json({ publicKey: configured.VAPID_PUBLIC_KEY }, 200, cors);
+    }
+
+    if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as PushEnv;
+        if (!configured.PUSH_SUBSCRIPTIONS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.VAPID_PUBLIC_KEY) {
+          return json({ error: "push_storage_not_configured" }, 503, cors);
+        }
+        const body = await request.json().catch(() => null) as { endpoint?: string } | null;
+        if (!body || typeof body.endpoint !== "string" || body.endpoint.length > 4096) return json({ error: "invalid_push_endpoint" }, 400, cors);
+        const endpointUrl = new URL(body.endpoint);
+        if (endpointUrl.protocol !== "https:" || !["fcm.googleapis.com", "fcm.googleapis.com", "updates.push.services.mozilla.com", "web.push.apple.com"].some((host) => endpointUrl.hostname === host || endpointUrl.hostname.endsWith(`.${host}`))) {
+          return json({ error: "unsupported_push_endpoint" }, 400, cors);
+        }
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body.endpoint));
+        const rowId = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 32);
+        const existing = await pushRow(configured, rowId, "GET");
+        const rowData = { user_id: account.$id, endpoint: body.endpoint, created_at: new Date().toISOString(), active: true };
+        if (existing && existing.user_id !== account.$id) return json({ error: "push_subscription_owner_mismatch" }, 403, cors);
+        await pushRow(configured, rowId, existing ? "PATCH" : "POST", rowData);
+        return json({ subscribed: true }, 200, cors);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "push_subscription_failed";
+        return json({ error: message }, message === "push_storage_not_configured" ? 503 : 500, cors);
+      }
+    }
+
+    if (url.pathname === "/api/push/test" && request.method === "POST") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const configured = env as PushEnv;
+        if (!configured.PUSH_SUBSCRIPTIONS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.VAPID_PRIVATE_KEY || !configured.VAPID_PUBLIC_KEY || !configured.VAPID_SUBJECT) {
+          return json({ error: "push_sender_not_configured" }, 503, cors);
+        }
+        const queryUrl = new URL(`${configured.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`);
+        queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] }));
+        queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "active", values: [true] }));
+        const response = await fetch(queryUrl, { headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY } });
+        if (!response.ok) return json({ error: "push_subscription_lookup_failed" }, 503, cors);
+        const result = await response.json() as { rows?: Array<{ user_id: string; endpoint: string }> };
+        const rows = (result.rows || []).filter((row) => row.user_id === account.$id && typeof row.endpoint === "string");
+        if (!rows.length) return json({ error: "no_active_push_subscription" }, 404, cors);
+        const outcomes = await Promise.allSettled(rows.map((row) => sendWebPush(row.endpoint, configured)));
+        const sent = outcomes.filter((item) => item.status === "fulfilled").length;
+        if (!sent) return json({ error: "push_provider_delivery_failed" }, 502, cors);
+        return json({ sent, total: rows.length }, 200, cors);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "push_test_failed";
+        return json({ error: message }, 503, cors);
+      }
+    }
 
     if (url.pathname === "/api/brokers/ctrader/connect" && request.method === "POST") {
       try {
