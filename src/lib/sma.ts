@@ -151,11 +151,8 @@ function rollingStats(values: number[], period: number): Stats[] {
   });
 }
 
-function crossDirection(previous: { close: number; mean: number }, current: { close: number; mean: number }): Direction | null {
-  if (previous.close <= previous.mean && current.close > current.mean) return 'BUY';
-  if (previous.close >= previous.mean && current.close < current.mean) return 'SELL';
-  return null;
-}
+// Signals follow the simple rule: a confirmed close above SMA20 is BUY; below is SELL.
+// Emit a fresh signal when the direction changes, avoiding duplicate alerts on every candle.
 
 // Only candles whose period has fully closed are used; the forming candle is ignored.
 export function computeTfState(timeframe: Timeframe, candles: Candle[], nowEpoch: number): TfState {
@@ -165,18 +162,17 @@ export function computeTfState(timeframe: Timeframe, candles: Candle[], nowEpoch
   const stats = rollingStats(confirmed.map((candle) => candle.close), SMA_PERIOD);
   const signals: Signal[] = [];
 
-  for (let i = 1; i < confirmed.length; i += 1) {
-    const previous = stats[i - 1];
+  let previousDirection: Direction | null = null;
+  for (let i = SMA_PERIOD - 1; i < confirmed.length; i += 1) {
     const current = stats[i];
-    if (previous.mean == null || current.mean == null || current.deviation == null) continue;
+    if (current.mean == null || current.deviation == null) continue;
 
-    const direction = crossDirection(
-      { close: confirmed[i - 1].close, mean: previous.mean },
-      { close: confirmed[i].close, mean: current.mean },
-    );
+    const close = confirmed[i].close;
+    const direction: Direction | null = close > current.mean ? 'BUY' : close < current.mean ? 'SELL' : null;
     if (!direction) continue;
+    if (direction === previousDirection) continue;
 
-    const levels = buildLevels(direction, current.mean, current.deviation, confirmed[i].close);
+    const levels = buildLevels(direction, current.mean, current.deviation, close);
     if (!levels) continue;
 
     signals.push({
@@ -185,6 +181,7 @@ export function computeTfState(timeframe: Timeframe, candles: Candle[], nowEpoch
       levels,
       outcome: evaluateOutcome(direction, levels, confirmed.slice(i + 1)),
     });
+    previousDirection = direction;
   }
 
   const lastIndex = confirmed.length - 1;
