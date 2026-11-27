@@ -78,7 +78,7 @@ for (const [label, condition] of [
   ['AI profile reads verify member ownership', worker.includes('row.user_id !== account.$id')],
   ['AI row upserts verify ownership before updating existing rows', worker.includes('existing.user_id !== account.$id || data.user_id !== account.$id')],
   ['AI chat history is stored only after explicit memory opt-in', worker.includes('if (memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID)')],
-  ['AI memory opt-out clears saved history', worker.includes('if (!body.memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID)')],
+  ['AI memory opt-out clears saved history', worker.includes('if (!body.memoryOptIn && prior?.memory_opt_in === true)') && worker.includes('ai_history_clear_incomplete_retry_required')],
   ['AI chat deletion is available through CORS', worker.includes('GET, POST, PUT, PATCH, DELETE, OPTIONS')],
   ['AI model key remains a Worker secret', worker.includes('configured.OPENAI_API_KEY') && !config.includes('OPENAI_API_KEY =')],
   ['AI chat input size is bounded', worker.includes('ai_request_too_large') && worker.includes('question.length > 1200')],
