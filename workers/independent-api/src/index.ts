@@ -26,6 +26,20 @@ type AppwriteAccount = {
   status: boolean;
 };
 
+type ReferralRow = {
+  $id?: string;
+  row_type?: string;
+  status?: string;
+  user_id?: string;
+  referral_code?: string;
+  team_id?: string;
+  team_owner_id?: string;
+  referrer_user_id?: string;
+  referred_user_id?: string;
+  role?: string;
+  attributed_at?: string;
+};
+
 type ProfileRow = {
   $id: string;
   user_id: string;
@@ -398,7 +412,7 @@ export default {
           u.searchParams.set("queries[]", JSON.stringify({ method: "equal", column, values: [value] }));
           const r = await fetch(u, { headers });
           if (!r.ok) throw new Error("referral_network_lookup_failed");
-          return (await r.json() as { rows?: Array<Record<string, any>> }).rows || [];
+          return (await r.json() as { rows?: Array<ReferralRow> }).rows || [];
         };
         const mine = (await query("referred_user_id", account.$id)).find(x => x.row_type === "relationship");
         const ownerId = mine?.team_owner_id || account.$id;
@@ -424,7 +438,7 @@ export default {
           const r = await fetch(`${base}/${encodeURIComponent(id)}`, { headers });
           if (r.status === 404) return null;
           if (!r.ok) throw new Error("referral_lookup_failed");
-          return await r.json() as Record<string, any>;
+          return await r.json() as ReferralRow;
         };
         const queryRows = async (column: string, value: string) => {
           const u = new URL(base);
