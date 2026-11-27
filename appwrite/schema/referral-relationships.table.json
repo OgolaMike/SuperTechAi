@@ -1,0 +1,24 @@
+{
+  "database_id": "6b06e4d900325c304d98",
+  "table_id": "CREATE_AND_SET_REFERRAL_RELATIONSHIPS_TABLE_ID",
+  "name": "referral_relationships",
+  "columns": [
+    {"key":"row_type","type":"varchar","size":24,"required":true},
+    {"key":"referral_code","type":"varchar","size":32,"required":false},
+    {"key":"user_id","type":"varchar","size":36,"required":false},
+    {"key":"referrer_user_id","type":"varchar","size":36,"required":false},
+    {"key":"referred_user_id","type":"varchar","size":36,"required":false},
+    {"key":"team_id","type":"varchar","size":16,"required":false},
+    {"key":"status","type":"varchar","size":32,"required":false},
+    {"key":"created_at","type":"datetime","required":false},
+    {"key":"attributed_at","type":"datetime","required":false}
+  ],
+  "indexes": [
+    {"key":"referral_code_unique","type":"unique","columns":["referral_code"]},
+    {"key":"user_id_lookup","type":"key","columns":["user_id"]},
+    {"key":"referred_user_lookup","type":"unique","columns":["referred_user_id"]},
+    {"key":"sponsor_lookup","type":"key","columns":["referrer_user_id"]}
+  ],
+  "security": {"row_level_security":true,"client_permissions":[],"writes":"Cloudflare Worker only"},
+  "notes": ["Use row IDs c<sha256(userId)> for code records and r<sha256(userId)> for relationship records.","Company must assign each owner one of TEAM_1 through TEAM_5 before activating that owner's code.","Never grant browser create/update/delete permissions."]
+}
