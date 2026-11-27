@@ -440,12 +440,12 @@ export default {
           const codeId = "c" + digest.slice(0, 31);
           let own = await getRow(codeId);
           if (!own) {
-            const created = await fetch(base, { method: "POST", headers, body: JSON.stringify({ rowId: codeId, data: { row_type: "code", referral_code: code, user_id: account.$id, status: "active", created_at: new Date().toISOString() }, permissions: [] }) });
+            const created = await fetch(base, { method: "POST", headers, body: JSON.stringify({ rowId: codeId, data: { row_type: "code", referral_code: code, user_id: account.$id, team_id: rel?.team_id || undefined, team_owner_id: rel?.team_owner_id || undefined, status: "active", created_at: new Date().toISOString() }, permissions: [] }) });
             if (!created.ok && created.status !== 409) return json({ error: "referral_code_create_failed" }, 503, cors);
             own = await getRow(codeId);
           }
           if (!own || own.user_id !== account.$id || own.referral_code !== code) return json({ error: "referral_code_unavailable" }, 503, cors);
-          return json({ assigned: Boolean(rel && rel.status === "active"), referralCode: code, sponsorUserId: rel?.referrer_user_id || undefined, teamOwnerId: rel?.team_owner_id || undefined, role: rel?.role || "member", status: rel?.status || "unassigned" }, 200, cors);
+          return json({ assigned: Boolean((rel && rel.status === "active") || (own.team_id && own.team_owner_id)), referralCode: code, sponsorUserId: rel?.referrer_user_id || undefined, teamOwnerId: rel?.team_owner_id || own.team_owner_id || undefined, role: rel?.role || "member", status: rel?.status || (own.team_id ? "active" : "unassigned") }, 200, cors);
         }
         const body = await request.json().catch(() => ({})) as { referralCode?: string };
         const code = String(body.referralCode || "").trim().toUpperCase();
