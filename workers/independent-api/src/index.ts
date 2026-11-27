@@ -1110,11 +1110,9 @@ export default {
           const goal = typeof body?.goal === "string" ? body.goal.trim() : "";
           if (!goal || goal.length > 240 || typeof body?.memoryOptIn !== "boolean") return json({ error: "invalid_ai_profile" }, 400, cors);
           const prior = await readProfile();
-          await saveRow(configured.AI_PROFILES_TABLE_ID, profileId, {
-            user_id: account.$id, goal, memory_opt_in: body.memoryOptIn,
-            created_at: prior?.created_at || new Date().toISOString(), updated_at: new Date().toISOString(),
-          });
-          if (!body.memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID) {
+          if (body.memoryOptIn && !configured.AI_CHAT_HISTORY_TABLE_ID) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
+          if (!body.memoryOptIn && prior?.memory_opt_in === true) {
+            if (!configured.AI_CHAT_HISTORY_TABLE_ID) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
             const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
             target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
             target.searchParams.set("limit", "5000");
@@ -1127,12 +1125,16 @@ export default {
             }
             if (Number(rows.total || 0) > (rows.rows || []).length) return json({ error: "ai_history_clear_incomplete_retry_required" }, 503, cors);
           }
+          await saveRow(configured.AI_PROFILES_TABLE_ID, profileId, {
+            user_id: account.$id, goal, memory_opt_in: body.memoryOptIn,
+            created_at: prior?.created_at || new Date().toISOString(), updated_at: new Date().toISOString(),
+          });
           return json({ profile: { goal, memoryOptIn: body.memoryOptIn } }, 200, cors);
         }
         if (url.pathname === "/api/ai/history" && request.method === "GET") {
-          if (!configured.AI_CHAT_HISTORY_TABLE_ID) return json({ history: [] }, 200, cors);
           const profile = await readProfile();
           if (profile?.memory_opt_in !== true) return json({ history: [] }, 200, cors);
+          if (!configured.AI_CHAT_HISTORY_TABLE_ID) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
           const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
           target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
           target.searchParams.append("queries[]", JSON.stringify({ method: "orderAsc", column: "created_at" }));
@@ -1166,6 +1168,7 @@ export default {
           if (!question || question.length > 1200) return json({ error: "invalid_ai_question" }, 400, cors);
           const profile = configured.AI_PROFILES_TABLE_ID ? await readProfile() : null;
           const memoryOptIn = profile?.memory_opt_in === true;
+          if (memoryOptIn && !configured.AI_CHAT_HISTORY_TABLE_ID) return json({ error: "ai_history_storage_not_configured" }, 503, cors);
           let history: Array<{ role: "user" | "assistant"; content: string }> = [];
           if (memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID) {
             const target = new URL(tableBase(configured.AI_CHAT_HISTORY_TABLE_ID));
