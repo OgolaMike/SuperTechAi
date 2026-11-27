@@ -3,10 +3,11 @@ import { formatLocalDate, formatLocalTime } from '@/lib/localTime';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import type { Candle } from '@/lib/deriv';
 import type { SignalLevels } from '@/lib/signals';
+type ChartSignalLevels = Pick<SignalLevels, 'entry' | 'stopLoss' | 'tp1' | 'tp2' | 'tp3'>;
 
 type Props = {
   candles: Candle[];
-  levels?: SignalLevels;
+  levels?: ChartSignalLevels;
   signalEpoch?: number;
   direction?: 'BUY' | 'SELL';
   timeframe: string;
