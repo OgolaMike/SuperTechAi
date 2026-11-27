@@ -1,6 +1,9 @@
 import { appwriteRequest } from '@/lib/appwrite';
 
-const apiBase = (import.meta.env.VITE_INDEPENDENT_API_URL || '').replace(/\/$/, '');
+const apiBase = (
+  import.meta.env.VITE_INDEPENDENT_API_URL ||
+  'https://supertechai-independent-api.mikedavid45.workers.dev'
+).replace(/\/$/, '');
 
 type ApiIdentity = {
   id: string;
