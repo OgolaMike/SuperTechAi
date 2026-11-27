@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "status": "proposed_not_provisioned",
+  "tables": [
+    {
+      "name": "member_ai_profiles",
+      "id": null,
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "goal",
+          "type": "varchar",
+          "size": 240,
+          "required": true
+        },
+        {
+          "key": "memory_opt_in",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "key": "updated_at",
+          "type": "datetime",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "member_ai_profiles_user_id_unique",
+          "type": "unique",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ],
+      "notes": "Worker-only reads and writes. Deterministic row ID is SHA-256('ai-profile|' + Appwrite user ID), truncated to 32 hex characters."
+    },
+    {
+      "name": "member_ai_chat_history",
+      "id": null,
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "message_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "role",
+          "type": "varchar",
+          "size": 16,
+          "required": true
+        },
+        {
+          "key": "content",
+          "type": "varchar",
+          "size": 4000,
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "datetime",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "member_ai_chat_user_created",
+          "type": "key",
+          "columns": [
+            "user_id",
+            "created_at"
+          ]
+        },
+        {
+          "key": "member_ai_chat_message_unique",
+          "type": "unique",
+          "columns": [
+            "message_id"
+          ]
+        }
+      ],
+      "notes": "Worker-only access. Chat rows are created only when the member explicitly enables memory. Disabling memory clears saved chat rows."
+    }
+  ],
+  "security": {
+    "rowSecurity": true,
+    "clientPermissions": [],
+    "workerOnlyWrites": true,
+    "ownership": "Worker authenticates the Appwrite JWT and derives user_id from the verified account. The browser cannot choose another member ID.",
+    "privacy": "Profile and chat history are private per member. Memory is opt-in; disabling it deletes persisted conversation history."
+  },
+  "workerConfiguration": {
+    "requiredVariables": [
+      "AI_PROFILES_TABLE_ID",
+      "AI_CHAT_HISTORY_TABLE_ID"
+    ],
+    "requiredSecret": "OPENAI_API_KEY",
+    "optionalVariable": "PERSONAL_AI_MODEL",
+    "defaultModel": "gpt-4.1-mini"
+  }
+}
