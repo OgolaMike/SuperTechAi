@@ -61,6 +61,44 @@ function safeMember(row: NetworkRow) {
   };
 }
 
+
+export async function handleCompanyOwnerRequest(request: Request, env: Env): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/company/owners" || request.method !== "POST") return null;
+  if (!env.APPWRITE_API_KEY || !env.MEMBER_NETWORK_TABLE_ID || !env.GENESIS_ADMIN_TOKEN || !env.GENESIS_ACCOUNT_ID) {
+    return json({ error: "company_owner_onboarding_not_configured" }, 503);
+  }
+  const supplied = request.headers.get("x-genesis-token") || "";
+  if (supplied.length !== env.GENESIS_ADMIN_TOKEN.length || supplied !== env.GENESIS_ADMIN_TOKEN) {
+    return json({ error: "company_authorization_required" }, 403);
+  }
+  try {
+    const body = await request.json().catch(() => null) as { userId?: string } | null;
+    const userId = typeof body?.userId === "string" ? body.userId.trim() : "";
+    if (!/^[a-f0-9-]{36}$/i.test(userId) || userId === env.GENESIS_ACCOUNT_ID) {
+      return json({ error: "valid_owner_user_id_required" }, 400);
+    }
+    if (await getRow(env, userId)) return json({ error: "account_already_in_network" }, 409);
+    const userResponse = await fetch(env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/users/" + encodeURIComponent(userId), {
+      headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY },
+    });
+    if (!userResponse.ok) return json({ error: "owner_account_not_found" }, 404);
+    const user = await userResponse.json() as { $id: string; email: string; emailVerification?: boolean; status?: boolean };
+    if (user.$id !== userId || !user.emailVerification || user.status === false) {
+      return json({ error: "owner_account_must_be_verified_and_active" }, 400);
+    }
+    const row = await createRow(env, userId, {
+      row_type: "member", user_id: userId, email: user.email.toLowerCase(),
+      referral_code: code(), sponsor_user_id: env.GENESIS_ACCOUNT_ID,
+      team_owner_id: userId, role: "owner", status: "active",
+      created_at: new Date().toISOString(),
+    });
+    return json({ ownerCreated: true, teamOwnerId: row.team_owner_id, referralCode: row.referral_code }, 201);
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : "company_owner_creation_failed" }, 503);
+  }
+}
+
 export async function handleReferralRequest(request: Request, env: Env, account: Account): Promise<Response | null> {
   if (!request.url.includes("/api/referrals/")) return null;
   if (!env.APPWRITE_API_KEY || !env.MEMBER_NETWORK_TABLE_ID) return json({ error: "member_network_not_configured" }, 503);
