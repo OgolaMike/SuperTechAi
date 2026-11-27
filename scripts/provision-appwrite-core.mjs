@@ -73,7 +73,8 @@ for (const schema of tables) {
     let columns = await list(`${tablePath}/columns?limit=100`, "columns");
     const existing = columns.find(column => column.key === key);
     if (existing) {
-      if (existing.type !== type || Boolean(existing.required) !== required || (size !== null && existing.size !== size)) throw new Error(`Schema conflict in ${schema.id}.${key}; refusing to alter an existing column.`);
+      const existingType = existing.type === "double" && type === "float" ? "float" : existing.type;
+      if (existingType !== type || Boolean(existing.required) !== required || (size !== null && existing.size !== size)) throw new Error(`Schema conflict in ${schema.id}.${key}; found type=${existing.type}, required=${existing.required}, size=${existing.size}; expected type=${type}, required=${required}, size=${size}. Refusing to alter an existing column.`);
       if (existing.status !== "available") await waitFor(async () => (await list(`${tablePath}/columns?limit=100`, "columns")).find(x => x.key === key && x.status === "available"), `${schema.id}.${key}`);
       continue;
     }
