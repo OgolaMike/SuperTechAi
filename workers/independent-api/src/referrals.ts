@@ -35,8 +35,8 @@ async function getRow(env: Env, id: string): Promise<NetworkRow | null> {
 }
 async function findByCode(env: Env, referralCode: string): Promise<NetworkRow | null> {
   const url = new URL(endpoint(env));
-  url.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "referral_code", values: [referralCode] }));
-  url.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "status", values: ["active"] }));
+  url.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "referral_code", values: [referralCode] }));
+  url.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "status", values: ["active"] }));
   const response = await fetch(url, { headers: headers(env) });
   if (!response.ok) throw new Error("network_code_lookup_failed");
   const result = await response.json() as { rows?: NetworkRow[] };
