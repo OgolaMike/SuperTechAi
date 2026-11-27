@@ -17,7 +17,6 @@ export function formatLocalDateTime(value: string | number | Date | null | undef
     minute: '2-digit',
     hourCycle: 'h23',
     timeZone: LOCAL_TIME_ZONE,
-    timeZoneName: 'short',
   }).format(date);
 }
 
@@ -29,5 +28,15 @@ export function formatLocalDate(value: string | number | Date): string {
     month: 'short',
     day: '2-digit',
     timeZone: LOCAL_TIME_ZONE,
+  }).format(date);
+}
+
+
+export function formatLocalTime(value: string | number | Date | null | undefined): string {
+  if (value == null || value === '') return '—';
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return '—';
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: LOCAL_TIME_ZONE,
   }).format(date);
 }
