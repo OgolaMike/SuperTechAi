@@ -30,11 +30,11 @@ export function SignalCard({ asset, tf, loaded, price, confluenceCount, unifiedO
   const marketClosed = asset.exchange === 'DERIV' && isWeekend && !weekendTrading;
   const isBuy = signal?.direction === 'BUY';
   const isSell = signal?.direction === 'SELL';
-  const gradeTone = confluenceCount === 10
+  const gradeTone = confluenceCount === 13
     ? 'border-up/60 bg-up/15 text-up shadow-[0_0_22px_rgba(34,197,94,0.18)]'
-    : confluenceCount !== undefined && confluenceCount >= 7
+    : confluenceCount !== undefined && confluenceCount >= 10
       ? 'border-accent/50 bg-accent/10 text-accent'
-      : confluenceCount !== undefined && confluenceCount >= 5
+      : confluenceCount !== undefined && confluenceCount >= 7
         ? 'border-warn/40 bg-warn/10 text-warn'
         : 'border-line/20 bg-surface/[0.04] text-ink-2';
 
