@@ -18,3 +18,5 @@ CTRADER_GRANTS_TABLE_ID = "ctrader_grants"
 
 ALERT_PREFERENCES_TABLE_ID = "alert_preferences"
 SIGNAL_RECORDS_TABLE_ID = "signal_records"
+PAYMENT_SUBMISSIONS_TABLE_ID = "payment_submissions"
+FINANCIAL_LEDGER_TABLE_ID = "financial_ledger"
