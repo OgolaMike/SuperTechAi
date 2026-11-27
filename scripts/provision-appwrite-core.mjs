@@ -78,7 +78,7 @@ const tables = [
   },
   {
     id: "alert_preferences", name: "Alert Preferences",
-    columns: [["user_id","varchar",36,true],["categories_json","varchar",12000,false],["assets_json","varchar",12000,false],["default_asset_mode","varchar",32,false],["updated_at","datetime",true]],
+    columns: [["user_id","varchar",36,true],["categories_json","varchar",12000,false],["assets_json","varchar",12000,false],["default_asset_mode","varchar",32,false],["updated_at","datetime",null,true]],
     indexes: [["user_id_unique","unique",["user_id"]]],
   },
   {
