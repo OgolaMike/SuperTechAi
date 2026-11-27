@@ -34,9 +34,9 @@ export async function handlePaymentRequest(request:Request,env:Env,account:Accou
   }
   if(url.pathname==="/api/payments/submit"&&request.method==="POST"){
    const body=await request.json().catch(()=>null) as {planCode?:unknown;currency?:unknown;transactionReference?:unknown}|null;
-   if(!body||typeof body.planCode!=="string"||!(body.planCode in plans)||!["USDT-TRC20"].includes(String(body.currency))||typeof body.transactionReference!=="string")return json({error:"invalid_payment_submission"},400);
+   if(!body||typeof body.planCode!=="string"||!Object.prototype.hasOwnProperty.call(plans,body.planCode)||!["USDT-TRC20"].includes(String(body.currency))||typeof body.transactionReference!=="string")return json({error:"invalid_payment_submission"},400);
    const reference=body.transactionReference.trim();
-   if(reference.length<20||reference.length>160||!/^[a-zA-Z0-9_-]+$/.test(reference))return json({error:"invalid_transaction_reference"},400);
+   if(!/^[a-fA-F0-9]{64}$/.test(reference))return json({error:"invalid_transaction_reference"},400);
    const existing=await fetchJson<{rows?:PaymentRow[]}>((()=>{const q=new URL(base);q.searchParams.append("queries[]",JSON.stringify({method:"equal",attribute:"transaction_reference",values:[reference]}));q.searchParams.set("limit","1");return q.toString()})(),env);
    if(existing.rows?.length)return json({error:"transaction_reference_already_submitted"},409);
    const now=new Date().toISOString();const id=crypto.randomUUID().replace(/-/g,"").slice(0,32);
@@ -53,7 +53,7 @@ export async function handlePaymentRequest(request:Request,env:Env,account:Accou
   if(match&&request.method==="POST"){
    if(!admin(env,account))return json({error:"company_admin_required"},403);
    const body=await request.json().catch(()=>null) as {action?:string;note?:string}|null;
-   if(!body||!["approve","reject"].includes(body.action||"")||(body.note||"").length>500)return json({error:"invalid_payment_review"},400);
+   if(!body||!["approve","reject"].includes(body.action||"")||(body.note!==undefined&&(typeof body.note!=="string"||body.note.length>500)))return json({error:"invalid_payment_review"},400);
    const payment=await fetchJson<PaymentRow>(`${base}/${match[1]}`,env);
    if(payment.status!=="pending")return json({error:"payment_already_reviewed"},409);
    const now=new Date().toISOString();const approved=body.action==="approve";
