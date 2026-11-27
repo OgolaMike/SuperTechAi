@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "table": {
+    "name": "strategy_outcome_events",
+    "id": null,
+    "status": "proposed_not_provisioned",
+    "rowSecurity": true,
+    "clientPermissions": []
+  },
+  "columns": [
+    {
+      "key": "user_id",
+      "type": "varchar",
+      "size": 36,
+      "required": true
+    },
+    {
+      "key": "event_key",
+      "type": "varchar",
+      "size": 320,
+      "required": true
+    },
+    {
+      "key": "outcome_key",
+      "type": "varchar",
+      "size": 320,
+      "required": true
+    },
+    {
+      "key": "strategy_id",
+      "type": "varchar",
+      "size": 80,
+      "required": true
+    },
+    {
+      "key": "symbol",
+      "type": "varchar",
+      "size": 64,
+      "required": true
+    },
+    {
+      "key": "timeframe",
+      "type": "varchar",
+      "size": 8,
+      "required": true
+    },
+    {
+      "key": "signal_epoch",
+      "type": "integer",
+      "required": true
+    },
+    {
+      "key": "event_epoch",
+      "type": "integer",
+      "required": true
+    },
+    {
+      "key": "status",
+      "type": "varchar",
+      "size": 24,
+      "required": true
+    },
+    {
+      "key": "payload_json",
+      "type": "varchar",
+      "size": 8192,
+      "required": true
+    },
+    {
+      "key": "created_at",
+      "type": "datetime",
+      "required": true
+    }
+  ],
+  "indexes": [
+    {
+      "key": "strategy_outcome_events_user_epoch",
+      "type": "key",
+      "columns": [
+        "user_id",
+        "event_epoch"
+      ]
+    },
+    {
+      "key": "strategy_outcome_events_event_key",
+      "type": "key",
+      "columns": [
+        "event_key"
+      ]
+    }
+  ],
+  "security": {
+    "rowSecurity": true,
+    "clientPermissions": [],
+    "workerOnlyWrites": true,
+    "ownership": "Worker authenticates Appwrite JWT and derives user_id; clients cannot read or write the table directly.",
+    "appendOnly": "Deterministic row ID is SHA-256(user_id|event_key); existing events are not updated."
+  },
+  "eventKey": "outcome.key|outcome.status|entryEpoch-or-0|resolvedEpoch-or-0",
+  "caveats": [
+    "This stores candle-replayed strategy lifecycle states, not broker fills or exchange execution receipts.",
+    "The Worker API returns 503 until STRATEGY_OUTCOME_EVENTS_TABLE_ID and the table are configured.",
+    "Provision only in the Appwrite sandbox after verifying schema, row security, and empty client permissions."
+  ]
+}
