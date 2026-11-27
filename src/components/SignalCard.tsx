@@ -80,7 +80,7 @@ export function SignalCard({ asset, tf, loaded, price, confluenceCount, unifiedO
           {!unifiedOnly && confluenceCount !== undefined && (
             <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 px-4 py-3 ${gradeTone}`}>
               <div className="min-w-0 flex-1">
-                <div className="break-words text-[10px] font-bold uppercase leading-relaxed tracking-[0.12em] opacity-80">10-timeframe signal grade</div>
+                <div className="break-words text-[10px] font-bold uppercase leading-relaxed tracking-[0.12em] opacity-80">13-timeframe signal grade</div>
                 <div className="mt-0.5 text-xs opacity-80">{confluenceCount === 10 ? 'SUPER SIGNAL · All timeframes agree' : confluenceCount >= 7 ? 'Strong alignment' : confluenceCount >= 5 ? 'Moderate alignment' : 'Limited alignment'}</div>
               </div>
               <div className="text-3xl font-black tabular-nums">{confluenceCount}<span className="text-lg font-bold opacity-70">/10</span></div>
