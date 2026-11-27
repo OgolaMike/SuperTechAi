@@ -436,7 +436,7 @@ export default {
         if (url.pathname === "/api/referrals/me") {
           const rel = (await queryRows("referred_user_id", account.$id)).find(x => x.row_type === "relationship");
           const digest = await sha256(account.$id);
-          const code = "ST" + digest.slice(0, 12).toUpperCase();
+          const code = "ST" + digest.slice(0, 34).toUpperCase();
           const codeId = "c" + digest.slice(0, 31);
           let own = await getRow(codeId);
           if (!own) {
@@ -449,7 +449,7 @@ export default {
         }
         const body = await request.json().catch(() => ({})) as { referralCode?: string };
         const code = String(body.referralCode || "").trim().toUpperCase();
-        if (!/^ST[A-F0-9]{12}$/.test(code)) return json({ error: "invalid_referral_code" }, 400, cors);
+        if (!/^ST[A-F0-9]{34}$/.test(code)) return json({ error: "invalid_referral_code" }, 400, cors);
         const sponsor = (await queryRows("referral_code", code)).find(x => x.row_type === "code" && x.status === "active");
         if (!sponsor?.user_id || !sponsor.team_id || !/^TEAM_[1-5]$/.test(String(sponsor.team_id)) || !sponsor.team_owner_id) return json({ error: "sponsor_team_not_assigned" }, 409, cors);
         if (sponsor.user_id === account.$id) return json({ error: "self_referral_not_allowed" }, 400, cors);
