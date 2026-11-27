@@ -30,7 +30,7 @@ The companion is designed to guide members across Dashboard, Signals, Analysis, 
 1. Provision both tables from `appwrite/schema/personal-ai.tables.json` in the intended Appwrite database.
 2. Enable row security and confirm zero client permissions for both tables.
 3. Set Worker variables `AI_PROFILES_TABLE_ID` and `AI_CHAT_HISTORY_TABLE_ID` to the provisioned table IDs.
-4. Add `OPENAI_API_KEY` as a Worker secret. Optionally set `PERSONAL_AI_MODEL`; the default is `gpt-4.1-mini`.
+4. Add `XAI_API_KEY` as a Worker secret. Optionally set `PERSONAL_AI_MODEL` (default `grok-4.7`) and `PERSONAL_AI_BASE_URL` (default `https://api.x.ai/v1`). The Worker calls `POST /responses`; the API key is never exposed to the browser.
 5. Deploy the independent Worker and verify the routes using a verified Appwrite test account.
 6. Verify both memory-on and memory-off flows, cross-account isolation, clear-history deletion, model timeout/rate-limit handling, and mobile layout.
 
