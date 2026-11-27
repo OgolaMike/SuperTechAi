@@ -43,7 +43,7 @@ function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
   if (!origin || origin !== allowedOrigin) return {};
   return {
     "access-control-allow-origin": origin,
-    "access-control-allow-methods": "GET, POST, PUT, PATCH, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-max-age": "600",
     "vary": "Origin",
@@ -1159,6 +1159,7 @@ export default {
           return json({ cleared: true }, 200, cors);
         }
         if (url.pathname === "/api/ai/chat" && request.method === "POST") {
+          if (Number(request.headers.get("content-length") || 0) > 24_000) return json({ error: "ai_request_too_large" }, 413, cors);
           if (!configured.OPENAI_API_KEY) return json({ error: "ai_model_not_configured" }, 503, cors);
           const body = await request.json().catch(() => null) as { question?: unknown; assets?: unknown; signalsCount?: unknown; signalContext?: unknown } | null;
           const question = typeof body?.question === "string" ? body.question.trim() : "";
