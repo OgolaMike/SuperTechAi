@@ -183,3 +183,23 @@ export function updateIndependentAlertPreferences(
     body: JSON.stringify(preferences),
   });
 }
+
+export type IndependentSignalRecord = {
+  signal_key: string; symbol: string; asset_name: string; timeframe: string; granularity: number;
+  digits: number; direction: 'BUY' | 'SELL'; signal_epoch: number; entry: number; stop_loss: number;
+  tp1: number; tp2: number; tp3: number; band_mean: number; band_deviation: number;
+  tp1_hit_epoch: number | null; tp2_hit_epoch: number | null; tp3_hit_epoch: number | null;
+  sl_hit_epoch: number | null; status: 'Open' | 'TP1' | 'TP2' | 'TP3' | 'Stopped'; closed: boolean;
+};
+export async function getIndependentSignalRecords(): Promise<IndependentSignalRecord[]> {
+  const result = await authenticatedRequest<{ rows: IndependentSignalRecord[] }>('/api/signals/history');
+  return result.rows;
+}
+export async function saveIndependentSignalRecords(rows: IndependentSignalRecord[]): Promise<void> {
+  for (let index = 0; index < rows.length; index += 100) {
+    await authenticatedRequest<{ saved: number }>('/api/signals/history', {
+      method: 'POST',
+      body: JSON.stringify({ rows: rows.slice(index, index + 100) }),
+    });
+  }
+}
