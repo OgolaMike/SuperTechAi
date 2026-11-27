@@ -32,11 +32,6 @@ async function readPrefs(): Promise<Record<string, unknown>> {
   return appwriteRequest<Record<string, unknown>>(PREFS_PATH);
 }
 
-async function writePushPrefs(next: StoredPush): Promise<void> {
-  const prefs = await readPrefs();
-  await appwriteRequest(PREFS_PATH, { method: 'PUT', body: { ...prefs, supertechPush: next } });
-}
-
 async function callPushFunction(action: 'test'): Promise<{ ok: boolean; delivered?: number; error?: string }> {
   if (!FUNCTION_ID) throw new Error('The Appwrite push function has not been configured for this deployment.');
   const { jwt } = await appwriteAccount.createJWT();
