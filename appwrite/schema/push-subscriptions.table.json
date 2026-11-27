@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "name": "push_subscriptions",
+  "status": "proposed_not_provisioned",
+  "databaseId": "6b06e4d900325c304d98",
+  "rowId": "SHA-256(user_id + ':' + endpoint), first 32 lowercase hex characters",
+  "rowSecurity": true,
+  "clientPermissions": [],
+  "description": "Worker-only Web Push device subscriptions. Never grant Appwrite client SDK permissions; all reads/writes use the authenticated Cloudflare Worker and Appwrite server API key.",
+  "columns": [
+    {
+      "key": "user_id",
+      "type": "varchar",
+      "size": 36,
+      "required": true
+    },
+    {
+      "key": "endpoint",
+      "type": "varchar",
+      "size": 2048,
+      "required": true
+    },
+    {
+      "key": "p256dh",
+      "type": "varchar",
+      "size": 256,
+      "required": true
+    },
+    {
+      "key": "auth",
+      "type": "varchar",
+      "size": 128,
+      "required": true
+    },
+    {
+      "key": "created_at",
+      "type": "varchar",
+      "size": 40,
+      "required": true
+    },
+    {
+      "key": "updated_at",
+      "type": "varchar",
+      "size": 40,
+      "required": true
+    }
+  ],
+  "indexes": [
+    {
+      "key": "push_subscriptions_user_id",
+      "type": "key",
+      "columns": [
+        "user_id"
+      ]
+    },
+    {
+      "key": "push_subscriptions_endpoint_unique",
+      "type": "unique",
+      "columns": [
+        "endpoint"
+      ]
+    }
+  ],
+  "notes": [
+    "Do not store VAPID private keys in this table. VAPID_PRIVATE_KEY is a Cloudflare Worker secret.",
+    "Subscription rows are private server data. The Worker verifies the Appwrite JWT and always scopes queries to its authenticated user.",
+    "The browser must never receive APPWRITE_API_KEY or VAPID_PRIVATE_KEY."
+  ]
+}
