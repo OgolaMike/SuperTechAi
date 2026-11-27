@@ -85,7 +85,8 @@ for (const schema of tables) {
   for (const [key,type,columns] of schema.indexes) {
     let indexes = await list(`${tablePath}/indexes?limit=100`, "indexes"); const existing = indexes.find(index => index.key === key);
     if (existing) {
-      if (existing.type !== type || JSON.stringify(existing.attributes || []) !== JSON.stringify(columns)) throw new Error(`Index conflict in ${schema.id}.${key}; refusing to replace it.`);
+      const existingColumns = (existing.attributes || existing.columns || []).map(value => typeof value === "string" ? value : value?.key || value?.attribute).filter(Boolean).sort();
+      if (existing.type !== type || JSON.stringify(existingColumns) !== JSON.stringify([...columns].sort())) throw new Error(`Index conflict in ${schema.id}.${key}; refusing to replace it.`);
       if (existing.status !== "available") await waitFor(async () => (await list(`${tablePath}/indexes?limit=100`, "indexes")).find(x => x.key === key && x.status === "available"), `${schema.id} index ${key}`);
       continue;
     }
