@@ -84,16 +84,26 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
   const accent = bullish ? '#34d399' : '#fb7185';
   const grid = Array.from({ length: 6 }, (_, i) => max - range * i / 5);
   const fmt = (n: number) => formatPrice(n, 5);
-  return <div className="relative w-full overflow-x-auto bg-[#080e19]">
-    <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">{!fullscreen && <><button type="button" onClick={()=>setZoom(v=>Math.max(1,v-0.25))} disabled={zoom<=1} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-[#111c2c]/90 text-white disabled:opacity-35" aria-label="Zoom out chart"><ZoomOut className="h-4 w-4"/></button><span className="min-w-9 rounded-md bg-[#111c2c]/90 px-1.5 py-1.5 text-center text-[10px] font-semibold text-white">{zoom.toFixed(2)}×</span><button type="button" onClick={()=>setZoom(v=>Math.min(2,v+0.25))} disabled={zoom>=2} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-[#111c2c]/90 text-white disabled:opacity-35" aria-label="Zoom in chart"><ZoomIn className="h-4 w-4"/></button><button type="button" onClick={onExpand} className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-[#111c2c]/90 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:border-amber-300/60" aria-label="Open chart full screen"><Maximize2 className="h-3.5 w-3.5"/> Full screen</button></>}</div>
-    {latestCandle && <div className="absolute right-3 top-14 z-10 rounded-lg border border-cyan-300/35 bg-[#071827]/95 px-3 py-2 text-right shadow-lg">
-      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-cyan-200/75">Live candle · closes in</p>
-      <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-cyan-100">{secondsRemaining === 0 ? '00:00:00 · updating' : countdown}</p>
-    </div>}
-    <div className={`absolute left-3 top-3 z-10 inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-black tracking-wider shadow-xl ${bullish ? 'border-emerald-300 bg-emerald-500 text-[#04130d]' : 'border-rose-300 bg-rose-500 text-white'}`}>
-      {bullish ? <ArrowUpRight className="h-5 w-5"/> : <ArrowDownRight className="h-5 w-5"/>}
-      {bullish ? 'BUY' : 'SELL'} SETUP
+  return <div className="w-full bg-[#080e19]">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#0b1422] px-3 py-2.5">
+      <div className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-black tracking-wide ${bullish ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-300' : 'border-rose-300/40 bg-rose-500/15 text-rose-300'}`}>
+        {bullish ? <ArrowUpRight className="h-4 w-4"/> : <ArrowDownRight className="h-4 w-4"/>}
+        {bullish ? 'BUY' : 'SELL'} SETUP
+      </div>
+      {!fullscreen && <div className="flex shrink-0 items-center gap-1.5">
+        <button type="button" onClick={()=>setZoom(v=>Math.max(1,v-0.25))} disabled={zoom<=1} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-[#111c2c] text-white disabled:opacity-35" aria-label="Zoom out chart"><ZoomOut className="h-4 w-4"/></button>
+        <span className="min-w-9 rounded-md bg-[#111c2c] px-1.5 py-1.5 text-center text-[10px] font-semibold text-white">{zoom.toFixed(2)}×</span>
+        <button type="button" onClick={()=>setZoom(v=>Math.min(2,v+0.25))} disabled={zoom>=2} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-[#111c2c] text-white disabled:opacity-35" aria-label="Zoom in chart"><ZoomIn className="h-4 w-4"/></button>
+        <button type="button" onClick={onExpand} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/15 bg-[#111c2c] px-2.5 text-[11px] font-semibold text-white hover:border-amber-300/60" aria-label="Open chart full screen"><Maximize2 className="h-3.5 w-3.5"/> Full screen</button>
+      </div>}
     </div>
+    {latestCandle && <div className="flex justify-end border-b border-white/5 bg-[#080e19] px-3 py-2">
+      <div className="rounded-lg border border-cyan-300/25 bg-[#071827] px-3 py-1.5 text-right">
+        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-cyan-200/75">Live candle · closes in</p>
+        <p className="font-mono text-sm font-black tabular-nums text-cyan-100">{secondsRemaining === 0 ? '00:00:00 · updating' : countdown}</p>
+      </div>
+    </div>}
+    <div className="w-full overflow-x-auto">
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Live pure price action chart showing ${setup.direction} break and retest in one zone, closed-candle confirmation and 5R risk/reward target`} style={{ width: fullscreen ? '100%' : `${zoom*100}%`, minWidth: fullscreen ? '760px' : '560px', height: fullscreen ? 'min(68vh, 650px)' : 'auto', display: 'block' }}>
       <defs>
         <linearGradient id={`zone-${setup.key.replace(/[^a-zA-Z0-9]/g,'')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={accent} stopOpacity=".25"/><stop offset="100%" stopColor={accent} stopOpacity=".07"/></linearGradient>
@@ -110,6 +120,7 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
       <line x1={P.left} x2={W-P.right} y1={y(setup.entry)} y2={y(setup.entry)} stroke="#e2e8f0" strokeWidth="1.8" strokeDasharray="3 5" opacity=".95"/><rect x={W-P.right+4} y={y(setup.entry)-12} width="104" height="24" rx="4" fill="#475569"/><text x={W-P.right+56} y={y(setup.entry)+4} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">ENTRY {fmt(setup.entry)}</text>
       <text x={P.left+6} y={H-10} fill="#64748b" fontSize="11" fontWeight="700">SUPERTECH AI · PURE PRICE ACTION · {setup.timeframe}</text>
     </svg>
+    </div>
     <div className="grid grid-cols-2 gap-2 border-t border-white/10 bg-[#0b1422] p-3 sm:grid-cols-4">
       <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] p-3">
         <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Market structure</p>
