@@ -144,7 +144,10 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     { label: 'TAKE PROFIT 1', value: levels.tp1, color: '#4ade80', dash: '5 5', width: 1.4 },
     { label: 'TAKE PROFIT 2', value: levels.tp2, color: '#22c55e', dash: '5 5', width: 1.4 },
     { label: 'TAKE PROFIT 3', value: levels.tp3, color: '#16a34a', dash: '5 5', width: 1.4 },
-  ] : [];
+  ].filter((level, index, all) =>
+    !level.label.startsWith('TAKE PROFIT') ||
+    all.findIndex((candidate) => candidate.label.startsWith('TAKE PROFIT') && candidate.value === level.value) === index
+  ) : [];
 
   return (
     <section id={anchorId} className="scroll-mt-[50vh] overflow-hidden rounded-2xl border border-white/20 bg-[#080d18] text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,.9)]" aria-label={`Premium ${timeframe} market chart`}>
