@@ -844,7 +844,7 @@ export default {
         if (!body || !Array.isArray(body.records) || body.records.length < 1 || body.records.length > 50) {
           return json({ error: "invalid_signal_batch" }, 400, cors);
         }
-        const timeframeSeconds: Record<string, number> = { M30: 1800, H1: 3600, H2: 7200, H3: 10800, H4: 14400, H6: 21600, H8: 28800, H12: 43200, D1: 86400, W1: 604800 };
+        const timeframeSeconds: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, H1: 3600, H2: 7200, H3: 10800, H4: 14400, H6: 21600, H8: 28800, H12: 43200, D1: 86400, W1: 604800 };
         const numericFields = ["entry", "stop_loss", "tp1", "tp2", "tp3", "band_mean", "band_deviation"];
         const optionalEpochFields = ["tp1_hit_epoch", "tp2_hit_epoch", "tp3_hit_epoch", "sl_hit_epoch"];
         const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
