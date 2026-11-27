@@ -60,7 +60,7 @@ export async function handlePaymentRequest(request:Request,env:Env,account:Accou
    if(approved){
     const memberBase=root(env,env.MEMBERSHIP_TABLE_ID||"membership_requests");
     const member=await fetchJson<Record<string,unknown>>(`${memberBase}/${encodeURIComponent(payment.user_id)}`,env).catch(()=>null);
-    const targetUser=member?null:await fetchJson<{email:string}>(`${env.APPWRITE_ENDPOINT.replace(/\\/$/,"")}/users/${encodeURIComponent(payment.user_id)}`,env).catch(()=>null);
+    const targetUser=member?null:await fetchJson<{email:string}>(`${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/users/${encodeURIComponent(payment.user_id)}`,env).catch(()=>null);
     const data={user_id:payment.user_id,email:String(member?.email||targetUser?.email||""),status:"approved",plan_code:payment.plan_code,updated_at:now,reviewed_at:now,reviewed_by:account.$id,review_note:"Payment approved by company administrator."};
     if(!data.email)return json({error:"member_email_unavailable"},409);
     if(member)await fetchJson(`${memberBase}/${encodeURIComponent(payment.user_id)}`,env,{method:"PATCH",body:JSON.stringify({data,permissions:[]})});
