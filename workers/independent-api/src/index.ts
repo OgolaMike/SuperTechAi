@@ -13,6 +13,10 @@ export interface Env {
   PERSONAL_AI_MODEL?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
+  PUSH_SUBSCRIPTIONS_TABLE_ID?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 type AppwriteAccount = {
@@ -447,15 +451,121 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
   return Response.redirect(destination.toString(), 302);
 }
 
+
+type PushRow = { $id: string; user_id: string; endpoint: string; p256dh: string; auth: string; };
+function pushReady(env: Env): boolean {
+  return Boolean(env.APPWRITE_API_KEY && env.PUSH_SUBSCRIPTIONS_TABLE_ID && env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT);
+}
+function pushBase(env: Env): string {
+  return `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`;
+}
+function pushHeaders(env: Env): Record<string, string> {
+  return { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY || "", "Content-Type": "application/json" };
+}
+function validPushEndpoint(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return false;
+    const host = url.hostname.toLowerCase();
+    return host === "fcm.googleapis.com" || host === "web.push.apple.com" ||
+      host === "updates.push.services.mozilla.com" || host.endsWith(".push.services.mozilla.com") ||
+      host.endsWith(".notify.windows.com");
+  } catch { return false; }
+}
+async function pushRowsForUser(env: Env, userId: string): Promise<PushRow[]> {
+  const url = new URL(pushBase(env));
+  url.searchParams.set("queries[]", `equal("user_id", ["${userId}"])`);
+  url.searchParams.set("limit", "100");
+  const response = await fetch(url, { headers: pushHeaders(env) });
+  if (!response.ok) throw new Error("push_subscription_list_failed");
+  const result = await response.json() as { rows?: PushRow[] };
+  return Array.isArray(result.rows) ? result.rows.filter(row => row.user_id === userId) : [];
+}
+function pushB64Url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function pushFromB64Url(value: string): Uint8Array {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return Uint8Array.from(atob(padded), char => char.charCodeAt(0));
+}
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const output = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of parts) { output.set(part, offset); offset += part.length; }
+  return output;
+}
+async function hkdf(secret: Uint8Array, input: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey("raw", input, "HKDF", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt: secret, info }, key, length * 8));
+}
+async function vapidAuthorization(endpoint: URL, env: Env): Promise<string> {
+  const publicKey = pushFromB64Url(env.VAPID_PUBLIC_KEY || "");
+  const privateKey = pushFromB64Url(env.VAPID_PRIVATE_KEY || "");
+  if (publicKey.length !== 65 || publicKey[0] !== 4 || privateKey.length !== 32) throw new Error("invalid_vapid_key_pair");
+  const jwk = {
+    kty: "EC", crv: "P-256", x: pushB64Url(publicKey.slice(1, 33)),
+    y: pushB64Url(publicKey.slice(33, 65)), d: pushB64Url(privateKey), ext: true,
+  };
+  const key = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const header = pushB64Url(new TextEncoder().encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
+  const payload = pushB64Url(new TextEncoder().encode(JSON.stringify({
+    aud: endpoint.origin, exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60, sub: env.VAPID_SUBJECT,
+  })));
+  const signingInput = `${header}.${payload}`;
+  const signature = new Uint8Array(await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(signingInput),
+  ));
+  return `vapid t=${signingInput}.${pushB64Url(signature)}, k=${env.VAPID_PUBLIC_KEY}`;
+}
+async function sendPushToRow(env: Env, row: PushRow, payload: Record<string, unknown>): Promise<boolean> {
+  if (!pushReady(env)) throw new Error("push_service_not_configured");
+  const endpoint = new URL(row.endpoint);
+  if (!validPushEndpoint(row.endpoint)) throw new Error("invalid_push_endpoint");
+  const userPublicKey = pushFromB64Url(row.p256dh);
+  const authSecret = pushFromB64Url(row.auth);
+  if (userPublicKey.length !== 65 || authSecret.length !== 16) throw new Error("invalid_push_subscription_keys");
+
+  const ephemeral = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const ephemeralPublic = new Uint8Array(await crypto.subtle.exportKey("raw", ephemeral.publicKey));
+  const subscriberKey = await crypto.subtle.importKey("raw", userPublicKey, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: subscriberKey }, ephemeral.privateKey, 256));
+  const info = concatBytes(new TextEncoder().encode("WebPush: info\0"), userPublicKey, ephemeralPublic);
+  const inputKeyMaterial = await hkdf(authSecret, sharedSecret, info, 32);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const contentKey = await hkdf(salt, inputKeyMaterial, new TextEncoder().encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdf(salt, inputKeyMaterial, new TextEncoder().encode("Content-Encoding: nonce\0"), 12);
+  const aesKey = await crypto.subtle.importKey("raw", contentKey, { name: "AES-GCM" }, false, ["encrypt"]);
+  const plaintext = concatBytes(new TextEncoder().encode(JSON.stringify(payload)), new Uint8Array([2]));
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aesKey, plaintext));
+  const recordSize = new Uint8Array([0, 0, 16, 0]);
+  const body = concatBytes(salt, recordSize, new Uint8Array([ephemeralPublic.length]), ephemeralPublic, ciphertext);
+  const authorization = await vapidAuthorization(endpoint, env);
+  const response = await fetch(endpoint.toString(), {
+    method: "POST",
+    headers: {
+      Authorization: authorization, "Content-Encoding": "aes128gcm",
+      "Content-Type": "application/octet-stream", TTL: "90", Urgency: "high",
+    },
+    body,
+  });
+  if (response.status === 404 || response.status === 410) {
+    await fetch(`${pushBase(env)}/${encodeURIComponent(row.$id)}`, { method: "DELETE", headers: pushHeaders(env) });
+    return false;
+  }
+  if (!response.ok) throw new Error(`push_provider_rejected_${response.status}`);
+  return true;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get("origin") || "";
     const cors = corsHeaders(origin, env.ALLOWED_ORIGIN);
 
-    if (origin && origin !== env.ALLOWED_ORIGIN) return json({ error: "origin_not_allowed" }, 403);
+    const allowedOrigins = env.ALLOWED_ORIGIN.split(",").map(value => value.trim()).filter(Boolean);
+    if (origin && !allowedOrigins.includes(origin)) return json({ error: "origin_not_allowed" }, 403);
 
     if (request.method === "OPTIONS") {
-      if (origin !== env.ALLOWED_ORIGIN) return new Response(null, { status: 403 });
+      if (!allowedOrigins.includes(origin)) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: cors });
     }
 
@@ -467,6 +577,7 @@ export default {
         backend: "appwrite",
         identityReady: true,
         memberProfilesReady: databaseReady(env),
+        pushReady: pushReady(env),
       }, 200, cors);
     }
 
@@ -482,6 +593,77 @@ export default {
         }, 200, cors);
       } catch {
         return json({ error: "identity_service_unavailable" }, 503, cors);
+      }
+    }
+
+
+    if (url.pathname.startsWith("/api/push/")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!pushReady(env)) return json({ error: "push_service_not_configured" }, 503, cors);
+        const base = pushBase(env);
+        const headers = pushHeaders(env);
+        if (url.pathname === "/api/push/key" && request.method === "GET") {
+          return json({ publicKey: env.VAPID_PUBLIC_KEY }, 200, cors);
+        }
+        if (url.pathname === "/api/push/status" && request.method === "GET") {
+          const rows = await pushRowsForUser(env, account.$id);
+          return json({ enabled: rows.length > 0, devices: rows.length }, 200, cors);
+        }
+        if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+          const length = Number(request.headers.get("content-length") || 0);
+          if (length > 16_000) return json({ error: "push_subscription_too_large" }, 413, cors);
+          const body = await request.json().catch(() => null) as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } } | null;
+          const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
+          const p256dh = typeof body?.keys?.p256dh === "string" ? body.keys.p256dh : "";
+          const auth = typeof body?.keys?.auth === "string" ? body.keys.auth : "";
+          if (!validPushEndpoint(endpoint) || !p256dh || p256dh.length > 256 || !auth || auth.length > 128) {
+            return json({ error: "invalid_push_subscription" }, 400, cors);
+          }
+          const rowId = (await sha256(`${account.$id}:${endpoint}`)).slice(0, 32);
+          const rowUrl = `${base}/${rowId}`;
+          const now = new Date().toISOString();
+          const data = { user_id: account.$id, endpoint, p256dh, auth, created_at: now, updated_at: now };
+          const prior = await fetch(rowUrl, { headers });
+          let saved: Response;
+          if (prior.ok) {
+            const existing = await prior.json() as PushRow;
+            if (existing.user_id !== account.$id) return json({ error: "push_subscription_ownership_mismatch" }, 403, cors);
+            saved = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { ...data, created_at: undefined }, permissions: [] }) });
+          } else if (prior.status === 404) {
+            saved = await fetch(base, { method: "POST", headers, body: JSON.stringify({ rowId, data, permissions: [] }) });
+          } else return json({ error: "push_subscription_lookup_failed" }, 503, cors);
+          if (!saved.ok) return json({ error: "push_subscription_save_failed" }, 503, cors);
+          return json({ saved: true }, 200, cors);
+        }
+        if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
+          const body = await request.json().catch(() => null) as { endpoint?: unknown } | null;
+          const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
+          if (!validPushEndpoint(endpoint)) return json({ error: "invalid_push_endpoint" }, 400, cors);
+          const rowId = (await sha256(`${account.$id}:${endpoint}`)).slice(0, 32);
+          const rowUrl = `${base}/${rowId}`;
+          const existing = await fetch(rowUrl, { headers });
+          if (existing.status === 404) return json({ removed: true }, 200, cors);
+          if (!existing.ok) return json({ error: "push_subscription_lookup_failed" }, 503, cors);
+          const row = await existing.json() as PushRow;
+          if (row.user_id !== account.$id) return json({ error: "push_subscription_ownership_mismatch" }, 403, cors);
+          const removed = await fetch(rowUrl, { method: "DELETE", headers });
+          if (!removed.ok && removed.status !== 204) return json({ error: "push_subscription_remove_failed" }, 503, cors);
+          return json({ removed: true }, 200, cors);
+        }
+        if (url.pathname === "/api/push/test" && request.method === "POST") {
+          const rows = await pushRowsForUser(env, account.$id);
+          if (!rows.length) return json({ error: "no_push_devices_registered" }, 409, cors);
+          const payload = { title: "SuperTech AI", body: "Push notifications are connected to this device.", tag: "supertech-push-test", url: "/" };
+          const results = await Promise.allSettled(rows.map(row => sendPushToRow(env, row, payload)));
+          const sent = results.filter(result => result.status === "fulfilled" && result.value === true).length;
+          if (!sent) return json({ error: "push_delivery_failed", devices: rows.length }, 502, cors);
+          return json({ sent, devices: rows.length }, 200, cors);
+        }
+        return json({ error: "push_route_not_found" }, 404, cors);
+      } catch {
+        return json({ error: "push_service_failed" }, 503, cors);
       }
     }
 
@@ -1134,7 +1316,8 @@ export default {
         if (!account) return json({ error: "unauthorized" }, 401, cors);
         const configured = env as BrokerEnv;
         if (!configured.CTRADER_GRANTS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.CTRADER_CLIENT_ID || !configured.CTRADER_CLIENT_SECRET || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "ctrader_discovery_not_configured" }, 503, cors);
-        const grantId = account.$id.replace(/-/g, "").slice(0, 32);\n        const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string } | null;
+        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
+        const grant = await appwriteRow(configured, configured.CTRADER_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string } | null;
         if (!grant || grant.user_id !== account.$id || !grant.encrypted_access_token) return json({ error: "ctrader_not_connected" }, 404, cors);
         const accessToken = await decryptBrokerToken(grant.encrypted_access_token, configured.BROKER_TOKEN_ENCRYPTION_KEY);
         const discovered: Array<{ accountId: string; isLive: boolean; traderLogin: string | null; broker: string; accountType: string | null; permissionScope: string }> = [];

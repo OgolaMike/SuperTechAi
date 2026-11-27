@@ -225,3 +225,30 @@ export function askIndependentAI(input: {
 }): Promise<{ answer: string; memorySaved: boolean }> {
   return authenticatedRequest('/api/ai/chat', { method: 'POST', body: JSON.stringify(input) });
 }
+
+
+export type IndependentPushSubscription = {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+};
+export function getIndependentPushPublicKey(): Promise<{ publicKey: string }> {
+  return authenticatedRequest<{ publicKey: string }>('/api/push/key');
+}
+export function getIndependentPushStatus(): Promise<{ enabled: boolean; devices: number }> {
+  return authenticatedRequest<{ enabled: boolean; devices: number }>('/api/push/status');
+}
+export function registerIndependentPushSubscription(subscription: IndependentPushSubscription): Promise<{ saved: boolean }> {
+  return authenticatedRequest<{ saved: boolean }>('/api/push/subscribe', {
+    method: 'POST', body: JSON.stringify(subscription),
+  });
+}
+export function removeIndependentPushSubscription(endpoint: string): Promise<{ removed: boolean }> {
+  return authenticatedRequest<{ removed: boolean }>('/api/push/unsubscribe', {
+    method: 'POST', body: JSON.stringify({ endpoint }),
+  });
+}
+export function sendIndependentPushTest(): Promise<{ sent: number; devices: number }> {
+  return authenticatedRequest<{ sent: number; devices: number }>('/api/push/test', {
+    method: 'POST', body: JSON.stringify({}),
+  });
+}

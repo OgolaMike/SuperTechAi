@@ -3,9 +3,9 @@ name: Independent Appwrite platform checks
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
+    branches: [main, feat/appwrite-ai-companion]
   push:
-    branches: [feat/appwrite-independent-platform-foundation]
+    branches: [feat/appwrite-independent-platform-foundation, fix/appwrite-push-notifications]
 
 permissions:
   contents: read
