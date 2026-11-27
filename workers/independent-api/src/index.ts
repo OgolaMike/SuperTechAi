@@ -1,5 +1,6 @@
 import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
 import { handleMembershipRequest, hasAutomationEntitlement } from "./membership";
+import { handleAlertPreferences } from "./preferences";
 
 export interface Env {
   APPWRITE_ENDPOINT: string;
@@ -13,6 +14,7 @@ export interface Env {
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
   PUSH_SUBSCRIPTIONS_TABLE_ID?: string;
+  ALERT_PREFERENCES_TABLE_ID?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
@@ -346,6 +348,16 @@ export default {
     if (url.pathname === "/api/company/owners") {
       const response = await handleCompanyOwnerRequest(request, env);
       if (response) return withCors(response, cors);
+    }
+    if (url.pathname === "/api/preferences/alerts") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const response = await handleAlertPreferences(request, env, account);
+        if (response) return withCors(response, cors);
+      } catch {
+        return json({ error: "alert_preferences_service_unavailable" }, 503, cors);
+      }
     }
     if (url.pathname.startsWith("/api/referrals/")) {
       try {
