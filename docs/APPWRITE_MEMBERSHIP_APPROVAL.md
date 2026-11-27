@@ -51,6 +51,7 @@ The approval panel explicitly reminds the company to confirm payment before sele
 
 - Membership rows use the Appwrite account ID as a deterministic row ID.
 - The browser cannot create, update, approve or change plan records.
+- Broker automation API routes independently check the approved `$500 Premium` entitlement in the Worker; hiding the automation navigation is not the only control.
 - The Worker authenticates the Appwrite JWT and checks the Genesis account ID for all administrative reads/writes.
 - Membership table permissions are empty; no client read/write grants are created.
 - The app fails closed if membership status cannot be checked.
