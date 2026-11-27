@@ -398,10 +398,10 @@ export default {
           u.searchParams.set("queries[]", JSON.stringify({ method: "equal", column, values: [value] }));
           const r = await fetch(u, { headers });
           if (!r.ok) throw new Error("referral_network_lookup_failed");
-          return (await r.json() as { rows?: Array<Record<string, any>> }).rows || [];
+          return (await r.json() as { rows?: Array<Record<string, string | number | boolean | null | undefined>> }).rows || [];
         };
         const mine = (await query("referred_user_id", account.$id)).find(x => x.row_type === "relationship");
-        const ownerId = mine?.team_owner_id || account.$id;
+        const ownerId = typeof mine?.team_owner_id === "string" ? mine.team_owner_id : account.$id;
         const teamRows = (await query("team_owner_id", ownerId)).filter(x => x.row_type === "relationship" && x.status === "active");
         const directRows = teamRows.filter(x => x.referrer_user_id === account.$id);
         return json({ teamOwnerId: ownerId, directCount: directRows.length, teamCount: teamRows.length, members: teamRows.slice(0, 500).map(x => ({ memberId: x.referred_user_id, sponsorId: x.referrer_user_id, role: x.role || "member", joinedAt: x.attributed_at || "" })) }, 200, cors);
@@ -424,14 +424,14 @@ export default {
           const r = await fetch(`${base}/${encodeURIComponent(id)}`, { headers });
           if (r.status === 404) return null;
           if (!r.ok) throw new Error("referral_lookup_failed");
-          return await r.json() as Record<string, any>;
+          return await r.json() as Record<string, string | number | boolean | null | undefined>;
         };
         const queryRows = async (column: string, value: string) => {
           const u = new URL(base);
           u.searchParams.set("queries[]", JSON.stringify({ method: "equal", column, values: [value] }));
           const r = await fetch(u, { headers });
           if (!r.ok) throw new Error("referral_lookup_failed");
-          return (await r.json() as { rows?: Array<Record<string, any>> }).rows || [];
+          return (await r.json() as { rows?: Array<Record<string, string | number | boolean | null | undefined>> }).rows || [];
         };
         if (url.pathname === "/api/referrals/me") {
           const rel = (await queryRows("referred_user_id", account.$id)).find(x => x.row_type === "relationship");
