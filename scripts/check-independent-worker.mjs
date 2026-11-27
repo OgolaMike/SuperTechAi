@@ -84,7 +84,7 @@ for (const [label, condition] of [
   ['payment submissions bind plan price on the server', payments.includes('standard_300:300,automation_500:500')],
   ['payment references cannot be reused', payments.includes('transaction_reference_already_submitted')],
   ['paid membership activates only after admin review', payments.includes('payment.status!=="pending"') && payments.includes('reviewed_by:account.$id')],
-  ['payment approval writes a financial ledger entry', payments.includes('entry_type:"membership_payment"')],
+  ['payment approval writes a financial ledger entry', payments.includes('entry_type:"membership_payment"') && payments.includes('const ledgerId=payment.$id') && payments.includes('payment_ledger_conflict')],
   ['member payment panel submits through independent Appwrite API', paymentPanel.includes('submitIndependentPayment(planCode,reference.trim())')],
   ['payment and ledger tables are configured', config.includes('PAYMENT_SUBMISSIONS_TABLE_ID = "payment_submissions"') && config.includes('FINANCIAL_LEDGER_TABLE_ID = "financial_ledger"')],
   ['Academy progress requires an authenticated Appwrite account', worker.includes('handleAcademyProgress(request, env, account)')],
