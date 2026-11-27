@@ -94,7 +94,7 @@ These are **schema proposals**, not claims that collections already exist. Creat
 ### Stage 4 — trading intelligence
 - Port each strategy as an independent evaluator.
 - Persist strategy outputs separately, then calculate confluence from those outputs.
-- Adopt the owner's current timeframe standard: lowest M30; supported timeframes must be multiples of 30 minutes, up to W1. Do not silently restore M1/M5/M15.
+- Adopt the owner's current 13-timeframe standard: M1, M5, M15, M30, H1, H2, H3, H4, H6, H8, H12, D1 and W1. M1/M5/M15 are confirmation layers; M30 remains the lowest strategy execution timeframe.
 - Verify deterministic results against known fixtures before live market feeds.
 
 ### Stage 5 — notifications, referrals, academy and finance
@@ -118,7 +118,7 @@ These are **schema proposals**, not claims that collections already exist. Creat
 - [ ] Appwrite collections, indexes and permissions are provisioned and tested.
 - [ ] Member/admin role boundaries pass negative tests.
 - [ ] Trading strategies persist independently and confluence is derived from them.
-- [ ] M30-based timeframe rules are enforced end-to-end.
+- [ ] All 13 analysis timeframes are enforced end-to-end; M1/M5/M15 remain confirmation-only for strategy execution.
 - [ ] Notifications, referrals, finance and academy pass their own parity tests.
 - [ ] Broker credentials are server-only and execution safety tests pass.
 - [ ] Cloudflare deployment uses only independent-platform environment variables and secrets.

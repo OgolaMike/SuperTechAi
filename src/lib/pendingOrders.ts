@@ -45,8 +45,8 @@ function makeLevels(direction: Direction, entry: number, deviation: number): Pic
 }
 
 /**
- * Creates pending-order ideas from the official ten-timeframe analysis set.
- * The primary trigger is always a confirmed M30 signal; no sub-M30 timing frames are used. It never
+ * Creates pending-order ideas from the official thirteen-timeframe analysis set.
+ * The primary trigger is always a confirmed M30 signal; M1/M5/M15 add confirmation only and never trigger orders. It never
  * requests or uses any timeframe outside TIMEFRAMES and never places an order.
  */
 export function buildPendingOrderIdeas(

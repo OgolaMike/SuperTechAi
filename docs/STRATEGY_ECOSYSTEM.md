@@ -9,7 +9,7 @@ SuperTechAI is a multi-strategy platform with two separate execution paths:
 
 ## Intelligence and strategy layers
 
-1. **Unified Multi-Timeframe Intelligence:** the coordination layer. H4 owns the primary signal; M30, H1, H2, H3, H4, H6, H8, H12, D1 and W1 contribute confirmation. It produces one coordinated direction per asset, not ten competing instructions.
+1. **Unified Multi-Timeframe Intelligence:** the coordination layer. H4 owns the primary signal; M1, M5, M15, M30, H1, H2, H3, H4, H6, H8, H12, D1 and W1 contribute confirmation. It produces one coordinated direction per asset, not thirteen competing instructions.
 2. **Pure Price Action:** reads candle bodies, wicks, swing highs/lows, structure and rejection independently of indicator calculations.
 3. **Market Structure SAR:** independent M30 setup using confirmed HH/HL or LL/LH structure, a Parabolic SAR flip and ATR protection. Current release is signal-only.
 4. **Break & Retest:** independent level-break and retest setup.

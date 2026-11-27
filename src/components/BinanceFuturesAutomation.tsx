@@ -132,7 +132,7 @@ export function BinanceFuturesAutomation() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Binance Futures automation</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Super Signal Futures Trader</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">A separate USDT-M Futures connection for Super Signals. The execution rule is ten-timeframe H4-led confirmation: all ten readings fresh, at least six of nine supporting frames aligned with H4, and no opposing directional reads; ordinary BUY/SELL signals and Spot automation do not qualify.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">A separate USDT-M Futures connection for Super Signals. The execution rule is thirteen-timeframe H4-led confirmation: all thirteen readings fresh, at least eight of twelve supporting frames aligned with H4, and no opposing directional reads; ordinary BUY/SELL signals and Spot automation do not qualify.</p>
         </div>
         <span className={`rounded-full border px-3 py-1 text-xs font-medium ${connected ? 'border-up/20 bg-up/10 text-up' : 'border-amber-400/20 bg-amber-400/10 text-amber-500'}`}>{connected ? 'Futures connected' : 'Not connected'}</span>
       </div>

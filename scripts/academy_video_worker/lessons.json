@@ -41,15 +41,15 @@
   {
     "id": "super",
     "title": "How Super Signal works",
-    "summary": "Understand how ten timeframes contribute to one final trading decision.",
+    "summary": "Understand how thirteen timeframes contribute to one final trading decision.",
     "objective": "Recognise a high-confluence alert and why confirmation still matters.",
     "steps": [
-      "Super Signal combines ten timeframe reads under one H4-led decision.",
-      "All ten readings must be fresh, at least six of the nine supporting frames must agree with H4, and none may oppose it. Neutral readings may remain.",
+      "Super Signal combines thirteen timeframe reads under one H4-led decision: M1, M5, M15, M30, H1, H2, H3, H4, H6, H8, H12, D1 and W1.",
+      "All thirteen readings must be fresh, at least eight of the twelve supporting frames must agree with H4, and none may oppose it. Neutral readings may remain.",
       "Review reversal context and the underlying chart before acting.",
       "If conditions change, wait for a fresh setup instead of chasing price."
     ],
-    "narration": "Super Signal uses one H4-led direction. M30 is the lowest permitted timeframe and W1 provides the broadest context. This agreement can provide stronger context than a single timeframe alone. It does not guarantee a successful trade. Check the chart, understand the broader move, and apply your risk plan."
+    "narration": "Super Signal uses one H4-led direction informed by thirteen timeframes, from M1 and M5 for short-term detail through D1 and W1 for broad market context. The three added short-term frames add diversification, not competing trade instructions. This agreement can provide stronger context than a single timeframe alone. It does not guarantee a successful trade. Check the chart, understand the broader move, and apply your risk plan."
   },
   {
     "id": "crypto",
