@@ -103,7 +103,7 @@ export const appwriteAccount = {
     return user;
   },
 
-  signOut: () => appwriteRequest<void>('/account/sessions/current', { method: 'DELETE'),
+  signOut: () => appwriteRequest<void>('/account/sessions/current', { method: 'DELETE' }),
   requestPasswordRecovery: (email: string) =>
     appwriteRequest('/account/recovery', { method: 'POST', body: { email: email.trim().toLowerCase(), url: callbackUrl('recovery') } }),
   completePasswordRecovery: (userId: string, secret: string, password: string) =>
