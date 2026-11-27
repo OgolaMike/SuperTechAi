@@ -3,6 +3,10 @@ import { Activity, BrainCircuit, CheckCircle2, Clock3, ShieldAlert, Sparkles } f
 import { TIMEFRAMES, isStale, type Asset, type TfState } from '@/lib/sma';
 import type { SuperSignal } from '@/lib/intelligence';
 import type { StopOrderIdea } from '@/lib/stopOrders';
+import { flattenSignals } from '@/lib/signals';
+import { buildIndependentStrategyAssessments } from '@/lib/independentStrategies';
+import type { StrategyAssessment } from '@/lib/strategyConfluence';
+import { formatDateTime } from '@/lib/sma';
 
 type Props = { assets: Asset[]; states: Record<string, Record<number, TfState>>; prices: Record<string, number>; superSignals: SuperSignal[]; pendingOrderIdeas: StopOrderIdea[]; loaded: boolean; nowEpoch: number; initialSymbol?: string };
 
@@ -19,6 +23,16 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
   const selectedState = assetStates[selectedTf.granularity];
   const h4 = assetStates[TIMEFRAMES.find((item) => item.label === 'H4')!.granularity];
   const h4Signal = h4?.latestSignal && !h4.latestSignal.outcome.closed ? h4.latestSignal : null;
+
+  const strategyAssessments = useMemo(() => buildIndependentStrategyAssessments(
+    assets, states, flattenSignals(assets, states), pendingOrderIdeas, superSignals, nowEpoch,
+  ), [assets, states, pendingOrderIdeas, superSignals, nowEpoch]);
+  const latestAssessment = (id: string): StrategyAssessment | undefined => strategyAssessments
+    .filter((item) => item.symbol === activeSymbol && item.strategyId === id)
+    .sort((a, b) => b.signalEpoch - a.signalEpoch)[0];
+  const assessmentStatus = (item?: StrategyAssessment) => !item
+    ? 'No fresh setup'
+    : `${item.status === 'SIGNAL' ? item.direction : item.status} · ${formatDateTime(item.signalEpoch)}`;
 
   const report = useMemo(() => {
     const reads = TIMEFRAMES.map((item) => {
@@ -79,13 +93,15 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
     <section className="rounded-3xl border border-line/15 bg-surface/[.035] p-5 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Strategy evidence</p><h2 className="mt-1 text-xl font-bold text-ink">Every timeframe, one picture</h2></div><p className="text-xs text-ink-3">Confirmed candles only · M30 minimum</p></div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">{report.reads.map((read) => <div key={read.label} className="rounded-xl border border-line/10 bg-surface/[.035] p-3"><div className="flex items-center justify-between"><span className="text-sm font-bold text-ink">{read.label}</span>{read.fresh ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Clock3 className="h-4 w-4 text-amber-300" />}</div><p className={`mt-2 text-sm font-semibold ${read.bias === 'Bullish' ? 'text-emerald-400' : read.bias === 'Bearish' ? 'text-rose-400' : 'text-ink-3'}`}>{read.bias}</p><p className="mt-1 text-[10px] text-ink-3">{read.fresh ? 'Fresh market read' : 'Unavailable / stale'}</p></div>)}</div>
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <Strategy name="SMA / Bollinger crossover" detail="Confirmed-candle crossover engine with entry, stop and target levels." status={h4Signal ? `H4 ${h4Signal.direction} trigger detected` : 'No active H4 trigger'} />
-        <Strategy name="Multi-timeframe Super Signal" detail="H4 primary direction checked against the supporting timeframe alignment rules." status={signal ? `Confirmed · ${signal.agreeing}/${signal.validReads} aligned` : 'Confirmation not complete'} />
-        <Strategy name="Break & Retest" detail="Confirmed break, return to the level and rejection confirmation." status="Strategy module available · detailed result not yet connected to this report" />
-        <Strategy name="Triple Top / Triple Bottom" detail="Three-touch reversal pattern with a defined invalidation zone." status="Strategy module available · detailed result not yet connected to this report" />
-        <Strategy name="Market Structure SAR" detail="Confirmed swing structure with a Parabolic SAR flip." status="Strategy module available · detailed result not yet connected to this report" />
-        <Strategy name="3H Wick Intelligence" detail="Wick rejection checked against its confirmation and protection rules." status="Strategy module available · detailed result not yet connected to this report" />
+        <Strategy name="SMA / Bollinger crossover" detail="Independent confirmed-candle crossover. The H4 trigger and its own outcome are shown separately from other engines." status={h4Signal ? `H4 ${h4Signal.direction} trigger · ${h4Signal.outcome.status}` : 'No active H4 trigger'} />
+        <Strategy name="Multi-timeframe Super Signal" detail="H4-led signal requiring fresh supporting timeframe agreement." status={signal ? `Confirmed · ${signal.agreeing}/${signal.validReads} aligned` : 'Confirmation not complete'} />
+        <Strategy name="Break & Retest" detail={latestAssessment('break-retest')?.reason ?? 'Independent confirmed break, retest and rejection scan.'} status={assessmentStatus(latestAssessment('break-retest'))} />
+        <Strategy name="Triple Top" detail={latestAssessment('triple-top')?.reason ?? 'Independent three-touch resistance setup; pending orders are not broker executions.'} status={assessmentStatus(latestAssessment('triple-top'))} />
+        <Strategy name="Triple Bottom" detail={latestAssessment('triple-bottom')?.reason ?? 'Independent three-touch support setup; pending orders are not broker executions.'} status={assessmentStatus(latestAssessment('triple-bottom'))} />
+        <Strategy name="Market Structure SAR" detail={latestAssessment('market-structure-sar')?.reason ?? 'Confirmed M30 swing structure and Parabolic SAR flip.'} status={assessmentStatus(latestAssessment('market-structure-sar'))} />
+        <Strategy name="3H Wick Intelligence" detail={latestAssessment('three-hour-wick')?.reason ?? 'H4 wick rejection requires a fresh Unified Signal confirmation.'} status={assessmentStatus(latestAssessment('three-hour-wick'))} />
       </div>
+      <p className="mt-4 text-[11px] leading-relaxed text-ink-3">These are live strategy assessments, not verified win rates. Historical performance requires a persisted, candle-by-candle outcome ledger; signal detection alone is not counted as a win or a broker fill.</p>
     </section>
   </main>;
 }
