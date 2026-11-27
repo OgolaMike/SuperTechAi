@@ -1,10 +1,10 @@
 {
   "database_id": "6b06e4d900325c304d98",
-  "table_id": "CREATE_AND_SET_REFERRAL_RELATIONSHIPS_TABLE_ID",
+  "table_id": "pending-provisioning",
   "name": "referral_relationships",
   "columns": [
     {"key":"row_type","type":"varchar","size":24,"required":true},
-    {"key":"referral_code","type":"varchar","size":32,"required":false},
+    {"key":"referral_code","type":"varchar","size":36,"required":false},
     {"key":"user_id","type":"varchar","size":36,"required":false},
     {"key":"referrer_user_id","type":"varchar","size":36,"required":false},
     {"key":"referred_user_id","type":"varchar","size":36,"required":false},
