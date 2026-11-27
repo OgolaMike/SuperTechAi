@@ -9,9 +9,9 @@ The independent Worker exposes authenticated routes:
 - `PUT /api/ai/profile` — save the goal and explicit memory opt-in.
 - `GET /api/ai/history` — load the member's saved conversation only when memory is enabled.
 - `DELETE /api/ai/history` — clear the authenticated member's saved conversation.
-- `POST /api/ai/chat` — generate a response using the configured OpenAI model.
+- `POST /api/ai/chat` — generate a response using xAI's Grok Responses API.
 
-Every route authenticates the Appwrite JWT and derives the member ID from the verified Appwrite account. The browser cannot supply a member ID or access another member's memory. Appwrite server credentials and the model API key remain Worker secrets.
+Every route authenticates the Appwrite JWT and derives the member ID from the verified Appwrite account. The browser cannot supply a member ID or access another member's memory. Appwrite server credentials and the Grok API key remain Worker secrets. Market context sent by the browser is treated as untrusted app-reported data.
 
 ## Memory and privacy
 
@@ -23,7 +23,7 @@ Every route authenticates the Appwrite JWT and derives the member ID from the ve
 
 ## AI behaviour
 
-The companion is designed to guide members across Dashboard, Signals, Analysis, Crypto, Deriv, Automation, Academy, Account and network/business areas. It must not claim it has placed trades, changed account settings, connected a broker or read balances unless the relevant verified result is supplied. App-reported signal context is not a broker execution receipt. The companion must not invent live prices, news or outcomes, promise returns, or recommend timeframes below M30.
+The companion is designed to guide members across Dashboard, Signals, Analysis, Crypto, Deriv, Automation, Academy, Account and network/business areas. It must not claim it has placed trades, changed account settings, connected a broker or read balances unless the relevant verified result is supplied. App-reported signal context is not a broker execution receipt. The companion must not invent live prices, news or outcomes, promise returns, or treat every timeframe as equally reliable. The current Super 13 set is M1, M5, M15, M30, H1, H2, H3, H4, H6, H8, H12, D1 and W1, with H4 as the primary direction timeframe.
 
 ## Required configuration before live use
 
@@ -34,4 +34,4 @@ The companion is designed to guide members across Dashboard, Signals, Analysis, 
 5. Deploy the independent Worker and verify the routes using a verified Appwrite test account.
 6. Verify both memory-on and memory-off flows, cross-account isolation, clear-history deletion, model timeout/rate-limit handling, and mobile layout.
 
-The AI API returns a clear unavailable response until its model key and required storage are configured. A Pages preview deployment alone does not deploy or configure this Worker.
+The AI API returns a clear unavailable response until its Grok key and required storage are configured. Grok uses the xAI Responses API, which is the recommended interface for new integrations. A Pages preview deployment alone does not deploy or configure this Worker.
