@@ -25,7 +25,7 @@ export function evaluateStrategyOutcome(assessment: StrategyAssessment, state: T
   if (!state || assessment.granularity == null || assessment.entry == null || assessment.stopLoss == null ||
       assessment.target == null || ![assessment.entry, assessment.stopLoss, assessment.target].every(Number.isFinite) ||
       assessment.entry <= 0 || assessment.stopLoss <= 0 || assessment.target <= 0) {
-    return { ...base, status: 'UNTRACKED', note: 'No complete strategy-owned entry, stop and target; excluded from performance.' };
+    return { ...base, status: 'UNTRACKED', note: assessment.entry != null && assessment.stopLoss != null && assessment.target == null ? 'This strategy uses a trailing or time-based exit, not a fixed target; no win-rate is inferred.' : 'No complete strategy-owned entry, stop and target; excluded from performance.' };
   }
   const risk = Math.abs(assessment.entry - assessment.stopLoss);
   const reward = assessment.direction === 'BUY' ? assessment.target - assessment.entry : assessment.entry - assessment.target;
