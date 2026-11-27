@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Activity, BrainCircuit, CheckCircle2, Clock3, ShieldAlert, Sparkles } from 'lucide-react';
 import { TIMEFRAMES, isStale, formatDateTime, type Asset, type TfState } from '@/lib/sma';
 import type { SuperSignal } from '@/lib/intelligence';
@@ -7,12 +7,15 @@ import { flattenSignals } from '@/lib/signals';
 import { buildIndependentStrategyAssessments } from '@/lib/independentStrategies';
 import type { StrategyAssessment } from '@/lib/strategyConfluence';
 import { evaluateStrategyOutcome, summarizeStrategyPerformance, type StrategyOutcome } from '@/lib/strategyOutcomes';
+import { appendIndependentStrategyOutcomeEvents, fetchIndependentStrategyOutcomeEvents } from '@/lib/independentApi';
 
 type Props = { assets: Asset[]; states: Record<string, Record<number, TfState>>; prices: Record<string, number>; superSignals: SuperSignal[]; pendingOrderIdeas: StopOrderIdea[]; loaded: boolean; nowEpoch: number; initialSymbol?: string };
 
 export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrderIdeas, loaded, nowEpoch, initialSymbol }: Props) {
   const [symbol, setSymbol] = useState(initialSymbol ?? assets[0]?.symbol ?? '');
   const [timeframe, setTimeframe] = useState('H4');
+  const [persistedOutcomes, setPersistedOutcomes] = useState<StrategyOutcome[]>([]);
+  const [historySync, setHistorySync] = useState<'loading' | 'synced' | 'local' | 'unavailable'>('loading');
   const asset = assets.find((item) => item.symbol === symbol) ?? assets[0];
   const activeSymbol = asset?.symbol ?? symbol;
   const assetStates = states[activeSymbol] ?? {};
@@ -38,8 +41,44 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
     .filter((item) => item.symbol === activeSymbol)
     .map((item) => evaluateStrategyOutcome(item, item.granularity == null ? undefined : assetStates[item.granularity], nowEpoch)),
   [strategyAssessments, activeSymbol, assetStates, nowEpoch]);
-  const performance = useMemo(() => summarizeStrategyPerformance(outcomes), [outcomes]);
-  const latestOutcome = (id: string): StrategyOutcome | undefined => outcomes
+  useEffect(() => {
+    let cancelled = false;
+    const events = outcomes.filter((item) => item.status !== 'UNTRACKED').map((item) => ({
+      event_key: [item.key, item.status, item.entryEpoch ?? 0, item.resolvedEpoch ?? 0].join('|'),
+      event_epoch: item.resolvedEpoch ?? item.entryEpoch ?? item.signalEpoch,
+      payload: item as unknown as Record<string, unknown>,
+    }));
+    (async () => {
+      try {
+        const remote = await fetchIndependentStrategyOutcomeEvents();
+        if (cancelled) return;
+        const history = remote.events
+          .filter((event) => event.payload && typeof event.payload === 'object')
+          .map((event) => event.payload as unknown as StrategyOutcome);
+        setPersistedOutcomes(history);
+        if (events.length) await appendIndependentStrategyOutcomeEvents(events);
+        if (cancelled) return;
+        setPersistedOutcomes((current) => {
+          const latest = new Map<string, StrategyOutcome>();
+          current.forEach((item) => latest.set(item.key, item));
+          outcomes.forEach((item) => { if (item.status !== 'UNTRACKED') latest.set(item.key, item); });
+          return [...latest.values()];
+        });
+        setHistorySync('synced');
+      } catch {
+        if (!cancelled) setHistorySync('unavailable');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [outcomes]);
+  const allOutcomes = useMemo(() => {
+    const latest = new Map<string, StrategyOutcome>();
+    persistedOutcomes.forEach((item) => latest.set(item.key, item));
+    outcomes.forEach((item) => latest.set(item.key, item));
+    return [...latest.values()];
+  }, [persistedOutcomes, outcomes]);
+  const performance = useMemo(() => summarizeStrategyPerformance(allOutcomes), [allOutcomes]);
+  const latestOutcome = (id: string): StrategyOutcome | undefined => allOutcomes
     .filter((item) => item.strategyId === id)
     .sort((a, b) => b.signalEpoch - a.signalEpoch)[0];
   const performanceText = (id: string) => {
@@ -119,7 +158,7 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
         <Strategy name="Market Structure SAR" detail={latestAssessment('market-structure-sar')?.reason ?? 'Confirmed M30 swing structure and Parabolic SAR flip.'} status={assessmentStatus(latestAssessment('market-structure-sar'))} performance={performanceText('market-structure-sar')} outcome={outcomeText('market-structure-sar')} />
         <Strategy name="3H Wick Intelligence" detail={latestAssessment('three-hour-wick')?.reason ?? 'H4 wick rejection requires a fresh Unified Signal confirmation.'} status={assessmentStatus(latestAssessment('three-hour-wick'))} performance={performanceText('three-hour-wick')} outcome={outcomeText('three-hour-wick')} />
       </div>
-      <p className="mt-4 text-[11px] leading-relaxed text-ink-3">Performance is replayed from the confirmed candles currently available on this device. Stop is counted first when stop and target touch in the same candle. Open and unfilled setups are excluded from win rate. These are simulated candle outcomes, not persisted cross-device history or broker fills.</p>
+      <p className="mt-4 text-[11px] leading-relaxed text-ink-3">Performance uses confirmed-candle replay plus the member's Appwrite outcome-event history when the strategy outcome table is configured. Stop is counted first when stop and target touch in the same candle. Open and unfilled setups are excluded from win rate. These are simulated candle outcomes, never broker fills. ${historySync === 'synced' ? 'History sync connected.' : historySync === 'unavailable' ? 'History sync unavailable; showing this device’s candle history only.' : 'Connecting outcome history…'}</p>
     </section>
   </main>;
 }
