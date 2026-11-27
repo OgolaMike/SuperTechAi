@@ -17,7 +17,7 @@ const PRIMARY: NavItem[] = [
   { id: 'deriv-market', label: 'Deriv Market', mobileLabel: 'Deriv', icon: Activity },
   { id: 'exchange-markets', label: 'Exchange Markets', mobileLabel: 'Exchanges', icon: BarChart3 },
   { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot },
-  { id: 'referrals', label: 'Account', icon: UserRoundPlus },
+  { id: 'referrals', label: 'Members Area', mobileLabel: 'Members', icon: UserRoundPlus },
 ];
 
 const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
