@@ -1070,6 +1070,70 @@ export default {
       }, 200, cors);
     }
 
+    if (url.pathname === "/api/market/crypto-movers" && request.method === "GET") {
+      const providers = [
+        {
+          name: "binance",
+          load: async () => {
+            const hosts = ["https://data-api.binance.vision", "https://api.binance.com", "https://api1.binance.com", "https://api2.binance.com"];
+            let lastError: unknown = null;
+            for (const host of hosts) {
+              try {
+                const response = await fetch(host + "/api/v3/ticker/24hr", { headers: { accept: "application/json" }, signal: AbortSignal.timeout(7000) });
+                if (!response.ok) throw new Error("provider_http_" + response.status);
+                const rows = await response.json() as Array<{ symbol: string; openPrice: string; lastPrice: string; priceChangePercent: string; quoteVolume: string }>;
+                if (!Array.isArray(rows)) throw new Error("invalid_provider_payload");
+                return rows.map(row => ({ symbol: row.symbol, open: Number(row.openPrice), close: Number(row.lastPrice), changePct: Number(row.priceChangePercent), quoteVolume: Number(row.quoteVolume) }));
+              } catch (error) { lastError = error; }
+            }
+            throw lastError || new Error("binance_unavailable");
+          },
+        },
+        {
+          name: "bybit",
+          load: async () => {
+            const response = await fetch("https://api.bybit.com/v5/market/tickers?category=spot", { headers: { accept: "application/json" }, signal: AbortSignal.timeout(7000) });
+            if (!response.ok) throw new Error("provider_http_" + response.status);
+            const payload = await response.json() as { retCode: number; result?: { list?: Array<{ symbol: string; prevPrice24h: string; lastPrice: string; price24hPcnt: string; turnover24h: string }> } };
+            if (payload.retCode !== 0 || !Array.isArray(payload.result?.list)) throw new Error("invalid_provider_payload");
+            return payload.result.list.map(row => ({ symbol: row.symbol, open: Number(row.prevPrice24h), close: Number(row.lastPrice), changePct: Number(row.price24hPcnt) * 100, quoteVolume: Number(row.turnover24h) }));
+          },
+        },
+        {
+          name: "okx",
+          load: async () => {
+            const response = await fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT", { headers: { accept: "application/json" }, signal: AbortSignal.timeout(7000) });
+            if (!response.ok) throw new Error("provider_http_" + response.status);
+            const payload = await response.json() as { code: string; data?: Array<{ instId: string; open24h: string; last: string; volCcy24h: string; vol24h: string }> };
+            if (payload.code !== "0" || !Array.isArray(payload.data)) throw new Error("invalid_provider_payload");
+            return payload.data.map(row => ({ symbol: row.instId.replace("-", ""), open: Number(row.open24h), close: Number(row.last), changePct: Number(row.open24h) > 0 ? (Number(row.last) / Number(row.open24h) - 1) * 100 : NaN, quoteVolume: Number(row.volCcy24h) || Number(row.vol24h) * Number(row.last) }));
+          },
+        },
+      ];
+      const excluded = new Set(["USDC", "USDT", "BUSD", "TUSD", "FDUSD", "DAI", "USDP", "EUR", "GBP", "AEUR", "PAXG"]);
+      const failures: string[] = [];
+      for (const provider of providers) {
+        try {
+          const raw = await provider.load();
+          const movers = raw.filter(row => {
+            if (!row.symbol.endsWith("USDT")) return false;
+            const base = row.symbol.slice(0, -4);
+            return base.length > 1 && !excluded.has(base) && !/(UP|DOWN|BULL|BEAR)$/.test(base)
+              && row.open > 0 && row.close > 0 && Number.isFinite(row.changePct) && row.quoteVolume > 0;
+          }).sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, 200)
+            .map((row, index) => ({ ...row, base: row.symbol.slice(0, -4), volumeRank: index + 1 }));
+          if (movers.length < 10) throw new Error("insufficient_valid_markets");
+          return json({ provider: provider.name, updatedAt: new Date().toISOString(), marketDay: "rolling_24h", movers }, 200, {
+            ...cors,
+            "cache-control": "public, max-age=10, stale-while-revalidate=20",
+          });
+        } catch (error) {
+          failures.push(provider.name + ":" + (error instanceof Error ? error.message : "unavailable"));
+        }
+      }
+      return json({ error: "all_market_providers_unavailable", providers: failures, staleData: false }, 503, cors);
+    }
+
     return json({ error: "not_found" }, 404, cors);
   },
 };
