@@ -6,6 +6,7 @@ export interface Env {
   SIGNAL_RECORDS_TABLE_ID?: string;
   ALERT_PREFERENCES_TABLE_ID?: string;
   SUPER_SIGNAL_RECORDS_TABLE_ID?: string;
+  STRATEGY_OUTCOME_EVENTS_TABLE_ID?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
 }
@@ -592,6 +593,74 @@ export default {
         return json({ saved: body.records.length }, 200, cors);
       } catch { return json({ error: "super_signal_history_failed" }, 503, cors); }
     }
+
+    if (url.pathname === "/api/strategy-outcomes" && (request.method === "GET" || request.method === "POST")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const tableId = env.STRATEGY_OUTCOME_EVENTS_TABLE_ID;
+        if (!tableId || !env.APPWRITE_API_KEY) return json({ error: "strategy_outcome_storage_not_configured" }, 503, cors);
+        const base = env.APPWRITE_ENDPOINT.replace(/\\/$/, "") + "/tablesdb/" + env.APPWRITE_DATABASE_ID + "/tables/" + tableId + "/rows";
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
+        if (request.method === "GET") {
+          const target = new URL(base);
+          target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
+          target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", column: "event_epoch" }));
+          target.searchParams.set("limit", "500");
+          const response = await fetch(target, { headers });
+          if (!response.ok) return json({ error: "strategy_outcome_history_read_failed" }, 503, cors);
+          const result = await response.json() as { rows?: Array<Record<string, unknown>> };
+          const events = (result.rows || []).filter(row => row.user_id === account.$id).flatMap(row => {
+            try {
+              const payload = JSON.parse(String(row.payload_json || ""));
+              if (!payload || typeof payload !== "object") return [];
+              return [{ event_epoch: Number(row.event_epoch), payload }];
+            } catch { return []; }
+          });
+          return json({ events }, 200, cors);
+        }
+        if (Number(request.headers.get("content-length") || 0) > 256_000) return json({ error: "strategy_outcome_batch_too_large" }, 413, cors);
+        const body = await request.json().catch(() => null) as { events?: Array<Record<string, unknown>> } | null;
+        if (!body || !Array.isArray(body.events) || body.events.length < 1 || body.events.length > 50) return json({ error: "invalid_strategy_outcome_batch" }, 400, cors);
+        const statuses = ["WAITING ENTRY", "OPEN", "TARGET HIT", "STOP HIT", "EXPIRED"];
+        let saved = 0;
+        for (const event of body.events) {
+          const payload = event.payload;
+          const eventKey = typeof event.event_key === "string" ? event.event_key : "";
+          const eventEpoch = Number(event.event_epoch);
+          if (!payload || typeof payload !== "object" || eventKey.length < 1 || eventKey.length > 320 ||
+              !Number.isSafeInteger(eventEpoch) || eventEpoch <= 0 || eventEpoch > Date.now() / 1000 + 60) return json({ error: "invalid_strategy_outcome_event" }, 400, cors);
+          const item = payload as Record<string, unknown>;
+          if (typeof item.key !== "string" || item.key.length > 320 ||
+              typeof item.strategyId !== "string" || !/^[a-z0-9-]{1,80}$/i.test(item.strategyId) ||
+              typeof item.symbol !== "string" || item.symbol.length < 1 || item.symbol.length > 64 ||
+              typeof item.timeframe !== "string" || item.timeframe.length > 8 ||
+              !Number.isSafeInteger(item.signalEpoch) || Number(item.signalEpoch) <= 0 ||
+              !statuses.includes(String(item.status))) return json({ error: "invalid_strategy_outcome_payload" }, 400, cors);
+          const payloadJson = JSON.stringify(item);
+          if (payloadJson.length > 8_000) return json({ error: "strategy_outcome_payload_too_large" }, 413, cors);
+          const rowId = (await sha256(account.$id + "|" + eventKey)).slice(0, 32);
+          const rowUrl = base + "/" + encodeURIComponent(rowId);
+          const existing = await fetch(rowUrl, { headers });
+          if (existing.ok) {
+            const prior = await existing.json() as { user_id?: string };
+            if (prior.user_id !== account.$id) return json({ error: "strategy_outcome_ownership_mismatch" }, 403, cors);
+            continue;
+          }
+          if (existing.status !== 404) return json({ error: "strategy_outcome_idempotency_check_failed" }, 503, cors);
+          const create = await fetch(base, { method: "POST", headers, body: JSON.stringify({
+            rowId, data: { user_id: account.$id, event_key: eventKey, outcome_key: item.key,
+              strategy_id: item.strategyId, symbol: item.symbol, timeframe: item.timeframe,
+              signal_epoch: item.signalEpoch, event_epoch: eventEpoch, status: item.status,
+              payload_json: payloadJson, created_at: new Date().toISOString() }, permissions: [],
+          }) });
+          if (!create.ok && create.status !== 409) return json({ error: "strategy_outcome_event_create_failed" }, 503, cors);
+          saved++;
+        }
+        return json({ saved }, 200, cors);
+      } catch { return json({ error: "strategy_outcome_history_failed" }, 503, cors); }
+    }
+
     if (url.pathname === "/api/signals" && request.method === "GET") {
       try {
         const account = await authenticate(request, env);
