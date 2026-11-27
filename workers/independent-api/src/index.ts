@@ -385,6 +385,31 @@ export default {
 
 
 
+    if (url.pathname === "/api/referrals/network" && request.method === "GET") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "verified_account_required" }, 401, cors);
+        const tableId = env.REFERRAL_RELATIONSHIPS_TABLE_ID;
+        if (!tableId || !env.APPWRITE_API_KEY) return json({ error: "referrals_not_configured" }, 503, cors);
+        const base = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${tableId}/rows`;
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY };
+        const query = async (column: string, value: string) => {
+          const u = new URL(base);
+          u.searchParams.set("queries[]", JSON.stringify({ method: "equal", column, values: [value] }));
+          const r = await fetch(u, { headers });
+          if (!r.ok) throw new Error("referral_network_lookup_failed");
+          return (await r.json() as { rows?: Array<Record<string, any>> }).rows || [];
+        };
+        const mine = (await query("referred_user_id", account.$id)).find(x => x.row_type === "relationship");
+        const ownerId = mine?.team_owner_id || account.$id;
+        const teamRows = (await query("team_owner_id", ownerId)).filter(x => x.row_type === "relationship" && x.status === "active");
+        const directRows = teamRows.filter(x => x.referrer_user_id === account.$id);
+        return json({ teamOwnerId: ownerId, directCount: directRows.length, teamCount: teamRows.length, members: teamRows.slice(0, 500).map(x => ({ memberId: x.referred_user_id, sponsorId: x.referrer_user_id, role: x.role || "member", joinedAt: x.attributed_at || "" })) }, 200, cors);
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : "referral_network_failed" }, 503, cors);
+      }
+    }
+
     // Referral codes and sponsor attribution are server-owned.
     if ((url.pathname === "/api/referrals/me" && request.method === "GET") ||
         ((url.pathname === "/api/referrals/activate" || url.pathname === "/api/referrals/attribute") && request.method === "POST")) {
