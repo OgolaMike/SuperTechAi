@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { SignalLearningModel } from '@/lib/aiLearning';
-import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, BellRing, BarChart3, BrainCircuit, CircleDot, Compass, Wallet, VolumeX } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
@@ -26,6 +26,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
   const totalSignals = unifiedSignal ? 1 : 0;
 
   const shortcuts: { label: string; detail: string; view: View; icon: typeof Compass }[] = [
+    { label: 'AI Asset Analysis', detail: 'Get a complete trading decision', view: 'analysis', icon: BrainCircuit },
     { label: 'All signals', detail: 'Explore every timeframe', view: 'records', icon: BarChart3 },
     { label: 'Crypto markets', detail: 'Movers and opportunities', view: 'crypto', icon: Compass },
     { label: 'Trading accounts', detail: 'Connect or manage trading', view: 'binance', icon: CircleDot },
