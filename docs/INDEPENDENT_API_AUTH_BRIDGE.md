@@ -69,3 +69,18 @@ The profile API is not an entitlement or role API. It cannot grant paid access, 
 - Events are append-only and idempotent: the event key includes the outcome identity, lifecycle status, entry epoch and resolution epoch. A repeated event is treated as already stored; existing event rows are never updated.
 - Configure `STRATEGY_OUTCOME_EVENTS_TABLE_ID` only after creating the table from `appwrite/schema/strategy-outcome-events.table.json`, enabling row security, and confirming no client permissions.
 - These are browser-replayed simulations from confirmed closed market candles, explicitly labelled `browser_candle_replay`. The Worker validates event shape and ownership but does not independently fetch/replay candles, so this history is not tamper-proof research data, broker fills, realized account P/L, or proof of live execution. The route fails closed with `503 strategy_outcome_storage_not_configured` until configured.
+
+## Appwrite notification setup and release gate
+
+The independent frontend now registers Web Push subscriptions through the authenticated Appwrite Worker; it no longer calls the legacy Supabase push function. Alert modes are read and written through the member-authenticated `/api/alert-preferences` Worker routes. Both data stores are Worker-only and must have no client permissions.
+
+Before enabling cloud sync or push on a live deployment:
+
+1. Create the `alert_preferences` and `push_subscriptions` tables in Appwrite using the definitions in `appwrite/schema/member-access.tables.json`. Enable row security, create the listed indexes, and leave all client permissions empty. The preference row ID is the verified Appwrite user ID; push subscription row IDs are deterministic hashes.
+2. Verify the actual table IDs and set Worker variables `ALERT_PREFERENCES_TABLE_ID` and `PUSH_SUBSCRIPTIONS_TABLE_ID`. Do not leave either blank.
+3. Create a narrowly scoped Appwrite API key for the Worker database row operations and store it as the Cloudflare Worker secret `APPWRITE_API_KEY`. Never add it to Pages variables, source files or `wrangler.toml`.
+4. Generate a matching VAPID key pair. Set `VAPID_PUBLIC_KEY` and `VAPID_SUBJECT` as Worker variables, and `VAPID_PRIVATE_KEY` as a Worker secret. The public and private keys must be from the same pair.
+5. Set `VITE_INDEPENDENT_API_URL` in the Appwrite Pages project to this Worker URL, deploy the Worker and Pages preview, then verify health, preference GET/PUT, push subscribe/status/unsubscribe and the push test route with two separate test accounts.
+6. Confirm a member cannot read another member's preference row or push subscription, and that the browser bundle contains no Supabase imports or credentials.
+
+**Release limitation:** the current Worker has a manual push-test route. Automated market/business event fan-out while the browser is closed is not complete because the independent backend does not yet own the live signal/event producer. Do not describe background event push as production-ready until the producer and its event-to-category/asset filtering are connected and tested. Browser-local sounds and in-app bubbles remain separate from server push delivery.

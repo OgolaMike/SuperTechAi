@@ -209,7 +209,8 @@
     "Signal history is stored per member through the authenticated Worker; the proposed signal_records table remains uncreated until Appwrite schema provisioning is verified.",
     "Alert preferences are synced through the authenticated Worker and stored in a Worker-only proposed table; client-side fallback remains enabled until schema provisioning is complete.",
     "cTrader account discovery uses the Open API JSON WebSocket protocol. The grant row stores only the user's authorized account metadata and selected account ID; access and refresh tokens remain encrypted.",
-    "Provision super_signal_records with Worker-only access and set SUPER_SIGNAL_RECORDS_TABLE_ID before cross-device Super Signal history sync can operate."
+    "Provision super_signal_records with Worker-only access and set SUPER_SIGNAL_RECORDS_TABLE_ID before cross-device Super Signal history sync can operate.",
+    "Push subscriptions are stored in the proposed push_subscriptions table with empty client permissions; create and verify the table, index and row security before enabling push delivery."
   ],
   "proposedTables": [
     {
@@ -614,6 +615,61 @@
           ]
         }
       ]
+    },
+    {
+      "name": "push_subscriptions",
+      "id": null,
+      "status": "not_created_worker_only",
+      "rowSecurity": true,
+      "clientPermissions": [],
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "varchar",
+          "size": 36,
+          "required": true
+        },
+        {
+          "key": "endpoint",
+          "type": "varchar",
+          "size": 2048,
+          "required": true
+        },
+        {
+          "key": "p256dh",
+          "type": "varchar",
+          "size": 128,
+          "required": true
+        },
+        {
+          "key": "auth",
+          "type": "varchar",
+          "size": 64,
+          "required": true
+        },
+        {
+          "key": "created_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        },
+        {
+          "key": "updated_at",
+          "type": "varchar",
+          "size": 40,
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "push_subscriptions_user_id",
+          "type": "key",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ],
+      "security": "Appwrite API-key/Worker only; no client permissions"
     }
   ]
 }

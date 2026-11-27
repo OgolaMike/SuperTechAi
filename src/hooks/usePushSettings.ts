@@ -7,6 +7,7 @@ import type { AlertModeSettings } from '@/lib/alertPreferences';
 
 const PREFS_STORAGE_KEY = 'supertech-push-prefs';
 export type PushStatus = 'checking' | 'unsupported' | 'blocked' | 'off' | 'on' | 'working';
+
 function loadPrefs(): PushPrefs {
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_STORAGE_KEY) ?? 'null');
@@ -19,45 +20,67 @@ function loadPrefs(): PushPrefs {
   } catch { /* use defaults */ }
   return DEFAULT_PUSH_PREFS;
 }
+
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong';
+
 export function usePushSettings() {
   const [status, setStatus] = useState<PushStatus>('checking');
   const [prefs, setPrefs] = useState<PushPrefs>(loadPrefs);
   const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isPushSupported()) { setStatus('unsupported'); return; }
     if (Notification.permission === 'denied') { setStatus('blocked'); return; }
+
     let cancelled = false;
-    getActiveSubscription().then(async (subscription) => {
+    void getActiveSubscription().then(async (subscription) => {
       if (cancelled) return;
       if (!subscription) { setStatus('off'); return; }
-      setStatus('on'); await refreshPush(loadPrefs());
-    }).catch((err: unknown) => { if (!cancelled) setError(errorText(err)); });
+      // Re-register the browser endpoint with the authenticated Appwrite Worker
+      // after login so a device remains linked to the correct member account.
+      await refreshPush(loadPrefs());
+      if (!cancelled) setStatus('on');
+    }).catch((err: unknown) => {
+      if (!cancelled) {
+        setError(errorText(err));
+        setStatus('off');
+      }
+    });
     return () => { cancelled = true; };
   }, []);
+
   const enable = async () => {
     setStatus('working'); setError(null);
     try { await enablePush(prefs); setStatus('on'); }
-    catch (err) { setError(errorText(err)); setStatus(isPushSupported() && Notification.permission === 'denied' ? 'blocked' : 'off'); }
+    catch (err) {
+      setError(errorText(err));
+      setStatus(isPushSupported() && Notification.permission === 'denied' ? 'blocked' : 'off');
+    }
   };
+
   const disable = async () => {
     setStatus('working'); setError(null);
     try { await disablePush(); setStatus('off'); }
     catch (err) { setError(errorText(err)); setStatus('on'); }
   };
+
   const savePrefs = async (next: PushPrefs) => {
-    setPrefs(next); localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(next));
+    setPrefs(next);
+    localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(next));
     window.dispatchEvent(new Event('supertech-push-prefs-changed'));
     if (status !== 'on') return;
     setError(null);
-    try { await refreshPush(next); } catch (err) { setError(errorText(err)); }
+    try { await refreshPush(next); }
+    catch (err) { setError(errorText(err)); }
   };
+
   const updatePref = (key: BoolPrefKey, value: boolean) => savePrefs({ ...prefs, [key]: value });
   const updateAllPrefs = (enabled: boolean) => savePrefs({
     ...prefs, signals: enabled, targets: enabled, stops: enabled, limitOrders: enabled,
     pendingOrders: enabled, superSignals: enabled, income: enabled, business: enabled,
   });
   const updateSymbols = (symbols: string[] | null) => savePrefs({ ...prefs, symbols });
+
   const saveAlertControls = (settings: AlertModeSettings, availableSymbols: string[]) => {
     const fullAssets = availableSymbols.filter((symbol) => (settings.assets[symbol] ?? settings.defaultAssetMode) === 'full');
     const allAssetsFull = availableSymbols.length > 0 && fullAssets.length === availableSymbols.length;
@@ -74,5 +97,6 @@ export function usePushSettings() {
       symbols: allAssetsFull ? null : fullAssets,
     });
   };
+
   return { status, prefs, error, enable, disable, updatePref, updateAllPrefs, updateSymbols, saveAlertControls };
 }
