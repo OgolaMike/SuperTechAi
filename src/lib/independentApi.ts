@@ -226,3 +226,8 @@ export function getIndependentAcademyProgress(): Promise<{ lessons: IndependentA
 export function saveIndependentAcademyProgress(lessonId: string, progress: number): Promise<IndependentAcademyProgress> {
   return authenticatedRequest('/api/academy/progress', { method: 'PUT', body: JSON.stringify({ lessonId, progress }) });
 }
+
+export type IndependentLedgerEntry = { type: string; amount: number; currency: string; referenceId: string; status: string; createdAt: string };
+export function getIndependentFinancialLedger(): Promise<{ entries: IndependentLedgerEntry[] }> {
+  return authenticatedRequest('/api/finance/ledger');
+}
