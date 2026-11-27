@@ -1,5 +1,3 @@
-import webpush from "web-push";
-
 export interface Env {
   APPWRITE_ENDPOINT: string;
   APPWRITE_PROJECT_ID: string;
@@ -483,23 +481,82 @@ async function pushRowsForUser(env: Env, userId: string): Promise<PushRow[]> {
   const result = await response.json() as { rows?: PushRow[] };
   return Array.isArray(result.rows) ? result.rows.filter(row => row.user_id === userId) : [];
 }
+function pushB64Url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+}
+function pushFromB64Url(value: string): Uint8Array {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return Uint8Array.from(atob(padded), char => char.charCodeAt(0));
+}
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const output = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of parts) { output.set(part, offset); offset += part.length; }
+  return output;
+}
+async function hmacSha256(keyBytes: Uint8Array, value: Uint8Array): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, value));
+}
+async function hkdf(secret: Uint8Array, input: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey("raw", input, "HKDF", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt: secret, info }, key, length * 8));
+}
+async function vapidAuthorization(endpoint: URL, env: Env): Promise<string> {
+  const publicKey = pushFromB64Url(env.VAPID_PUBLIC_KEY || "");
+  const privateKey = pushFromB64Url(env.VAPID_PRIVATE_KEY || "");
+  if (publicKey.length !== 65 || publicKey[0] !== 4 || privateKey.length !== 32) throw new Error("invalid_vapid_key_pair");
+  const jwk = {
+    kty: "EC", crv: "P-256", x: pushB64Url(publicKey.slice(1, 33)),
+    y: pushB64Url(publicKey.slice(33, 65)), d: pushB64Url(privateKey), ext: true,
+  };
+  const key = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const header = pushB64Url(new TextEncoder().encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
+  const payload = pushB64Url(new TextEncoder().encode(JSON.stringify({
+    aud: endpoint.origin, exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60, sub: env.VAPID_SUBJECT,
+  })));
+  const signingInput = `${header}.${payload}`;
+  const signature = new Uint8Array(await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(signingInput),
+  ));
+  return `vapid t=${signingInput}.${pushB64Url(signature)}, k=${env.VAPID_PUBLIC_KEY}`;
+}
 async function sendPushToRow(env: Env, row: PushRow, payload: Record<string, unknown>): Promise<void> {
   if (!pushReady(env)) throw new Error("push_service_not_configured");
-  webpush.setVapidDetails(env.VAPID_SUBJECT!, env.VAPID_PUBLIC_KEY!, env.VAPID_PRIVATE_KEY!);
-  try {
-    await webpush.sendNotification(
-      { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
-      JSON.stringify(payload),
-      { TTL: 90, urgency: "high" },
-    );
-  } catch (error) {
-    const status = Number((error as { statusCode?: number }).statusCode || 0);
-    if (status === 404 || status === 410) {
-      await fetch(`${pushBase(env)}/${encodeURIComponent(row.$id)}`, { method: "DELETE", headers: pushHeaders(env) });
-      return;
-    }
-    throw error;
+  const endpoint = new URL(row.endpoint);
+  if (!validPushEndpoint(row.endpoint)) throw new Error("invalid_push_endpoint");
+  const userPublicKey = pushFromB64Url(row.p256dh);
+  const authSecret = pushFromB64Url(row.auth);
+  if (userPublicKey.length !== 65 || authSecret.length !== 16) throw new Error("invalid_push_subscription_keys");
+
+  const ephemeral = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const ephemeralPublic = new Uint8Array(await crypto.subtle.exportKey("raw", ephemeral.publicKey));
+  const subscriberKey = await crypto.subtle.importKey("raw", userPublicKey, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: subscriberKey }, ephemeral.privateKey, 256));
+  const info = concatBytes(new TextEncoder().encode("WebPush: info\\0"), userPublicKey, ephemeralPublic);
+  const inputKeyMaterial = await hkdf(authSecret, sharedSecret, info, 32);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const contentKey = await hkdf(salt, inputKeyMaterial, new TextEncoder().encode("Content-Encoding: aes128gcm\\0"), 16);
+  const nonce = await hkdf(salt, inputKeyMaterial, new TextEncoder().encode("Content-Encoding: nonce\\0"), 12);
+  const aesKey = await crypto.subtle.importKey("raw", contentKey, { name: "AES-GCM" }, false, ["encrypt"]);
+  const plaintext = concatBytes(new TextEncoder().encode(JSON.stringify(payload)), new Uint8Array([2]));
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aesKey, plaintext));
+  const recordSize = new Uint8Array([0, 0, 16, 0]);
+  const body = concatBytes(salt, recordSize, new Uint8Array([ephemeralPublic.length]), ephemeralPublic, ciphertext);
+  const authorization = await vapidAuthorization(endpoint, env);
+  const response = await fetch(endpoint.toString(), {
+    method: "POST",
+    headers: {
+      Authorization: authorization, "Content-Encoding": "aes128gcm",
+      "Content-Type": "application/octet-stream", TTL: "90", Urgency: "high",
+    },
+    body,
+  });
+  if (response.status === 404 || response.status === 410) {
+    await fetch(`${pushBase(env)}/${encodeURIComponent(row.$id)}`, { method: "DELETE", headers: pushHeaders(env) });
+    return;
   }
+  if (!response.ok) throw new Error(`push_provider_rejected_${response.status}`);
 }
 
 export default {
