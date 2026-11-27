@@ -14,6 +14,7 @@ const preferences = fs.readFileSync(path.join(root, 'workers/independent-api/src
 const signalHistory = fs.readFileSync(path.join(root, 'workers/independent-api/src/signalHistory.ts'), 'utf8');
 const payments = fs.readFileSync(path.join(root, 'workers/independent-api/src/payments.ts'), 'utf8');
 const academy = fs.readFileSync(path.join(root, 'workers/independent-api/src/academy.ts'), 'utf8');
+const financePanel = fs.readFileSync(path.join(root, 'src/components/IndependentFinancePanel.tsx'), 'utf8');
 const academyClient = fs.readFileSync(path.join(root, 'src/lib/independentApi.ts'), 'utf8');
 const paymentPanel = fs.readFileSync(path.join(root, 'src/components/MembershipPaymentsPanel.tsx'), 'utf8');
 const signalRecordsClient = fs.readFileSync(path.join(root, 'src/lib/signalRecords.ts'), 'utf8');
@@ -91,6 +92,8 @@ for (const [label, condition] of [
   ['Academy progress is validated from zero to one hundred percent', academy.includes('body.progress<0||body.progress>100')],
   ['Academy progress client uses independent API', academyClient.includes("'/api/academy/progress'")],
   ['Academy progress table is configured', config.includes('ACADEMY_PROGRESS_TABLE_ID = "academy_progress"')],
+  ['financial ledger endpoint filters by authenticated member ID', payments.includes('attribute:"user_id",values:[account.$id]') && payments.includes('row.user_id===account.$id')],
+  ['member finance screen uses independent Appwrite ledger API', financePanel.includes('getIndependentFinancialLedger()')],
   ['independent terminal hydrates alert preferences from Appwrite', independentTerminal.includes('getIndependentAlertPreferences()')],
   ['independent terminal persists alert preference changes to Appwrite', independentTerminal.includes('updateIndependentAlertPreferences({') && independentTerminal.includes("supertech-alert-controls-changed")],
 ]) {
