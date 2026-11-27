@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Clock3, Info } from 'lucide-react';
 import { buildStopOrderIdeas, mergeTrackedStopOrders, type StopOrderIdea } from '@/lib/stopOrders';
 import { LevelList } from '@/components/SignalParts';
-import { PendingOrderChart } from '@/components/PendingOrderChart';
+import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
 import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import type { SignalLearningModel } from '@/lib/aiLearning';
 import { TIMEFRAMES, type Asset } from '@/lib/sma';
@@ -60,7 +60,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Pure price-action · all assets · all timeframes</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Pending Orders</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">
-          SELL: a Triple Top is formed from two confirmed swing highs at resistance; SuperTech AI stages a SELL LIMIT for the third test. BUY: a Triple Bottom is formed from two confirmed swing lows at support; SuperTech AI stages a BUY LIMIT for the third test. The stop-loss sits beyond the far edge of the pattern zone and the target is 3R. Every available asset and timeframe is scanned independently using pure price action.
+          SELL: a Triple Top is formed from two confirmed swing highs at resistance; SuperTech AI stages a SELL LIMIT for the third test. BUY: a Triple Bottom is formed from two confirmed swing lows at support; SuperTech AI stages a BUY LIMIT for the third test. The stop-loss sits beyond the far edge of the pattern zone and the target is 5R. Every available asset and timeframe is scanned independently using pure price action.
         </p>
       </div>
 
@@ -104,7 +104,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">{idea.assetName} ({idea.symbol}) · {idea.timeframeLabel}</p>
                   <h4 className={`mt-1 text-xl font-bold ${idea.direction === 'BUY' ? 'text-up' : 'text-down'}`}>{idea.type}</h4>
-                  <p className="mt-1 text-[11px] font-semibold tracking-wide text-ink-2">{idea.patternType} · RR 1:3</p>
+                  <p className="mt-1 text-[11px] font-semibold tracking-wide text-ink-2">{idea.patternType} · RR 1:5</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2"><StatusPill status={idea.status} /><button type="button" onClick={() => onOpenDashboard(idea.symbol, idea.granularity)} className="rounded-lg bg-accent px-3 py-2 text-[11px] font-bold text-canvas">VIEW ON DASHBOARD</button></div>
               </div>
@@ -127,18 +127,25 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
                 <Price label="Timeframe" value={idea.timeframeLabel} digits={0} />
               </div>
               <div className="mt-4">
-                <PendingOrderChart
+                <SignalChartSnapshot
                   candles={states[idea.symbol]?.[idea.granularity]?.chartCandles ?? states[idea.symbol]?.[idea.granularity]?.candles ?? []}
-                  entry={idea.entry} stopLoss={idea.stopLoss} takeProfit={idea.takeProfit}
-                  currentPrice={idea.currentPrice} digits={idea.digits} direction={idea.direction}
-                  symbol={idea.symbol} zone={idea.zone} patternType={idea.patternType} granularity={idea.granularity}
+                  levels={{ entry: idea.entry, stopLoss: idea.stopLoss, tp1: idea.takeProfit, tp2: idea.takeProfit, tp3: idea.takeProfit }}
+                  signalEpoch={idea.signalEpoch}
+                  direction={idea.direction}
+                  timeframe={idea.timeframeLabel}
+                  granularity={idea.granularity}
+                  digits={idea.digits}
+                  assetName={idea.assetName}
+                  symbol={idea.symbol}
+                  anchorId={`pending-order-chart-${encodeURIComponent(idea.id)}`}
+                  livePrice={idea.currentPrice}
                 />
               </div>
               <div className="mt-4">
                 <LevelList digits={idea.digits} rows={[
                   { label: 'Entry', hint: 'Third-test limit level', value: idea.entry, hitEpoch: idea.entryHitEpoch, tone: 'text-entry' },
                   { label: 'Stop-loss', hint: 'Beyond the opposite zone edge', value: idea.stopLoss, hitEpoch: idea.stopLossHitEpoch, tone: 'text-down' },
-                  { label: 'Take Profit', hint: 'Three times the risk distance', value: idea.takeProfit, hitEpoch: idea.takeProfitHitEpoch, tone: 'text-up' },
+                  { label: 'Take Profit', hint: 'Five times the risk distance', value: idea.takeProfit, hitEpoch: idea.takeProfitHitEpoch, tone: 'text-up' },
                 ]} />
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line/25 pt-3 text-xs text-ink-3">
