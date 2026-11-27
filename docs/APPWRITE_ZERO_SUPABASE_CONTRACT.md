@@ -54,6 +54,7 @@ These are **schema proposals**, not claims that collections already exist. Creat
 - `confluence_snapshots`: agreement summary derived from independent strategy outputs; preserve each strategy's individual result.
 - `trading_signals`: published signal, status, entry/targets/stop and originating confluence snapshot.
 - `signal_events`: append-only lifecycle events such as created, updated, target reached, stopped or invalidated.
+- `strategy_outcome_events`: member-scoped, append-only candle-replay outcome transitions; distinct from broker fills and execution receipts.
 - `trade_plans`: member-visible plan/order intent and execution status; broker execution credentials are not stored here.
 
 ### Member experience and operations
@@ -136,4 +137,4 @@ The independent Appwrite sandbox has four confirmed tables from the latest direc
 
 The preceding direct inspection found no indexes and no configured permissions on the four existing tables. It found RLS ON for `connection_probe`, `member_profiles`, and `member_roles`, but OFF for `membership_entitlements`. The latest run did not re-verify those security settings. Treat permissions and current RLS as requiring reinspection. Do not grant client permissions or enable member-data writes until all columns, indexes, and access rules are verified.
 
-The machine-readable provisioning record is `appwrite/schema/member-access.tables.json`. It records the partial state separately from the intended schema. No member, payment, referral or broker records have been created or copied. Appwrite account adapter and independent auth gate exist in the feature branch; browser account lifecycle is not yet end-to-end verified. The independent platform is still a foundation, not full feature parity.
+The machine-readable provisioning record is `appwrite/schema/member-access.tables.json`. It records the partial state separately from the intended schema. No member, payment, referral or broker records have been created or copied. Appwrite account adapter and independent auth gate exist in the feature branch; browser account lifecycle is not yet end-to-end verified. The independent platform is still a foundation, not full feature parity. Strategy outcome lifecycle persistence is implemented in the Worker and Analysis client on the current feature branch, but `strategy_outcome_events` remains a proposed, unprovisioned table; the API is fail-closed until its schema, indexes, row security, zero client permissions, and Worker table ID are verified. No production deployment has been performed.
