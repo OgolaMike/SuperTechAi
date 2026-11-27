@@ -383,6 +383,71 @@ export default {
       }
     }
 
+
+    // Referral identity and attribution are server-owned. No browser-supplied
+    // user ID, role, team, or commission value is trusted.
+    if ((url.pathname === "/api/referrals/me" && request.method === "GET") ||
+        (url.pathname === "/api/referrals/attribute" && request.method === "POST")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "verified_account_required" }, 401, cors);
+        const tableId = env.REFERRAL_RELATIONSHIPS_TABLE_ID;
+        if (!tableId || !env.APPWRITE_API_KEY) return json({ error: "referrals_not_configured" }, 503, cors);
+        const base = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${tableId}/rows`;
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
+        const getRow = async (rowId: string) => {
+          const response = await fetch(`${base}/${encodeURIComponent(rowId)}`, { headers });
+          if (response.status === 404) return null;
+          if (!response.ok) throw new Error("referral_lookup_failed");
+          return await response.json() as Record<string, any>;
+        };
+        if (url.pathname === "/api/referrals/me") {
+          const digest = await sha256(account.$id);
+          const code = "ST" + digest.slice(0, 12).toUpperCase();
+          const rowId = "c" + digest.slice(0, 31);
+          let row = await getRow(rowId);
+          if (!row) {
+            const create = await fetch(base, { method: "POST", headers, body: JSON.stringify({
+              rowId, data: { row_type: "code", referral_code: code, user_id: account.$id, status: "active", created_at: new Date().toISOString() }, permissions: []
+            }) });
+            if (!create.ok && create.status !== 409) return json({ error: "referral_code_create_failed" }, 503, cors);
+            row = await getRow(rowId);
+          }
+          if (!row || row.user_id !== account.$id || row.referral_code !== code || row.status !== "active") return json({ error: "referral_code_unavailable" }, 503, cors);
+          return json({ referralCode: code, shareUrl: `${env.ALLOWED_ORIGIN}/?ref=${encodeURIComponent(code)}` }, 200, cors);
+        }
+        const body = await request.json().catch(() => ({})) as { referralCode?: string };
+        const code = String(body.referralCode || "").trim().toUpperCase();
+        if (!/^ST[A-F0-9]{12}$/.test(code)) return json({ error: "invalid_referral_code" }, 400, cors);
+        const urlQuery = new URL(base);
+        urlQuery.searchParams.set("queries[]", JSON.stringify({ method: "equal", column: "referral_code", values: [code] }));
+        const lookup = await fetch(urlQuery, { headers });
+        if (!lookup.ok) return json({ error: "referral_lookup_failed" }, 503, cors);
+        const found = await lookup.json() as { rows?: Array<Record<string, any>> };
+        const sponsor = found.rows?.find(row => row.row_type === "code" && row.status === "active");
+        if (!sponsor || !sponsor.user_id) return json({ error: "referral_code_not_found" }, 404, cors);
+        if (sponsor.user_id === account.$id) return json({ error: "self_referral_not_allowed" }, 400, cors);
+        const relationshipId = "r" + (await sha256(account.$id)).slice(0, 31);
+        const existing = await getRow(relationshipId);
+        if (existing) {
+          if (existing.referred_user_id !== account.$id) return json({ error: "referral_record_conflict" }, 409, cors);
+          return json({ attributed: true, alreadyAttributed: true, sponsorUserId: existing.referrer_user_id, teamId: existing.team_id || null, status: existing.status }, 200, cors);
+        }
+        // A team must be assigned by an authorised company owner before referrals
+        // can be accepted. Never infer or create one from a member's request.
+        if (!sponsor.team_id || !/^TEAM_[1-5]$/.test(String(sponsor.team_id))) return json({ error: "sponsor_team_not_assigned" }, 409, cors);
+        const create = await fetch(base, { method: "POST", headers, body: JSON.stringify({
+          rowId: relationshipId,
+          data: { row_type: "relationship", referrer_user_id: sponsor.user_id, referred_user_id: account.$id, referral_code: code, team_id: sponsor.team_id, status: "pending_approval", attributed_at: new Date().toISOString() },
+          permissions: []
+        }) });
+        if (!create.ok) return json({ error: "referral_attribution_failed" }, 503, cors);
+        return json({ attributed: true, sponsorUserId: sponsor.user_id, teamId: sponsor.team_id, status: "pending_approval" }, 201, cors);
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : "referral_request_failed" }, 503, cors);
+      }
+    }
+
     if (url.pathname === "/api/profile" && (request.method === "GET" || request.method === "PATCH")) {
       try {
         const account = await authenticate(request, env);
