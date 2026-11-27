@@ -366,7 +366,7 @@ export default {
         return json({ error: "academy_progress_unavailable" }, 503, cors);
       }
     }
-    if (url.pathname.startsWith("/api/payments/") || url.pathname.startsWith("/api/admin/payments")) {
+    if (url.pathname.startsWith("/api/payments/") || url.pathname.startsWith("/api/admin/payments") || url.pathname === "/api/finance/ledger") {
       try {
         const account = await authenticate(request, env);
         if (!account) return json({ error: "unauthorized" }, 401, cors);
