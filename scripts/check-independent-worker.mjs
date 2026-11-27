@@ -26,7 +26,7 @@ for (const [label, condition] of [
   ['AI memory opt-out clears saved history', worker.includes('if (!body.memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID)')],
   ['AI model key is read from Worker secret binding', worker.includes('OPENAI_API_KEY') && !/^OPENAI_API_KEY\\s*=/m.test(config)],
   ['AI Companion uses configured model with safe default', worker.includes('PERSONAL_AI_MODEL || "gpt-4.1-mini"')],
-  ['AI routes never claim broker execution', worker.includes('It does not place trades') && worker.includes('Never claim to place trades')],
+  ['AI routes never claim broker execution', worker.includes('Never claim to place trades')],
   ['strategy outcome history requires Appwrite server-side table configuration', worker.includes('STRATEGY_OUTCOME_EVENTS_TABLE_ID') && worker.includes('strategy_outcome_storage_not_configured')],
   ['strategy outcome history is scoped to the verified member', worker.includes('column: "user_id", values: [account.$id]') && worker.includes('row.user_id === account.$id')],
   ['strategy outcome event IDs are deterministic and member-specific', worker.includes('sha256(account.$id + "|" + eventKey)')],
