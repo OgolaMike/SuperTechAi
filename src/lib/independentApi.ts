@@ -231,3 +231,8 @@ export type IndependentLedgerEntry = { type: string; amount: number; currency: s
 export function getIndependentFinancialLedger(): Promise<{ entries: IndependentLedgerEntry[] }> {
   return authenticatedRequest('/api/finance/ledger');
 }
+
+export type IndependentCommission = { id: string; type: string; level: number | null; amount: number; currency: string; status: string; sourceUserId: string; referenceId: string; createdAt: string };
+export function getIndependentCommissions(): Promise<{ commissions: IndependentCommission[] }> {
+ return authenticatedRequest('/api/finance/commissions');
+}
