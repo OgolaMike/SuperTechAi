@@ -17,7 +17,7 @@ self.addEventListener('push', (event) => {
   try { payload = event.data ? event.data.json() : {}; }
   catch { payload = { body: event.data ? event.data.text() : '' }; }
   event.waitUntil(self.registration.showNotification(payload.title || 'SuperTech AI', {
-    body: payload.body || '', tag: payload.tag, icon: BRAND_LOGO, badge: BRAND_LOGO,
+    body: payload.body || 'You have a new update from SuperTech AI.', tag: payload.tag, icon: BRAND_LOGO, badge: BRAND_LOGO,
     silent: false, data: { url: payload.url || '/' },
   }));
 });
