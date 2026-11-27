@@ -25,7 +25,7 @@ export async function handlePaymentRequest(request:Request,env:Env,account:Accou
   }
   if(url.pathname==="/api/payments/submit"&&request.method==="POST"){
    const body=await request.json().catch(()=>null) as {planCode?:unknown;currency?:unknown;transactionReference?:unknown}|null;
-   if(!body||!(body.planCode in plans)||!["USDT-TRC20"].includes(String(body.currency))||typeof body.transactionReference!=="string")return json({error:"invalid_payment_submission"},400);
+   if(!body||typeof body.planCode!=="string"||!(body.planCode in plans)||!["USDT-TRC20"].includes(String(body.currency))||typeof body.transactionReference!=="string")return json({error:"invalid_payment_submission"},400);
    const reference=body.transactionReference.trim();
    if(reference.length<20||reference.length>160||!/^[a-zA-Z0-9_-]+$/.test(reference))return json({error:"invalid_transaction_reference"},400);
    const existing=await fetchJson<{rows?:PaymentRow[]}>((()=>{const q=new URL(base);q.searchParams.append("queries[]",JSON.stringify({method:"equal",attribute:"transaction_reference",values:[reference]}));q.searchParams.set("limit","1");return q.toString()})(),env);
