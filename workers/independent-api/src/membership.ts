@@ -99,3 +99,9 @@ export async function handleMembershipRequest(request: Request, env: Env, accoun
     return json({ error: error instanceof Error ? error.message : "membership_service_failed" }, 503);
   }
 }
+
+export async function hasAutomationEntitlement(env: Env, account: Account): Promise<boolean> {
+  if (await isCompanyAdmin(env, account)) return true;
+  const row = await getMembership(env, account.$id);
+  return row?.status === "approved" && row.plan_code === "automation_500";
+}
