@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { formatLocalDateTime } from '@/lib/localTime';
 import { CheckCircle2, Clock3, Eye, EyeOff, Link2, RefreshCw, Unplug } from 'lucide-react';
 import {
   disconnectCTraderConnection,
@@ -147,7 +148,7 @@ export function IndependentBrokerConnections() {
           </> : <button type="button" onClick={() => void connect()} disabled={busy} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Link2 className="mr-1 inline h-4 w-4"/>{busy ? 'Please wait…' : 'Connect cTrader'}</button>}
         </div>
       </div>
-      {status?.connected && <div className="mt-4 flex items-start gap-2 rounded-xl border border-line/10 bg-surface/[.035] p-3 text-xs text-ink-2"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-accent"/><span>{status.tokenExpiresAt ? `Access authorization expiry: ${new Date(status.tokenExpiresAt).toLocaleString()}.` : 'Authorization is saved.'} {status.permissionScope ? `Permission: ${status.permissionScope}.` : ''} Account authorization is separate from trading activation.</span></div>}
+      {status?.connected && <div className="mt-4 flex items-start gap-2 rounded-xl border border-line/10 bg-surface/[.035] p-3 text-xs text-ink-2"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-accent"/><span>{status.tokenExpiresAt ? `Access authorization expiry: ${formatLocalDateTime(status.tokenExpiresAt)}.` : 'Authorization is saved.'} {status.permissionScope ? `Permission: ${status.permissionScope}.` : ''} Account authorization is separate from trading activation.</span></div>}
       {accounts.length > 0 && <div className="mt-4 space-y-3 border-t border-line/10 pt-4">
         <div><p className="text-sm font-semibold text-ink">Your authorized accounts</p><p className="mt-1 text-xs text-ink-2">Choose which account SuperTech AI should use. This step only verifies access; it does not place trades.</p></div>
         <div className="space-y-2">
