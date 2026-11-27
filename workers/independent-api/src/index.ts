@@ -1,4 +1,5 @@
 import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
+import { handleMembershipRequest } from "./membership";
 
 export interface Env {
   APPWRITE_ENDPOINT: string;
@@ -6,6 +7,7 @@ export interface Env {
   APPWRITE_DATABASE_ID: string;
   MEMBER_PROFILES_TABLE_ID: string;
   MEMBER_NETWORK_TABLE_ID?: string;
+  MEMBERSHIP_TABLE_ID?: string;
   GENESIS_ACCOUNT_ID?: string;
   GENESIS_ADMIN_TOKEN?: string;
   ALLOWED_ORIGIN: string;
@@ -322,6 +324,16 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/membership/") || url.pathname.startsWith("/api/admin/members")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const response = await handleMembershipRequest(request, env, account);
+        if (response) return withCors(response, cors);
+      } catch {
+        return json({ error: "membership_service_unavailable" }, 503, cors);
+      }
+    }
     if (url.pathname === "/api/company/owners") {
       const response = await handleCompanyOwnerRequest(request, env);
       if (response) return withCors(response, cors);
