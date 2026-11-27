@@ -6,6 +6,7 @@ import type { StopOrderIdea } from '@/lib/stopOrders';
 import { flattenSignals } from '@/lib/signals';
 import { buildIndependentStrategyAssessments } from '@/lib/independentStrategies';
 import type { StrategyAssessment } from '@/lib/strategyConfluence';
+import { evaluateStrategyOutcome, summarizeStrategyPerformance, type StrategyOutcome } from '@/lib/strategyOutcomes';
 
 type Props = { assets: Asset[]; states: Record<string, Record<number, TfState>>; prices: Record<string, number>; superSignals: SuperSignal[]; pendingOrderIdeas: StopOrderIdea[]; loaded: boolean; nowEpoch: number; initialSymbol?: string };
 
@@ -32,6 +33,24 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
   const assessmentStatus = (item?: StrategyAssessment) => !item
     ? 'No fresh setup'
     : `${item.status === 'SIGNAL' ? item.direction : item.status} · ${formatDateTime(item.signalEpoch)}`;
+
+  const outcomes = useMemo(() => strategyAssessments
+    .filter((item) => item.symbol === activeSymbol)
+    .map((item) => evaluateStrategyOutcome(item, item.granularity == null ? undefined : assetStates[item.granularity], nowEpoch)),
+  [strategyAssessments, activeSymbol, assetStates, nowEpoch]);
+  const performance = useMemo(() => summarizeStrategyPerformance(outcomes), [outcomes]);
+  const latestOutcome = (id: string): StrategyOutcome | undefined => outcomes
+    .filter((item) => item.strategyId === id)
+    .sort((a, b) => b.signalEpoch - a.signalEpoch)[0];
+  const performanceText = (id: string) => {
+    const item = performance.find((row) => row.strategyId === id);
+    if (!item || item.sample === 0) return 'No resolved candle outcomes yet';
+    return `${item.wins} wins / ${item.losses} losses · ${item.winRate!.toFixed(0)}% · ${item.averageR!.toFixed(2)}R avg · n=${item.sample}`;
+  };
+  const outcomeText = (id: string) => {
+    const outcome = latestOutcome(id);
+    return outcome ? `${outcome.status} · ${outcome.note}` : 'No evaluated setup';
+  };
 
   const report = useMemo(() => {
     const reads = TIMEFRAMES.map((item) => {
@@ -92,15 +111,15 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
     <section className="rounded-3xl border border-line/15 bg-surface/[.035] p-5 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Strategy evidence</p><h2 className="mt-1 text-xl font-bold text-ink">Every timeframe, one picture</h2></div><p className="text-xs text-ink-3">Confirmed candles only · M30 minimum</p></div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">{report.reads.map((read) => <div key={read.label} className="rounded-xl border border-line/10 bg-surface/[.035] p-3"><div className="flex items-center justify-between"><span className="text-sm font-bold text-ink">{read.label}</span>{read.fresh ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Clock3 className="h-4 w-4 text-amber-300" />}</div><p className={`mt-2 text-sm font-semibold ${read.bias === 'Bullish' ? 'text-emerald-400' : read.bias === 'Bearish' ? 'text-rose-400' : 'text-ink-3'}`}>{read.bias}</p><p className="mt-1 text-[10px] text-ink-3">{read.fresh ? 'Fresh market read' : 'Unavailable / stale'}</p></div>)}</div>
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <Strategy name="SMA / Bollinger crossover" detail="Independent confirmed-candle crossover. The H4 trigger and its own outcome are shown separately from other engines." status={h4Signal ? `H4 ${h4Signal.direction} trigger · ${h4Signal.outcome.status}` : 'No active H4 trigger'} />
-        <Strategy name="Multi-timeframe Super Signal" detail="H4-led signal requiring fresh supporting timeframe agreement." status={signal ? `Confirmed · ${signal.agreeing}/${signal.validReads} aligned` : 'Confirmation not complete'} />
-        <Strategy name="Break & Retest" detail={latestAssessment('break-retest')?.reason ?? 'Independent confirmed break, retest and rejection scan.'} status={assessmentStatus(latestAssessment('break-retest'))} />
-        <Strategy name="Triple Top" detail={latestAssessment('triple-top')?.reason ?? 'Independent three-touch resistance setup; pending orders are not broker executions.'} status={assessmentStatus(latestAssessment('triple-top'))} />
-        <Strategy name="Triple Bottom" detail={latestAssessment('triple-bottom')?.reason ?? 'Independent three-touch support setup; pending orders are not broker executions.'} status={assessmentStatus(latestAssessment('triple-bottom'))} />
-        <Strategy name="Market Structure SAR" detail={latestAssessment('market-structure-sar')?.reason ?? 'Confirmed M30 swing structure and Parabolic SAR flip.'} status={assessmentStatus(latestAssessment('market-structure-sar'))} />
-        <Strategy name="3H Wick Intelligence" detail={latestAssessment('three-hour-wick')?.reason ?? 'H4 wick rejection requires a fresh Unified Signal confirmation.'} status={assessmentStatus(latestAssessment('three-hour-wick'))} />
+        <Strategy name="SMA / Bollinger crossover" detail="Independent candle-close crossover. The strategy uses its own H4/M30 entry, stop and TP3." status={h4Signal ? `H4 ${h4Signal.direction} trigger · ${h4Signal.outcome.status}` : 'No active H4 trigger'} performance={performanceText('bollinger-cross')} outcome={outcomeText('bollinger-cross')} />
+        <Strategy name="Multi-timeframe Super Signal" detail="H4-led confirmation across the supporting timeframes. Alignment is not counted as a separate trade outcome." status={signal ? `Confirmed · ${signal.agreeing}/${signal.validReads} aligned` : 'Confirmation not complete'} />
+        <Strategy name="Break & Retest" detail={latestAssessment('break-retest')?.reason ?? 'Independent confirmed break, retest and rejection scan.'} status={assessmentStatus(latestAssessment('break-retest'))} performance={performanceText('break-retest')} outcome={outcomeText('break-retest')} />
+        <Strategy name="Triple Top" detail={latestAssessment('triple-top')?.reason ?? 'Three-touch resistance limit setup.'} status={assessmentStatus(latestAssessment('triple-top'))} performance={performanceText('triple-top')} outcome={outcomeText('triple-top')} />
+        <Strategy name="Triple Bottom" detail={latestAssessment('triple-bottom')?.reason ?? 'Three-touch support limit setup.'} status={assessmentStatus(latestAssessment('triple-bottom'))} performance={performanceText('triple-bottom')} outcome={outcomeText('triple-bottom')} />
+        <Strategy name="Market Structure SAR" detail={latestAssessment('market-structure-sar')?.reason ?? 'Confirmed M30 swing structure and Parabolic SAR flip.'} status={assessmentStatus(latestAssessment('market-structure-sar'))} performance={performanceText('market-structure-sar')} outcome={outcomeText('market-structure-sar')} />
+        <Strategy name="3H Wick Intelligence" detail={latestAssessment('three-hour-wick')?.reason ?? 'H4 wick rejection requires a fresh Unified Signal confirmation.'} status={assessmentStatus(latestAssessment('three-hour-wick'))} performance={performanceText('three-hour-wick')} outcome={outcomeText('three-hour-wick')} />
       </div>
-      <p className="mt-4 text-[11px] leading-relaxed text-ink-3">These are live strategy assessments, not verified win rates. Historical performance requires a persisted, candle-by-candle outcome ledger; signal detection alone is not counted as a win or a broker fill.</p>
+      <p className="mt-4 text-[11px] leading-relaxed text-ink-3">Performance is replayed from the confirmed candles currently available on this device. Stop is counted first when stop and target touch in the same candle. Open and unfilled setups are excluded from win rate. These are simulated candle outcomes, not persisted cross-device history or broker fills.</p>
     </section>
   </main>;
 }
@@ -108,6 +127,6 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 rounded-xl border border-line/10 bg-surface/[.035] p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">{label}</p><p className="mt-1 break-words text-base font-bold tabular-nums text-ink">{value}</p></div>;
 }
-function Strategy({ name, detail, status }: { name: string; detail: string; status: string }) {
-  return <div className="rounded-xl border border-line/10 bg-surface/[.035] p-4"><div className="flex items-start gap-2"><Activity className="mt-0.5 h-4 w-4 shrink-0 text-accent" /><div><p className="text-sm font-semibold text-ink">{name}</p><p className="mt-1 text-xs leading-relaxed text-ink-3">{detail}</p><p className="mt-2 text-xs font-semibold text-accent">{status}</p></div></div></div>;
+function Strategy({ name, detail, status, performance, outcome }: { name: string; detail: string; status: string; performance?: string; outcome?: string }) {
+  return <div className="rounded-xl border border-line/10 bg-surface/[.035] p-4"><div className="flex items-start gap-2"><Activity className="mt-0.5 h-4 w-4 shrink-0 text-accent" /><div className="min-w-0"><p className="text-sm font-semibold text-ink">{name}</p><p className="mt-1 text-xs leading-relaxed text-ink-3">{detail}</p><p className="mt-2 text-xs font-semibold text-accent">{status}</p>{outcome && <p className="mt-2 text-xs leading-relaxed text-ink-2">Latest outcome: {outcome}</p>}{performance && <p className="mt-2 text-[11px] leading-relaxed text-ink-3">Resolved performance: {performance}</p>}</div></div></div>;
 }
