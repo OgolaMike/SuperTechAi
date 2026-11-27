@@ -154,7 +154,7 @@ async function profileRequest(
 
 
 type PushEnv = Env;
-const base64Url = (value: string) => value.replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+const base64Url = (value: string) => value.replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 const encodeJson = (value: unknown) => base64Url(btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value)))));
 function decodeBase64Url(value: string): Uint8Array {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -180,7 +180,7 @@ async function sendWebPush(endpoint: string, env: PushEnv): Promise<void> {
 }
 async function pushRow(env: PushEnv, rowId: string, method: string, data?: Record<string, unknown>) {
   if (!env.APPWRITE_API_KEY || !env.PUSH_SUBSCRIPTIONS_TABLE_ID || !env.APPWRITE_DATABASE_ID) throw new Error("push_storage_not_configured");
-  const base = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`;
+  const base = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`;
   const response = await fetch(method === "POST" ? base : `${base}/${encodeURIComponent(rowId)}`, {
     method,
     headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" },
@@ -408,7 +408,7 @@ export default {
         if (!configured.PUSH_SUBSCRIPTIONS_TABLE_ID || !configured.APPWRITE_API_KEY || !configured.VAPID_PRIVATE_KEY || !configured.VAPID_PUBLIC_KEY || !configured.VAPID_SUBJECT) {
           return json({ error: "push_sender_not_configured" }, 503, cors);
         }
-        const queryUrl = new URL(`${configured.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`);
+        const queryUrl = new URL(`${configured.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`);
         queryUrl.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] }));
         queryUrl.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "active", values: [true] }));
         const response = await fetch(queryUrl, { headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY } });
