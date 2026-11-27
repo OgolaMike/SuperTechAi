@@ -49,7 +49,7 @@ function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
   if (!origin || !allowedOrigins.includes(origin)) return {};
   return {
     "access-control-allow-origin": origin,
-    "access-control-allow-methods": "GET, POST, PUT, PATCH, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-max-age": "600",
     "vary": "Origin",
@@ -62,8 +62,7 @@ async function authenticate(request: Request, env: Env): Promise<AppwriteAccount
   if (!match) return null;
 
   const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
-  const response = await fetch(`${endpoint}/account`, {
-    method: "GET",
+  const response = await fetch(`${endpoint}/account`, {    method: "GET",
     headers: {
       "X-Appwrite-Project": env.APPWRITE_PROJECT_ID,
       "X-Appwrite-JWT": match[1],
@@ -497,8 +496,7 @@ export default {
         const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
         const categoryKeys = ["signals", "targets", "stops", "limitOrders", "pendingOrders", "superSignals", "income", "business"];
         const modes = ["full", "bubble", "muted"];
-        const defaults: Record<string, string> = {
-          signals: "bubble", targets: "bubble", stops: "bubble", limitOrders: "bubble",          pendingOrders: "bubble", superSignals: "bubble", income: "bubble", business: "bubble",
+        const defaults: Record<string, string> = {          signals: "bubble", targets: "bubble", stops: "bubble", limitOrders: "bubble",          pendingOrders: "bubble", superSignals: "bubble", income: "bubble", business: "bubble",
         };
         if (request.method === "GET") {
           const response = await fetch(rowUrl, { headers });          if (response.status === 404) return json({ settings: { categories: defaults, assets: {}, defaultAssetMode: "bubble" }, exists: false }, 200, cors);
@@ -997,8 +995,7 @@ export default {
         const account = await authenticate(request, env);
         if (!account) return json({ error: "unauthorized" }, 401, cors);
         const configured = env as BrokerEnv;
-        if (!configured.DERIV_GRANTS_TABLE_ID || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "deriv_not_configured" }, 503, cors);        const grantId = account.$id.replace(/-/g, "").slice(0, 32);
-        const grant = await derivRow(configured, configured.DERIV_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string; token_expires_at?: string; accounts_json?: string; selected_account_id?: string; status?: string } | null;
+        if (!configured.DERIV_GRANTS_TABLE_ID || !configured.BROKER_TOKEN_ENCRYPTION_KEY) return json({ error: "deriv_not_configured" }, 503, cors);        const grantId = account.$id.replace(/-/g, "").slice(0, 32);        const grant = await derivRow(configured, configured.DERIV_GRANTS_TABLE_ID, grantId, "GET") as { user_id?: string; encrypted_access_token?: string; token_expires_at?: string; accounts_json?: string; selected_account_id?: string; status?: string } | null;
         if (!grant) return json({ connected: false, status: "not_connected", accounts: [], tradingEnabled: false }, 200, cors);
         if (grant.user_id !== account.$id) return json({ error: "deriv_ownership_mismatch" }, 403, cors);
         const expired = !grant.token_expires_at || Date.parse(grant.token_expires_at) <= Date.now() + 60_000;
