@@ -1,0 +1,37 @@
+name: Appwrite deployment validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appwrite-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Type-check application
+        run: npm run typecheck
+      - name: Verify independent Appwrite boundary
+        run: npm run check:independent
+      - name: Verify independent Worker configuration
+        run: npm run check:independent-worker
+      - name: Build production frontend
+        run: npm run build
