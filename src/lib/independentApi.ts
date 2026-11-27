@@ -203,3 +203,18 @@ export async function saveIndependentSignalRecords(rows: IndependentSignalRecord
     });
   }
 }
+
+export type IndependentPayment = { id: string; planCode: string; amountUsd: number; currency: string; reference: string; status: string; submittedAt: string; reviewedAt?: string | null; reviewNote?: string | null };
+export function listMyIndependentPayments(): Promise<{ payments: IndependentPayment[] }> {
+  return authenticatedRequest('/api/payments/me');
+}
+export function submitIndependentPayment(planCode: 'standard_300' | 'automation_500', transactionReference: string): Promise<{ submitted: boolean; payment: { id: string; planCode: string; amountUsd: number; status: string } }> {
+  return authenticatedRequest('/api/payments/submit', { method: 'POST', body: JSON.stringify({ planCode, currency: 'USDT-TRC20', transactionReference }) });
+}
+export type IndependentAdminPayment = IndependentPayment & { userId: string };
+export function listIndependentAdminPayments(): Promise<{ payments: IndependentAdminPayment[] }> {
+  return authenticatedRequest('/api/admin/payments');
+}
+export function reviewIndependentPayment(id: string, action: 'approve' | 'reject', note = ''): Promise<{ updated: boolean; status: string }> {
+  return authenticatedRequest('/api/admin/payments/' + encodeURIComponent(id), { method: 'POST', body: JSON.stringify({ action, note }) });
+}
