@@ -2,6 +2,7 @@ import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
 import { handleMembershipRequest, hasAutomationEntitlement } from "./membership";
 import { handleAlertPreferences } from "./preferences";
 import { handleSignalHistory } from "./signalHistory";
+import { handlePaymentRequest } from "./payments";
 
 export interface Env {
   APPWRITE_ENDPOINT: string;
@@ -17,6 +18,8 @@ export interface Env {
   PUSH_SUBSCRIPTIONS_TABLE_ID?: string;
   ALERT_PREFERENCES_TABLE_ID?: string;
   SIGNAL_RECORDS_TABLE_ID?: string;
+  PAYMENT_SUBMISSIONS_TABLE_ID?: string;
+  FINANCIAL_LEDGER_TABLE_ID?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
@@ -350,6 +353,16 @@ export default {
     if (url.pathname === "/api/company/owners") {
       const response = await handleCompanyOwnerRequest(request, env);
       if (response) return withCors(response, cors);
+    }
+    if (url.pathname.startsWith("/api/payments/") || url.pathname.startsWith("/api/admin/payments")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const response = await handlePaymentRequest(request, env, account);
+        if (response) return withCors(response, cors);
+      } catch {
+        return json({ error: "payment_service_unavailable" }, 503, cors);
+      }
     }
     if (url.pathname === "/api/signals/history") {
       try {
