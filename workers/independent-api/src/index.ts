@@ -521,7 +521,7 @@ async function vapidAuthorization(endpoint: URL, env: Env): Promise<string> {
   ));
   return `vapid t=${signingInput}.${pushB64Url(signature)}, k=${env.VAPID_PUBLIC_KEY}`;
 }
-async function sendPushToRow(env: Env, row: PushRow, payload: Record<string, unknown>): Promise<void> {
+async function sendPushToRow(env: Env, row: PushRow, payload: Record<string, unknown>): Promise<boolean> {
   if (!pushReady(env)) throw new Error("push_service_not_configured");
   const endpoint = new URL(row.endpoint);
   if (!validPushEndpoint(row.endpoint)) throw new Error("invalid_push_endpoint");
@@ -554,9 +554,10 @@ async function sendPushToRow(env: Env, row: PushRow, payload: Record<string, unk
   });
   if (response.status === 404 || response.status === 410) {
     await fetch(`${pushBase(env)}/${encodeURIComponent(row.$id)}`, { method: "DELETE", headers: pushHeaders(env) });
-    return;
+    return false;
   }
   if (!response.ok) throw new Error(`push_provider_rejected_${response.status}`);
+  return true;
 }
 
 export default {
@@ -580,6 +581,7 @@ export default {
         backend: "appwrite",
         identityReady: true,
         memberProfilesReady: databaseReady(env),
+        pushReady: pushReady(env),
       }, 200, cors);
     }
 
@@ -659,7 +661,7 @@ export default {
           if (!rows.length) return json({ error: "no_push_devices_registered" }, 409, cors);
           const payload = { title: "SuperTech AI", body: "Push notifications are connected to this device.", tag: "supertech-push-test", url: "/" };
           const results = await Promise.allSettled(rows.map(row => sendPushToRow(env, row, payload)));
-          const sent = results.filter(result => result.status === "fulfilled").length;
+          const sent = results.filter(result => result.status === "fulfilled" && result.value === true).length;
           if (!sent) return json({ error: "push_delivery_failed", devices: rows.length }, 502, cors);
           return json({ sent, devices: rows.length }, 200, cors);
         }
