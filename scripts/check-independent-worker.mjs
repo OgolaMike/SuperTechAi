@@ -53,7 +53,7 @@ for (const [label, condition] of [
   ['unassigned members are blocked at the app gate', memberGate.includes('Who invited you?') && memberGate.includes('activateMemberReferral')],
   ['referral links use opaque codes rather than Appwrite user IDs', referrals.includes('referral_code: code()') && !referrals.includes('referral_code: account.$id')],
   ['new member membership defaults to pending', membership.includes('status: "pending"') && membership.includes('ensureMembership')],
-  ['all membership statuses are checked before access', memberGate.includes('getMembershipStatus') && memberGate.includes("membership.status!=='approved'")],
+  ['all membership statuses are checked before access', memberGate.includes('getMembershipStatus') && memberGate.includes("membership.status !== 'approved'")],
   ['membership admin actions require the Genesis account', membership.includes('account.$id === env.GENESIS_ACCOUNT_ID') && membership.includes('company_admin_required')],
   ['membership approval supports free and both paid tiers', membership.includes('standard_300') && membership.includes('automation_500') && membership.includes('planCode')],
   ['membership records remain server-owned', membership.includes('permissions: []')],
