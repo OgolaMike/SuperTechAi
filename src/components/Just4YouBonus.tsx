@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getLocalTimeZone } from '@/lib/localTime';
 import { Gift, RefreshCw, Trophy } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -25,7 +26,7 @@ const money = (amount: number) => new Intl.NumberFormat('en-US', {
   style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6,
 }).format(amount);
 const date = (value: string) => new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Nairobi',
+  day: 'numeric', month: 'short', year: 'numeric', timeZone: getLocalTimeZone(),
 }).format(new Date(`${value}T12:00:00+03:00`));
 
 export function Just4YouBonus() {
@@ -79,12 +80,12 @@ export function Just4YouBonus() {
             <div className="rounded-xl border border-line/10 bg-surface/[0.05] p-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-3">Qualifying sales</p>
               <p className="mt-2 text-2xl font-bold tabular-nums text-ink">{loading ? '—' : money(data?.qualifying_sales ?? 0)}</p>
-              <p className="mt-1 text-xs text-ink-3">{data ? `${date(data.week_start)} – ${date(data.week_end)} · EAT` : 'Current week · EAT'}</p>
+              <p className="mt-1 text-xs text-ink-3">{data ? `${date(data.week_start)} – ${date(data.week_end)}` : 'Current week'}</p>
             </div>
             <div className="rounded-xl border border-line/10 bg-surface/[0.05] p-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-3">Next draw</p>
               <p className="mt-2 text-2xl font-bold text-ink">Monday</p>
-              <p className="mt-1 text-xs text-ink-3">12:05 AM · East Africa Time</p>
+              <p className="mt-1 text-xs text-ink-3">12:05 AM</p>
             </div>
           </div>
 
