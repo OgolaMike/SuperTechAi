@@ -66,7 +66,14 @@ export async function handlePaymentRequest(request:Request,env:Env,account:Accou
     if(member)await fetchJson(`${memberBase}/${encodeURIComponent(payment.user_id)}`,env,{method:"PATCH",body:JSON.stringify({data,permissions:[]})});
     else await fetchJson(memberBase,env,{method:"POST",body:JSON.stringify({rowId:payment.user_id,data:{...data,created_at:now},permissions:[]})});
     const ledgerBase=root(env,env.FINANCIAL_LEDGER_TABLE_ID||"financial_ledger");
-    await fetchJson(ledgerBase,env,{method:"POST",body:JSON.stringify({rowId:crypto.randomUUID().replace(/-/g,"").slice(0,32),data:{user_id:payment.user_id,entry_type:"membership_payment",amount:payment.amount_usd,currency:"USD",reference_id:payment.$id,status:"confirmed",metadata_json:JSON.stringify({paymentReference:payment.transaction_reference,planCode:payment.plan_code}),created_at:now},permissions:[]})});
+    const ledgerId=payment.$id;
+    const priorLedger=await fetch(`${ledgerBase}/${encodeURIComponent(ledgerId)}`,{headers:headers(env)});
+    if(priorLedger.status===404){
+     await fetchJson(ledgerBase,env,{method:"POST",body:JSON.stringify({rowId:ledgerId,data:{user_id:payment.user_id,entry_type:"membership_payment",amount:payment.amount_usd,currency:"USD",reference_id:payment.$id,status:"confirmed",metadata_json:JSON.stringify({paymentReference:payment.transaction_reference,planCode:payment.plan_code}),created_at:now},permissions:[]})});
+    }else if(priorLedger.ok){
+     const prior=await priorLedger.json() as {user_id?:string;reference_id?:string;amount?:number};
+     if(prior.user_id!==payment.user_id||prior.reference_id!==payment.$id||prior.amount!==payment.amount_usd)return json({error:"payment_ledger_conflict"},409);
+    }else return json({error:"payment_ledger_read_failed"},503);
    }
    const saved=await fetchJson<PaymentRow>(`${base}/${match[1]}`,env,{method:"PATCH",body:JSON.stringify({data:{status:approved?"approved":"rejected",reviewed_at:now,reviewed_by:account.$id,review_note:(body.note||"").trim()},permissions:[]})});
    return json({updated:true,status:saved.status});
