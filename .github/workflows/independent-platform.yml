@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [feat/appwrite-independent-platform-foundation]
+    branches: [feat/appwrite-independent-platform-foundation, fix/appwrite-push-notifications]
 
 permissions:
   contents: read
