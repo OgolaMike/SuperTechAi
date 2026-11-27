@@ -14,10 +14,19 @@ async function fetchJson<T>(url:string,env:Env,init:RequestInit={}):Promise<T>{
 }
 export async function handlePaymentRequest(request:Request,env:Env,account:Account):Promise<Response|null>{
  const url=new URL(request.url);
- if(!url.pathname.startsWith("/api/payments/")&&!url.pathname.startsWith("/api/admin/payments"))return null;
+ if(!url.pathname.startsWith("/api/payments/")&&!url.pathname.startsWith("/api/admin/payments")&&url.pathname!=="/api/finance/ledger")return null;
  if(!env.APPWRITE_API_KEY||!env.PAYMENT_SUBMISSIONS_TABLE_ID)return json({error:"payment_storage_not_configured"},503);
  const base=root(env,env.PAYMENT_SUBMISSIONS_TABLE_ID);
  try{
+  if(url.pathname==="/api/finance/ledger"&&request.method==="GET"){
+   if(!env.FINANCIAL_LEDGER_TABLE_ID)return json({error:"financial_ledger_not_configured"},503);
+   const ledgerBase=root(env,env.FINANCIAL_LEDGER_TABLE_ID);const q=new URL(ledgerBase);
+   q.searchParams.append("queries[]",JSON.stringify({method:"equal",attribute:"user_id",values:[account.$id]}));
+   q.searchParams.append("queries[]",JSON.stringify({method:"orderDesc",attribute:"created_at"}));q.searchParams.set("limit","200");
+   const result=await fetchJson<{rows?:Array<{user_id:string;entry_type:string;amount:number;currency:string;reference_id:string;status:string;created_at:string}>}>(q.toString(),env);
+   const rows=(result.rows||[]).filter(row=>row.user_id===account.$id);
+   return json({entries:rows.map(row=>({type:row.entry_type,amount:row.amount,currency:row.currency,referenceId:row.reference_id,status:row.status,createdAt:row.created_at}))});
+  }
   if(url.pathname==="/api/payments/me"&&request.method==="GET"){
    const q=new URL(base);q.searchParams.append("queries[]",JSON.stringify({method:"equal",attribute:"user_id",values:[account.$id]}));q.searchParams.append("queries[]",JSON.stringify({method:"orderDesc",attribute:"submitted_at"}));q.searchParams.set("limit","100");
    const result=await fetchJson<{rows?:PaymentRow[]}>(q.toString(),env);
