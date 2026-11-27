@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  Activity, BarChart3, Bell, Bot, Cable, ChevronUp, BrainCircuit,
+  Activity, BarChart3, Bell, Bot, Cable, ScanSearch, ChevronUp, BrainCircuit,
   GraduationCap, Gavel, Landmark, LayoutDashboard, Link2, ListOrdered,
   Megaphone, MoreHorizontal, Repeat2, Sparkles, Users, CreditCard,
   UserRoundPlus, X, Archive,
 } from 'lucide-react';
 
-export type View = 'personal-ai' | 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'five-minute' | 'bubble-history' | 'options' | 'strategies' | 'marketing' | 'connections' | 'smart-community';
+export type View = 'personal-ai' | 'analysis' | 'dashboard' | 'ctrader' | 'super' | 'crypto' | 'deriv-market' | 'exchange-markets' | 'records' | 'orders' | 'alerts' | 'admin' | 'mt5' | 'referrals' | 'earnings' | 'finance' | 'binance' | 'okx' | 'network' | 'academy' | 'governance' | 'break-retest' | 'five-minute' | 'bubble-history' | 'options' | 'strategies' | 'marketing' | 'connections' | 'smart-community';
 
 type NavItem = { id: View; label: string; mobileLabel?: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -15,7 +15,7 @@ const PRIMARY: NavItem[] = [
   { id: 'super', label: 'Super Signals', icon: Sparkles },
   { id: 'crypto', label: 'Crypto Market', mobileLabel: 'Crypto', icon: BarChart3 },
   { id: 'deriv-market', label: 'Deriv Market', mobileLabel: 'Deriv', icon: Activity },
-  { id: 'exchange-markets', label: 'Exchange Markets', mobileLabel: 'Exchanges', icon: BarChart3 },
+  { id: 'analysis', label: 'Analysis', mobileLabel: 'Analysis', icon: ScanSearch },
   { id: 'binance', label: 'Automated Trading', mobileLabel: 'Automate', icon: Bot },
   { id: 'referrals', label: 'Account', icon: UserRoundPlus },
 ];
@@ -26,6 +26,9 @@ const MORE_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     { id: 'deriv-market', label: 'Deriv Market & Charts', icon: Activity },
     { id: 'options', label: 'Deriv Options Trader', icon: Bot },
     { id: 'connections', label: 'Connect Deriv Account', icon: Cable },
+  ] },
+  { title: 'Markets & analysis', items: [
+    { id: 'exchange-markets', label: 'Exchange Markets', icon: BarChart3 },
   ] },
   { title: 'Trading intelligence', items: [
     { id: 'strategies', label: 'Strategies', icon: BarChart3 },
