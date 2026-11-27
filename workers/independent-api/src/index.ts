@@ -461,6 +461,12 @@ export default {
         }
         const created = await fetch(base, { method: "POST", headers, body: JSON.stringify({ rowId: relId, data: { row_type: "relationship", referrer_user_id: sponsor.user_id, referred_user_id: account.$id, referral_code: code, team_id: sponsor.team_id, team_owner_id: sponsor.team_owner_id, role: "member", status: "active", attributed_at: new Date().toISOString() }, permissions: [] }) });
         if (!created.ok) return json({ error: "referral_attribution_failed" }, 503, cors);
+        const ownDigest = await sha256(account.$id);
+        const ownCodeId = "c" + ownDigest.slice(0, 31);
+        const ownCode = await getRow(ownCodeId);
+        if (ownCode && ownCode.user_id === account.$id) {
+          await fetch(`${base}/${encodeURIComponent(ownCodeId)}`, { method: "PATCH", headers, body: JSON.stringify({ data: { team_id: sponsor.team_id, team_owner_id: sponsor.team_owner_id }, permissions: [] }) });
+        }
         return json({ assigned: true, sponsorUserId: sponsor.user_id, teamOwnerId: sponsor.team_owner_id, role: "member", status: "active" }, 201, cors);
       } catch (error) {
         return json({ error: error instanceof Error ? error.message : "referral_request_failed" }, 503, cors);
