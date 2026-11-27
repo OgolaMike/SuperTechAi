@@ -21,7 +21,7 @@ async function stableRowId(value:string):Promise<string>{
 }
 async function ensureCommission(env:Env,payment:PaymentRow,recipientId:string,type:string,amount:number,level:number|null,status:"pending"|"reserved"="pending"){
  if(!env.APPWRITE_API_KEY)throw new Error("commission_storage_not_configured");
- const table=root(env,"commission_records");
+ const table=root(env,env.COMMISSION_RECORDS_TABLE_ID||"commission_records");
  const id=await stableRowId(["commission",payment.$id,type,recipientId,String(level??0)].join(":"));
  const endpoint=`${table}/${encodeURIComponent(id)}`;
  const existing=await fetch(endpoint,{headers:headers(env)});
