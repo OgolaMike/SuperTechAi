@@ -75,7 +75,7 @@ function evaluateOutcome(direction: Direction, levels: Levels, after: Candle[]):
   return { tp1Epoch, tp2Epoch, tp3Epoch, slEpoch, status, closed: tp3Epoch !== null || slEpoch !== null };
 }
 
-// Same SMA 20 / Bollinger 2.5 crossover rules as the browser engine. Only closed candles count.
+// Confirmed-close rule: above SMA20 = BUY; below SMA20 = SELL. Only closed candles count.
 export function computeSignals(
   candles: Candle[],
   granularity: number,
@@ -91,16 +91,13 @@ export function computeSignals(
   });
 
   const signals: Signal[] = [];
-  for (let i = 1; i < confirmed.length; i += 1) {
-    const previous = stats[i - 1];
+  let previousDirection: Direction | null = null;
+  for (let i = SMA_PERIOD - 1; i < confirmed.length; i += 1) {
     const current = stats[i];
-    if (!previous || !current) continue;
-    const previousClose = confirmed[i - 1].close;
+    if (!current) continue;
     const close = confirmed[i].close;
-    let direction: Direction | null = null;
-    if (previousClose <= previous.mean && close > current.mean) direction = "BUY";
-    else if (previousClose >= previous.mean && close < current.mean) direction = "SELL";
-    if (!direction) continue;
+    const direction: Direction | null = close > current.mean ? "BUY" : close < current.mean ? "SELL" : null;
+    if (!direction || direction === previousDirection) continue;
     const levels = buildLevels(direction, current.mean, current.deviation, close);
     if (!levels) continue;
     signals.push({
@@ -109,6 +106,7 @@ export function computeSignals(
       levels,
       outcome: evaluateOutcome(direction, levels, confirmed.slice(i + 1)),
     });
+    previousDirection = direction;
   }
 
   return {
