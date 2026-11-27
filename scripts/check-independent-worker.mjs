@@ -76,6 +76,7 @@ for (const [label, condition] of [
   ['AI profile and chat tables are configurable only on the Worker', worker.includes('AI_PROFILES_TABLE_ID') && worker.includes('AI_CHAT_HISTORY_TABLE_ID')],
   ['AI profile IDs are derived from authenticated member identity', worker.includes('sha256("ai-profile|" + account.$id)')],
   ['AI profile reads verify member ownership', worker.includes('row.user_id !== account.$id')],
+  ['AI row upserts verify ownership before updating existing rows', worker.includes('existing.user_id !== account.$id || data.user_id !== account.$id')],
   ['AI chat history is stored only after explicit memory opt-in', worker.includes('if (memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID)')],
   ['AI memory opt-out clears saved history', worker.includes('if (!body.memoryOptIn && configured.AI_CHAT_HISTORY_TABLE_ID)')],
   ['AI chat deletion is available through CORS', worker.includes('GET, POST, PUT, PATCH, DELETE, OPTIONS')],
