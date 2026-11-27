@@ -9,6 +9,8 @@ const worker = fs.readFileSync(workerPath, 'utf8');
 const config = fs.readFileSync(configPath, 'utf8');
 const referrals = fs.readFileSync(path.join(root, 'workers/independent-api/src/referrals.ts'), 'utf8');
 const memberGate = fs.readFileSync(path.join(root, 'src/components/MemberNetworkGate.tsx'), 'utf8');
+const membership = fs.readFileSync(path.join(root, 'workers/independent-api/src/membership.ts'), 'utf8');
+const adminPanel = fs.readFileSync(path.join(root, 'src/components/AdminPanel.tsx'), 'utf8');
 const failures = [];
 
 for (const [label, condition] of [
@@ -50,6 +52,12 @@ for (const [label, condition] of [
   ['owner onboarding checks Appwrite email verification', referrals.includes('user.emailVerification')],
   ['unassigned members are blocked at the app gate', memberGate.includes('Who invited you?') && memberGate.includes('activateMemberReferral')],
   ['referral links use opaque codes rather than Appwrite user IDs', referrals.includes('referral_code: code()') && !referrals.includes('referral_code: account.$id')],
+  ['new member membership defaults to pending', membership.includes('status: "pending"') && membership.includes('ensureMembership')],
+  ['all membership statuses are checked before access', memberGate.includes('getMembershipStatus') && memberGate.includes("membership.status!=='approved'")],
+  ['membership admin actions require the Genesis account', membership.includes('account.$id === env.GENESIS_ACCOUNT_ID') && membership.includes('company_admin_required')],
+  ['membership approval supports free and both paid tiers', membership.includes('standard_300') && membership.includes('automation_500') && membership.includes('planCode')],
+  ['membership records remain server-owned', membership.includes('permissions: []')],
+  ['admin UI uses independent membership endpoints', adminPanel.includes('listAdminMembers') && adminPanel.includes('reviewMembership')],
 ]) {
   if (!condition) failures.push(label);
 }
