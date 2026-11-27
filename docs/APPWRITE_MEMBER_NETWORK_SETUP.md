@@ -101,6 +101,10 @@ Then build and deploy the Pages branch using the repository's normal independent
 - An invalid, expired/nonexistent, self-referral or missing code is rejected.
 - The network table cannot be read or written directly by clients.
 
+## Business and financial layer
+
+See [`APPWRITE_BUSINESS_LEDGER_FOUNDATION.md`](./APPWRITE_BUSINESS_LEDGER_FOUNDATION.md) for the USDT TRC20 verification, membership plans, immutable ledger, commission allocation, withdrawal controls, required Appwrite tables and launch tests. This is the required next implementation stage; the schema and controls are specified, but the payment and commission APIs are not yet active.
+
 ## Important scope
 
 This implements identity, upline capture, permanent team attribution, company-only team creation and member network counts. It does **not** yet implement TRC20 deposit verification, paid membership transactions, commission calculation, withdrawal execution or a financial ledger. Do not describe referral bonuses as payable until those separate financial controls are built and tested.
