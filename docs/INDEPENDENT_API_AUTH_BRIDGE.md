@@ -60,3 +60,12 @@ The profile API is not an entitlement or role API. It cannot grant paid access, 
 - `PUT /api/alert-preferences` validates the supported modes, limits per-asset overrides to 100, and writes only the authenticated member's row.
 - Rows are Worker-only (`permissions: []`). The browser keeps its local preference cache if the Worker or table is unavailable.
 - Configure `ALERT_PREFERENCES_TABLE_ID` after creating the proposed table in `appwrite/schema/member-access.tables.json`.
+
+ 
+## Strategy outcome lifecycle events
+
+- `GET /api/strategy-outcomes` returns up to 500 outcome events for the authenticated member, ordered newest first.
+- `POST /api/strategy-outcomes` accepts 1–50 bounded lifecycle events. The Worker validates the strategy payload, derives the member-specific row ID, and writes with empty client permissions.
+- Events are append-only and idempotent: the event key includes the outcome identity, lifecycle status, entry epoch and resolution epoch. A repeated event is treated as already stored; existing event rows are never updated.
+- Configure `STRATEGY_OUTCOME_EVENTS_TABLE_ID` only after creating the table from `appwrite/schema/strategy-outcome-events.table.json`, enabling row security, and confirming no client permissions.
+- These are simulated outcomes replayed from closed market candles. They are not broker fills, realized account P/L, or proof of live execution. The route fails closed with `503 strategy_outcome_storage_not_configured` until configured.
