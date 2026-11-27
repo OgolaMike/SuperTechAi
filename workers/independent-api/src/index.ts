@@ -1,4 +1,4 @@
-import { handleReferralRequest } from "./referrals";
+import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
 
 export interface Env {
   APPWRITE_ENDPOINT: string;
@@ -6,6 +6,8 @@ export interface Env {
   APPWRITE_DATABASE_ID: string;
   MEMBER_PROFILES_TABLE_ID: string;
   MEMBER_NETWORK_TABLE_ID?: string;
+  GENESIS_ACCOUNT_ID?: string;
+  GENESIS_ADMIN_TOKEN?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
   PUSH_SUBSCRIPTIONS_TABLE_ID?: string;
@@ -320,6 +322,10 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname === "/api/company/owners") {
+      const response = await handleCompanyOwnerRequest(request, env);
+      if (response) return withCors(response, cors);
+    }
     if (url.pathname.startsWith("/api/referrals/")) {
       try {
         const account = await authenticate(request, env);
