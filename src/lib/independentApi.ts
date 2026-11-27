@@ -127,3 +127,31 @@ export async function enableDevicePush(): Promise<void> {
   });
   await savePushSubscription(subscription.endpoint);
 }
+
+export type MemberReferralProfile = {
+  assigned: boolean;
+  referralCode?: string;
+  sponsorUserId?: string;
+  teamOwnerId?: string;
+  role?: 'member' | 'owner';
+  status?: string;
+  reason?: string;
+};
+export type MemberNetwork = {
+  teamOwnerId: string;
+  directCount: number;
+  teamCount: number;
+  members: Array<{ memberId: string; sponsorId: string; role: string; joinedAt: string }>;
+};
+export function getMemberReferralProfile(): Promise<MemberReferralProfile> {
+  return authenticatedRequest<MemberReferralProfile>('/api/referrals/me');
+}
+export function activateMemberReferral(referralCode: string): Promise<MemberReferralProfile> {
+  return authenticatedRequest<MemberReferralProfile>('/api/referrals/activate', {
+    method: 'POST',
+    body: JSON.stringify({ referralCode }),
+  });
+}
+export function getMemberNetwork(): Promise<MemberNetwork> {
+  return authenticatedRequest<MemberNetwork>('/api/referrals/network');
+}
