@@ -40,7 +40,7 @@ const NEUTRAL_BAND = 0.1;
 const SMA_PERIOD = 20;
 
 // H4 owns the signal. Supporting frames contribute confirmation, never a competing direction.
-const MIN_SUPPORTING_ALIGNMENT = 6;
+const MIN_SUPPORTING_ALIGNMENT = 8;
 const CLASSIFICATION_RANK: Record<Classification, number> = {
   'Strong alignment': 0,
   'Moderate alignment': 1,
@@ -140,7 +140,7 @@ function evaluateSymbol(
   const anyTimeframeOpposes = supportingReads.some((reading) => reading.valid && reading.bias !== 'Neutral' && reading.bias !== expected);
 
   // Keep H4 authoritative. Entry requires at least six of nine supporting frames and no opposing timeframe read.
-  if (supportingReads.length !== 9 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || anyTimeframeOpposes) return null;
+  if (supportingReads.length !== 12 || supportingReads.some((reading) => !reading.valid) || supportingAligned < MIN_SUPPORTING_ALIGNMENT || anyTimeframeOpposes) return null;
 
   const confirmations = INTELLIGENCE_TIMEFRAMES.map((timeframe) => {
     const state = states[timeframe.granularity];
@@ -161,13 +161,13 @@ function evaluateSymbol(
   );
   const confirmationTimeframe = latestConfirmation.label;
   const confirmationEpoch = latestConfirmation.epoch;
-  const gradePercent = Math.round((supportingAligned / 9) * 100);
+  const gradePercent = Math.round((supportingAligned / 12) * 100);
 
   const classification: Classification = supportingAligned >= 6 ? 'Strong alignment' : 'Moderate alignment';
   const dailyBias = readings.find((reading) => reading.label === 'D1')?.bias ?? 'No data';
   const explanation = [
     `H4 generated the primary ${direction} signal ${describeAge(nowEpoch - signal.signalEpoch)}.`,
-    `${supportingAligned} of 9 supporting timeframes confirm H4; No timeframe is pointing against the direction; the remaining frames are neutral.`,
+    `${supportingAligned} of 12 supporting timeframes confirm H4; No timeframe is pointing against the direction; the remaining frames are neutral.`,
     `${confirmationTimeframe} was the latest timeframe to join alignment, giving this H4 signal a ${gradePercent}% support grade.`,
   ].join(' ');
 
