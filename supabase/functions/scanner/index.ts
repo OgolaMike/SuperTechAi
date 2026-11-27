@@ -14,9 +14,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Scanner-Cron-Secret",
 };
 
-// H4 remains the primary direction. M30 is the lowest supported timeframe; all ten frames run through W1.
-// H2/H3/H6/H12 are aggregated from complete hourly candles; W1 is aggregated from complete daily candles.
+// H4 remains the primary direction. Thirteen frames from M1 through W1 provide diversified confirmation.
+// M5/M15 are derived from complete M1 candles; H2/H3/H6/H12 use complete hourly candles; W1 uses complete daily candles.
 const TIMEFRAMES = [
+  { granularity: 60, label: "M1", candleCount: 1000 },
+  { granularity: 300, label: "M5", candleCount: 1000 },
+  { granularity: 900, label: "M15", candleCount: 1000 },
   { granularity: 1800, label: "M30", candleCount: 200 },
   { granularity: 3600, label: "H1", candleCount: 200 },
   { granularity: 7200, label: "H2", candleCount: 200 },
@@ -95,6 +98,28 @@ async function loadTimeframeCandles(
   const cached = cache.get(timeframe.granularity);
   if (cached) return cached;
 
+  // M5 and M15 are derived from complete M1 candles to keep sub-hour frames aligned across feeds.
+  if ([300, 900].includes(timeframe.granularity)) {
+    const baseFrame = TIMEFRAMES.find((frame) => frame.granularity === 60)!;
+    const baseCount = Math.min(1000, Math.max(baseFrame.candleCount, timeframe.candleCount * (timeframe.granularity / 60) + 10));
+    const base = await loadTimeframeCandles(feed, symbol, { ...baseFrame, candleCount: baseCount }, nowEpoch, cache);
+    const ratio = timeframe.granularity / 60;
+    const buckets = new Map<number, Candle[]>();
+    for (const candle of base) {
+      const epoch = Math.floor(candle.epoch / timeframe.granularity) * timeframe.granularity;
+      const bucket = buckets.get(epoch) ?? [];
+      bucket.push(candle);
+      buckets.set(epoch, bucket);
+    }
+    const aggregated = [...buckets.entries()].sort((a,b)=>a[0]-b[0]).flatMap(([epoch,items])=>{
+      const ordered=items.sort((a,b)=>a.epoch-b.epoch);
+      if(ordered.length!==ratio || ordered.some((c,index)=>c.epoch!==epoch+index*60)) return [];
+      return [{epoch,open:ordered[0].open??ordered[0].close,high:Math.max(...ordered.map(c=>c.high??c.close)),low:Math.min(...ordered.map(c=>c.low??c.close)),close:ordered[ordered.length-1].close}];
+    });
+    cache.set(timeframe.granularity,aggregated);
+    return aggregated;
+  }
+
   // W1 is derived from seven complete D1 candles so the weekly source is consistent across feeds.
   if (timeframe.granularity === 604800) {
     const dailyFrame = TIMEFRAMES.find((frame) => frame.granularity === 86400)!;
@@ -107,7 +132,7 @@ async function loadTimeframeCandles(
     return aggregated;
   }
 
-  // H2/H3 use fully formed UTC hourly buckets across Deriv, Binance Spot and Futures.
+  // H2/H3/H6/H12 use fully formed UTC hourly buckets across Deriv, Binance Spot and Futures.
   if ([7200, 10800, 21600, 43200].includes(timeframe.granularity)) {
     const hoursPerCandle = timeframe.granularity / 3600;
     const hourlyFrame = TIMEFRAMES.find((frame) => frame.granularity === 3600)!;
@@ -370,8 +395,8 @@ function evaluateSuperSignal(
     if (bias !== "NEUTRAL" && bias !== expected) anyTimeframeOpposes = true;
   }
 
-  // Require at least six of nine supporting frames; no supporting timeframe, may oppose H4.
-  if (supporting.length !== 9 || supportingAligned < 6 || anyTimeframeOpposes) return null;
+  // Require at least eight of twelve supporting frames; no supporting timeframe may oppose H4.
+  if (supporting.length !== 12 || supportingAligned < 8 || anyTimeframeOpposes) return null;
   return {
     direction: primary.direction,
     signalEpoch: primary.signalEpoch,
