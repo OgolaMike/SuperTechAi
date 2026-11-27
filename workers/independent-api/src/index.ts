@@ -1,8 +1,11 @@
+import { handleReferralRequest } from "./referrals";
+
 export interface Env {
   APPWRITE_ENDPOINT: string;
   APPWRITE_PROJECT_ID: string;
   APPWRITE_DATABASE_ID: string;
   MEMBER_PROFILES_TABLE_ID: string;
+  MEMBER_NETWORK_TABLE_ID?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
   PUSH_SUBSCRIPTIONS_TABLE_ID?: string;
@@ -317,6 +320,16 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/referrals/")) {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        const response = await handleReferralRequest(request, env, account);
+        if (response) return withCors(response, cors);
+      } catch {
+        return json({ error: "member_network_unavailable" }, 503, cors);
+      }
+    }
     if (url.pathname === "/api/health" && request.method === "GET") {
       return json({
         ok: true,
