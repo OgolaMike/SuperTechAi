@@ -115,8 +115,13 @@
       "AI_PROFILES_TABLE_ID",
       "AI_CHAT_HISTORY_TABLE_ID"
     ],
-    "requiredSecret": "OPENAI_API_KEY",
+    "requiredSecret": "XAI_API_KEY",
     "optionalVariable": "PERSONAL_AI_MODEL",
-    "defaultModel": "gpt-4.1-mini"
+    "defaultModel": "grok-4.7",
+    "optionalVariables": [
+      "PERSONAL_AI_MODEL",
+      "PERSONAL_AI_BASE_URL"
+    ],
+    "provider": "xAI Grok Responses API"
   }
 }
