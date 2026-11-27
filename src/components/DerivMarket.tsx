@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { formatLocalDateTime } from '@/lib/localTime';
+import { formatLocalDateTime, getLocalTimeZone } from '@/lib/localTime';
 import { Activity, ArrowUpRight, Bot, Cable, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { SignalCard } from '@/components/SignalCard';
 import type { SignalLearningModel } from '@/lib/aiLearning';
@@ -155,7 +155,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
 
       <div className="rounded-2xl border border-line/10 bg-surface/[0.03] p-4 sm:p-5">
         <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Daily market history · EAT</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Daily market history</p>
           <h3 className="mt-1 text-lg font-semibold text-ink">Seven-day gainers and losers</h3>
           <p className="mt-1 text-xs text-ink-3">Choose a Kenya market date to compare Deriv assets against the previous market day's close.</p>
         </div>
