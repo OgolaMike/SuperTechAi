@@ -27,7 +27,7 @@ const money = (amount: number) => new Intl.NumberFormat('en-US', {
 }).format(amount);
 const date = (value: string) => new Intl.DateTimeFormat('en-GB', {
   day: 'numeric', month: 'short', year: 'numeric', timeZone: getLocalTimeZone(),
-}).format(new Date(`${value}T12:00:00+03:00`));
+}).format(new Date(`${value}T12:00:00`));
 
 export function Just4YouBonus() {
   const [data, setData] = useState<Dashboard | null>(null);
