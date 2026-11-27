@@ -129,7 +129,7 @@ export function PendingOrdersPanel({ assets, states, prices, aiModel, nowEpoch, 
               <div className="mt-4">
                 <SignalChartSnapshot
                   candles={states[idea.symbol]?.[idea.granularity]?.chartCandles ?? states[idea.symbol]?.[idea.granularity]?.candles ?? []}
-                  levels={{ entry: idea.entry, stopLoss: idea.stopLoss, tp1: idea.takeProfit, tp2: idea.takeProfit, tp3: idea.takeProfit }}
+                  levels={{ mean: idea.entry, deviation: Math.abs(idea.entry - idea.stopLoss), entry: idea.entry, stopLoss: idea.stopLoss, tp1: idea.takeProfit, tp2: idea.takeProfit, tp3: idea.takeProfit }}
                   signalEpoch={idea.signalEpoch}
                   direction={idea.direction}
                   timeframe={idea.timeframeLabel}
