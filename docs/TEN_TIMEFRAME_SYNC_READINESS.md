@@ -1,4 +1,4 @@
-# Ten-Timeframe Unified Intelligence — Sync Readiness
+# Thirteen-Timeframe Unified Intelligence — Sync Readiness
 
 Last checked: 2026-11-25
 
@@ -6,18 +6,18 @@ Last checked: 2026-11-25
 
 The official timeframe set is:
 
-`M30, H1, H2, H3, H4, H6, H8, H12, D1, W1`.
+`M1, M5, M15, M30, H1, H2, H3, H4, H6, H8, H12, D1, W1`.
 
 - H4 remains the primary direction; W1 adds the highest-level market context.
-- The other nine frames are supporting reads.
-- A signal requires fresh data for all ten frames, at least six supporting reads aligned with H4, and no opposing directional read.
+- The other twelve frames are supporting reads.
+- A signal requires fresh data for all thirteen frames, at least eight supporting reads aligned with H4, and no opposing directional read.
 - Neutral supporting reads are permitted; missing or stale reads are not.
-- M30 is the lowest permitted analysis and execution timeframe; no M1, M5 or M15 feed is part of the official set.
+- M1, M5 and M15 add short-term confirmation only; M30 remains the lowest strategy execution timeframe.
 - If the gate is not satisfied, the unified result is WAIT/no signal.
 
 ## Repository implementation
 
-- Shared frontend timeframe configuration and live candle state include all ten frames.
+- Shared frontend timeframe configuration and live candle state include all thirteen frames.
 - Scanner evaluates the same H4-led ten-frame gate.
 - Super Signal remains one H4-anchored result; timeframe tiles show support/neutral/missing/opposing state rather than separate instructions.
 - Pending Orders use H4 for direction, require at least six of nine supporting reads without opposition, and use a fresh M30 signal as the trigger.
