@@ -1093,11 +1093,30 @@ export default {
           const base = tableBase(tableId);
           const rowUrl = base + "/" + encodeURIComponent(rowId);
           const prior = await fetch(rowUrl, { headers });
-          const response = await fetch(prior.ok ? rowUrl : base, {
-            method: prior.ok ? "PATCH" : "POST", headers,
-            body: JSON.stringify(prior.ok ? { data, permissions: [] } : { rowId, data, permissions: [] }),
+          if (prior.ok) {
+            const existing = await prior.json() as { user_id?: string };
+            if (existing.user_id !== account.$id || data.user_id !== account.$id) throw new Error("ai_storage_ownership_mismatch");
+            const update = await fetch(rowUrl, {
+              method: "PATCH", headers,
+              body: JSON.stringify({ data, permissions: [] }),
+            });
+            if (!update.ok) throw new Error("ai_storage_write_failed");
+            return;
+          }
+          if (prior.status !== 404) throw new Error("ai_storage_read_failed");
+          const create = await fetch(base, {
+            method: "POST", headers,
+            body: JSON.stringify({ rowId, data, permissions: [] }),
           });
-          if (!response.ok && response.status !== 409) throw new Error("ai_storage_write_failed");
+          if (!create.ok && create.status !== 409) throw new Error("ai_storage_write_failed");
+          if (create.status === 409) {
+            const retry = await fetch(rowUrl, { headers });
+            if (!retry.ok) throw new Error("ai_storage_write_failed");
+            const existing = await retry.json() as { user_id?: string };
+            if (existing.user_id !== account.$id || data.user_id !== account.$id) throw new Error("ai_storage_ownership_mismatch");
+            const update = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data, permissions: [] }) });
+            if (!update.ok) throw new Error("ai_storage_write_failed");
+          }
         };
         if (url.pathname === "/api/ai/profile" && request.method === "GET") {
           if (!configured.AI_PROFILES_TABLE_ID) return json({ error: "ai_profile_storage_not_configured" }, 503, cors);
