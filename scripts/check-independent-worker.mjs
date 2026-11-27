@@ -108,5 +108,10 @@ if (failures.length) {
 
 console.log('Independent Worker contract check passed.');
 
-assert(worker.includes('url.pathname === "/health"'), "public Worker health endpoint is required");
-assert(worker.includes('service: "supertechai-independent-api"'), "health endpoint must identify the independent API");
+if (!worker.includes('url.pathname === "/health"')) failures.push("public Worker health endpoint is required");
+if (!worker.includes('service: "supertechai-independent-api"')) failures.push("health endpoint must identify the independent API");
+if (failures.length) {
+  console.error("Independent Worker contract check failed:");
+  failures.forEach((failure) => console.error("- " + failure));
+  process.exit(1);
+}
