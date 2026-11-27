@@ -39,6 +39,8 @@ import { DEFAULT_ASSET } from '@/lib/sma';
 import { loadMemberAlertModes } from '@/lib/alertPreferences';
 import { enableDevicePush, sendPushTest } from '@/lib/independentApi';
 import { MemberReferralsPanel } from '@/components/MemberReferralsPanel';
+import { AdminPanel } from '@/components/AdminPanel';
+import { getMembershipStatus } from '@/lib/independentApi';
 
 const ASSET_KEY='supertech-selected-assets';
 const SOUND_KEY='supertech-signal-sounds';
@@ -54,12 +56,14 @@ export function IndependentTradingTerminal({email,userId}:Props){
  const [pushState,setPushState]=useState<'unknown'|'enabled'|'blocked'|'unsupported'>('unknown');
  const [pushBusy,setPushBusy]=useState(false);
  const [pushMessage,setPushMessage]=useState('');
+ const [isCompanyAdmin,setIsCompanyAdmin]=useState(false);
  const [now,setNow]=useState(epoch);
  const [aiModel,setAiModel]=useState<SignalLearningModel>(()=>trainSignalLearningModel([]));
  const {theme,toggle:toggleTheme}=useTheme();
  const {assets,states,status,lastTick,prices,loaded}=useDerivSignals(selectedSymbols);
  const pendingIdeas=useMemo(()=>buildStopOrderIdeas(assets,states,prices,aiModel,now),[assets,states,prices,aiModel,now]);
  const pendingAlerts=usePendingOrderAlerts(pendingIdeas,loaded&&alertReady,soundsEnabled);
+ useEffect(()=>{let cancelled=false;getMembershipStatus().then(s=>{if(!cancelled)setIsCompanyAdmin(s.isAdmin)}).catch(()=>{if(!cancelled)setIsCompanyAdmin(false)});return()=>{cancelled=true}},[userId]);
  useEffect(()=>{let cancelled=false;loadMemberAlertModes(userId).finally(()=>{if(!cancelled)setAlertReady(true)});return()=>{cancelled=true}},[userId]);
  useEffect(()=>{if(!('Notification' in window)||!('PushManager' in window)||!('serviceWorker' in navigator)){setPushState('unsupported');return}setPushState(Notification.permission==='granted'?'enabled':Notification.permission==='denied'?'blocked':'unknown')},[]);
  const activatePush=async()=>{setPushBusy(true);setPushMessage('');try{await enableDevicePush();setPushState('enabled');setPushMessage('This device is registered. Send a test notification to verify delivery.')}catch(error){setPushMessage(error instanceof Error?error.message:'Could not enable push notifications.');if(typeof Notification!=='undefined'&&Notification.permission==='denied')setPushState('blocked')}finally{setPushBusy(false)}};
@@ -80,7 +84,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
  const monitorAsset=(symbol:string)=>{updateSelected([symbol]);setView('dashboard')};
  const openChart=(symbol:string)=>{updateSelected([symbol]);setView('dashboard');window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>document.getElementById(`asset-dashboard-${encodeURIComponent(symbol)}`)?.scrollIntoView({behavior:'smooth',block:'start'})))};
  const toggleSounds=()=>{const next=!soundsEnabled;setSoundsEnabled(next);localStorage.setItem(SOUND_KEY,String(next));if(next){playAlertTone('BUY');ensureNotificationPermission()}};
- const context={session:{access_token:'',user:{id:userId,email,user_metadata:{}}},isAdmin:false};
+ const context={session:{access_token:'',user:{id:userId,email,user_metadata:{}}},isAdmin:isCompanyAdmin};
  const commonAlerts=[...pendingAlerts.toasts,...breakAlerts.toasts,...signalAlerts.toasts];
  return <SessionContext.Provider value={context}>
   <div className="relative min-h-screen overflow-x-clip bg-canvas text-ink"><AmbientBackground/>
@@ -90,7 +94,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
       <div><p className="text-xs font-black tracking-[.2em] text-ink">SUPERTECH <span className="text-accent">AI</span></p><p className="mt-1 text-[10px] uppercase tracking-[.18em] text-ink-3">Be part of the AI revolution.</p></div>
       <div className="flex items-center gap-3"><span className="hidden max-w-52 truncate text-xs text-ink-3 sm:block">{email}</span><ThemeToggle theme={theme} onToggle={toggleTheme}/><button onClick={()=>window.dispatchEvent(new Event('supertech-independent-signout'))} className="rounded-xl border border-line/15 px-3 py-2 text-xs text-ink-2 hover:bg-surface/10">Sign out</button></div>
      </div>
-     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><ViewNav view={view} isAdmin={false} onChange={setView}/><AssetSelector assets={assets} selected={selectedSymbols} onChange={updateSelected} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/></div>
+     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><ViewNav view={view} isAdmin={isCompanyAdmin} onChange={setView}/><AssetSelector assets={assets} selected={selectedSymbols} onChange={updateSelected} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/></div>
     </header>
     <div className="mt-6"><StatusBar status={status.status} detail={status.detail} lastTick={lastTick} monitoredCount={selectedSymbols.length} saveError={sync.error}/></div>
     <Suspense fallback={<div className="mt-8 min-h-[40vh] animate-pulse rounded-2xl border border-line/15 bg-surface/[0.025]"/>}>
@@ -109,7 +113,8 @@ export function IndependentTradingTerminal({email,userId}:Props){
       {view==='records'&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal history</h2><p className="mt-2 text-sm text-ink-2">Confirmed signal records saved on this device: {views.length} live signal readings.</p>{views.slice(0,30).map(item=><div key={item.key} className="flex flex-wrap justify-between gap-2 border-t border-line/10 py-3 text-xs"><span>{item.assetName} · {item.timeframe} · {item.signal.direction}</span><span>{new Date(item.signal.signalEpoch*1000).toLocaleString()}</span></div>)}</section>}
       {view==='alerts'&&<section className="mt-8 space-y-5"><div className="rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Push notifications</h2><p className="mt-2 text-sm leading-6 text-ink-2">Register this Android device with the Appwrite notification service. Once enabled, SuperTech AI can deliver alerts while the app is in the background or closed.</p><p className="mt-3 text-xs text-ink-3">Device status: {pushState==='enabled'?'Permission granted':pushState==='blocked'?'Blocked in Android site settings':pushState==='unsupported'?'Browser does not support push':'Not enabled yet'}</p><div className="mt-4 flex flex-wrap gap-3"><button disabled={pushBusy||pushState==='unsupported'} onClick={()=>void activatePush()} className="rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{pushBusy?'Please wait…':pushState==='enabled'?'Register / refresh device':'Enable push notifications'}</button><button disabled={pushBusy||pushState!=='enabled'} onClick={()=>void testPush()} className="rounded-xl border border-line/20 px-4 py-2.5 text-xs font-semibold disabled:opacity-40">Send test notification</button></div>{pushMessage&&<p role="status" className="mt-3 rounded-xl border border-line/15 bg-surface/10 p-3 text-xs leading-5 text-ink-2">{pushMessage}</p>}</div><div className="rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal alert sounds</h2><p className="mt-2 text-sm text-ink-2">Sound: {soundsEnabled?'On':'Off'}. Sound preferences are saved on this device.</p><button onClick={toggleSounds} className="mt-4 rounded-xl border border-line/15 px-4 py-2 text-xs">{soundsEnabled?'Mute alerts':'Enable alert sounds'}</button></div></section>}
       {view==='referrals'&&<MemberReferralsPanel userId={userId} email={email}/>}
-      {['personal-ai','academy','earnings','finance','admin','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
+      {view==='admin'&&isCompanyAdmin&&<AdminPanel/>}
+      {['personal-ai','academy','earnings','finance','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
      </div>
     </Suspense>
     <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[.03] p-5 text-xs leading-relaxed text-ink-2"><p className="font-medium text-ink">Trading involves risk. Past signals do not guarantee future results.</p><p className="mt-1">Signals and tracked ideas are not proof of broker execution.</p></footer>
