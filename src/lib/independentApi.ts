@@ -85,3 +85,45 @@ export function disconnectCTraderConnection(): Promise<{ disconnected: boolean; 
     body: JSON.stringify({}),
   });
 }
+
+export type PushSetup = { publicKey: string };
+export type PushTestResult = { sent: number; total: number };
+
+export function getPushSetup(): Promise<PushSetup> {
+  return authenticatedRequest<PushSetup>('/api/push/config');
+}
+
+export function savePushSubscription(endpoint: string): Promise<{ subscribed: boolean }> {
+  return authenticatedRequest<{ subscribed: boolean }>('/api/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
+export function sendPushTest(): Promise<PushTestResult> {
+  return authenticatedRequest<PushTestResult>('/api/push/test', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function enableDevicePush(): Promise<void> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    throw new Error('This browser does not support web push notifications.');
+  }
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('Notification permission is blocked. Allow notifications for SuperTech AI in Android site settings.');
+  const registration = await navigator.serviceWorker.ready;
+  const existing = await registration.pushManager.getSubscription();
+  const setup = await getPushSetup();
+  const decode = (value: string) => {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+  };
+  const subscription = existing ?? await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: decode(setup.publicKey),
+  });
+  await savePushSubscription(subscription.endpoint);
+}
