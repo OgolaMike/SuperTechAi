@@ -507,10 +507,11 @@ export default {
     const origin = request.headers.get("origin") || "";
     const cors = corsHeaders(origin, env.ALLOWED_ORIGIN);
 
-    if (origin && origin !== env.ALLOWED_ORIGIN) return json({ error: "origin_not_allowed" }, 403);
+    const allowedOrigins = env.ALLOWED_ORIGIN.split(",").map(value => value.trim()).filter(Boolean);
+    if (origin && !allowedOrigins.includes(origin)) return json({ error: "origin_not_allowed" }, 403);
 
     if (request.method === "OPTIONS") {
-      if (origin !== env.ALLOWED_ORIGIN) return new Response(null, { status: 403 });
+      if (!allowedOrigins.includes(origin)) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: cors });
     }
 
