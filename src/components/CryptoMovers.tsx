@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatLocalTime } from '@/lib/localTime';
 import { CryptoMoverAnalysis } from '@/components/CryptoMoverAnalysis';
 import { MAX_MONITORED_ASSETS } from '@/lib/sma';
 import type { SignalLearningModel } from '@/lib/aiLearning';
@@ -108,7 +109,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
           </div>
           <div className="flex items-center gap-2 text-xs text-ink-3">
             <span className={today.loading ? "h-2 w-2 animate-pulse rounded-full bg-accent" : "h-2 w-2 rounded-full bg-up"} />
-            {today.loading && today.movers.length === 0 ? "Loading live rankings…" : today.updatedAt ? "Updated " + new Date(today.updatedAt).toLocaleTimeString() : "Waiting for update"}
+            {today.loading && today.movers.length === 0 ? "Loading live rankings…" : today.updatedAt ? "Updated " + formatLocalTime(today.updatedAt) : "Waiting for update"}
           </div>
         </div>
         {today.error && <p className="mb-3 text-xs text-down">Live rankings could not refresh: {today.error}. Showing the last successful update where available.</p>}
