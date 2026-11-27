@@ -600,7 +600,7 @@ export default {
         if (!account) return json({ error: "unauthorized" }, 401, cors);
         const tableId = env.STRATEGY_OUTCOME_EVENTS_TABLE_ID;
         if (!tableId || !env.APPWRITE_API_KEY) return json({ error: "strategy_outcome_storage_not_configured" }, 503, cors);
-        const base = env.APPWRITE_ENDPOINT.replace(/\\/$/, "") + "/tablesdb/" + env.APPWRITE_DATABASE_ID + "/tables/" + tableId + "/rows";
+        const base = env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/tablesdb/" + env.APPWRITE_DATABASE_ID + "/tables/" + tableId + "/rows";
         const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
         if (request.method === "GET") {
           const target = new URL(base);
