@@ -631,13 +631,20 @@ export default {
           if (!payload || typeof payload !== "object" || eventKey.length < 1 || eventKey.length > 320 ||
               !Number.isSafeInteger(eventEpoch) || eventEpoch <= 0 || eventEpoch > Date.now() / 1000 + 60) return json({ error: "invalid_strategy_outcome_event" }, 400, cors);
           const item = payload as Record<string, unknown>;
-          if (typeof item.key !== "string" || item.key.length > 320 ||
+          const expectedEventKey = [item.key, item.status, item.entryEpoch ?? 0, item.resolvedEpoch ?? 0].join("|");
+          const expectedEventEpoch = Number(item.resolvedEpoch ?? item.entryEpoch ?? item.signalEpoch);
+          const optionalPrices = ["entry", "stopLoss", "target"];
+          if (typeof item.key !== "string" || item.key.length < 1 || item.key.length > 320 || eventKey !== expectedEventKey ||
+              eventEpoch !== expectedEventEpoch ||
               typeof item.strategyId !== "string" || !/^[a-z0-9-]{1,80}$/i.test(item.strategyId) ||
               typeof item.symbol !== "string" || item.symbol.length < 1 || item.symbol.length > 64 ||
               typeof item.timeframe !== "string" || item.timeframe.length > 8 ||
               !Number.isSafeInteger(item.signalEpoch) || Number(item.signalEpoch) <= 0 ||
-              !statuses.includes(String(item.status))) return json({ error: "invalid_strategy_outcome_payload" }, 400, cors);
-          const payloadJson = JSON.stringify(item);
+              !statuses.includes(String(item.status)) ||
+              optionalPrices.some(key => item[key] != null && (typeof item[key] !== "number" || !Number.isFinite(item[key]) || Number(item[key]) <= 0)) ||
+              (item.rMultiple != null && (typeof item.rMultiple !== "number" || !Number.isFinite(item.rMultiple))) ||
+              (["TARGET HIT", "STOP HIT"].includes(String(item.status)) && (!Number.isSafeInteger(item.resolvedEpoch) || Number(item.resolvedEpoch) < Number(item.signalEpoch)))) return json({ error: "invalid_strategy_outcome_payload" }, 400, cors);
+          const payloadJson = JSON.stringify({ ...item, source: "browser_candle_replay" });
           if (payloadJson.length > 8_000) return json({ error: "strategy_outcome_payload_too_large" }, 413, cors);
           const rowId = (await sha256(account.$id + "|" + eventKey)).slice(0, 32);
           const rowUrl = base + "/" + encodeURIComponent(rowId);
