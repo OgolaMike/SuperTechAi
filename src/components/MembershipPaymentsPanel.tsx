@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { listMyIndependentPayments, submitIndependentPayment, type IndependentPayment } from '@/lib/independentApi';
 
 export function MembershipPaymentsPanel({ plan }: { plan: 'free' | 'standard_300' | 'automation_500' }) {
@@ -6,8 +6,8 @@ export function MembershipPaymentsPanel({ plan }: { plan: 'free' | 'standard_300
   const [payments,setPayments]=useState<IndependentPayment[]>([]);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState('');
-  const load=async()=>{try{const result=await listMyIndependentPayments();setPayments(result.payments)}catch{/* Membership page remains usable while payment service is unavailable. */}};
-  useEffect(()=>{void load()},[]);
+  const load=useCallback(async()=>{try{const result=await listMyIndependentPayments();setPayments(result.payments)}catch{/* Membership page remains usable while payment service is unavailable. */}},[]);
+  useEffect(()=>{void load()},[load]);
   const submit=async(planCode:'standard_300'|'automation_500')=>{
     setBusy(true);setMessage('');
     try{await submitIndependentPayment(planCode,reference.trim());setReference('');setMessage('Payment reference submitted. Your plan activates only after company verification.');await load()}
