@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { IndependentPushSettings } from '@/components/IndependentPushSettings';
 import {
   Activity, ArrowDownRight, ArrowUpRight, Bell, Bot, CandlestickChart,
   CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Coins, LayoutDashboard,
