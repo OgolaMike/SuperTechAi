@@ -21,14 +21,14 @@ Create these columns (all required unless marked optional):
 
 | Column | Type | Required |
 |---|---|---|
-| row_type | varchar (16) | yes |
-| user_id | varchar (36) | yes |
-| email | varchar (320) | yes |
-| referral_code | varchar (36) | yes |
-| sponsor_user_id | varchar (36) | yes |
-| team_owner_id | varchar (36) | yes |
-| role | varchar (16) | yes |
-| status | varchar (16) | yes |
+| row_type | string (16) | yes |
+| user_id | string (36) | yes |
+| email | string (320) | yes |
+| referral_code | string (36) | yes |
+| sponsor_user_id | string (36) | yes |
+| team_owner_id | string (36) | yes |
+| role | string (16) | yes |
+| status | string (16) | yes |
 | created_at | datetime | yes |
 
 Create indexes:
