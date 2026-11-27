@@ -109,7 +109,7 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
     const stopLoss = direction === 'BUY' ? zoneLow - buffer : zoneHigh + buffer;
     const risk = direction === 'BUY' ? entry - stopLoss : stopLoss - entry;
     if (!(risk > 0)) continue;
-    const takeProfit = direction === 'BUY' ? entry + 3 * risk : entry - 3 * risk;
+    const takeProfit = direction === 'BUY' ? entry + 5 * risk : entry - 5 * risk;
     if (!(takeProfit > 0)) continue;
     const patternType: PendingPatternType = side === 'low' ? 'TRIPLE BOTTOM' : 'TRIPLE TOP';
     const signalEpoch = confirmationEpoch;
@@ -132,7 +132,7 @@ function scanTimeframe(asset: Asset, state: TfState | undefined, currentPrice: n
 
 /** Pure price-action double-touch scanner: two swing lows stage a BUY LIMIT at support;
  * two swing highs stage a SELL LIMIT at resistance. Both wait for a possible third test
- * and use a 3R target. This scanner tracks ideas only; it never places broker orders. */
+ * and use a 5R target. This scanner tracks ideas only; it never places broker orders. */
 export function buildStopOrderIdeas(
   assets: Asset[], statesBySymbol: Record<string, Record<number, TfState>>,
   prices: Record<string, number>, _aiModel: unknown, nowEpoch: number,
