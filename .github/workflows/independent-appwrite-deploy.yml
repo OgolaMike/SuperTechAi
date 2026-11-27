@@ -30,6 +30,8 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm run check:independent-worker
+      - name: Validate Appwrite provisioning script syntax
+        run: node --check scripts/provision-appwrite-membership.mjs
       - name: Validate Worker deployment bundle
         run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
 
@@ -50,9 +52,23 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          APPWRITE_PROJECT_ID: "6b06de46003dde834eb6"
+          APPWRITE_DATABASE_ID: "6b06e4d900325c304d98"
+          GENESIS_ACCOUNT_ID: ${{ secrets.GENESIS_ACCOUNT_ID }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing GitHub secret CLOUDFLARE_API_TOKEN"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing GitHub secret CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          test -n "$APPWRITE_API_KEY" || { echo "Missing GitHub secret APPWRITE_API_KEY"; exit 1; }
+          test -n "$GENESIS_ACCOUNT_ID" || { echo "Missing GitHub secret GENESIS_ACCOUNT_ID"; exit 1; }
+      - name: Provision and verify private Appwrite membership table
+        env:
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          APPWRITE_PROJECT_ID: "6b06de46003dde834eb6"
+          APPWRITE_DATABASE_ID: "6b06e4d900325c304d98"
+          APPWRITE_ENDPOINT: "https://fra.cloud.appwrite.io/v1"
+          MEMBERSHIP_TABLE_ID: "membership_requests"
+        run: npm run provision:appwrite-membership
       - name: Deploy independent Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

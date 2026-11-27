@@ -2,11 +2,13 @@
 
 This is for the independent Appwrite edition only. It does not change the Supabase/Bolt production edition.
 
-## Required Appwrite table
+## Automatic Appwrite table provisioning
 
-In database `6b06e4d900325c304d98`, create a TablesDB table with ID `membership_requests`. Keep table permissions empty; only the independent Worker server API key may access it.
+The independent deployment workflow now provisions this table automatically before deploying the Worker. It is safe to rerun: existing matching columns and indexes are retained, missing schema elements are added, and mismatched existing definitions cause the deployment to stop rather than rewriting data.
 
-Create these columns:
+The workflow targets database `6b06e4d900325c304d98` in project `6b06de46003dde834eb6`, and creates TablesDB table `membership_requests`. Keep table permissions empty; only the independent Worker server API key may access it.
+
+The provisioner creates and verifies these columns:
 
 | Column | Type | Required |
 |---|---|---|
@@ -20,7 +22,7 @@ Create these columns:
 | reviewed_by | string (36) | no |
 | review_note | string (500) | no |
 
-Create a unique index on `user_id`, plus indexes on `status` and `created_at`.
+The provisioner creates a unique index on `user_id`, plus indexes on `status` and `created_at`.
 
 ## Company administrator
 
@@ -59,9 +61,9 @@ The approval panel explicitly reminds the company to confirm payment before sele
 
 ## Deploy checklist
 
-1. Create the table and indexes above.
-2. Confirm `APPWRITE_API_KEY` and `GENESIS_ACCOUNT_ID` are configured as Worker secrets.
-3. Deploy the independent Worker and Pages app from the membership-approval branch after CI passes.
+1. Add GitHub Actions secrets `APPWRITE_API_KEY`, `GENESIS_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` to the repository. The Appwrite API key needs permission to read the database and manage tables, columns, and indexes. Never commit or paste the key into source code.
+2. Merge the provisioning change into `feat/appwrite-independent-platform-foundation` after CI passes. The production workflow provisions and verifies the private table before deploying the Worker and Pages app.
+3. Confirm `APPWRITE_API_KEY` and `GENESIS_ACCOUNT_ID` are configured as Worker secrets.
 4. Sign in as a test member and confirm the account appears as Pending in the company Members panel.
 5. Confirm a non-Genesis account receives HTTP 403 from the admin membership endpoint.
 6. Approve the test member as Free and verify they can continue only after also satisfying the upline gate.
