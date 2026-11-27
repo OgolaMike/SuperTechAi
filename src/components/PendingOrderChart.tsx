@@ -56,7 +56,7 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
   const slots = Math.max(data.length - 1, 1) + RIGHT_CANDLE_SPACE;
   const x = (i: number) => PAD.left + i / slots * plotW;
   const y = (price: number) => PAD.top + (max - price) / range * plotH;
-  const bodyW = Math.max(2, Math.min(plotW / slots * 0.68, 12));
+  const bodyW = Math.max(2, Math.min(spacing, plotW / slots * 0.78, 12));
   const zoneIndex = data.findIndex(c => c.epoch >= zone.startEpoch);
   const zoneX = zone.startEpoch <= data[0].epoch ? PAD.left : zoneIndex >= 0 ? x(zoneIndex) : x(data.length - 1);
   const zoneY = y(zone.high);
@@ -92,14 +92,13 @@ export function PendingOrderChart({ candles, entry, stopLoss, takeProfit, curren
 
       <div ref={containerRef} className="w-full min-w-0 px-1">
         <svg viewBox={`0 0 ${width} ${HEIGHT}`} role="img" aria-label="Responsive candlestick chart showing entry, stop-loss, take-profit, market price and pattern zone" preserveAspectRatio="none" style={{ width: '100%', height: 'auto', aspectRatio: `${width} / ${HEIGHT}` }} className="block">
-          <defs><linearGradient id="pending-zone-fill" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stopColor={zoneColor} stopOpacity=".22" /><stop offset="100%" stopColor={zoneColor} stopOpacity=".04" /></linearGradient></defs>
           {[0,1,2,3,4].map(step => {
             const gy = PAD.top + plotH * step / 4;
             const price = max - range * step / 4;
             return <g key={step}><line x1={PAD.left} x2={width-PAD.right} y1={gy} y2={gy} stroke="#94a3b8" strokeOpacity=".14" strokeDasharray="3 5" /><text x={width-PAD.right+7} y={gy+3} fill="#94a3b8" fontSize="9">{formatPrice(price,digits)}</text></g>;
           })}
           {[0,1,2,3,4,5].map(step => { const gx = PAD.left + plotW * step / 5; return <line key={step} x1={gx} x2={gx} y1={PAD.top} y2={HEIGHT-PAD.bottom} stroke="#94a3b8" strokeOpacity=".07" />; })}
-          <rect x={zoneX} y={zoneY} width={Math.max(bodyW*2,width-PAD.right-zoneX)} height={zoneH} fill="url(#pending-zone-fill)" stroke={zoneColor} strokeOpacity=".75" strokeDasharray="4 4" rx="3" />
+          <rect x={zoneX} y={zoneY} width={Math.max(bodyW*2,width-PAD.right-zoneX)} height={zoneH} fill={zoneColor} fillOpacity=".10" stroke={zoneColor} strokeOpacity=".75" strokeDasharray="4 4" rx="3" />
           <text x={Math.min(zoneX+6,width-PAD.right-8)} y={Math.max(PAD.top+12,zoneY-5)} fill={zoneColor} fontSize="9" fontWeight="800">{direction} TEST ZONE</text>
           {data.map((c,i) => {
             const up=c.close>=c.open, color=up?'#22c55e':'#fb7185';
