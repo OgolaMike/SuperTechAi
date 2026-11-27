@@ -112,6 +112,7 @@ export async function isAppwritePushEnabled(): Promise<boolean> {
   const prefs = await readPrefs();
   const push = prefs.supertechPush as Partial<StoredPush> | undefined;
   if (!push?.enabled || !Array.isArray(push.devices)) return false;
-  const subscription = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+  const registration = await navigator.serviceWorker.getRegistration('/');
+  const subscription = await registration?.pushManager.getSubscription();
   return Boolean(subscription && push.devices.some((device) => device.subscription?.endpoint === subscription.endpoint));
 }
