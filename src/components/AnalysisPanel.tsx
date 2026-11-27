@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Activity, BrainCircuit, CheckCircle2, Clock3, ShieldAlert, Sparkles } from 'lucide-react';
-import { TIMEFRAMES, isStale, type Asset, type TfState } from '@/lib/sma';
+import { TIMEFRAMES, isStale, formatDateTime, type Asset, type TfState } from '@/lib/sma';
 import type { SuperSignal } from '@/lib/intelligence';
 import type { StopOrderIdea } from '@/lib/stopOrders';
 import { flattenSignals } from '@/lib/signals';
 import { buildIndependentStrategyAssessments } from '@/lib/independentStrategies';
 import type { StrategyAssessment } from '@/lib/strategyConfluence';
-import { formatDateTime } from '@/lib/sma';
 
 type Props = { assets: Asset[]; states: Record<string, Record<number, TfState>>; prices: Record<string, number>; superSignals: SuperSignal[]; pendingOrderIdeas: StopOrderIdea[]; loaded: boolean; nowEpoch: number; initialSymbol?: string };
 
