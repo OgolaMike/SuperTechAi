@@ -12,7 +12,10 @@ export type Timeframe = {
 const CHART_HISTORY_CANDLES = 1440;
 
 export const TIMEFRAMES: Timeframe[] = [
-  { granularity: 1800, label: 'M30', role: 'Lowest analysis and execution timeframe', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 60, label: 'M1', role: 'Fast independent entry analysis', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 300, label: 'M5', role: 'Short-term independent confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 900, label: 'M15', role: 'Intraday setup and confirmation', candleCount: CHART_HISTORY_CANDLES },
+  { granularity: 1800, label: 'M30', role: 'Market structure and confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 3600, label: 'H1', role: 'Short-term confirmation', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 7200, label: 'H2', role: 'Short-term structure', candleCount: CHART_HISTORY_CANDLES },
   { granularity: 10800, label: 'H3', role: 'Intermediate structure', candleCount: CHART_HISTORY_CANDLES },
@@ -25,7 +28,7 @@ export const TIMEFRAMES: Timeframe[] = [
 ];
 
 
-export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([1800, 3600, 14400, 28800, 86400]);
+export const NATIVE_TIMEFRAME_GRANULARITIES = new Set([60, 300, 900, 1800, 3600, 14400, 28800, 86400]);
 
 // Build H2/H3/H6/H12 from complete hourly candles and W1 from complete daily candles.
 // Completed buckets require every hourly candle; the current bucket may remain partial/live.
