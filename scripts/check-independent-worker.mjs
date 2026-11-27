@@ -36,7 +36,7 @@ for (const [label, condition] of [
   ['signal history is scoped to the authenticated member', worker.includes('column: "user_id", values: [account.$id]')],
   ['signal history uses deterministic member-specific row IDs', worker.includes('sha256(`${account.$id}|${record.signal_key}`)')],
   ['signal history batches are bounded', worker.includes('body.records.length > 50') && worker.includes('contentLength > 64_000')],
-  ['signal records enforce the ten official timeframes', worker.includes('M30: 1800, H1: 3600, H2: 7200, H3: 10800, H4: 14400, H6: 21600, H8: 28800, H12: 43200, D1: 86400, W1: 604800')],
+  ['signal records enforce all 13 official timeframes', worker.includes('M1: 60, M5: 300, M15: 900, M30: 1800, H1: 3600, H2: 7200, H3: 10800, H4: 14400, H6: 21600, H8: 28800, H12: 43200, D1: 86400, W1: 604800')],
   ['signal records remain Worker-only', worker.includes('permissions: []')],
   ['alert preferences are scoped to the authenticated member', worker.includes('ALERT_PREFERENCES_TABLE_ID') && worker.includes('row.user_id !== account.$id')],
   ['missing alert preference rows preserve local choices', worker.includes('exists: false') && worker.includes('exists: true')],
