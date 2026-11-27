@@ -181,10 +181,10 @@ async function sendWebPush(endpoint: string, env: PushEnv): Promise<void> {
 async function pushRow(env: PushEnv, rowId: string, method: string, data?: Record<string, unknown>) {
   if (!env.APPWRITE_API_KEY || !env.PUSH_SUBSCRIPTIONS_TABLE_ID || !env.APPWRITE_DATABASE_ID) throw new Error("push_storage_not_configured");
   const base = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`;
-  const response = await fetch(`${base}/${encodeURIComponent(rowId)}`, {
+  const response = await fetch(method === "POST" ? base : `${base}/${encodeURIComponent(rowId)}`, {
     method,
     headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" },
-    ...(data ? { body: JSON.stringify({ data, permissions: [] }) } : {}),
+    ...(data ? { body: JSON.stringify(method === "POST" ? { rowId, data, permissions: [] } : { data, permissions: [] }) } : {}),
   });
   if (!response.ok && !(method === "GET" && response.status === 404)) throw new Error(`push_storage_failed_${response.status}`);
   return response.status === 404 ? null : await response.json() as { $id: string; user_id?: string; endpoint?: string };
@@ -409,8 +409,8 @@ export default {
           return json({ error: "push_sender_not_configured" }, 503, cors);
         }
         const queryUrl = new URL(`${configured.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${configured.APPWRITE_DATABASE_ID}/tables/${configured.PUSH_SUBSCRIPTIONS_TABLE_ID}/rows`);
-        queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] }));
-        queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "active", values: [true] }));
+        queryUrl.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] }));
+        queryUrl.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "active", values: [true] }));
         const response = await fetch(queryUrl, { headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY } });
         if (!response.ok) return json({ error: "push_subscription_lookup_failed" }, 503, cors);
         const result = await response.json() as { rows?: Array<{ user_id: string; endpoint: string }> };
