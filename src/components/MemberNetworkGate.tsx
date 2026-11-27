@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Loader2, Link2, ShieldCheck } from 'lucide-react';
 import { activateMemberReferral, getMemberReferralProfile } from '@/lib/independentApi';
 
-type Props = { children: React.ReactNode };
+type Props = { children: ReactNode };
 
 export function MemberNetworkGate({ children }: Props) {
   const [ready, setReady] = useState(false);
