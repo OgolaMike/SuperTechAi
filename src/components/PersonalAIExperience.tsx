@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BrainCircuit, Sparkles, ShieldCheck, BookOpen, MessageCircle, Send, Compass, Target, Trash2, RefreshCw, Activity, GraduationCap, Wallet } from 'lucide-react';
+import { BrainCircuit, Sparkles, ShieldCheck, MessageCircle, Send, Compass, Target, Trash2, RefreshCw, Activity, GraduationCap, Wallet } from 'lucide-react';
 import {
   askIndependentAI,
   clearIndependentAIHistory,
