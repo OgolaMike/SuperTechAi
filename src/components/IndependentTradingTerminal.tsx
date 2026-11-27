@@ -37,6 +37,7 @@ import { buildStopOrderIdeas } from '@/lib/stopOrders';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET } from '@/lib/sma';
 import { loadMemberAlertModes } from '@/lib/alertPreferences';
+import { enableDevicePush, sendPushTest } from '@/lib/independentApi';
 
 const ASSET_KEY='supertech-selected-assets';
 const SOUND_KEY='supertech-signal-sounds';
@@ -49,6 +50,9 @@ export function IndependentTradingTerminal({email,userId}:Props){
  const [selectedSymbols,setSelectedSymbols]=useState<string[]>(readSelected);
  const [soundsEnabled,setSoundsEnabled]=useState(()=>localStorage.getItem(SOUND_KEY)==='true');
  const [alertReady,setAlertReady]=useState(false);
+ const [pushState,setPushState]=useState<'unknown'|'enabled'|'blocked'|'unsupported'>('unknown');
+ const [pushBusy,setPushBusy]=useState(false);
+ const [pushMessage,setPushMessage]=useState('');
  const [now,setNow]=useState(epoch);
  const [aiModel,setAiModel]=useState<SignalLearningModel>(()=>trainSignalLearningModel([]));
  const {theme,toggle:toggleTheme}=useTheme();
@@ -56,6 +60,9 @@ export function IndependentTradingTerminal({email,userId}:Props){
  const pendingIdeas=useMemo(()=>buildStopOrderIdeas(assets,states,prices,aiModel,now),[assets,states,prices,aiModel,now]);
  const pendingAlerts=usePendingOrderAlerts(pendingIdeas,loaded&&alertReady,soundsEnabled);
  useEffect(()=>{let cancelled=false;loadMemberAlertModes(userId).finally(()=>{if(!cancelled)setAlertReady(true)});return()=>{cancelled=true}},[userId]);
+ useEffect(()=>{if(!('Notification' in window)||!('PushManager' in window)||!('serviceWorker' in navigator)){setPushState('unsupported');return}setPushState(Notification.permission==='granted'?'enabled':Notification.permission==='denied'?'blocked':'unknown')},[]);
+ const activatePush=async()=>{setPushBusy(true);setPushMessage('');try{await enableDevicePush();setPushState('enabled');setPushMessage('This device is registered. Send a test notification to verify delivery.')}catch(error){setPushMessage(error instanceof Error?error.message:'Could not enable push notifications.');if(typeof Notification!=='undefined'&&Notification.permission==='denied')setPushState('blocked')}finally{setPushBusy(false)}};
+ const testPush=async()=>{setPushBusy(true);setPushMessage('');try{const result=await sendPushTest();setPushMessage('Test notification accepted for '+result.sent+' of '+result.total+' registered device(s). Check your Android notification shade.')}catch(error){setPushMessage(error instanceof Error?error.message:'Test notification failed.')}finally{setPushBusy(false)}};
  const assetMap=useMemo(()=>new Map(assets.map(asset=>[asset.symbol,asset])),[assets]);
  const views=useMemo(()=>flattenSignals(assets,states),[assets,states]);
  const superSignals=useMemo(()=>buildSuperSignals(assets,states,now),[assets,states,now]);
@@ -99,7 +106,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
       {view==='deriv-market'&&<DerivMarket assets={assets.filter(a=>a.exchange==='DERIV')} states={Object.fromEntries(Object.entries(states).filter(([symbol])=>assets.some(a=>a.symbol===symbol&&a.exchange==='DERIV')))} prices={Object.fromEntries(Object.entries(prices).filter(([symbol])=>assets.some(a=>a.symbol===symbol&&a.exchange==='DERIV')))} selectedSymbols={selectedSymbols} onMonitorAsset={monitorAsset} aiModel={aiModel}/>}
       {['ctrader','connections'].includes(view)&&<IndependentBrokerConnections/>}{['mt5','binance','okx'].includes(view)&&<section className="mt-8 rounded-2xl border border-amber-400/20 bg-amber-400/[.04] p-5"><p className="text-sm font-semibold text-ink">Broker automation connection</p><p className="mt-2 text-sm leading-6 text-ink-2">This broker is being connected through the independent authenticated Worker. No credentials are requested in the browser until its secure account, risk and order workflows are ready.</p></section>}
       {view==='records'&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal history</h2><p className="mt-2 text-sm text-ink-2">Confirmed signal records saved on this device: {views.length} live signal readings.</p>{views.slice(0,30).map(item=><div key={item.key} className="flex flex-wrap justify-between gap-2 border-t border-line/10 py-3 text-xs"><span>{item.assetName} · {item.timeframe} · {item.signal.direction}</span><span>{new Date(item.signal.signalEpoch*1000).toLocaleString()}</span></div>)}</section>}
-      {view==='alerts'&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal alerts</h2><p className="mt-2 text-sm text-ink-2">Sound: {soundsEnabled?'On':'Off'}. Alert preferences are saved separately on this device.</p><button onClick={toggleSounds} className="mt-4 rounded-xl border border-line/15 px-4 py-2 text-xs">{soundsEnabled?'Mute alerts':'Enable alert sounds'}</button></section>}
+      {view==='alerts'&&<section className="mt-8 space-y-5"><div className="rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Push notifications</h2><p className="mt-2 text-sm leading-6 text-ink-2">Register this Android device with the Appwrite notification service. Once enabled, SuperTech AI can deliver alerts while the app is in the background or closed.</p><p className="mt-3 text-xs text-ink-3">Device status: {pushState==='enabled'?'Permission granted':pushState==='blocked'?'Blocked in Android site settings':pushState==='unsupported'?'Browser does not support push':'Not enabled yet'}</p><div className="mt-4 flex flex-wrap gap-3"><button disabled={pushBusy||pushState==='unsupported'} onClick={()=>void activatePush()} className="rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{pushBusy?'Please wait…':pushState==='enabled'?'Register / refresh device':'Enable push notifications'}</button><button disabled={pushBusy||pushState!=='enabled'} onClick={()=>void testPush()} className="rounded-xl border border-line/20 px-4 py-2.5 text-xs font-semibold disabled:opacity-40">Send test notification</button></div>{pushMessage&&<p role="status" className="mt-3 rounded-xl border border-line/15 bg-surface/10 p-3 text-xs leading-5 text-ink-2">{pushMessage}</p>}</div><div className="rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal alert sounds</h2><p className="mt-2 text-sm text-ink-2">Sound: {soundsEnabled?'On':'Off'}. Sound preferences are saved on this device.</p><button onClick={toggleSounds} className="mt-4 rounded-xl border border-line/15 px-4 py-2 text-xs">{soundsEnabled?'Mute alerts':'Enable alert sounds'}</button></div></section>}
       {['personal-ai','academy','referrals','earnings','finance','admin','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
      </div>
     </Suspense>
