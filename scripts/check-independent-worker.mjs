@@ -110,6 +110,7 @@ console.log('Independent Worker contract check passed.');
 
 if (!worker.includes('url.pathname === "/health"')) failures.push("public Worker health endpoint is required");
 if (!worker.includes('service: "supertechai-independent-api"')) failures.push("health endpoint must identify the independent API");
+if (!worker.includes("appwriteConfigured: Boolean(env.APPWRITE_ENDPOINT")) failures.push("health endpoint must report Appwrite configuration readiness");
 if (failures.length) {
   console.error("Independent Worker contract check failed:");
   failures.forEach((failure) => console.error("- " + failure));
