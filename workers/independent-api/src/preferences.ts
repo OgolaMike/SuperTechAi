@@ -83,7 +83,7 @@ export async function handleAlertPreferences(request: Request, env: Env, account
       updatedAt: new Date().toISOString(),
     };
     const serialized = JSON.stringify(savedPreferences);
-    if (serialized.length > 12000) return json({ error: "alert_preferences_too_large" }, 413);
+    if (serialized.length > 9000) return json({ error: "alert_preferences_too_large" }, 413);
     const saved = await fetch(row ? `${base}/${encodeURIComponent(rowId)}` : base, {
       method: row ? "PATCH" : "POST", headers: headers(env),
       body: JSON.stringify(row ? { data: { categories_json: serialized }, permissions: [] } : {
