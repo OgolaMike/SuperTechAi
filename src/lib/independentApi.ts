@@ -222,6 +222,8 @@ export function askIndependentAI(input: {
   assets: string[];
   signalsCount: number;
   signalContext: Array<Record<string, unknown>>;
+  activeModule?: string;
+  contextSummary?: string;
 }): Promise<{ answer: string; memorySaved: boolean }> {
   return authenticatedRequest('/api/ai/chat', { method: 'POST', body: JSON.stringify(input) });
 }
