@@ -7,6 +7,10 @@ const workerPath = path.join(root, 'workers/independent-api/src/index.ts');
 const configPath = path.join(root, 'workers/independent-api/wrangler.toml');
 const worker = fs.readFileSync(workerPath, 'utf8');
 const config = fs.readFileSync(configPath, 'utf8');
+const referrals = fs.readFileSync(path.join(root, 'workers/independent-api/src/referrals.ts'), 'utf8');
+const memberGate = fs.readFileSync(path.join(root, 'src/components/MemberNetworkGate.tsx'), 'utf8');
+const membership = fs.readFileSync(path.join(root, 'workers/independent-api/src/membership.ts'), 'utf8');
+const adminPanel = fs.readFileSync(path.join(root, 'src/components/AdminPanel.tsx'), 'utf8');
 const failures = [];
 
 for (const [label, condition] of [
@@ -35,9 +39,26 @@ for (const [label, condition] of [
   ['cTrader refresh clears legacy client row permissions', worker.includes('permissions: [],')],
   ['cTrader disconnect deletes only the member grant', worker.includes('/api/brokers/ctrader/disconnect') && worker.includes('method: \"DELETE\"')],
   ['cTrader disconnect does not falsely claim provider revocation', worker.includes('providerTokenRevoked: false')],
-  ['allowed origin is configured', config.includes('ALLOWED_ORIGIN = "https://supertechai.pages.dev"')],
+  ['allowed origin is configured', config.includes('ALLOWED_ORIGIN = "https://main.supertechai.pages.dev"')],
   ['API key is not hard-coded in Wrangler vars', !/^APPWRITE_API_KEY\\s*=/m.test(config)],
   ['legacy Worker is not targeted', config.includes('name = "supertechai-independent-api"') && !config.includes('name = "supertechai-api"')],
+
+  ['Appwrite member network table is configured', config.includes('MEMBER_NETWORK_TABLE_ID = "member_network"')],
+  ['member network API requires verified Appwrite identity', worker.includes('handleReferralRequest(request, env, account)')],
+  ['referral codes are generated with cryptographic randomness', referrals.includes('crypto.getRandomValues(new Uint8Array(18))')],
+  ['referral activation rejects invalid codes', referrals.includes('valid_upline_required') && referrals.includes('invalid_upline')],
+  ['team attribution is inherited from the sponsor', referrals.includes('team_owner_id: sponsor.team_owner_id')],
+  ['owner teams can only be created through Genesis authorization', referrals.includes('x-genesis-token') && referrals.includes('GENESIS_ADMIN_TOKEN')],
+  ['owner onboarding checks Appwrite email verification', referrals.includes('user.emailVerification')],
+  ['unassigned members are blocked at the app gate', memberGate.includes('Who invited you?') && memberGate.includes('activateMemberReferral')],
+  ['referral links use opaque codes rather than Appwrite user IDs', referrals.includes('referral_code: code()') && !referrals.includes('referral_code: account.$id')],
+  ['new member membership defaults to pending', membership.includes('status: "pending"') && membership.includes('ensureMembership')],
+  ['all membership statuses are checked before access', memberGate.includes('getMembershipStatus') && memberGate.includes("membership.status!=='approved'")],
+  ['membership admin actions require the Genesis account', membership.includes('account.$id === env.GENESIS_ACCOUNT_ID') && membership.includes('company_admin_required')],
+  ['membership approval supports free and both paid tiers', membership.includes('standard_300') && membership.includes('automation_500') && membership.includes('planCode')],
+  ['membership records remain server-owned', membership.includes('permissions: []')],
+  ['admin UI uses independent membership endpoints', adminPanel.includes('listAdminMembers') && adminPanel.includes('reviewMembership')],
+  ['broker automation APIs require approved Premium membership', worker.includes('hasAutomationEntitlement(env, account)') && membership.includes('row.plan_code === "automation_500"')],
 ]) {
   if (!condition) failures.push(label);
 }
