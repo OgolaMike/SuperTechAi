@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { Activity, BrainCircuit, CheckCircle2, Clock3, ShieldAlert, Sparkles } from 'lucide-react';
 import { TIMEFRAMES, isStale, type Asset, type TfState } from '@/lib/sma';
 import type { SuperSignal } from '@/lib/intelligence';
+import type { StopOrderIdea } from '@/lib/stopOrders';
 
-type Props = { assets: Asset[]; states: Record<string, Record<number, TfState>>; prices: Record<string, number>; superSignals: SuperSignal[]; loaded: boolean; nowEpoch: number; initialSymbol?: string };
+type Props = { assets: Asset[]; states: Record<string, Record<number, TfState>>; prices: Record<string, number>; superSignals: SuperSignal[]; pendingOrderIdeas: StopOrderIdea[]; loaded: boolean; nowEpoch: number; initialSymbol?: string };
 type Decision = 'BUY' | 'SELL' | 'WAIT';
 
-export function AnalysisPanel({ assets, states, prices, superSignals, loaded, nowEpoch, initialSymbol }: Props) {
+export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrderIdeas, loaded, nowEpoch, initialSymbol }: Props) {
   const [symbol, setSymbol] = useState(initialSymbol ?? assets[0]?.symbol ?? '');
   const [timeframe, setTimeframe] = useState('H4');
   const asset = assets.find((item) => item.symbol === symbol) ?? assets[0];
@@ -14,6 +15,7 @@ export function AnalysisPanel({ assets, states, prices, superSignals, loaded, no
   const assetStates = states[activeSymbol] ?? {};
   const price = prices[activeSymbol];
   const signal = superSignals.find((item) => item.symbol === activeSymbol);
+  const pendingIdea = pendingOrderIdeas.find((item) => item.symbol === activeSymbol && item.status === 'WAITING');
   const selectedTf = TIMEFRAMES.find((item) => item.label === timeframe) ?? TIMEFRAMES.find((item) => item.label === 'H4')!;
   const selectedState = assetStates[selectedTf.granularity];
   const h4 = assetStates[TIMEFRAMES.find((item) => item.label === 'H4')!.granularity];
@@ -41,11 +43,15 @@ export function AnalysisPanel({ assets, states, prices, superSignals, loaded, no
     };
   }, [assetStates, selectedState, nowEpoch]);
 
-  const decision: Decision = signal?.direction ?? 'WAIT';
+  const decision = signal?.direction ?? pendingIdea?.type ?? 'WAIT';
   const levels = signal?.levels ?? h4Signal?.levels ?? null;
+  const entryValue = levels?.entry ?? pendingIdea?.entry ?? null;
+  const stopValue = levels?.stopLoss ?? pendingIdea?.stopLoss ?? null;
+  const targetOne = levels?.tp1 ?? pendingIdea?.takeProfit ?? null;
+  const targetTwo = levels?.tp2 ?? pendingIdea?.takeProfit ?? null;
   const digits = asset?.digits ?? 4;
   const fmt = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? '—' : value.toFixed(digits);
-  const tone = decision === 'BUY' ? 'text-emerald-400' : decision === 'SELL' ? 'text-rose-400' : 'text-amber-300';
+  const tone = decision === 'BUY' || decision === 'BUY LIMIT' ? 'text-emerald-400' : decision === 'SELL' || decision === 'SELL LIMIT' ? 'text-rose-400' : 'text-amber-300';
 
   return <main className="mt-7 space-y-5">
     <section className="relative overflow-hidden rounded-3xl border border-accent/30 bg-gradient-to-br from-[#10243b] via-[#0a1424] to-[#080e19] p-5 shadow-[0_24px_80px_rgba(0,0,0,.28)] sm:p-7">
@@ -63,8 +69,8 @@ export function AnalysisPanel({ assets, states, prices, superSignals, loaded, no
     <section className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
       <article className="rounded-3xl border border-line/15 bg-surface/[.04] p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">SuperTech recommendation</p><h2 className="mt-1 text-xl font-bold text-ink">What should you do?</h2></div><span className={`rounded-full border border-current/25 px-3 py-1.5 text-xs font-black tracking-wider ${tone}`}>{decision}</span></div>
-        <p className="mt-3 text-sm leading-relaxed text-ink-2">{signal ? 'The H4 primary signal has passed the platform multi-timeframe confirmation rules.' : h4Signal ? 'An H4 trigger exists, but complete multi-timeframe confirmation is not yet satisfied. Wait.' : 'No fresh, fully confirmed H4 setup is available. Wait for a valid candle close and confirmation.'}</p>
-        {levels ? <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4"><Metric label="Entry" value={fmt(levels.entry)} /><Metric label="Stop loss" value={fmt(levels.stopLoss)} /><Metric label="Target 1" value={fmt(levels.tp1)} /><Metric label="Target 2" value={fmt(levels.tp2)} /></div> : <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/[.05] p-4 text-sm text-ink-2"><ShieldAlert className="mr-2 inline h-4 w-4 text-amber-300" />No confirmed trade levels. SuperTech will not invent an entry, stop or target.</div>}
+        <p className="mt-3 text-sm leading-relaxed text-ink-2">{signal ? 'The H4 primary signal has passed the platform multi-timeframe confirmation rules.' : pendingIdea ? `${pendingIdea.patternType} is approaching its ${pendingIdea.type} zone. This is a pending idea, not a market entry.` : h4Signal ? 'An H4 trigger exists, but complete multi-timeframe confirmation is not yet satisfied. Wait.' : 'No fresh, fully confirmed setup is available. Wait for a valid candle close and confirmation.'}</p>
+        {entryValue != null && stopValue != null && targetOne != null ? <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4"><Metric label={pendingIdea && !signal ? 'Pending entry' : 'Entry'} value={fmt(entryValue)} /><Metric label="Stop loss" value={fmt(stopValue)} /><Metric label="Target 1" value={fmt(targetOne)} /><Metric label="Target 2" value={fmt(targetTwo)} /></div> : <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/[.05] p-4 text-sm text-ink-2"><ShieldAlert className="mr-2 inline h-4 w-4 text-amber-300" />No confirmed trade levels. SuperTech will not invent an entry, stop or target.</div>}
         {signal && <p className="mt-4 text-xs text-ink-3">Confluence: {signal.agreeing}/{signal.validReads} timeframes · {signal.gradePercent}% supporting alignment · {signal.classification}</p>}
         <div className="mt-5 flex items-start gap-2 rounded-xl border border-line/10 bg-surface/[.025] p-3 text-xs leading-relaxed text-ink-3"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-accent" />Manual-trading guidance only. Confirm live price, spread, execution conditions and position risk. This analysis does not place trades.</div>
       </article>
