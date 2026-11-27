@@ -16,14 +16,10 @@ export function buildIndependentStrategyAssessments(
   nowEpoch: number,
 ): StrategyAssessment[] {
   const rows: StrategyAssessment[] = [];
-  const latestSignalByAsset = new Map<string, SignalView>();
 
+  // Keep every signal still present in the candle history for outcome replay.
+  // Confluence independently reduces these rows to the newest result per strategy.
   for (const item of signals) {
-    const current = latestSignalByAsset.get(item.symbol);
-    if (!current || item.signal.signalEpoch > current.signal.signalEpoch) latestSignalByAsset.set(item.symbol, item);
-  }
-
-  for (const item of latestSignalByAsset.values()) {
     rows.push({
       strategyId: 'bollinger-cross',
       strategyName: 'Bollinger Candle-Close',
