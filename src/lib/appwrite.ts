@@ -113,6 +113,8 @@ export const appwriteAccount = {
     return user;
   },
 
+  createJWT: () => appwriteRequest<{ jwt: string }>('/account/jwts', { method: 'POST', body: {} }),
+
   signOut: () => appwriteRequest<void>('/account/sessions/current', { method: 'DELETE' }),
 
   requestPasswordRecovery: (email: string) =>
