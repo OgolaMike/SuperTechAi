@@ -1,7 +1,5 @@
-const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Nairobi';
-
 export function getLocalTimeZone(): string {
-  return LOCAL_TIME_ZONE;
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Nairobi';
 }
 
 export function formatLocalDateTime(value: string | number | Date | null | undefined): string {
@@ -16,7 +14,7 @@ export function formatLocalDateTime(value: string | number | Date | null | undef
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-    timeZone: LOCAL_TIME_ZONE,
+    timeZone: getLocalTimeZone(),
   }).format(date);
 }
 
@@ -27,7 +25,7 @@ export function formatLocalDate(value: string | number | Date): string {
     year: 'numeric',
     month: 'short',
     day: '2-digit',
-    timeZone: LOCAL_TIME_ZONE,
+    timeZone: getLocalTimeZone(),
   }).format(date);
 }
 
@@ -37,6 +35,6 @@ export function formatLocalTime(value: string | number | Date | null | undefined
   const date = value instanceof Date ? value : new Date(value);
   if (!Number.isFinite(date.getTime())) return '—';
   return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: LOCAL_TIME_ZONE,
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: getLocalTimeZone(),
   }).format(date);
 }
