@@ -25,9 +25,9 @@ function SignalBubble({ toast, index, onDismiss, onOpenChart }: { toast: Toast; 
   const displayName = toast.assetName || toast.symbol;
   const bubbleSize = Math.min(132, Math.max(104, 88 + displayName.length * 1.4));
   return <>
-    <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => { markBubble(toast.id, 'opened'); onOpenChart(toast.symbol, toast.granularity, toast.chartTargetId, toast.id.startsWith('super:') ? toast.id.slice(6) : undefined); }}
+    <button type="button" aria-label={`Open ${toast.direction} ${toast.timeframe} signal details`} onClick={() => { markBubble(toast.id, 'opened'); setOpen(true); }}
       className={`signal-bubble pointer-events-auto absolute flex -translate-x-1/2 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-full border-2 px-3 py-3 shadow-[0_0_30px_-8px] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${buy ? 'border-up/80 bg-up/15 text-up shadow-up/40' : 'border-down/80 bg-down/15 text-down shadow-down/40'}`}
-      style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: '-150px', animationDelay: `${index * 850}ms` }} onAnimationEnd={() => { markBubble(toast.id, 'expired'); onDismiss(toast.id); }}>
+      style={{ width: bubbleSize, height: bubbleSize, left: index % 2 === 0 ? '25%' : '75%', bottom: '-150px', animationDelay: `${index * 850}ms`, animationPlayState: open ? 'paused' : 'running' }} onAnimationEnd={() => { if (!open) { markBubble(toast.id, 'expired'); onDismiss(toast.id); } }}>
       {buy ? <ArrowUpRight className="h-7 w-7" strokeWidth={2.6} /> : <ArrowDownRight className="h-7 w-7" strokeWidth={2.6} />}
       <span className="text-sm font-black tracking-wider">{toast.direction}</span>
       <span className="text-[10px] font-bold tracking-[0.16em] opacity-85">{toast.kind === 'break-retest' ? 'BREAK & RETEST' : toast.timeframe}</span>
@@ -101,7 +101,7 @@ function HitDetails({ toast, onClose, onDismiss, onOpenChart }: { toast: Toast; 
         {toast.kind === 'break-retest' ? <><Detail label="Retest boundary" value={formatPrice(toast.levels.stopLoss, toast.digits)} /><Detail label="Previous swing target" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" /></> : <><Detail label="Stop-loss" value={formatPrice(toast.levels.stopLoss, toast.digits)} tone="text-down" /><Detail label="Take-profit 1" value={formatPrice(toast.levels.tp1, toast.digits)} tone="text-up" /><Detail label="Take-profit 2" value={formatPrice(toast.levels.tp2, toast.digits)} tone="text-up" /><Detail label="Take-profit 3" value={formatPrice(toast.levels.tp3, toast.digits)} tone="text-up" /></>}
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => { onDismiss(); onClose(); }} className="min-w-0 rounded-xl border border-line/25 bg-surface/10 px-3 py-3 text-sm font-bold text-ink">Close</button>
+        <button type="button" onClick={onClose} className="min-w-0 rounded-xl border border-line/25 bg-surface/10 px-3 py-3 text-sm font-bold text-ink">Close</button>
         <button type="button" onClick={() => { onOpenChart(); onDismiss(); onClose(); }} className="min-w-0 rounded-xl bg-accent px-3 py-3 text-sm font-bold text-canvas">Open Chart</button>
       </div>
     </section>
