@@ -105,7 +105,7 @@ export function SuperSignalPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">Super Signal history</div>
-          <p className="mt-1 text-sm text-ink-2">Select one signal to inspect its entry, ten-timeframe confirmation and recorded result.</p>
+          <p className="mt-1 text-sm text-ink-2">Select one signal to inspect its entry, 13-timeframe confirmation and recorded result.</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-line/15 bg-surface/[0.04] px-3 py-1.5 text-xs font-semibold text-ink-2">{allRecords.length} saved</span>
@@ -121,7 +121,7 @@ export function SuperSignalPanel({
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-line/10 bg-surface/[0.03] px-6 py-12 text-center">
           <Sparkles className="h-6 w-6 text-accent" />
           <h3 className="text-lg font-semibold text-ink">No Super Signal recorded yet</h3>
-          <p className="max-w-md text-sm text-ink-2">When the H4 primary signal has fresh readings from all ten timeframes, at least six of its nine supporting frames agree, and none points the other way, the signal is saved for outcome tracking. Neutral readings may remain.</p>
+          <p className="max-w-md text-sm text-ink-2">When the H4 primary signal has fresh readings from all 13 timeframes, at least eight of its twelve supporting frames agree, and none points the other way, the signal is saved for outcome tracking. Neutral readings may remain.</p>
         </div>
       ) : (
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(250px,0.78fr)_minmax(0,1.7fr)]">
@@ -206,7 +206,7 @@ function SuperSignalDetails({ record, price }: {
       </div>
 
       <div>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-bold uppercase tracking-wider text-ink-3">Ten-timeframe confirmation</div><span className="rounded-lg border border-up/25 bg-up/10 px-3 py-1.5 text-sm font-black text-up">{record.grade_percent == null ? 'Grade unavailable for this older record' : `${record.grade_percent}% · ${record.confirmation_timeframe} completed alignment`}</span></div>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-bold uppercase tracking-wider text-ink-3">Super 13 confirmation</div><span className="rounded-lg border border-up/25 bg-up/10 px-3 py-1.5 text-sm font-black text-up">{record.grade_percent == null ? 'Grade unavailable for this older record' : `${record.grade_percent}% · ${record.confirmation_timeframe} completed alignment`}</span></div>
         <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
           {TIMEFRAMES.map((timeframe) => {
             const read = record.reads.find((item) => item.label === timeframe);
