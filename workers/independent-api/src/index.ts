@@ -335,7 +335,7 @@ async function handleDerivCallback(request: Request, env: BrokerEnv): Promise<Re
   if (!state || state.length > 256 || !code || code.length > 2048) return json({ error: "invalid_deriv_oauth_response" }, 400);
   if (!DERIV_CLIENT_ID || !DERIV_REDIRECT_URI || !DERIV_OAUTH_STATES_TABLE_ID || !DERIV_GRANTS_TABLE_ID || !BROKER_TOKEN_ENCRYPTION_KEY || !configured.APPWRITE_API_KEY) return json({ error: "deriv_oauth_not_configured" }, 503);
   const queryUrl = new URL(configured.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/tablesdb/" + configured.APPWRITE_DATABASE_ID + "/tables/" + DERIV_OAUTH_STATES_TABLE_ID + "/rows");
-  queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "state_hash", values: [await sha256(state)] }));
+  queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", column: "state_hash", values: [await sha256(state)] }));
   const lookup = await fetch(queryUrl, { headers: { "X-Appwrite-Project": configured.APPWRITE_PROJECT_ID, "X-Appwrite-Key": configured.APPWRITE_API_KEY } });
   if (!lookup.ok) return json({ error: "deriv_state_lookup_failed" }, 503);
   const found = await lookup.json() as { rows?: Array<{ $id: string; user_id: string; encrypted_code_verifier: string; redirect_path?: string; expires_at: string }> };
@@ -402,7 +402,7 @@ async function handleCTraderCallback(request: Request, env: BrokerEnv): Promise<
   }
   const stateHash = await sha256(state);
   const queryUrl = new URL(`${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${CTRADER_OAUTH_STATES_TABLE_ID}/rows`);
-  queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "state_hash", values: [stateHash] }));
+  queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", column: "state_hash", values: [stateHash] }));
   const lookup = await fetch(queryUrl, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY! } });
   if (!lookup.ok) return json({ error: "oauth_state_lookup_failed" }, 503);
   const payload = await lookup.json() as { rows?: Array<{ $id: string; user_id: string; redirect_path?: string; expires_at: string; consumed_at?: string }> };
@@ -565,8 +565,8 @@ export default {
         const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
         if (request.method === "GET") {
           const target = new URL(base);
-          target.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] }));
-          target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", attribute: "signal_epoch" }));
+          target.searchParams.append("queries[]", JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] }));
+          target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", column: "signal_epoch" }));
           target.searchParams.set("limit", "300");
           const response = await fetch(target, { headers });
           if (!response.ok) return json({ error: "super_signal_history_read_failed" }, 503, cors);
@@ -599,10 +599,10 @@ export default {
         if (!env.SIGNAL_RECORDS_TABLE_ID || !env.APPWRITE_API_KEY) return json({ error: "signal_storage_not_configured" }, 503, cors);
         const endpoint = env.APPWRITE_ENDPOINT.replace(/\/$/, "");
         const base = `${endpoint}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.SIGNAL_RECORDS_TABLE_ID}/rows`;
-        const query = JSON.stringify({ method: "equal", attribute: "user_id", values: [account.$id] });
+        const query = JSON.stringify({ method: "equal", column: "user_id", values: [account.$id] });
         const target = new URL(base);
         target.searchParams.append("queries[]", query);
-        target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", attribute: "signal_epoch" }));
+        target.searchParams.append("queries[]", JSON.stringify({ method: "orderDesc", column: "signal_epoch" }));
         target.searchParams.set("limit", "500");
         const response = await fetch(target, {
           headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY },
