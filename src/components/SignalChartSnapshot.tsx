@@ -6,7 +6,7 @@ import type { SignalLevels } from '@/lib/signals';
 
 type Props = {
   candles: Candle[];
-  levels?: SignalLevels;
+  levels?: Pick<SignalLevels, 'entry' | 'stopLoss' | 'tp1' | 'tp2' | 'tp3'>;
   signalEpoch?: number;
   direction?: 'BUY' | 'SELL';
   timeframe: string;
