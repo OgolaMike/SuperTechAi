@@ -1,7 +1,11 @@
 // Appwrite client for the independent SuperTech AI platform.
-// This module deliberately has no Supabase imports or fallback behavior.
+// Production requests use the same-origin Pages proxy so Appwrite session
+// cookies remain first-party on mobile browsers. Local development can still
+// target Appwrite directly.
 const endpoint = (
-  import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'
+  import.meta.env.DEV
+    ? (import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
+    : '/appwrite'
 ).replace(/\/$/, '');
 
 const projectId =
@@ -47,6 +51,7 @@ export async function appwriteRequest<T>(
       ...options.headers,
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    cache: 'no-store',
   });
 
   const payload = await response.json().catch(() => null);
