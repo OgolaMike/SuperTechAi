@@ -105,7 +105,7 @@ export function SuperSignalPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">Super Signal history</div>
-          <p className="mt-1 text-sm text-ink-2">Select one signal to inspect its entry, ten-timeframe confirmation and recorded result.</p>
+          <p className="mt-1 text-sm text-ink-2">Select one signal to inspect its entry, 13-timeframe confirmation and recorded result.</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-line/15 bg-surface/[0.04] px-3 py-1.5 text-xs font-semibold text-ink-2">{allRecords.length} saved</span>
