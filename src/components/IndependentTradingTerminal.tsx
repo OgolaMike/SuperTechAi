@@ -41,6 +41,7 @@ import { enableDevicePush, sendPushTest, getMembershipStatus, getIndependentAler
 import { MemberReferralsPanel } from '@/components/MemberReferralsPanel';
 import { AdminPanel } from '@/components/AdminPanel';
 import { MembershipPaymentsPanel } from '@/components/MembershipPaymentsPanel';
+import { IndependentFinancePanel } from '@/components/IndependentFinancePanel';
 
 const ASSET_KEY='supertech-selected-assets';
 const SOUND_KEY='supertech-signal-sounds';
@@ -147,7 +148,7 @@ export function IndependentTradingTerminal({email,userId}:Props){
       {view==='referrals'&&<MemberReferralsPanel userId={userId} email={email}/>}
       {view==='admin'&&isCompanyAdmin&&<AdminPanel/>}
       {view==='smart-community'&&<section className="mt-8 space-y-4"><div className="rounded-2xl border border-accent/20 bg-surface/[.035] p-5"><p className="text-xs font-bold uppercase tracking-[.18em] text-accent">Membership access</p><h2 className="mt-2 text-2xl font-semibold text-ink">Your membership: {membershipPlan==='automation_500'?'$500 Premium':membershipPlan==='standard_300'?'$300 Standard':'Free'}</h2><p className="mt-2 text-sm leading-6 text-ink-2">{membershipPlan==='free'?'Free membership includes the home dashboard, basic market views and your member account. Upgrade to $300 Standard to unlock advanced signals, strategies and analysis.':membershipPlan==='standard_300'?'Your $300 Standard membership includes advanced signals, strategies and analysis. Broker automation is reserved for $500 Premium.':'Your $500 Premium membership includes advanced trading features and automation access.'}</p><div className="mt-4 grid gap-2 sm:grid-cols-2"><div className="rounded-xl border border-line/15 p-3 text-sm text-ink-2">Free · Basic platform access</div><div className="rounded-xl border border-line/15 p-3 text-sm text-ink-2">$300 · Advanced trading, no automation</div><div className="rounded-xl border border-line/15 p-3 text-sm text-ink-2 sm:col-span-2">$500 · Advanced trading plus automation</div></div><p className="mt-4 text-xs text-ink-3">Paid memberships activate only after the company verifies your transaction.</p><MembershipPaymentsPanel plan={membershipPlan}/></div></section>}
-      {['personal-ai','academy','earnings','finance','marketing','governance','network'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
+      {view==='finance'&&<IndependentFinancePanel/>}{['personal-ai','academy','earnings','marketing','governance','network'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
      </div>
     </Suspense>
     <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[.03] p-5 text-xs leading-relaxed text-ink-2"><p className="font-medium text-ink">Trading involves risk. Past signals do not guarantee future results.</p><p className="mt-1">Signals and tracked ideas are not proof of broker execution.</p></footer>
