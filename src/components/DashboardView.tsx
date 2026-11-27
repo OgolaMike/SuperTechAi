@@ -6,6 +6,7 @@ import type { TimeframeStates } from '@/hooks/useDerivSignals';
 import { TIMEFRAMES, emptyTfState, type Asset } from '@/lib/sma';
 import type { View } from '@/components/ViewNav';
 import type { SuperSignal } from '@/lib/intelligence';
+import { buildBreakRetestSetups, type BreakRetestSetup } from '@/lib/breakRetest';
 
 type Props = {
   selectedSymbols: string[];
@@ -104,6 +105,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         const selectedDefinition = TIMEFRAMES.find((item) => item.label === selectedTimeframe) ?? TIMEFRAMES.find((item) => item.label === 'H4') ?? TIMEFRAMES[0];
         const selectedState = assetStates[selectedDefinition.granularity] ?? emptyTfState(selectedDefinition);
         const otherTimeframes = TIMEFRAMES.filter((item) => item.label !== selectedDefinition.label);
+        const latestBreakRetest = buildBreakRetestSetups([asset], { [symbol]: assetStates })[0] ?? null;
         return (
           <section id={`asset-dashboard-${encodeURIComponent(symbol)}`} key={symbol} className="mt-7">
             <div className="mb-3 flex items-center gap-3">
@@ -124,6 +126,7 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
               </div></div>
             </div>
             <div key={`${symbol}-${selectedTimeframe}`} className="mt-4 hud-panel animate-[timeframe-slide-in_420ms_cubic-bezier(0.2,0.8,0.2,1)] rounded-2xl"><SignalCard asset={asset} tf={selectedState} loaded={loaded} price={prices[symbol]} unifiedOnly /></div>
+            {latestBreakRetest && <BreakRetestLevelStrip setup={latestBreakRetest} digits={asset.digits} />}
             <div className="magic-card mt-4 overflow-hidden rounded-2xl border border-line/15 bg-surface/[0.025]">
               <button type="button" onClick={() => setShowAllTimeframes((value) => !value)} aria-expanded={showAllTimeframes}
                 className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-surface/[0.04]">
@@ -153,6 +156,43 @@ export function DashboardView({ selectedSymbols, assetMap, states, prices, loade
         );
       })}
     </>
+  );
+}
+
+function BreakRetestLevelStrip({ setup, digits }: { setup: BreakRetestSetup; digits: number }) {
+  const low = Math.min(setup.stopLoss, setup.target);
+  const high = Math.max(setup.stopLoss, setup.target);
+  const span = Math.max(high - low, Math.abs(setup.entry) * 0.000001, 1e-9);
+  const position = (value: number) => Math.max(0, Math.min(100, ((value - low) / span) * 100));
+  const zoneLeft = position(setup.zoneLow);
+  const zoneRight = position(setup.zoneHigh);
+  const zoneWidth = Math.max(1.5, zoneRight - zoneLeft);
+  const buy = setup.direction === 'BUY';
+  return (
+    <section className="mt-3 rounded-xl border border-line/15 bg-surface/[0.025] px-3 py-3 sm:px-4" aria-label="Most recent break and retest levels">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[.16em] text-ink-3">Latest break &amp; retest · {setup.timeframe}</p>
+          <p className="mt-0.5 text-xs text-ink-2">Most recent confirmed price-action level</p>
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${buy ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'}`}>{setup.direction}</span>
+      </div>
+      <div className="relative mt-4 h-3 rounded-full bg-line/20">
+        <div className="absolute top-0 h-3 rounded-full bg-amber-400/35 ring-1 ring-inset ring-amber-300/70" style={{ left: `${zoneLeft}%`, width: `${zoneWidth}%` }} />
+        <div className="absolute -top-1 h-5 w-[2px] rounded bg-amber-300" style={{ left: `${position((setup.zoneLow + setup.zoneHigh) / 2)}%` }} title="Break level" />
+        <div className={`absolute -top-1 h-5 w-[2px] rounded ${buy ? 'bg-emerald-400' : 'bg-rose-400'}`} style={{ left: `${position(setup.entry)}%` }} title="Entry" />
+      </div>
+      <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-[10px] text-ink-3">
+        <span>Stop {setup.stopLoss.toFixed(digits)}</span>
+        <span className="text-amber-500">Break / retest zone</span>
+        <span>Target {setup.target.toFixed(digits)}</span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="rounded-lg bg-canvas/35 px-2.5 py-2"><p className="text-[9px] uppercase tracking-wider text-ink-3">Break level</p><p className="mt-1 break-all font-mono text-xs font-semibold text-ink">{((setup.zoneLow + setup.zoneHigh) / 2).toFixed(digits)}</p></div>
+        <div className="rounded-lg bg-canvas/35 px-2.5 py-2"><p className="text-[9px] uppercase tracking-wider text-ink-3">Retest zone</p><p className="mt-1 break-all font-mono text-xs font-semibold text-ink">{setup.zoneLow.toFixed(digits)} – {setup.zoneHigh.toFixed(digits)}</p></div>
+        <div className="col-span-2 rounded-lg bg-canvas/35 px-2.5 py-2 sm:col-span-1"><p className="text-[9px] uppercase tracking-wider text-ink-3">Entry level</p><p className="mt-1 break-all font-mono text-xs font-semibold text-ink">{setup.entry.toFixed(digits)}</p></div>
+      </div>
+    </section>
   );
 }
 
