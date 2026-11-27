@@ -75,7 +75,7 @@ export function AnalysisPanel({ assets, states, prices, superSignals, pendingOrd
   const allOutcomes = useMemo(() => {
     const latest = new Map<string, StrategyOutcome>();
     persistedOutcomes.forEach((item) => latest.set(item.key, item));
-    outcomes.forEach((item) => latest.set(item.key, item));
+    outcomes.forEach((item) => { if (item.status !== 'UNTRACKED') latest.set(item.key, item); });
     return [...latest.values()];
   }, [persistedOutcomes, outcomes]);
   const performance = useMemo(() => summarizeStrategyPerformance(allOutcomes), [allOutcomes]);
