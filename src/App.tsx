@@ -207,7 +207,7 @@ function App() {
         <div key={view} className="view-transition">
         {view === 'academy' && <SuperTechAcademy isAdmin={isAdmin} />}
 
-        {view === 'analysis' && <AnalysisPanel assets={assets} states={states} prices={prices} superSignals={superSignals} loaded={loaded} nowEpoch={now} initialSymbol={selectedSymbols[0]} />}
+        {view === 'analysis' && <AnalysisPanel assets={assets} states={states} prices={prices} superSignals={superSignals} pendingOrderIdeas={pendingOrderIdeas} loaded={loaded} nowEpoch={now} initialSymbol={selectedSymbols[0]} />}
 
         {view === 'personal-ai' && <PersonalAIExperience signalsCount={views.length} monitoredAssets={selectedSymbols} signalContext={views.filter((item) => !item.signal.outcome.closed).slice(0, 12).map((item) => ({ symbol: item.symbol, timeframe: item.timeframe, direction: item.signal.direction, signalEpoch: item.signal.signalEpoch, status: item.signal.outcome.status, entry: item.signal.levels.entry, stopLoss: item.signal.levels.stopLoss, tp1: item.signal.levels.tp1, tp2: item.signal.levels.tp2, tp3: item.signal.levels.tp3 }))} />}
 
