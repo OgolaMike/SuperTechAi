@@ -134,16 +134,23 @@ export async function handleReferralRequest(request: Request, env: Env, account:
       const current = await getRow(env, account.$id);
       if (!current) return json({ error: "upline_required" }, 403);
       const queryUrl = new URL(endpoint(env));
-      queryUrl.searchParams.set("queries[]", JSON.stringify({ method: "equal", attribute: "team_owner_id", values: [current.team_owner_id] }));
-      const response = await fetch(queryUrl, { headers: headers(env) });
-      if (!response.ok) return json({ error: "network_read_failed" }, 503);
-      const result = await response.json() as { rows?: NetworkRow[] };
+      queryUrl.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "team_owner_id", values: [current.team_owner_id] }));
+      const directUrl = new URL(endpoint(env));
+      directUrl.searchParams.append("queries[]", JSON.stringify({ method: "equal", attribute: "sponsor_user_id", values: [account.$id] }));
+      const [response, directResponse] = await Promise.all([
+        fetch(queryUrl, { headers: headers(env) }),
+        fetch(directUrl, { headers: headers(env) }),
+      ]);
+      if (!response.ok || !directResponse.ok) return json({ error: "network_read_failed" }, 503);
+      const [result, directResult] = await Promise.all([
+        response.json() as Promise<{ rows?: NetworkRow[]; total?: number }>,
+        directResponse.json() as Promise<{ total?: number }>,
+      ]);
       const members = (result.rows || []).filter((row) => row.team_owner_id === current.team_owner_id);
-      const direct = members.filter((row) => row.sponsor_user_id === account.$id).length;
       return json({
         teamOwnerId: current.team_owner_id,
-        directCount: direct,
-        teamCount: members.length,
+        directCount: directResult.total ?? 0,
+        teamCount: result.total ?? members.length,
         members: members.map((row) => ({
           memberId: row.user_id,
           sponsorId: row.sponsor_user_id,
