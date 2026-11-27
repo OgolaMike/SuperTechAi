@@ -105,7 +105,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Live market day</p>
             <h3 className="mt-1 text-lg font-semibold text-ink">Today's gainers and losers</h3>
-            <p className="mt-1 text-xs text-ink-3">Rankings use current Kenya trading-day rate of change (ROC), not the previous rolling 24 hours.</p>
+            <p className="mt-1 text-xs text-ink-3">Rankings currently use the exchange-reported rolling 24-hour rate of change (ROC). Kenya-day (EAT) candle aggregation is not yet enabled.</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-ink-3">
             <span className={today.loading ? "h-2 w-2 animate-pulse rounded-full bg-accent" : "h-2 w-2 rounded-full bg-up"} />
