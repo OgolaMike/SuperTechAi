@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { appwriteAccount, type AppwriteUser } from '@/lib/appwrite';
+import { getMembershipAccess } from '@/lib/independentApi';
 
 type AppwriteIdentity = {
   user: {
@@ -87,10 +88,15 @@ export function useAuthSession(): AuthState {
         setState({ ...emptyState, ready: true });
         return;
       }
+      const access = await getMembershipAccess();
       setState({
         ...emptyState,
         ready: true,
         session: identity(user),
+        isApproved: access.approved,
+        isAdmin: access.isAdmin,
+        accessError: access.status === 'suspended',
+        accessErrorMessage: access.status === 'suspended' ? 'This membership is currently suspended. Contact the SuperTech AI team.' : null,
       });
     } catch (error) {
       setState({
