@@ -8,6 +8,7 @@ export interface Env {
   SUPER_SIGNAL_RECORDS_TABLE_ID?: string;
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
+  APPWRITE_ADMIN_USER_IDS?: string;
 }
 
 type AppwriteAccount = {
@@ -103,7 +104,7 @@ async function profileRequest(
           data: {
             user_id: account.$id,
             display_name: account.name || "",
-            onboarding_status: "not_started",
+            onboarding_status: "pending",
             created_at: now,
             updated_at: now,
           },
@@ -115,7 +116,7 @@ async function profileRequest(
       return json({
         id: created.$id,
         displayName: created.display_name || "",
-        onboardingStatus: created.onboarding_status || "not_started",
+        onboardingStatus: created.onboarding_status || "pending",
       });
     }
     if (!response.ok) return json({ error: "profile_read_failed" }, 503);
@@ -690,6 +691,64 @@ export default {
       } catch {
         return json({ error: "signal_history_write_failed" }, 503, cors);
       }
+    }
+
+    if (url.pathname === "/api/membership/status" && request.method === "GET") {
+      try {
+        const account = await authenticate(request, env);
+        if (!account) return json({ error: "unauthorized" }, 401, cors);
+        if (!env.APPWRITE_API_KEY) return json({ error: "membership_service_not_configured" }, 503, cors);
+        const profileUrl = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows/${encodeURIComponent(account.$id)}`;
+        const response = await fetch(profileUrl, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY } });
+        if (response.status === 404) return json({ status: "pending", approved: false, isAdmin: (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id) }, 200, cors);
+        if (!response.ok) return json({ error: "membership_status_unavailable" }, 503, cors);
+        const profile = await response.json() as { user_id?: string; onboarding_status?: string };
+        if (profile.user_id !== account.$id) return json({ error: "membership_profile_ownership_mismatch" }, 403, cors);
+        const isAdmin = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id);
+        const status = isAdmin ? "approved" : (["approved", "suspended"].includes(profile.onboarding_status || "") ? profile.onboarding_status! : "pending");
+        return json({ status, approved: status === "approved", isAdmin }, 200, cors);
+      } catch { return json({ error: "membership_status_unavailable" }, 503, cors); }
+    }
+
+    if (url.pathname === "/api/admin/members" && (request.method === "GET" || request.method === "PATCH")) {
+      try {
+        const actor = await authenticate(request, env);
+        if (!actor) return json({ error: "unauthorized" }, 401, cors);
+        const admins = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).filter(Boolean);
+        if (!admins.includes(actor.$id)) return json({ error: "admin_required" }, 403, cors);
+        if (!env.APPWRITE_API_KEY) return json({ error: "membership_admin_not_configured" }, 503, cors);
+        const root = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`;
+        const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
+        if (request.method === "PATCH") {
+          const body = await request.json().catch(() => null) as { userId?: string; status?: string } | null;
+          const userId = String(body?.userId || "");
+          const status = String(body?.status || "");
+          if (!/^[A-Za-z0-9_-]{1,36}$/.test(userId) || !["approved", "pending", "suspended"].includes(status)) return json({ error: "invalid_membership_change" }, 400, cors);
+          if (admins.includes(userId) && status !== "approved") return json({ error: "cannot_revoke_configured_admin_access" }, 403, cors);
+          const rowUrl = `${root}/${encodeURIComponent(userId)}`;
+          const prior = await fetch(rowUrl, { headers });
+          if (!prior.ok) return json({ error: prior.status === 404 ? "member_profile_not_found" : "member_profile_read_failed" }, prior.status === 404 ? 404 : 503, cors);
+          const profile = await prior.json() as { user_id?: string };
+          if (profile.user_id !== userId) return json({ error: "member_profile_ownership_mismatch" }, 403, cors);
+          const saved = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { onboarding_status: status, updated_at: new Date().toISOString() }, permissions: [] }) });
+          if (!saved.ok) return json({ error: "membership_update_failed" }, 503, cors);
+          return json({ updated: true, userId, status, approvedBy: actor.$id }, 200, cors);
+        }
+        const usersResponse = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/users?limit=100`, { headers });
+        if (!usersResponse.ok) return json({ error: "member_directory_unavailable" }, 503, cors);
+        const payload = await usersResponse.json() as { users?: Array<{ $id: string; email: string; name?: string; emailVerification: boolean; registration: string; accessedAt?: string }> };
+        const members = await Promise.all((payload.users || []).map(async user => {
+          const response = await fetch(`${root}/${encodeURIComponent(user.$id)}`, { headers });
+          let status = "pending";
+          if (response.ok) {
+            const profile = await response.json() as { user_id?: string; onboarding_status?: string };
+            if (profile.user_id === user.$id && ["approved", "suspended"].includes(profile.onboarding_status || "")) status = profile.onboarding_status!;
+          }
+          if (admins.includes(user.$id)) status = "approved";
+          return { id: user.$id, email: user.email, name: user.name || "", emailConfirmed: user.emailVerification, createdAt: user.registration, lastSignInAt: user.accessedAt || null, status, isAdmin: admins.includes(user.$id) };
+        }));
+        return json({ members }, 200, cors);
+      } catch { return json({ error: "membership_admin_failed" }, 503, cors); }
     }
 
     if (url.pathname === "/api/profile" && (request.method === "GET" || request.method === "PATCH")) {
