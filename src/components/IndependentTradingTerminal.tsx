@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { formatLocalDateTime } from '@/lib/localTime';
+import { AppwriteMembershipAdmin } from '@/components/AppwriteMembershipAdmin';
 import { SessionContext } from '@/lib/sessionContext';
 import { AmbientBackground } from '@/components/AmbientBackground';
 import { IndependentAssetSelector } from '@/components/IndependentAssetSelector';
@@ -42,16 +43,16 @@ import { loadMemberAlertModes } from '@/lib/alertPreferences';
 
 const ASSET_KEY='supertech-selected-assets';
 const SOUND_KEY='supertech-signal-sounds';
-type Props={email:string;userId:string};
+type Props={email:string;userId:string;isAdmin?:boolean};
 function readSelected():string[]{try{const value=JSON.parse(localStorage.getItem(ASSET_KEY)??'[]');if(Array.isArray(value)&&value.every(x=>typeof x==='string')&&value.length)return [...new Set(value)].slice(0,10)}catch{/* Invalid saved selection; use the default market. */}return[DEFAULT_ASSET]}
 function epoch(){return Math.floor(Date.now()/1000)}
 
-export function IndependentTradingTerminal({email,userId}:Props){
- const context={session:{access_token:'',user:{id:userId,email,user_metadata:{}}},isAdmin:false};
- return <SessionContext.Provider value={context}><IndependentTradingWorkspace email={email} userId={userId}/></SessionContext.Provider>;
+export function IndependentTradingTerminal({email,userId,isAdmin=false}:Props){
+ const context={session:{access_token:'',user:{id:userId,email,user_metadata:{}}},isAdmin};
+ return <SessionContext.Provider value={context}><IndependentTradingWorkspace email={email} userId={userId} isAdmin={isAdmin}/></SessionContext.Provider>;
 }
 
-function IndependentTradingWorkspace({email,userId}:Props){
+function IndependentTradingWorkspace({email,userId,isAdmin=false}:Props){
  const [view,setView]=useState<View>('dashboard');
  useEffect(()=>{const handleServiceNavigation=(event:Event)=>setView((event as CustomEvent<View>).detail);window.addEventListener('supertech:navigate',handleServiceNavigation);return()=>window.removeEventListener('supertech:navigate',handleServiceNavigation)},[]);
  const [selectedSymbols,setSelectedSymbols]=useState<string[]>(readSelected);
@@ -107,7 +108,8 @@ function IndependentTradingWorkspace({email,userId}:Props){
       {['ctrader','connections'].includes(view)&&<IndependentBrokerConnections/>}{['mt5','binance','okx'].includes(view)&&<section className="mt-8 rounded-2xl border border-amber-400/20 bg-amber-400/[.04] p-5"><p className="text-sm font-semibold text-ink">Broker automation connection</p><p className="mt-2 text-sm leading-6 text-ink-2">This broker is being connected through the independent authenticated Worker. No credentials are requested in the browser until its secure account, risk and order workflows are ready.</p></section>}
       {view==='records'&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal history</h2><p className="mt-2 text-sm text-ink-2">Confirmed signal records saved on this device: {views.length} live signal readings.</p>{views.slice(0,30).map(item=><div key={item.key} className="flex flex-wrap justify-between gap-2 border-t border-line/10 py-3 text-xs"><span>{item.assetName} · {item.timeframe} · {item.signal.direction}</span><span>{formatLocalDateTime(item.signal.signalEpoch*1000)}</span></div>)}</section>}
       {view==='alerts'&&<IndependentAlertSettings userId={userId} assets={assets} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/>}
-      {['personal-ai','academy','referrals','earnings','finance','admin','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
+      {view==='admin'&&isAdmin&&<AppwriteMembershipAdmin/>}
+      {['personal-ai','academy','referrals','earnings','finance','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
      </div>
     </Suspense>
     <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[.03] p-5 text-xs leading-relaxed text-ink-2"><p className="font-medium text-ink">Trading involves risk. Past signals do not guarantee future results.</p><p className="mt-1">Signals and tracked ideas are not proof of broker execution.</p></footer>

@@ -188,3 +188,15 @@ export function connectBinanceFutures(apiKey: string, apiSecret: string): Promis
 export function disconnectBinanceFutures(): Promise<{ disconnected: boolean; providerKeyRevoked: false; note: string }> {
   return authenticatedRequest('/api/brokers/binance-futures/disconnect', { method: 'POST', body: JSON.stringify({}) });
 }
+
+export type MembershipAccess = { status: "pending" | "approved" | "suspended"; approved: boolean; isAdmin: boolean };
+export function getMembershipAccess(): Promise<MembershipAccess> {
+  return authenticatedRequest<MembershipAccess>('/api/membership/status');
+}
+export type AdminMember = { id: string; email: string; name: string; emailConfirmed: boolean; createdAt: string; lastSignInAt: string | null; status: string; isAdmin: boolean };
+export function getAdminMembers(): Promise<{ members: AdminMember[] }> {
+  return authenticatedRequest<{ members: AdminMember[] }>('/api/admin/members');
+}
+export function setAdminMemberStatus(userId: string, status: "approved" | "pending" | "suspended"): Promise<{ updated: boolean; userId: string; status: string }> {
+  return authenticatedRequest('/api/admin/members', { method: 'PATCH', body: JSON.stringify({ userId, status }) });
+}
