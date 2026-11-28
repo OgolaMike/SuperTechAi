@@ -1221,7 +1221,6 @@ export default {
     }
     return json({ error: "not_found" }, 404, cors);
   },
-  ,
   scheduled(_controller: unknown, env: Env, context: { waitUntil: (promise: Promise<unknown>) => void }) {
     context.waitUntil(runScheduledJust4YouDraw(env).catch(error => {
       console.error("Scheduled Just 4 You draw failed:", error);
