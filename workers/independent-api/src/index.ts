@@ -9,6 +9,7 @@ export interface Env {
   ALLOWED_ORIGIN: string;
   APPWRITE_API_KEY?: string;
   APPWRITE_ADMIN_USER_IDS?: string;
+  APPWRITE_ADMIN_EMAILS?: string;
 }
 
 type AppwriteAccount = {
@@ -73,6 +74,12 @@ async function authenticate(request: Request, env: Env): Promise<AppwriteAccount
 
 function databaseReady(env: Env): boolean {
   return Boolean(env.APPWRITE_API_KEY && env.APPWRITE_DATABASE_ID && env.MEMBER_PROFILES_TABLE_ID);
+}
+
+function isConfiguredAdmin(account: AppwriteAccount, env: Env): boolean {
+  const ids = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(value => value.trim()).filter(Boolean);
+  const emails = (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
+  return ids.includes(account.$id) || emails.includes(account.email.toLowerCase());
 }
 
 async function profileRequest(
@@ -701,7 +708,7 @@ export default {
         const profileUrl = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows/${encodeURIComponent(account.$id)}`;
         const response = await fetch(profileUrl, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY } });
         if (response.status === 404) {
-          const isAdmin = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id);
+          const isAdmin = isConfiguredAdmin(account, env);
           const now = new Date().toISOString();
           const created = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`, { method: "POST", headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ rowId: account.$id, data: { user_id: account.$id, display_name: account.name || "", onboarding_status: isAdmin ? "approved" : "pending", created_at: now, updated_at: now }, permissions: [] }) });
           if (!created.ok && created.status !== 409) return json({ error: "membership_profile_initialization_failed" }, 503, cors);
@@ -721,7 +728,7 @@ export default {
         const actor = await authenticate(request, env);
         if (!actor) return json({ error: "unauthorized" }, 401, cors);
         const admins = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).filter(Boolean);
-        if (!admins.includes(actor.$id)) return json({ error: "admin_required" }, 403, cors);
+        if (!isConfiguredAdmin(actor, env)) return json({ error: "admin_required" }, 403, cors);
         if (!env.APPWRITE_API_KEY) return json({ error: "membership_admin_not_configured" }, 503, cors);
         const root = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`;
         const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
@@ -750,8 +757,8 @@ export default {
             const profile = await response.json() as { user_id?: string; onboarding_status?: string };
             if (profile.user_id === user.$id && ["approved", "suspended"].includes(profile.onboarding_status || "")) status = profile.onboarding_status!;
           }
-          if (admins.includes(user.$id)) status = "approved";
-          return { id: user.$id, email: user.email, name: user.name || "", emailConfirmed: user.emailVerification, createdAt: user.registration, lastSignInAt: user.accessedAt || null, status, isAdmin: admins.includes(user.$id) };
+          if (admins.includes(user.$id) || (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(v => v.trim().toLowerCase()).includes(user.email.toLowerCase())) status = "approved";
+          return { id: user.$id, email: user.email, name: user.name || "", emailConfirmed: user.emailVerification, createdAt: user.registration, lastSignInAt: user.accessedAt || null, status, isAdmin: admins.includes(user.$id) || (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(v => v.trim().toLowerCase()).includes(user.email.toLowerCase()) };
         }));
         return json({ members }, 200, cors);
       } catch { return json({ error: "membership_admin_failed" }, 503, cors); }
