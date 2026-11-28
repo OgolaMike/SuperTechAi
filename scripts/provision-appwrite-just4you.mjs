@@ -71,8 +71,9 @@ for (const definition of definitions) {
   let columns = await list(tablePath + "/columns?limit=100", "columns");
   const existing = columns.find(column => column.key === definition.key);
   if (existing) {
-    if (existing.type !== definition.type || Boolean(existing.required) !== definition.required || (definition.size && existing.size !== definition.size)) {
-      throw new Error("Existing " + definition.key + " column does not match; refusing to modify it.");
+    const existingType = existing.type === "double" && definition.type === "float" ? "float" : existing.type;
+    if (existingType !== definition.type || Boolean(existing.required) !== definition.required || (definition.size && existing.size !== definition.size)) {
+      throw new Error("Existing " + definition.key + " column does not match (type=" + existing.type + ", required=" + existing.required + ", size=" + existing.size + "); refusing to modify it.");
     }
     continue;
   }
