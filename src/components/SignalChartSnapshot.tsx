@@ -123,12 +123,15 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     return `${reverseIndex === 0 || !bandPoints[index + 1] ? 'M' : 'L'} ${item[0]} ${item[2]}`;
   }).filter(Boolean).join(' ');
 
-  // Anchor the two-colour regime boundary to the actual signal candle. Candle feeds can
-  // differ by a few seconds, so use the nearest timestamp instead of an arbitrary offset.
-  const signalIndex = signalEpoch == null ? -1 : data.reduce((nearest, candle, index) =>
-    Math.abs(candle.epoch - signalEpoch) < Math.abs(data[nearest].epoch - signalEpoch) ? index : nearest, 0);
-  const transitionIndex = signalIndex >= 0 ? signalIndex : 0;
-  const transitionX = x(transitionIndex);
+  // Anchor the signal marker to the interpolated crossover between confirmed candles.
+  // Never move an off-screen historical crossover to the first visible candle.
+  const signalSegmentIndex = signalEpoch == null ? -1 : data.findIndex((candle, index) =>
+    index > 0 && data[index - 1].epoch <= signalEpoch && candle.epoch >= signalEpoch);
+  const signalFraction = signalSegmentIndex > 0
+    ? (signalEpoch! - data[signalSegmentIndex - 1].epoch) / Math.max(1, data[signalSegmentIndex].epoch - data[signalSegmentIndex - 1].epoch)
+    : 0;
+  const signalX = signalSegmentIndex > 0 ? x(signalSegmentIndex - 1 + signalFraction) : -1;
+  const transitionX = signalX >= 0 ? signalX : x(0);
   const leftRegime = direction === 'BUY' ? '#ef4444' : '#2563eb';
   const rightRegime = direction === 'BUY' ? '#2563eb' : '#ef4444';
   const latest = data[data.length - 1];
@@ -239,11 +242,11 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
 
           {breakRetestSetup && breakRetestSetup.wickTouches.map((touch) => {                 const index = data.findIndex(candle => candle.epoch === touch.epoch);                 if (index < 0) return null;                 const candle = data[index];                 const bodyHigh = Math.max(candle.open, candle.close);                 const bodyLow = Math.min(candle.open, candle.close);                 const bodyTouched = bodyLow <= breakRetestSetup.zoneHigh && bodyHigh >= breakRetestSetup.zoneLow;                 const markerPrice = touch.low <= breakRetestSetup.zoneHigh && touch.low >= breakRetestSetup.zoneLow                   ? touch.low : touch.high;                 return <g key={touch.epoch}>                   <circle cx={x(index)} cy={y(markerPrice)} r="5.5" fill={bodyTouched ? "#facc15" : "#fb923c"} stroke="#fff7ed" strokeWidth="1.5" />                   <title>{bodyTouched ? "Candle body touched the retest zone" : "Wick-only touch of the retest zone"}</title>                 </g>;               })}
 
-          {signalIndex >= 0 && direction && <g>
+          {signalSegmentIndex > 0 && direction && levels && <g>
             <line x1={transitionX} x2={transitionX} y1={PAD.top} y2={HEIGHT - PAD.bottom} stroke={direction === 'BUY' ? '#93c5fd' : '#fda4af'} strokeWidth="2" strokeDasharray="5 6" />
-            <rect x={Math.min(svgWidth - PAD.right - 112, transitionX + 12)} y={Math.max(PAD.top + 8, y(data[signalIndex].close) - 42)} width="96" height="27" rx="6" fill={direction === 'BUY' ? '#1d4ed8' : '#be123c'} stroke="#fff" strokeOpacity="0.65" />
-            <text x={Math.min(svgWidth - PAD.right - 64, transitionX + 60)} y={Math.max(PAD.top + 26, y(data[signalIndex].close) - 24)} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">{direction}</text>
-            <circle cx={transitionX} cy={y(data[signalIndex].close)} r="7" fill={direction === 'BUY' ? '#60a5fa' : '#fb7185'} stroke="#fff" strokeWidth="2" />
+            <rect x={Math.min(svgWidth - PAD.right - 112, transitionX + 12)} y={Math.max(PAD.top + 8, y(levels.entry) - 42)} width="96" height="27" rx="6" fill={direction === 'BUY' ? '#1d4ed8' : '#be123c'} stroke="#fff" strokeOpacity="0.65" />
+            <text x={Math.min(svgWidth - PAD.right - 64, transitionX + 60)} y={Math.max(PAD.top + 26, y(levels.entry) - 24)} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">{direction}</text>
+            <circle cx={transitionX} cy={y(levels.entry)} r="7" fill={direction === 'BUY' ? '#60a5fa' : '#fb7185'} stroke="#fff" strokeWidth="2" />
           </g>}
 
           {latestStats && <>
