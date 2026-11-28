@@ -1,7 +1,7 @@
 import { handlePaymentRequest } from "./payments";
 import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
 import { handleAcademyProgress } from "./academy";
-import { handleCompanyBusinessRequest } from "./business";
+import { handleCompanyBusinessRequest, runScheduledJust4YouDraw } from "./business";
 
 export interface Env {
   APPWRITE_ENDPOINT: string;
@@ -1221,4 +1221,10 @@ export default {
     }
     return json({ error: "not_found" }, 404, cors);
   },
+  ,
+  scheduled(_controller: unknown, env: Env, context: { waitUntil: (promise: Promise<unknown>) => void }) {
+    context.waitUntil(runScheduledJust4YouDraw(env).catch(error => {
+      console.error("Scheduled Just 4 You draw failed:", error);
+    }));
+  }
 };
