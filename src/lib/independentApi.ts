@@ -193,7 +193,7 @@ export type MembershipAccess = { status: "pending" | "approved" | "suspended"; a
 export function getMembershipAccess(): Promise<MembershipAccess> {
   return authenticatedRequest<MembershipAccess>('/api/membership/status');
 }
-export type AdminMember = { id: string; email: string; name: string; emailConfirmed: boolean; createdAt: string; lastSignInAt: string | null; status: string; isAdmin: boolean };
+export type AdminMember = { id: string; email: string; name: string; emailConfirmed: boolean; createdAt: string; lastSignInAt: string | null; status: string; active?: boolean; isAdmin: boolean };
 export function getAdminMembers(): Promise<{ members: AdminMember[] }> {
   return authenticatedRequest<{ members: AdminMember[] }>('/api/admin/members');
 }
