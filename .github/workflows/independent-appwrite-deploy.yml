@@ -36,6 +36,8 @@ jobs:
         run: node --check scripts/provision-appwrite-core.mjs
       - name: Validate Worker deployment bundle
         run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
+      - name: Validate market-data Worker bundle
+        run: npx --yes wrangler deploy --dry-run --config workers/market-data/wrangler.toml
 
   deploy:
     name: Deploy independent Pages and Worker
@@ -83,6 +85,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx --yes wrangler deploy --config workers/independent-api/wrangler.toml
+      - name: Deploy independent market-data Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler deploy --config workers/market-data/wrangler.toml
       - name: Configure member-network Worker secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -119,7 +126,16 @@ jobs:
           if (!scriptPath || !scriptPath.endsWith(".js")) throw new Error("Pages response did not reference the application bundle");
           const bundle = await fetch(new URL(scriptPath, site.url));
           if (!bundle.ok) throw new Error(`Pages JavaScript bundle failed: ${bundle.status}`);
-          console.log("Live Worker health, Appwrite bindings, Pages shell and JavaScript bundle checks passed.");
+          const market = await fetch("https://supertechai-market-data.mikedavid45.workers.dev/health");
+          if (!market.ok) throw new Error("Market-data Worker health failed: " + market.status);
+          const marketHealth = await market.json();
+          if (marketHealth.ok !== true || marketHealth.service !== "supertechai-market-data") throw new Error("Market-data Worker health response is incomplete");
+          const upstreamUrl = "https://api.kucoin.com/api/v1/market/allTickers";
+          const upstream = await fetch("https://supertechai-market-data.mikedavid45.workers.dev/api/market-proxy?url=" + encodeURIComponent(upstreamUrl));
+          if (!upstream.ok) throw new Error("Market-data upstream smoke test failed: " + upstream.status);
+          const marketPayload = await upstream.json();
+          if (marketPayload.code !== "200000" || !Array.isArray(marketPayload.data?.ticker) || marketPayload.data.ticker.length < 10) throw new Error("Market-data upstream returned an invalid ticker payload");
+          console.log("Live Appwrite Worker, market-data Worker, exchange feed, Pages shell and JavaScript bundle checks passed.");
           NODE
 
 
