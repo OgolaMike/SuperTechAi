@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "check:independent": "node scripts/check-independent-boundary.mjs",
-    "check:independent-worker": "node scripts/check-independent-worker.mjs",
+    "check:independent-worker": "node scripts/check-independent-worker.mjs && node scripts/check-company-referrals.mjs",
     "provision:deriv": "node scripts/provision-deriv-oauth-tables.mjs",
     "provision:appwrite-membership": "node scripts/provision-appwrite-membership.mjs",
     "provision:appwrite-core": "node scripts/provision-appwrite-core.mjs"
