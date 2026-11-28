@@ -24,7 +24,7 @@ export type Outcome = {
 
 export type Signal = { direction: Direction; signalEpoch: number; levels: Levels; outcome: Outcome };
 
-const SMA_PERIOD = 20;
+const SMA_PERIOD = 60;
 const TP1_SIGMA = 1.5;
 const TP2_SIGMA = 2.5;
 const TP3_SIGMA = 3;
@@ -75,7 +75,7 @@ function evaluateOutcome(direction: Direction, levels: Levels, after: Candle[]):
   return { tp1Epoch, tp2Epoch, tp3Epoch, slEpoch, status, closed: tp3Epoch !== null || slEpoch !== null };
 }
 
-// Confirmed-close rule: above SMA20 = BUY; below SMA20 = SELL. Only closed candles count.
+// Confirmed-close rule: above SMA60 = BUY; below SMA60 = SELL. Only closed candles count.
 export function computeSignals(
   candles: Candle[],
   granularity: number,

@@ -103,7 +103,7 @@ export function SignalCard({ asset, tf, loaded, price, confluenceCount, unifiedO
         </>
       ) : unifiedOnly ? (
         <div className="space-y-3">
-          <SignalChartSnapshot candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+          <SignalChartSnapshot candles={tf.chartCandles?.length ? tf.chartCandles : tf.candles} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} breakRetestSetup={breakRetestSetup} />
           <p className="text-xs text-ink-3">This timeframe contributes to the single unified decision. It does not issue a separate dashboard trade instruction.</p>
         </div>
       ) : tf.granularity === 86400 && marketClosed ? (

@@ -24,7 +24,7 @@ type Props = {
 const WIDTH = 1440;
 const HEIGHT = 760;
 const PAD = { top: 30, right: 116, bottom: 48, left: 24 };
-const SMA_PERIOD = 1440;
+const SMA_PERIOD = 60;
 const VISIBLE_CANDLES = 60;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -159,7 +159,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : direction === 'SELL' ? 'bg-rose-400' : 'bg-cyan-300'} shadow-[0_0_12px_currentColor]`} />
           <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · {direction ? 'MARKET STRUCTURE' : 'LIVE MARKET · NO CROSS SIGNAL'}</span>
-          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 1440 · BB ±2.5σ</span>
+          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 60 · BB ±2.5σ</span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Live price and current candle countdown">
