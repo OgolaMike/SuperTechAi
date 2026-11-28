@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, RefreshCw, ShieldCheck, ShieldOff, UserCheck, UserX } from 'lucide-react';
+import { Loader2, RefreshCw, ShieldCheck, UserCheck, UserX, Mail, MailCheck } from 'lucide-react';
 import { useSession } from '@/lib/sessionContext';
 import { formatLocalDateTime } from '@/lib/localTime';
 import { getAdminMembers, setAdminMemberStatus, type AdminMember } from '@/lib/independentApi';
@@ -63,7 +63,7 @@ export function AdminPanel() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Admin</p>
           <h2 className="text-xl font-semibold tracking-tight text-ink">Members and access</h2>
-          <p className="mt-1 max-w-2xl text-sm text-ink-2">Manage membership approval, admin roles and email verification. {pendingCount} awaiting approval · {inactiveCount} deactivated.</p>
+          <p className="mt-1 max-w-2xl text-sm text-ink-2">Activate or deactivate member accounts and manage company access. {pendingCount} awaiting approval · {inactiveCount} deactivated.</p>
         </div>
         <button type="button" onClick={load} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-line/10 bg-surface/[0.05] px-4 py-2 text-sm font-medium text-ink disabled:opacity-60">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
