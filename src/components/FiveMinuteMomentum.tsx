@@ -1,5 +1,6 @@
 import { Activity, ArrowDownRight, ArrowUpRight, Clock3, Info } from 'lucide-react';
 import type { Asset, TfState } from '@/lib/sma';
+import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
 
 type Props = {
   asset?: Asset;
@@ -43,6 +44,25 @@ export function FiveMinuteMomentum({ asset, state, currentPrice, nowEpoch, loade
           <p className="mt-2 max-w-2xl text-sm text-ink-2">Raw Higher High / Lower Low logic. One M30 candle per trade window. No indicators or extra confirmation.</p>
         </div>
         <span className="inline-flex items-center gap-2 rounded-full border border-line/20 bg-surface/[0.05] px-3 py-1.5 text-xs font-semibold text-ink-2"><Activity className="h-4 w-4 text-accent" /> M30 · 1800 seconds</span>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-ink">Live M30 chart</h3>
+          <p className="mt-1 text-xs text-ink-3">Dedicated 30-minute candlestick view for this strategy, using its own M30 candle feed.</p>
+        </div>
+        <SignalChartSnapshot
+          candles={chartCandles}
+          timeframe="M30 MOMENTUM"
+          granularity={THIRTY_MINUTES}
+          digits={digits}
+          assetName={asset?.name ?? 'Selected market'}
+          symbol={asset?.symbol ?? '—'}
+          anchorId={`m30-momentum-chart-${encodeURIComponent(asset?.symbol ?? 'none')}`}
+          direction={direction ?? undefined}
+          signalEpoch={latest?.epoch}
+          livePrice={currentPrice ?? undefined}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
