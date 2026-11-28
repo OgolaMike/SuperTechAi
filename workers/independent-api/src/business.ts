@@ -235,3 +235,9 @@ export async function handleCompanyBusinessRequest(request: Request, env: Env, a
     return json({ error: error instanceof Error ? error.message : "company_business_failed" }, 503);
   }
 }
+
+
+export async function runScheduledJust4YouDraw(env: Env) {
+  if (!env.GENESIS_ACCOUNT_ID) throw new Error("company_genesis_account_not_configured");
+  return runJust4YouDraw(env, { $id: env.GENESIS_ACCOUNT_ID, email: "" });
+}
