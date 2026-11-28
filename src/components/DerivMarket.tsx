@@ -81,9 +81,9 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
     if (visible.length < 2) return null;
     const stats = visible.map((_, index) => {
       const absoluteIndex = candles.length - visible.length + index;
-      if (absoluteIndex < 19) return null;
-      const closes = candles.slice(absoluteIndex - 19, absoluteIndex + 1).map((item) => item.close);
-      const mean = closes.reduce((sum, value) => sum + value, 0) / 20;
+      if (absoluteIndex < 59) return null;
+      const closes = candles.slice(absoluteIndex - 59, absoluteIndex + 1).map((item) => item.close);
+      const mean = closes.reduce((sum, value) => sum + value, 0) / 60;
       const variance = closes.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 60;
       const deviation = Math.sqrt(variance);
       return { mean, upper: mean + 2.5 * deviation, lower: mean - 2.5 * deviation };
@@ -210,7 +210,7 @@ export function DerivMarket({ assets, states, prices, selectedSymbols, onMonitor
           <div className="mx-4 mb-4 rounded-xl border border-line/10 bg-canvas/60 p-3">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-2">
-                <label className="flex items-center gap-1.5"><input type="checkbox" checked={showSma} onChange={(event) => setShowSma(event.target.checked)} /> SMA 20</label>
+                <label className="flex items-center gap-1.5"><input type="checkbox" checked={showSma} onChange={(event) => setShowSma(event.target.checked)} /> SMA 60</label>
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={showBands} onChange={(event) => setShowBands(event.target.checked)} /> Bollinger ±2.5σ</label>
               </div>
               <div className="flex items-center gap-2">
