@@ -221,3 +221,30 @@ export function getIndependentAcademyProgress(): Promise<{ lessons: IndependentA
 export function saveIndependentAcademyProgress(lessonId: string, progress: number): Promise<IndependentAcademyProgress> {
   return authenticatedRequest('/api/academy/progress', { method: 'PUT', body: JSON.stringify({ lessonId, progress }) });
 }
+
+
+export type CompanyBusinessOverview = {
+  currency: string; totalSales: number; approvedPayments: number; pendingPayments: number;
+  pendingPaymentValue: number; rejectedPayments: number; companyRevenue: number;
+  companyRevenueRecords: number;
+  income: Record<string, { accrued: number; pending: number; paid: number; records: number }>;
+  weekly: { start: string; end: string; qualifyingSales: number; just4youPool: number };
+  just4youReservedTotal: number; withdrawalRecords: number;
+  planSales: { standard300: number; automation500: number };
+};
+export type CompanyJust4YouDashboard = {
+  weekStart: string; weekEnd: string; qualifyingSales: number; bonusRatePct: number;
+  salesPool: number; eligibleMembers: number;
+  latestDraw: null | { weekStart: string; weekEnd: string; winnerName: string; winnerUserId: string; prizeAmount: number; drawnAt: string; status: string };
+  currentDraw: null | { weekStart: string; winnerName: string; prizeAmount: number; drawnAt: string; status: string };
+  canDraw: boolean;
+};
+export function getCompanyBusinessOverview(): Promise<CompanyBusinessOverview> {
+  return authenticatedRequest('/api/company/business');
+}
+export function getCompanyJust4YouDashboard(): Promise<CompanyJust4YouDashboard> {
+  return authenticatedRequest('/api/company/just4you');
+}
+export function runCompanyJust4YouDraw(): Promise<{ drawn: boolean; winnerName: string; prizeAmount: number; eligibleMembers: number; weekStart: string; weekEnd: string }> {
+  return authenticatedRequest('/api/company/just4you/draw', { method: 'POST', body: JSON.stringify({}) });
+}
