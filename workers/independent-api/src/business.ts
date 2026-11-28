@@ -126,7 +126,7 @@ async function businessOverview(env: Env) {
 }
 
 async function just4youDashboard(env: Env) {
-  const period = weekWindow();
+  const period = weekWindow(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
   const [payments, users, memberships, draws] = await Promise.all([
     listRows(env, env.PAYMENT_SUBMISSIONS_TABLE_ID || "payment_submissions"),
     listUsers(env),
@@ -150,7 +150,7 @@ async function just4youDashboard(env: Env) {
 
 async function runJust4YouDraw(env: Env, actor: Account) {
   if (!env.JUST4YOU_DRAWS_TABLE_ID) throw new Error("just4you_draws_table_not_configured");
-  const period = weekWindow();
+  const period = weekWindow(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
   const drawId = await stableId("just4you:" + period.weekKey);
   const drawEndpoint = table(env, env.JUST4YOU_DRAWS_TABLE_ID) + "/" + encodeURIComponent(drawId);
   const priorResponse = await fetch(drawEndpoint, { headers: apiHeaders(env) });
