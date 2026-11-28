@@ -13,7 +13,11 @@ MEMBER_NETWORK_TABLE_ID = "member_network"
 PAYMENT_SUBMISSIONS_TABLE_ID = "payment_submissions"
 FINANCIAL_LEDGER_TABLE_ID = "financial_ledger"
 COMMISSION_RECORDS_TABLE_ID = "commission_records"
+JUST4YOU_DRAWS_TABLE_ID = "just4you_draws"
 ACADEMY_PROGRESS_TABLE_ID = "academy_progress"
 APPWRITE_ADMIN_EMAILS = "supertechai.254@gmail.com"
 DERIV_CLIENT_ID = "354lArYQUnmF00jAhkCu3"
 DERIV_REDIRECT_URI = "https://supertechai-independent-api.mikedavid45.workers.dev/api/brokers/deriv/callback"
+
+[triggers]
+crons = ["5 21 * * 0"]

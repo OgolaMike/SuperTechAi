@@ -193,7 +193,7 @@ export type MembershipAccess = { status: "pending" | "approved" | "suspended"; a
 export function getMembershipAccess(): Promise<MembershipAccess> {
   return authenticatedRequest<MembershipAccess>('/api/membership/status');
 }
-export type AdminMember = { id: string; email: string; name: string; emailConfirmed: boolean; createdAt: string; lastSignInAt: string | null; status: string; isAdmin: boolean };
+export type AdminMember = { id: string; email: string; name: string; emailConfirmed: boolean; createdAt: string; lastSignInAt: string | null; status: string; active?: boolean; isAdmin: boolean };
 export function getAdminMembers(): Promise<{ members: AdminMember[] }> {
   return authenticatedRequest<{ members: AdminMember[] }>('/api/admin/members');
 }
@@ -220,4 +220,31 @@ export type IndependentAcademyProgress = { lessonId: string; progress: number; c
 export function getIndependentAcademyProgress(): Promise<{ lessons: IndependentAcademyProgress[] }> { return authenticatedRequest('/api/academy/progress'); }
 export function saveIndependentAcademyProgress(lessonId: string, progress: number): Promise<IndependentAcademyProgress> {
   return authenticatedRequest('/api/academy/progress', { method: 'PUT', body: JSON.stringify({ lessonId, progress }) });
+}
+
+
+export type CompanyBusinessOverview = {
+  currency: string; totalSales: number; approvedPayments: number; pendingPayments: number;
+  pendingPaymentValue: number; rejectedPayments: number; companyRevenue: number; companyReferralIncome: number; companyTotalIncome: number;
+  companyRevenueRecords: number;
+  income: Record<string, { accrued: number; pending: number; paid: number; records: number }>;
+  weekly: { start: string; end: string; qualifyingSales: number; just4youPool: number };
+  just4youReservedTotal: number; withdrawalRecords: number;
+  planSales: { standard300: number; automation500: number };
+};
+export type CompanyJust4YouDashboard = {
+  weekStart: string; weekEnd: string; qualifyingSales: number; bonusRatePct: number;
+  salesPool: number; eligibleMembers: number;
+  latestDraw: null | { weekStart: string; weekEnd: string; winnerName: string; winnerUserId: string; prizeAmount: number; drawnAt: string; status: string };
+  currentDraw: null | { weekStart: string; winnerName: string; prizeAmount: number; drawnAt: string; status: string };
+  canDraw: boolean;
+};
+export function getCompanyBusinessOverview(): Promise<CompanyBusinessOverview> {
+  return authenticatedRequest('/api/company/business');
+}
+export function getCompanyJust4YouDashboard(): Promise<CompanyJust4YouDashboard> {
+  return authenticatedRequest('/api/company/just4you');
+}
+export function runCompanyJust4YouDraw(): Promise<{ drawn: boolean; winnerName: string; prizeAmount: number; eligibleMembers: number; weekStart: string; weekEnd: string }> {
+  return authenticatedRequest('/api/company/just4you/draw', { method: 'POST', body: JSON.stringify({}) });
 }

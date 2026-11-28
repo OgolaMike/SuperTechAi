@@ -1,6 +1,7 @@
 import { handlePaymentRequest } from "./payments";
 import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
 import { handleAcademyProgress } from "./academy";
+import { handleCompanyBusinessRequest, runScheduledJust4YouDraw } from "./business";
 
 export interface Env {
   APPWRITE_ENDPOINT: string;
@@ -21,6 +22,7 @@ export interface Env {
   PAYMENT_SUBMISSIONS_TABLE_ID?: string;
   FINANCIAL_LEDGER_TABLE_ID?: string;
   COMMISSION_RECORDS_TABLE_ID?: string;
+  JUST4YOU_DRAWS_TABLE_ID?: string;
   ACADEMY_PROGRESS_TABLE_ID?: string;
 }
 
@@ -91,7 +93,7 @@ function databaseReady(env: Env): boolean {
 function isConfiguredAdmin(account: AppwriteAccount, env: Env): boolean {
   const ids = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(value => value.trim()).filter(Boolean);
   const emails = (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
-  return ids.includes(account.$id) || emails.includes(account.email.toLowerCase());
+  return account.$id === env.GENESIS_ACCOUNT_ID || ids.includes(account.$id) || emails.includes(account.email.toLowerCase());
 }
 
 async function profileRequest(
@@ -729,7 +731,7 @@ export default {
         if (!response.ok) return json({ error: "membership_status_unavailable" }, 503, cors);
         const profile = await response.json() as { user_id?: string; onboarding_status?: string };
         if (profile.user_id !== account.$id) return json({ error: "membership_profile_ownership_mismatch" }, 403, cors);
-        const isAdmin = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id);
+        const isAdmin = isConfiguredAdmin(account, env);
         const status = isAdmin ? "approved" : (["approved", "suspended"].includes(profile.onboarding_status || "") ? profile.onboarding_status! : "pending");
         let planCode = isAdmin ? "automation_500" : "free";
         if (!isAdmin && env.MEMBERSHIP_TABLE_ID && env.APPWRITE_API_KEY) {
@@ -748,7 +750,7 @@ export default {
       try {
         const actor = await authenticate(request, env);
         if (!actor) return json({ error: "unauthorized" }, 401, cors);
-        const admins = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).filter(Boolean);
+        const admins = [...(env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).filter(Boolean), ...(env.GENESIS_ACCOUNT_ID ? [env.GENESIS_ACCOUNT_ID] : [])];
         if (!isConfiguredAdmin(actor, env)) return json({ error: "admin_required" }, 403, cors);
         if (!env.APPWRITE_API_KEY) return json({ error: "membership_admin_not_configured" }, 503, cors);
         const root = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`;
@@ -760,10 +762,15 @@ export default {
           if (!/^[A-Za-z0-9_-]{1,36}$/.test(userId) || !["approved", "pending", "suspended"].includes(status)) return json({ error: "invalid_membership_change" }, 400, cors);
           const memberResponse = await fetch(env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/users/" + encodeURIComponent(userId), { headers });
           if (!memberResponse.ok) return json({ error: "member_account_not_found" }, 404, cors);
-          const member = await memberResponse.json() as { $id: string; email: string; name?: string; emailVerification?: boolean };
+          const member = await memberResponse.json() as { $id: string; email: string; name?: string; emailVerification?: boolean; status?: boolean };
           const isTargetAdmin = admins.includes(userId) || (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(v => v.trim().toLowerCase()).includes(member.email.toLowerCase());
           if (isTargetAdmin && status !== "approved") return json({ error: "cannot_revoke_configured_admin_access" }, 403, cors);
           if (status === "approved" && member.emailVerification !== true) return json({ error: "member_email_must_be_verified_before_approval" }, 403, cors);
+          if (userId === actor.$id && status !== "approved") return json({ error: "cannot_suspend_company_admin" }, 403, cors);
+          const accountStatus = await fetch(env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/users/" + encodeURIComponent(userId) + "/status", {
+            method: "PUT", headers, body: JSON.stringify({ status: status === "approved" }),
+          });
+          if (!accountStatus.ok) return json({ error: "member_account_status_update_failed" }, 503, cors);
           const rowUrl = `${root}/${encodeURIComponent(userId)}`;
           const prior = await fetch(rowUrl, { headers });
           const now = new Date().toISOString();
@@ -779,10 +786,16 @@ export default {
           }
           return json({ updated: true, userId, status, approvedBy: actor.$id }, 200, cors);
         }
-        const usersResponse = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/users?limit=100`, { headers });
-        if (!usersResponse.ok) return json({ error: "member_directory_unavailable" }, 503, cors);
-        const payload = await usersResponse.json() as { users?: Array<{ $id: string; email: string; name?: string; emailVerification: boolean; registration: string; accessedAt?: string }> };
-        const members = await Promise.all((payload.users || []).map(async user => {
+        const allUsers: Array<{ $id: string; email: string; name?: string; emailVerification: boolean; registration: string; accessedAt?: string; status?: boolean }> = [];
+        for (let offset = 0; offset < 5000; offset += 100) {
+          const usersResponse = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/users?limit=100&offset=${offset}`, { headers });
+          if (!usersResponse.ok) return json({ error: "member_directory_unavailable" }, 503, cors);
+          const payload = await usersResponse.json() as { users?: typeof allUsers };
+          const page = payload.users || [];
+          allUsers.push(...page);
+          if (page.length < 100) break;
+        }
+        const members = await Promise.all(allUsers.map(async user => {
           const response = await fetch(`${root}/${encodeURIComponent(user.$id)}`, { headers });
           let status = "pending";
           if (response.ok) {
@@ -790,7 +803,7 @@ export default {
             if (profile.user_id === user.$id && ["approved", "suspended"].includes(profile.onboarding_status || "")) status = profile.onboarding_status!;
           }
           if (admins.includes(user.$id) || (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(v => v.trim().toLowerCase()).includes(user.email.toLowerCase())) status = "approved";
-          return { id: user.$id, email: user.email, name: user.name || "", emailConfirmed: user.emailVerification, createdAt: user.registration, lastSignInAt: user.accessedAt || null, status, isAdmin: admins.includes(user.$id) || (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(v => v.trim().toLowerCase()).includes(user.email.toLowerCase()) };
+          return { id: user.$id, email: user.email, name: user.name || "", emailConfirmed: user.emailVerification, createdAt: user.registration, lastSignInAt: user.accessedAt || null, status, active: user.status !== false, isAdmin: admins.includes(user.$id) || (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(v => v.trim().toLowerCase()).includes(user.email.toLowerCase()) };
         }));
         return json({ members }, 200, cors);
       } catch { return json({ error: "membership_admin_failed" }, 503, cors); }
@@ -1174,6 +1187,13 @@ export default {
       }, 200, cors);
     }
 
+    if (url.pathname.startsWith("/api/company/business") || url.pathname.startsWith("/api/company/just4you")) {
+      const account = await authenticate(request, env);
+      if (!account) return json({ error: "unauthorized" }, 401, cors);
+      const businessResponse = await handleCompanyBusinessRequest(request, env, account);
+      if (businessResponse) return withCors(businessResponse, cors);
+    }
+
     const companyOwnerResponse = await handleCompanyOwnerRequest(request, env);
     if (companyOwnerResponse) return withCors(companyOwnerResponse, cors);
 
@@ -1201,4 +1221,9 @@ export default {
     }
     return json({ error: "not_found" }, 404, cors);
   },
+  scheduled(_controller: unknown, env: Env, context: { waitUntil: (promise: Promise<unknown>) => void }) {
+    context.waitUntil(runScheduledJust4YouDraw(env).catch(error => {
+      console.error("Scheduled Just 4 You draw failed:", error);
+    }));
+  }
 };

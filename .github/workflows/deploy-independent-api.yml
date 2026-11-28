@@ -6,6 +6,7 @@ on:
     paths:
       - "workers/independent-api/**"
       - ".github/workflows/deploy-independent-api.yml"
+      - "scripts/provision-appwrite-just4you.mjs"
   workflow_dispatch:
 
 permissions:
@@ -37,6 +38,11 @@ jobs:
           npm run check:independent
           npm run check:independent-worker
           npm run typecheck
+
+      - name: Provision and verify private Just 4 You table
+        env:
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/provision-appwrite-just4you.mjs
 
       - name: Require Cloudflare deployment token
         env:
