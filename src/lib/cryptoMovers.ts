@@ -68,9 +68,10 @@ async function loadBinance():Promise<CryptoMover[]>{
  throw last instanceof Error?last:new Error('Binance market data unavailable');
 }
 async function loadMovers():Promise<CryptoMover[]>{
- const providers=[loadKucoin,loadGate,loadBitget,loadMexc,loadCoinEx,loadBitmart,loadBingx,loadOkx,loadBybit,loadBinance];
  const failures:string[]=[];
- for(const load of providers){try{return await load()}catch(error){failures.push(error instanceof Error?error.message:'unavailable')}}
+ const capture=(error:unknown)=>{const items=error&&typeof error==='object'&&'errors' in error?(error as {errors:unknown[]}).errors:[error];for(const item of items)failures.push(item instanceof Error?item.message:'unavailable')};
+ try{return await Promise.any([loadKucoin(),loadGate(),loadBitget(),loadMexc()])}catch(error){capture(error)}
+ try{return await Promise.any([loadCoinEx(),loadBitmart(),loadBingx(),loadOkx(),loadBybit(),loadBinance()])}catch(error){capture(error)}
  throw new Error(`All market-data providers failed. ${failures.join(' | ')}`);
 }
 export function formatUsd(value:number):string{const digits=value>=1000?2:value>=1?4:6;return `$${value.toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits})}`}
