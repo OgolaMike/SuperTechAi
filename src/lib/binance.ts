@@ -2,11 +2,13 @@ import type { Candle } from './deriv';
 import type { Timeframe } from './sma';
 
 const REST_BASE = 'https://data-api.binance.vision/api/v3';
-const STREAM_BASE = 'wss://stream.binance.com:9443/stream?streams=';
+const MARKET_PROXY = 'https://supertechai-market-data.mikedavid45.workers.dev/api/market-proxy';
+const STREAM_BASE = 'wss://supertechai-market-data.mikedavid45.workers.dev/stream?url=';
+const proxyUrl = (url: string) => `${MARKET_PROXY}?url=${encodeURIComponent(url)}`;
 const EXCLUDED_BASES = new Set(['USDC','USDT','BUSD','TUSD','FDUSD','DAI','USDP','EUR','GBP','AEUR','PAXG']);
 const LEVERAGED_SUFFIX = /(UP|DOWN|BULL|BEAR)$/;
 const INTERVALS: Record<number, string> = {
-  60: '1m', 300: '5m', 900: '15m', 1800: '30m', 3600: '1h', 7200: '2h', 10800: '3h', 14400: '4h',
+  1800: '30m', 3600: '1h', 7200: '2h', 10800: '3h', 14400: '4h',
   21600: '6h', 28800: '8h', 43200: '12h', 86400: '1d', 604800: '1w',
 };
 type BinanceTicker = { symbol: string; quoteVolume: string; lastPrice: string };
@@ -26,8 +28,8 @@ function digitsFromTickSize(value?: string): number {
 
 export async function loadBinanceAssets(): Promise<BinanceAsset[]> {
   const [tickerResponse, exchangeResponse] = await Promise.all([
-    fetch(`${REST_BASE}/ticker/24hr`),
-    fetch(`${REST_BASE}/exchangeInfo`),
+    fetch(proxyUrl(`${REST_BASE}/ticker/24hr`)),
+    fetch(proxyUrl(`${REST_BASE}/exchangeInfo`)),
   ]);
   if (!tickerResponse.ok || !exchangeResponse.ok) throw new Error('Binance market list is temporarily unavailable');
   const [tickers, exchangeInfo] = await Promise.all([tickerResponse.json(), exchangeResponse.json()]);
@@ -59,7 +61,7 @@ export async function loadBinanceAssets(): Promise<BinanceAsset[]> {
 export async function fetchBinanceCandles(symbol: string, timeframe: Timeframe, count: number): Promise<Candle[]> {
   const interval = INTERVALS[timeframe.granularity];
   if (!interval) throw new Error(`Unsupported Binance timeframe: ${timeframe.label}`);
-  const response = await fetch(`${REST_BASE}/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${Math.min(1000, count)}`);
+  const response = await fetch(proxyUrl(`${REST_BASE}/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${Math.min(1000, count)}`));
   if (!response.ok) throw new Error(`Binance candle request failed for ${symbol} ${timeframe.label}: ${response.status}`);
   const rows: unknown = await response.json();
   if (!Array.isArray(rows)) throw new Error(`Binance returned invalid candles for ${symbol}`);
@@ -81,11 +83,13 @@ export class BinanceStream {
     this.stop();
     if (symbols.length === 0) return;
     const intervals = new Map(Object.entries(INTERVALS).map(([seconds, interval]) => [interval, Number(seconds)]));
-    const streams = symbols.flatMap((symbol) => timeframes.map((timeframe) => {
+    const supportedTimeframes = timeframes.filter((timeframe) => Boolean(INTERVALS[timeframe.granularity]));
+    if (supportedTimeframes.length === 0) return;
+    const streams = symbols.flatMap((symbol) => supportedTimeframes.map((timeframe) => {
       const interval = INTERVALS[timeframe.granularity];
       return `${symbol.toLowerCase()}@kline_${interval}`;
     }));
-    this.socket = new WebSocket(STREAM_BASE + streams.join('/'));
+    this.socket = new WebSocket(STREAM_BASE + encodeURIComponent(`wss://stream.binance.com:9443/stream?streams=${streams.join('/')}`));
     this.socket.onmessage = (event) => {
       try {
         const message = JSON.parse(String(event.data));

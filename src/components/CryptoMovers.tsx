@@ -119,7 +119,7 @@ export function CryptoMovers({ selectedSymbols, onMonitorAsset, aiModel }: Props
             <Leaderboard title="Today's top losers" tone="down" movers={todayLosers} selectedSymbol={selectedMover?.symbol ?? null} onSelect={setSelectedSymbol} />
           </div>
         ) : (
-          <div className="rounded-xl border border-line/10 p-5 text-sm text-ink-2">{today.loading ? "Connecting to Binance market data…" : "Current-day rankings are temporarily unavailable."}</div>
+          <div className="rounded-xl border border-line/10 p-5 text-sm text-ink-2">{today.loading ? "Connecting to live exchange market data…" : "Current-day rankings are temporarily unavailable."}</div>
         )}
       </div>
 
@@ -226,7 +226,7 @@ function WatchListTable({ movers }: { movers: CryptoMover[] }) {
     <div className="hud-panel overflow-hidden rounded-2xl border border-line/10 bg-surface/[0.03]">
       <div className="flex items-center justify-between border-b border-line/10 px-5 py-3">
         <h3 className="text-sm font-semibold text-ink">Full watch list</h3>
-        <span className="text-xs text-ink-3">{movers.length} pairs · daily ROC · Binance</span>
+        <span className="text-xs text-ink-3">{movers.length} pairs · daily ROC · {movers[0]?.source || 'exchange'}</span>
       </div>
       <div className="max-h-[480px] overflow-auto">
         <table className="w-full min-w-[560px] border-collapse text-left text-xs">

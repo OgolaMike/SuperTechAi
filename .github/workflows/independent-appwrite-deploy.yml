@@ -36,6 +36,8 @@ jobs:
         run: node --check scripts/provision-appwrite-core.mjs
       - name: Validate Worker deployment bundle
         run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
+      - name: Validate market-data Worker bundle
+        run: npx --yes wrangler deploy --dry-run --config workers/market-data/wrangler.toml
 
   deploy:
     name: Deploy independent Pages and Worker
@@ -83,6 +85,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx --yes wrangler deploy --config workers/independent-api/wrangler.toml
+      - name: Deploy independent market-data Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler deploy --config workers/market-data/wrangler.toml
       - name: Configure member-network Worker secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -119,7 +126,34 @@ jobs:
           if (!scriptPath || !scriptPath.endsWith(".js")) throw new Error("Pages response did not reference the application bundle");
           const bundle = await fetch(new URL(scriptPath, site.url));
           if (!bundle.ok) throw new Error(`Pages JavaScript bundle failed: ${bundle.status}`);
-          console.log("Live Worker health, Appwrite bindings, Pages shell and JavaScript bundle checks passed.");
+          const market = await fetch("https://supertechai-market-data.mikedavid45.workers.dev/health");
+          if (!market.ok) throw new Error("Market-data Worker health failed: " + market.status);
+          const marketHealth = await market.json();
+          if (marketHealth.ok !== true || marketHealth.service !== "supertechai-market-data") throw new Error("Market-data Worker health response is incomplete");
+          const marketFeeds = [
+            ["KuCoin", "https://api.kucoin.com/api/v1/market/allTickers", payload => payload.code === "200000" && payload.data?.ticker?.length > 10],
+            ["Gate.io", "https://api.gateio.ws/api/v4/spot/tickers", payload => Array.isArray(payload) && payload.length > 10],
+            ["Bitget", "https://api.bitget.com/api/v2/spot/market/tickers", payload => payload.code === "00000" && payload.data?.length > 10],
+            ["MEXC", "https://api.mexc.com/api/v3/ticker/24hr", payload => Array.isArray(payload) && payload.length > 10],
+            ["CoinEx", "https://api.coinex.com/v2/spot/ticker", payload => (payload.code === 0 || payload.code === "0") && payload.data?.length > 10],
+            ["BitMart", "https://api-cloud.bitmart.com/spot/quotation/v3/tickers", payload => payload.data?.length > 10],
+            ["BingX", "https://open-api.bingx.com/openApi/spot/v1/ticker/24hr", payload => payload.data?.tickers?.length > 10],
+            ["OKX", "https://www.okx.com/api/v5/market/tickers?instType=SPOT", payload => payload.code === "0" && payload.data?.length > 10],
+            ["Bybit", "https://api.bybit.com/v5/market/tickers?category=spot", payload => payload.retCode === 0 && payload.result?.list?.length > 10],
+            ["Binance", "https://data-api.binance.vision/api/v3/ticker/24hr", payload => Array.isArray(payload) && payload.length > 10],
+          ];
+          let liveFeed = null;
+          for (const [name, target] of marketFeeds) {
+            try {
+              const response = await fetch("https://supertechai-market-data.mikedavid45.workers.dev/api/market-proxy?url=" + encodeURIComponent(target));
+              if (!response.ok) continue;
+              const payload = await response.json();
+              if (marketFeeds.find(item => item[0] === name)[2](payload)) { liveFeed = name; break; }
+            } catch { /* try the next public exchange */ }
+          }
+          if (!liveFeed) throw new Error("No approved exchange returned a valid live ticker feed");
+          console.log("Live market-data feed verified: " + liveFeed);
+          console.log("Live Appwrite Worker, market-data Worker, exchange feed, Pages shell and JavaScript bundle checks passed.");
           NODE
 
 
