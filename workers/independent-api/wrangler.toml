@@ -20,4 +20,4 @@ DERIV_CLIENT_ID = "354lArYQUnmF00jAhkCu3"
 DERIV_REDIRECT_URI = "https://supertechai-independent-api.mikedavid45.workers.dev/api/brokers/deriv/callback"
 
 [triggers]
-crons = ["5 21 * * 0"]
+crons = ["5 21 * * SUN"]
