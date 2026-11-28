@@ -22,7 +22,7 @@ const clean = (v: unknown) => typeof v === 'string' ? v : String(v ?? '');
 const num = (v: unknown) => Number(v);
 const valid = (v: number) => Number.isFinite(v) && v > 0;
 const get = async (url: string) => {
-  const response = await fetch(`/api/market-proxy?url=${encodeURIComponent(url)}`);
+  const response = await fetch(`https://supertechai-market-data.mikedavid45.workers.dev/api/market-proxy?url=${encodeURIComponent(url)}`);
   if (!response.ok) throw new Error('Exchange market data proxy is unavailable');
   const data: unknown = await response.json();
   if (!data || typeof data !== 'object' || 'error' in data) throw new Error('Invalid exchange market response');
