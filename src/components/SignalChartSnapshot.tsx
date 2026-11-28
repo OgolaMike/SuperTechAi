@@ -211,20 +211,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
                 fill="#f59e0b" fillOpacity="0.13" stroke="#fbbf24" strokeWidth="2" strokeDasharray="7 4" />
               <rect x={zoneX + 5} y={Math.max(PAD.top + 2, zoneY - 22)} width="142" height="18" rx="4" fill="#78350f" fillOpacity="0.92" />
               <text x={zoneX + 11} y={Math.max(PAD.top + 15, zoneY - 9)} fill="#fde68a" fontSize="10" fontWeight="800">BREAK & RETEST ZONE</text>
-              {breakRetestSetup.wickTouches.map((touch) => {
-                const index = data.findIndex(candle => candle.epoch === touch.epoch);
-                if (index < 0) return null;
-                const candle = data[index];
-                const bodyHigh = Math.max(candle.open, candle.close);
-                const bodyLow = Math.min(candle.open, candle.close);
-                const bodyTouched = bodyLow <= breakRetestSetup.zoneHigh && bodyHigh >= breakRetestSetup.zoneLow;
-                const markerPrice = touch.low <= breakRetestSetup.zoneHigh && touch.low >= breakRetestSetup.zoneLow
-                  ? touch.low : touch.high;
-                return <g key={touch.epoch}>
-                  <circle cx={x(index)} cy={y(markerPrice)} r="5.5" fill={bodyTouched ? "#facc15" : "#fb923c"} stroke="#fff7ed" strokeWidth="1.5" />
-                  <title>{bodyTouched ? "Candle body touched the retest zone" : "Wick-only touch of the retest zone"}</title>
-                </g>;
-              })}
+
             </g>;
           })()}
           {upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
@@ -249,6 +236,8 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
               <rect x={x(index) - bodyW / 2} y={top} width={bodyW} height={bodyHeight} rx="1.2" fill={color} stroke={up ? '#93c5fd' : '#fda4af'} strokeWidth="0.8" />
             </g>;
           })}
+
+          {breakRetestSetup && {breakRetestSetup.wickTouches.map((touch) => {                 const index = data.findIndex(candle => candle.epoch === touch.epoch);                 if (index < 0) return null;                 const candle = data[index];                 const bodyHigh = Math.max(candle.open, candle.close);                 const bodyLow = Math.min(candle.open, candle.close);                 const bodyTouched = bodyLow <= breakRetestSetup.zoneHigh && bodyHigh >= breakRetestSetup.zoneLow;                 const markerPrice = touch.low <= breakRetestSetup.zoneHigh && touch.low >= breakRetestSetup.zoneLow                   ? touch.low : touch.high;                 return <g key={touch.epoch}>                   <circle cx={x(index)} cy={y(markerPrice)} r="5.5" fill={bodyTouched ? "#facc15" : "#fb923c"} stroke="#fff7ed" strokeWidth="1.5" />                   <title>{bodyTouched ? "Candle body touched the retest zone" : "Wick-only touch of the retest zone"}</title>                 </g>;               })} }
 
           {signalIndex >= 0 && direction && <g>
             <line x1={transitionX} x2={transitionX} y1={PAD.top} y2={HEIGHT - PAD.bottom} stroke={direction === 'BUY' ? '#93c5fd' : '#fda4af'} strokeWidth="2" strokeDasharray="5 6" />
