@@ -3,6 +3,7 @@ import { formatLocalDate, formatLocalTime } from '@/lib/localTime';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import type { Candle } from '@/lib/deriv';
 import type { SignalLevels } from '@/lib/signals';
+import type { BreakRetestSetup } from '@/lib/breakRetest';
 type ChartSignalLevels = Pick<SignalLevels, 'entry' | 'stopLoss' | 'tp1' | 'tp2' | 'tp3'> & Partial<Pick<SignalLevels, 'mean' | 'deviation'>>;
 
 type Props = {
@@ -17,12 +18,13 @@ type Props = {
   symbol: string;
   anchorId: string;
   livePrice?: number;
+  breakRetestSetup?: BreakRetestSetup;
 };
 
 const WIDTH = 1440;
 const HEIGHT = 620;
 const PAD = { top: 30, right: 116, bottom: 48, left: 24 };
-const SMA_PERIOD = 20;
+const SMA_PERIOD = 1440;
 const VISIBLE_CANDLES = 60;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -46,7 +48,7 @@ function timeLabel(epoch: number, granularity: number) {
     : formatLocalTime(date);
 }
 
-export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 1800, digits, assetName, symbol, anchorId, livePrice }: Props) {
+export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, timeframe, granularity = 1800, digits, assetName, symbol, anchorId, livePrice, breakRetestSetup }: Props) {
   const gradientId = `signal-cloud-${useId().replace(/:/g, '')}`;
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [clockEpoch, setClockEpoch] = useState(() => Math.floor(Date.now() / 1000));
@@ -89,6 +91,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
     stats[index]?.lower ?? candle.low,
   ]);
   if (levels) values.push(levels.entry, levels.stopLoss, levels.tp1, levels.tp2, levels.tp3);
+  if (breakRetestSetup) values.push(breakRetestSetup.zoneLow, breakRetestSetup.zoneHigh);
 
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -156,7 +159,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className={`h-2.5 w-2.5 rounded-full ${direction === 'BUY' ? 'bg-blue-400' : direction === 'SELL' ? 'bg-rose-400' : 'bg-cyan-300'} shadow-[0_0_12px_currentColor]`} />
           <span className="text-xs font-bold tracking-[0.16em] text-white">{timeframe} · {direction ? 'MARKET STRUCTURE' : 'LIVE MARKET · NO CROSS SIGNAL'}</span>
-          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 20 · BB ±2.5σ</span>
+          <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-200">SMA 1440 · BB ±2.5σ</span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 font-mono text-[11px] font-bold tabular-nums text-cyan-100" aria-label="Live price and current candle countdown">
@@ -197,6 +200,33 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
             </g>;
           })}
 
+          {breakRetestSetup && (() => {
+            const startIndex = data.reduce((nearest, candle, index) =>
+              Math.abs(candle.epoch - breakRetestSetup.breakEpoch) < Math.abs(data[nearest].epoch - breakRetestSetup.breakEpoch) ? index : nearest, 0);
+            const zoneX = x(startIndex);
+            const zoneY = y(breakRetestSetup.zoneHigh);
+            const zoneHeight = Math.max(2, y(breakRetestSetup.zoneLow) - zoneY);
+            return <g>
+              <rect x={zoneX} y={zoneY} width={Math.max(0, svgWidth - PAD.right - zoneX)} height={zoneHeight}
+                fill="#f59e0b" fillOpacity="0.13" stroke="#fbbf24" strokeWidth="2" strokeDasharray="7 4" />
+              <rect x={zoneX + 5} y={Math.max(PAD.top + 2, zoneY - 22)} width="142" height="18" rx="4" fill="#78350f" fillOpacity="0.92" />
+              <text x={zoneX + 11} y={Math.max(PAD.top + 15, zoneY - 9)} fill="#fde68a" fontSize="10" fontWeight="800">BREAK & RETEST ZONE</text>
+              {breakRetestSetup.wickTouches.map((touch) => {
+                const index = data.findIndex(candle => candle.epoch === touch.epoch);
+                if (index < 0) return null;
+                const candle = data[index];
+                const bodyHigh = Math.max(candle.open, candle.close);
+                const bodyLow = Math.min(candle.open, candle.close);
+                const bodyTouched = bodyLow <= breakRetestSetup.zoneHigh && bodyHigh >= breakRetestSetup.zoneLow;
+                const markerPrice = touch.low <= breakRetestSetup.zoneHigh && touch.low >= breakRetestSetup.zoneLow
+                  ? touch.low : touch.high;
+                return <g key={touch.epoch}>
+                  <circle cx={x(index)} cy={y(markerPrice)} r="5.5" fill={bodyTouched ? "#facc15" : "#fb923c"} stroke="#fff7ed" strokeWidth="1.5" />
+                  <title>{bodyTouched ? "Candle body touched the retest zone" : "Wick-only touch of the retest zone"}</title>
+                </g>;
+              })}
+            </g>;
+          })()}
           {upperPath && lowerPath && <path d={`${upperPath} ${lowerPath.replace(/^M/, 'L')} Z`} fill={`url(#${gradientId})`} />}
           {upperPath && <path d={upperPath} fill="none" stroke="#ef4444" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />}
           {lowerPath && <path d={lowerPath} fill="none" stroke="#2563eb" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />}
@@ -253,7 +283,7 @@ export function SignalChartSnapshot({ candles, levels, signalEpoch, direction, t
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-t border-white/10 bg-[#0c1423] px-4 py-3 text-[10px] text-slate-300 sm:px-5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-rose-500" /> Upper band</span>
-          <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-yellow-400" /> SMA 20</span>
+          <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-yellow-400" /> SMA 1440</span>
           <span className="flex items-center gap-2"><i className="h-1 w-5 rounded-full bg-blue-500" /> Lower band</span>
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-blue-500" /> Bullish candle</span>
           <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-sm bg-rose-500" /> Bearish candle</span>
