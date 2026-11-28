@@ -22,7 +22,7 @@ type Props = {
 };
 
 const WIDTH = 1440;
-const HEIGHT = 620;
+const HEIGHT = 760;
 const PAD = { top: 30, right: 116, bottom: 48, left: 24 };
 const SMA_PERIOD = 1440;
 const VISIBLE_CANDLES = 60;

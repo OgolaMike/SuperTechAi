@@ -65,7 +65,7 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand, curren
     : Math.min(lastClosed.open, lastClosed.close) - lastClosed.low > (lastClosed.high - Math.max(lastClosed.open, lastClosed.close)) * 1.5 ? 'Lower-wick rejection' : 'Balanced wicks';
   if (data.length < 2) return <div className="grid h-56 place-items-center text-sm text-slate-400">Waiting for candle history…</div>;
   const W = 1200;
-  const H = fullscreen ? 650 : 340;
+  const H = fullscreen ? 760 : 440;
   const P = { top: 28, right: 112, bottom: 34, left: 22 };
   const values = data.flatMap(c => [c.high, c.low]).concat([setup.zoneLow, setup.zoneHigh, setup.stopLoss, setup.target, setup.entry, currentPrice]);
   const min = Math.min(...values);
@@ -105,7 +105,7 @@ function PriceActionChart({ setup, candles, fullscreen = false, onExpand, curren
       </div>
     </div>}
     <div className="w-full overflow-x-auto">
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Live pure price action chart showing ${setup.direction} break and retest in one zone, closed-candle confirmation and 5R risk/reward target`} style={{ width: fullscreen ? '100%' : `${zoom*100}%`, minWidth: fullscreen ? '760px' : '560px', height: fullscreen ? 'min(68vh, 650px)' : 'auto', display: 'block' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Live pure price action chart showing ${setup.direction} break and retest in one zone, closed-candle confirmation and 5R risk/reward target`} style={{ width: fullscreen ? '100%' : `${zoom*100}%`, minWidth: fullscreen ? '760px' : '560px', height: fullscreen ? 'min(78vh, 760px)' : 'auto', display: 'block' }}>
       <defs>
         <linearGradient id={`zone-${setup.key.replace(/[^a-zA-Z0-9]/g,'')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={accent} stopOpacity=".25"/><stop offset="100%" stopColor={accent} stopOpacity=".07"/></linearGradient>
       </defs>
