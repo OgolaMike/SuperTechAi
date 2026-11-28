@@ -19,6 +19,7 @@ export type BreakRetestSetup = {
   retestEpoch: number;
   confirmationEpoch: number;
   confirmationPrice: number;
+  wickTouches: Array<{ epoch: number; high: number; low: number }>;
   status: 'CONFIRMED';
 };
 
@@ -56,6 +57,7 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: nu
     if (breakIndex < 0 || breakIndex >= candles.length - 5) continue;
     let retestIndex = -1;
     let rejectionIndex = -1;
+    const wickTouches: Array<{ epoch: number; high: number; low: number }> = [];
     for (let i = breakIndex + 1; i < candles.length - 2; i++) {
       const c = candles[i];
       // The breakout and retest must overlap this exact same marked zone.
@@ -63,6 +65,9 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: nu
       const zoneHigh = level.price + tolerance;
       const touched = c.low <= zoneHigh && c.high >= zoneLow;
       if (!touched) continue;
+      // A touch is defined by the full candle range: upper or lower wick
+      // intersecting the zone counts even when the candle body stays outside.
+      wickTouches.push({ epoch: c.epoch, high: c.high, low: c.low });
       const rejected = direction === 'BUY'
         ? c.close > level.price && c.close > c.open
         : c.close < level.price && c.close < c.open;
@@ -95,6 +100,7 @@ function findSetup(candles: Candle[], direction: 'BUY' | 'SELL', granularity: nu
       retestEpoch: candles[retestIndex].epoch,
       confirmationEpoch: candles[confirmationIndex].epoch,
       confirmationPrice: direction === 'BUY' ? confirmation.low : confirmation.high,
+      wickTouches: wickTouches.filter(t => t.epoch <= candles[confirmationIndex].epoch),
     };
   }
   return null;
