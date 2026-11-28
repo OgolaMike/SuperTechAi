@@ -3,6 +3,7 @@ import { Loader2, RefreshCw, ShieldCheck, UserCheck, UserX, Mail, MailCheck } fr
 import { useSession } from '@/lib/sessionContext';
 import { formatLocalDateTime } from '@/lib/localTime';
 import { getAdminMembers, setAdminMemberStatus, type AdminMember } from '@/lib/independentApi';
+import { CompanyBusinessPanel } from '@/components/CompanyBusinessPanel';
 
 const FOUNDING_TEN = [
   { email: 'sir2mthomas1983@gmail.com', role: 'Member' },
@@ -58,6 +59,8 @@ export function AdminPanel() {
   const inactiveCount = users.filter(user => user.status === 'suspended' || user.active === false).length;
 
   return (
+    <>
+    <CompanyBusinessPanel />
     <section className="mt-8 flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -125,5 +128,6 @@ export function AdminPanel() {
         </div>
       )}
     </section>
+    </>
   );
 }
