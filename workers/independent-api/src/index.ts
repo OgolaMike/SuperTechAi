@@ -698,7 +698,7 @@ export default {
         const account = await authenticate(request, env);
         if (!account) return json({ error: "unauthorized" }, 401, cors);
         if (!env.APPWRITE_API_KEY) return json({ error: "membership_service_not_configured" }, 503, cors);
-        const profileUrl = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows/${encodeURIComponent(account.$id)}`;
+        const profileUrl = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows/${encodeURIComponent(account.$id)}`;
         const response = await fetch(profileUrl, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY } });
         if (response.status === 404) return json({ status: "pending", approved: false, isAdmin: (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id) }, 200, cors);
         if (!response.ok) return json({ error: "membership_status_unavailable" }, 503, cors);
@@ -717,7 +717,7 @@ export default {
         const admins = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).filter(Boolean);
         if (!admins.includes(actor.$id)) return json({ error: "admin_required" }, 403, cors);
         if (!env.APPWRITE_API_KEY) return json({ error: "membership_admin_not_configured" }, 503, cors);
-        const root = `${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`;
+        const root = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`;
         const headers = { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" };
         if (request.method === "PATCH") {
           const body = await request.json().catch(() => null) as { userId?: string; status?: string } | null;
@@ -734,7 +734,7 @@ export default {
           if (!saved.ok) return json({ error: "membership_update_failed" }, 503, cors);
           return json({ updated: true, userId, status, approvedBy: actor.$id }, 200, cors);
         }
-        const usersResponse = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/users?limit=100`, { headers });
+        const usersResponse = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/users?limit=100`, { headers });
         if (!usersResponse.ok) return json({ error: "member_directory_unavailable" }, 503, cors);
         const payload = await usersResponse.json() as { users?: Array<{ $id: string; email: string; name?: string; emailVerification: boolean; registration: string; accessedAt?: string }> };
         const members = await Promise.all((payload.users || []).map(async user => {
