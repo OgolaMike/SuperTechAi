@@ -110,6 +110,8 @@ async function businessOverview(env: Env) {
   }));
   const companyRows = ledger.filter(row => row.entry_type === "company_share" && row.status === "confirmed");
   const companyRevenue = companyRows.reduce((sum, row) => sum + money(row.amount), 0);
+  const companyReferralIncome = commissions.filter(row => row.user_id === env.GENESIS_ACCOUNT_ID && ["direct", "infinity", "unilevel"].includes(String(row.commission_type))).reduce((sum, row) => sum + money(row.amount), 0);
+  const companyTotalIncome = companyRevenue + companyReferralIncome;
   const pendingPayments = payments.filter(row => row.status === "pending");
   const rejectedPayments = payments.filter(row => row.status === "rejected");
   const withdrawals = ledger.filter(row => row.entry_type === "withdrawal" || row.entry_type === "payout");
@@ -122,6 +124,7 @@ async function businessOverview(env: Env) {
   return {
     currency: "USD", totalSales, approvedPayments: approved.length, pendingPayments: pendingPayments.length,
     pendingPaymentValue: pendingPayments.reduce((sum, row) => sum + money(row.amount_usd), 0),
+    companyReferralIncome, companyTotalIncome,
     rejectedPayments: rejectedPayments.length, companyRevenue, companyRevenueRecords: companyRows.length,
     income, weekly: { start: period.startDate, end: period.endDate, qualifyingSales: weeklySales, just4youPool: weeklySales * 0.05 },
     just4youReservedTotal: just4youPool,
