@@ -13,7 +13,7 @@ type Props = {
   onOpenDashboard: (symbol: string, granularity: number) => void;
 }
 
-function PriceActionChart({ setup, candles, fullscreen = false, onExpand }: {
+function PriceActionChart({ setup, candles, fullscreen = false, onExpand, currentPrice }: {
   setup: BreakRetestSetup;
   candles: Candle[];
   fullscreen?: boolean;
