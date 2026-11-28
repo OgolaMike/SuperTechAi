@@ -67,12 +67,27 @@ async function loadBinance():Promise<CryptoMover[]>{
  for(const host of hosts){try{const d=await proxyJson<Row[]>(`${host}/api/v3/ticker/24hr`);if(!Array.isArray(d))throw new Error('Invalid Binance response');return rank(d.filter(x=>s(x.symbol).endsWith('USDT')).map(x=>{const symbol=s(x.symbol),base=symbol.slice(0,-4);return make(symbol,base,n(x.openPrice),n(x.lastPrice),n(x.quoteVolume),n(x.priceChangePercent))}),'Binance')}catch(error){last=error}}
  throw last instanceof Error?last:new Error('Binance market data unavailable');
 }
+function firstAvailable<T>(loads:Array<()=>Promise<T>>):Promise<T>{
+ return new Promise((resolve,reject)=>{
+  let remaining=loads.length;
+  const failures:string[]=[];
+  for(const load of loads){
+   load().then(resolve,error=>{
+    failures.push(error instanceof Error?error.message:'unavailable');
+    remaining--;
+    if(remaining===0)reject(new Error(failures.join(' | ')));
+   });
+  }
+ });
+}
 async function loadMovers():Promise<CryptoMover[]>{
- const failures:string[]=[];
- const capture=(error:unknown)=>{const items=error&&typeof error==='object'&&'errors' in error?(error as {errors:unknown[]}).errors:[error];for(const item of items)failures.push(item instanceof Error?item.message:'unavailable')};
- try{return await Promise.any([loadKucoin(),loadGate(),loadBitget(),loadMexc()])}catch(error){capture(error)}
- try{return await Promise.any([loadCoinEx(),loadBitmart(),loadBingx(),loadOkx(),loadBybit(),loadBinance()])}catch(error){capture(error)}
- throw new Error(`All market-data providers failed. ${failures.join(' | ')}`);
+ const primary=[loadKucoin,loadGate,loadBitget,loadMexc];
+ const fallback=[loadCoinEx,loadBitmart,loadBingx,loadOkx,loadBybit,loadBinance];
+ try{return await firstAvailable(primary)}catch(primaryError){
+  try{return await firstAvailable(fallback)}catch(fallbackError){
+   throw new Error(`All market-data providers failed. ${primaryError instanceof Error?primaryError.message:'primary providers unavailable'} | ${fallbackError instanceof Error?fallbackError.message:'fallback providers unavailable'}`);
+  }
+ }
 }
 export function formatUsd(value:number):string{const digits=value>=1000?2:value>=1?4:6;return `$${value.toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits})}`}
 export function formatCompactUsd(value:number):string{return `$${new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(value)}`}
