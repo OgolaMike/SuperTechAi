@@ -125,5 +125,14 @@ export function useAuthSession(): AuthState {
     };
   }, [refresh]);
 
+  // Keep pending members in sync with company approval without requiring sign-out.
+  useEffect(() => {
+    if (!state.session || state.isApproved || state.accessError) return;
+    const poll = window.setInterval(() => {
+      if (navigator.onLine) void refresh();
+    }, 10000);
+    return () => window.clearInterval(poll);
+  }, [state.session, state.isApproved, state.accessError, refresh]);
+
   return state;
 }
