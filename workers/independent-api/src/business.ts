@@ -105,12 +105,12 @@ async function businessOverview(env: Env) {
   const totalSales = approved.reduce((sum, row) => sum + money(row.amount_usd), 0);
   const commissionTypes = ["direct", "infinity", "infinity_pool", "unilevel", "just_4_you", "just_4_you_pool"];
   const income = Object.fromEntries(commissionTypes.map(type => {
-    const rows = commissions.filter(row => row.commission_type === type);
+    const rows = commissions.filter(row => row.commission_type === type && row.status !== "reversed");
     return [type, { accrued: rows.reduce((sum, row) => sum + money(row.amount), 0), pending: rows.filter(row => row.status === "pending" || row.status === "reserved").reduce((sum, row) => sum + money(row.amount), 0), paid: rows.filter(row => row.status === "paid").reduce((sum, row) => sum + money(row.amount), 0), records: rows.length }];
   }));
   const companyRows = ledger.filter(row => row.entry_type === "company_share" && row.status === "confirmed");
   const companyRevenue = companyRows.reduce((sum, row) => sum + money(row.amount), 0);
-  const companyReferralIncome = commissions.filter(row => row.user_id === env.GENESIS_ACCOUNT_ID && ["direct", "infinity", "unilevel"].includes(String(row.commission_type))).reduce((sum, row) => sum + money(row.amount), 0);
+  const companyReferralIncome = commissions.filter(row => row.user_id === env.GENESIS_ACCOUNT_ID && row.status !== "reversed" && ["direct", "infinity", "unilevel"].includes(String(row.commission_type))).reduce((sum, row) => sum + money(row.amount), 0);
   const companyTotalIncome = companyRevenue + companyReferralIncome;
   const pendingPayments = payments.filter(row => row.status === "pending");
   const rejectedPayments = payments.filter(row => row.status === "rejected");
