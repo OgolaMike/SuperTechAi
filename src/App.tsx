@@ -48,7 +48,7 @@ import { ensureNotificationPermission } from '@/lib/deviceNotify';
 import { trainSignalLearningModel, type SignalLearningModel } from '@/lib/aiLearning';
 import { buildSuperSignals } from '@/lib/intelligence';
 import { fetchSignalRecords } from '@/lib/signalRecords';
-import { buildStopOrderIdeas } from '@/lib/stopOrders';
+import { useDeferredStopOrderIdeas } from '@/hooks/useDeferredStopOrderIdeas';
 import { useSession } from '@/lib/sessionContext';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET } from '@/lib/sma';
@@ -88,10 +88,7 @@ function App() {
   const [aiModel, setAiModel] = useState<SignalLearningModel>(() => trainSignalLearningModel([]));
   const { theme, toggle: toggleTheme } = useTheme();
   const { assets, states, status, lastTick, prices, loaded } = useDerivSignals(selectedSymbols);
-  const pendingOrderIdeas = useMemo(
-    () => buildStopOrderIdeas(assets, states, prices, aiModel, now),
-    [assets, states, prices, aiModel, now],
-  );
+  const pendingOrderIdeas = useDeferredStopOrderIdeas(assets, states, prices, aiModel, now);
   const { toasts: pendingToasts, dismiss: dismissPendingToast } = usePendingOrderAlerts(pendingOrderIdeas, loaded && alertPreferencesReady, soundsEnabled);
 
   useEffect(() => {
