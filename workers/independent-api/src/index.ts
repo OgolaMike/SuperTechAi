@@ -700,7 +700,13 @@ export default {
         if (!env.APPWRITE_API_KEY) return json({ error: "membership_service_not_configured" }, 503, cors);
         const profileUrl = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows/${encodeURIComponent(account.$id)}`;
         const response = await fetch(profileUrl, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY } });
-        if (response.status === 404) { const isAdmin = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id); return json({ status: isAdmin ? "approved" : "pending", approved: isAdmin, isAdmin }, 200, cors); }
+        if (response.status === 404) {
+          const isAdmin = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id);
+          const now = new Date().toISOString();
+          const created = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`, { method: "POST", headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ rowId: account.$id, data: { user_id: account.$id, display_name: account.name || "", onboarding_status: isAdmin ? "approved" : "pending", created_at: now, updated_at: now }, permissions: [] }) });
+          if (!created.ok && created.status !== 409) return json({ error: "membership_profile_initialization_failed" }, 503, cors);
+          return json({ status: isAdmin ? "approved" : "pending", approved: isAdmin, isAdmin }, 200, cors);
+        }
         if (!response.ok) return json({ error: "membership_status_unavailable" }, 503, cors);
         const profile = await response.json() as { user_id?: string; onboarding_status?: string };
         if (profile.user_id !== account.$id) return json({ error: "membership_profile_ownership_mismatch" }, 403, cors);
