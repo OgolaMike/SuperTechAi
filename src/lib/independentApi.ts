@@ -225,7 +225,7 @@ export function saveIndependentAcademyProgress(lessonId: string, progress: numbe
 
 export type CompanyBusinessOverview = {
   currency: string; totalSales: number; approvedPayments: number; pendingPayments: number;
-  pendingPaymentValue: number; rejectedPayments: number; companyRevenue: number;
+  pendingPaymentValue: number; rejectedPayments: number; companyRevenue: number; companyReferralIncome: number; companyTotalIncome: number;
   companyRevenueRecords: number;
   income: Record<string, { accrued: number; pending: number; paid: number; records: number }>;
   weekly: { start: string; end: string; qualifyingSales: number; just4youPool: number };
