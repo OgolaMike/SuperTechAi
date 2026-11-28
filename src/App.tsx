@@ -6,7 +6,8 @@ const MarketingStudio = lazy(() => import('@/components/MarketingStudio').then((
 const SuperTechAcademy = lazy(() => import('@/components/SuperTechAcademy').then((module) => ({ default: module.SuperTechAcademy })));
 const AdminPanel = lazy(() => import('@/components/AdminPanel').then((module) => ({ default: module.AdminPanel })));
 const GovernancePanel = lazy(() => import('@/components/GovernancePanel').then((module) => ({ default: module.GovernancePanel })));
-const FinancePanel = lazy(() => import('@/components/FinancePanel').then((module) => ({ default: module.FinancePanel })));
+const AppwriteEarningsPanel = lazy(() => import('@/components/AppwriteEarningsPanel').then((module) => ({ default: module.AppwriteEarningsPanel })));
+const CompanyBusinessPanel = lazy(() => import('@/components/CompanyBusinessPanel').then((module) => ({ default: module.CompanyBusinessPanel })));
 const NetworkPanel = lazy(() => import('@/components/NetworkPanel').then((module) => ({ default: module.NetworkPanel })));
 const AccountHub = lazy(() => import('@/components/AccountHub').then((module) => ({ default: module.AccountHub })));
 const SmartCommunity = lazy(() => import('@/components/SmartCommunity').then((module) => ({ default: module.SmartCommunity })));
@@ -313,8 +314,8 @@ function App() {
         {view === 'smart-community' && <SmartCommunity />}
         {view === 'network' && <NetworkPanel />}
         {view === 'referrals' && <AccountHub />}
-        {view === 'earnings' && <FinancePanel initialTab="wallet" />}
-        {view === 'finance' && isAdmin && <FinancePanel initialTab="admin" />}
+        {view === 'earnings' && <AppwriteEarningsPanel />}
+        {view === 'finance' && isAdmin && <CompanyBusinessPanel />}
         {view === 'admin' && isAdmin && <AdminPanel />}
         {view === 'marketing' && isAdmin && <MarketingStudio />}
         {view === 'governance' && isAdmin && <GovernancePanel />}
