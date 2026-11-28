@@ -62,8 +62,8 @@ export function AdminPanel() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Admin</p>
-          <h2 className="text-xl font-semibold tracking-tight text-ink">Members and access</h2>
-          <p className="mt-1 max-w-2xl text-sm text-ink-2">Activate or deactivate member accounts and manage company access. {pendingCount} awaiting approval · {inactiveCount} deactivated.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-ink">Member approvals and access</h2>
+          <p className="mt-1 max-w-2xl text-sm text-ink-2">Review new membership applications, approve verified members, and activate or deactivate existing accounts. {pendingCount} awaiting approval · {inactiveCount} deactivated.</p>
         </div>
         <button type="button" onClick={load} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-line/10 bg-surface/[0.05] px-4 py-2 text-sm font-medium text-ink disabled:opacity-60">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -111,13 +111,15 @@ export function AdminPanel() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button type="button"
                   onClick={() => changeAccess(user, user.status === 'approved' && user.active !== false ? 'suspended' : 'approved')}
-                  disabled={pendingId !== null || user.isAdmin || self}
+                  disabled={pendingId !== null || user.isAdmin || self || (user.status === 'pending' && !user.emailConfirmed)}
                   className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold disabled:opacity-50 ${user.status === 'approved' && user.active !== false ? 'border-down/30 bg-down/10 text-down' : 'border-up/30 bg-up/10 text-up'}`}>
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : user.status === 'approved' && user.active !== false ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
-                  {user.status === 'approved' && user.active !== false ? 'Deactivate member' : 'Activate member'}
+                  {user.status === 'pending' ? 'Approve application' : user.status === 'approved' && user.active !== false ? 'Deactivate member' : 'Reactivate member'}
                 </button>
                 {user.isAdmin && <span className="inline-flex items-center gap-1 text-xs text-accent"><ShieldCheck className="h-3.5 w-3.5" /> Company administrator</span>}
-              </div>           </article>;
+              </div>
+              {user.status === 'pending' && !user.emailConfirmed && <p className="mt-2 text-xs text-ink-3">Approval is locked until this member verifies their email address.</p>}
+            </article>;
           })}
           {!loading && users.length === 0 && !error && <p className="rounded-2xl border border-line/10 px-4 py-10 text-center text-sm text-ink-2">No members yet.</p>}
         </div>
