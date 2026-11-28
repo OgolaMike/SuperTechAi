@@ -57,7 +57,7 @@ export default {
       const upstream = await fetch(target.toString(), {
         method: "GET",
         headers: { "accept": "application/json", "user-agent": "SuperTechAI-MarketData/1.0" },
-        signal: AbortSignal.timeout(9000),
+        signal: AbortSignal.timeout(5000),
       });
       const body = await upstream.arrayBuffer();
       if (body.byteLength > 8_000_000) return json({ error: "market_response_too_large" }, 502, headers);
