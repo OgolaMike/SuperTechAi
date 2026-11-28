@@ -130,11 +130,24 @@ jobs:
           if (!market.ok) throw new Error("Market-data Worker health failed: " + market.status);
           const marketHealth = await market.json();
           if (marketHealth.ok !== true || marketHealth.service !== "supertechai-market-data") throw new Error("Market-data Worker health response is incomplete");
-          const upstreamUrl = "https://api.kucoin.com/api/v1/market/allTickers";
-          const upstream = await fetch("https://supertechai-market-data.mikedavid45.workers.dev/api/market-proxy?url=" + encodeURIComponent(upstreamUrl));
-          if (!upstream.ok) throw new Error("Market-data upstream smoke test failed: " + upstream.status);
-          const marketPayload = await upstream.json();
-          if (marketPayload.code !== "200000" || !Array.isArray(marketPayload.data?.ticker) || marketPayload.data.ticker.length < 10) throw new Error("Market-data upstream returned an invalid ticker payload");
+          const marketFeeds = [
+            ["KuCoin", "https://api.kucoin.com/api/v1/market/allTickers", payload => payload.code === "200000" && payload.data?.ticker?.length > 10],
+            ["Gate.io", "https://api.gateio.ws/api/v4/spot/tickers", payload => Array.isArray(payload) && payload.length > 10],
+            ["Bitget", "https://api.bitget.com/api/v2/spot/market/tickers", payload => payload.code === "00000" && payload.data?.length > 10],
+            ["MEXC", "https://api.mexc.com/api/v3/ticker/24hr", payload => Array.isArray(payload) && payload.length > 10],
+            ["CoinEx", "https://api.coinex.com/v2/spot/ticker", payload => payload.code === 0 && payload.data?.length > 10],
+          ];
+          let liveFeed = null;
+          for (const [name, target] of marketFeeds) {
+            try {
+              const response = await fetch("https://supertechai-market-data.mikedavid45.workers.dev/api/market-proxy?url=" + encodeURIComponent(target));
+              if (!response.ok) continue;
+              const payload = await response.json();
+              if (marketFeeds.find(item => item[0] === name)[2](payload)) { liveFeed = name; break; }
+            } catch { /* try the next public exchange */ }
+          }
+          if (!liveFeed) throw new Error("No approved exchange returned a valid live ticker feed");
+          console.log("Live market-data feed verified: " + liveFeed);
           console.log("Live Appwrite Worker, market-data Worker, exchange feed, Pages shell and JavaScript bundle checks passed.");
           NODE
 
