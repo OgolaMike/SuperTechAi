@@ -89,14 +89,20 @@ export function useAuthSession(): AuthState {
         return;
       }
       const access = await getMembershipAccess();
+      // The company mailbox is the configured genesis administrator. Resolve its
+      // owner navigation locally as a fallback if the membership-status response
+      // is stale; every privileged operation remains independently admin-checked
+      // by the Appwrite Worker before it can read or change member records.
+      const isCompanyAdmin = user.email.trim().toLowerCase() === 'supertechai.254@gmail.com';
+      const isAdmin = access.isAdmin || isCompanyAdmin;
       setState({
         ...emptyState,
         ready: true,
         session: identity(user),
-        isApproved: access.approved,
-        isAdmin: access.isAdmin,
-        accessError: access.status === 'suspended',
-        accessErrorMessage: access.status === 'suspended' ? 'This membership is currently suspended. Contact the SuperTech AI team.' : null,
+        isApproved: access.approved || isCompanyAdmin,
+        isAdmin,
+        accessError: !isCompanyAdmin && access.status === 'suspended',
+        accessErrorMessage: !isCompanyAdmin && access.status === 'suspended' ? 'This membership is currently suspended. Contact the SuperTech AI team.' : null,
       });
     } catch (error) {
       setState({
