@@ -38,7 +38,12 @@ async function authenticatedRequest<T>(path: string, init: RequestInit = {}): Pr
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(typeof payload.error === 'string' ? payload.error : 'The independent service could not complete your request.');
+    const code = typeof payload.error === 'string' ? payload.error : 'The independent service could not complete your request.';
+    const status = typeof payload.appwriteStatus === 'number' ? ` (Appwrite HTTP ${payload.appwriteStatus})` : '';
+    const detail = typeof payload.appwriteMessage === 'string' && payload.appwriteMessage
+      ? `: ${payload.appwriteMessage}`
+      : typeof payload.appwriteType === 'string' && payload.appwriteType ? `: ${payload.appwriteType}` : '';
+    throw new Error(`${code}${status}${detail}`);
   }
   return payload as T;
 }
