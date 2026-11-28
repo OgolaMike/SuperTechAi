@@ -151,10 +151,10 @@ function rollingStats(values: number[], period: number): Stats[] {
   });
 }
 
-// Signals follow the simple rule: a confirmed close above SMA 1440 is BUY; below is SELL.
-// Emit a fresh signal when the direction changes, avoiding duplicate alerts on every candle.
-
-// Only candles whose period has fully closed are used; the forming candle is ignored.
+// A signal is created only when price actually crosses the SMA 1440 line.
+// The crossover point is linearly interpolated between two consecutive confirmed
+// candle-close/SMA points, so Entry is the intersection price rather than a later close.
+// The forming candle is ignored; the latest signal is always the newest confirmed cross.
 export function computeTfState(timeframe: Timeframe, candles: Candle[], nowEpoch: number): TfState {
   const confirmed = [...candles]
     .sort((a, b) => a.epoch - b.epoch)
@@ -162,26 +162,35 @@ export function computeTfState(timeframe: Timeframe, candles: Candle[], nowEpoch
   const stats = rollingStats(confirmed.map((candle) => candle.close), SMA_PERIOD);
   const signals: Signal[] = [];
 
-  let previousDirection: Direction | null = null;
-  for (let i = SMA_PERIOD - 1; i < confirmed.length; i += 1) {
+  for (let i = SMA_PERIOD; i < confirmed.length; i += 1) {
+    const previous = stats[i - 1];
     const current = stats[i];
-    if (current.mean == null || current.deviation == null) continue;
+    if (previous.mean == null || previous.deviation == null || current.mean == null || current.deviation == null) continue;
 
-    const close = confirmed[i].close;
-    const direction: Direction | null = close > current.mean ? 'BUY' : close < current.mean ? 'SELL' : null;
+    const previousGap = confirmed[i - 1].close - previous.mean;
+    const currentGap = confirmed[i].close - current.mean;
+    const direction: Direction | null = previousGap <= 0 && currentGap > 0
+      ? 'BUY'
+      : previousGap >= 0 && currentGap < 0
+        ? 'SELL'
+        : null;
     if (!direction) continue;
-    if (direction === previousDirection) continue;
 
-    const levels = buildLevels(direction, current.mean, current.deviation, close);
+    const denominator = previousGap - currentGap;
+    if (denominator === 0) continue;
+    const crossFraction = Math.max(0, Math.min(1, previousGap / denominator));
+    const entry = confirmed[i - 1].close + (confirmed[i].close - confirmed[i - 1].close) * crossFraction;
+    const crossMean = previous.mean + (current.mean - previous.mean) * crossFraction;
+    const crossDeviation = previous.deviation + (current.deviation - previous.deviation) * crossFraction;
+    const levels = buildLevels(direction, crossMean, crossDeviation, entry);
     if (!levels) continue;
 
     signals.push({
       direction,
-      signalEpoch: confirmed[i].epoch,
+      signalEpoch: confirmed[i - 1].epoch + timeframe.granularity * crossFraction,
       levels,
       outcome: evaluateOutcome(direction, levels, confirmed.slice(i + 1)),
     });
-    previousDirection = direction;
   }
 
   const lastIndex = confirmed.length - 1;
