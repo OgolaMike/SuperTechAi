@@ -1,6 +1,7 @@
 import { handlePaymentRequest } from "./payments";
 import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
 import { handleAcademyProgress } from "./academy";
+import { handleCompanyBusinessRequest } from "./business";
 
 export interface Env {
   APPWRITE_ENDPOINT: string;
@@ -21,6 +22,7 @@ export interface Env {
   PAYMENT_SUBMISSIONS_TABLE_ID?: string;
   FINANCIAL_LEDGER_TABLE_ID?: string;
   COMMISSION_RECORDS_TABLE_ID?: string;
+  JUST4YOU_DRAWS_TABLE_ID?: string;
   ACADEMY_PROGRESS_TABLE_ID?: string;
 }
 
@@ -1183,6 +1185,13 @@ export default {
         executionEnabled: false,
         note: "Provider execution remains disabled until each provider's account, risk, order, and reconciliation tables pass security checks.",
       }, 200, cors);
+    }
+
+    if (url.pathname.startsWith("/api/company/business") || url.pathname.startsWith("/api/company/just4you")) {
+      const account = await authenticate(request, env);
+      if (!account) return json({ error: "unauthorized" }, 401, cors);
+      const businessResponse = await handleCompanyBusinessRequest(request, env, account);
+      if (businessResponse) return withCors(businessResponse, cors);
     }
 
     const companyOwnerResponse = await handleCompanyOwnerRequest(request, env);
