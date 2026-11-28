@@ -73,6 +73,14 @@ function randomIndex(length: number): number {
   return value % length;
 }
 
+async function patchRow(env: Env, tableId: string, id: string, data: Record<string, unknown>) {
+  const response = await fetch(table(env, tableId) + "/" + encodeURIComponent(id), {
+    method: "PATCH", headers: apiHeaders(env), body: JSON.stringify({ data, permissions: [] }),
+  });
+  if (!response.ok) throw new Error("company_finance_update_failed");
+  return await response.json() as Row;
+}
+
 async function createUniqueRow(env: Env, tableId: string, id: string, data: Record<string, unknown>) {
   const endpoint = `${table(env, tableId)}/${encodeURIComponent(id)}`;
   const existing = await fetch(endpoint, { headers: apiHeaders(env) });
@@ -182,6 +190,16 @@ async function runJust4YouDraw(env: Env, actor: Account) {
 
   // Resume safely if an earlier request created the draw row but failed while
   // recording the member award. Deterministic IDs prevent duplicate credits.
+  const [weekPayments, weekCommissions] = await Promise.all([
+    listRows(env, env.PAYMENT_SUBMISSIONS_TABLE_ID || "payment_submissions"),
+    listRows(env, env.COMMISSION_RECORDS_TABLE_ID || "commission_records"),
+  ]);
+  const weekPaymentIds = new Set(weekPayments.filter(row => row.status === "approved" && String(row.reviewed_at || row.submitted_at || "") >= period.start && String(row.reviewed_at || row.submitted_at || "") < period.end).map(row => row.$id));
+  const reservedPoolRows = weekCommissions.filter(row => row.commission_type === "just_4_you_pool" && row.status === "reserved" && weekPaymentIds.has(String(row.reference_id)));
+  for (const poolRow of reservedPoolRows) {
+    await patchRow(env, env.COMMISSION_RECORDS_TABLE_ID || "commission_records", poolRow.$id, { status: "allocated" });
+  }
+
   const winnerId = String(drawRow.winner_user_id || "");
   const winnerName = String(drawRow.winner_name || "SuperTech AI member");
   const prize = money(drawRow.prize_amount);
