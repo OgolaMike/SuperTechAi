@@ -91,7 +91,7 @@ function databaseReady(env: Env): boolean {
 function isConfiguredAdmin(account: AppwriteAccount, env: Env): boolean {
   const ids = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(value => value.trim()).filter(Boolean);
   const emails = (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
-  return ids.includes(account.$id) || emails.includes(account.email.toLowerCase());
+  return account.$id === env.GENESIS_ACCOUNT_ID || ids.includes(account.$id) || emails.includes(account.email.toLowerCase());
 }
 
 async function profileRequest(
@@ -729,7 +729,7 @@ export default {
         if (!response.ok) return json({ error: "membership_status_unavailable" }, 503, cors);
         const profile = await response.json() as { user_id?: string; onboarding_status?: string };
         if (profile.user_id !== account.$id) return json({ error: "membership_profile_ownership_mismatch" }, 403, cors);
-        const isAdmin = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id);
+        const isAdmin = isConfiguredAdmin(account, env);
         const status = isAdmin ? "approved" : (["approved", "suspended"].includes(profile.onboarding_status || "") ? profile.onboarding_status! : "pending");
         let planCode = isAdmin ? "automation_500" : "free";
         if (!isAdmin && env.MEMBERSHIP_TABLE_ID && env.APPWRITE_API_KEY) {
@@ -748,7 +748,7 @@ export default {
       try {
         const actor = await authenticate(request, env);
         if (!actor) return json({ error: "unauthorized" }, 401, cors);
-        const admins = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).filter(Boolean);
+        const admins = [...(env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).filter(Boolean), ...(env.GENESIS_ACCOUNT_ID ? [env.GENESIS_ACCOUNT_ID] : [])];
         if (!isConfiguredAdmin(actor, env)) return json({ error: "admin_required" }, 403, cors);
         if (!env.APPWRITE_API_KEY) return json({ error: "membership_admin_not_configured" }, 503, cors);
         const root = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`;
