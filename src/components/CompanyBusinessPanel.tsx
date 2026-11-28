@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Coins, Gift, RefreshCw, ShieldCheck, Trophy, Users, Wallet } from 'lucide-react';
+import { AlertCircle, Coins, Gift, RefreshCw, ShieldCheck, Trophy } from 'lucide-react';
 import {
   getCompanyBusinessOverview, getCompanyJust4YouDashboard, runCompanyJust4YouDraw,
   type CompanyBusinessOverview, type CompanyJust4YouDashboard,
@@ -53,7 +53,7 @@ export function CompanyBusinessPanel() {
     {notice && <p role="status" className="rounded-xl border border-up/25 bg-up/10 p-3 text-sm text-up">{notice}</p>}
     {loading && !overview ? <p className="rounded-xl border border-line/10 p-8 text-center text-sm text-ink-2">Loading company financials…</p> : overview && <>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className={panel}><p className="text-xs text-ink-3">Confirmed membership sales</p><p className="mt-2 text-2xl font-bold tabular-nums text-ink">{money(overview.totalSales)}</p><p className="mt-1 text-xs text-ink-3">{overview.approvedPayments} approved payments</p></div>
+        <div className={panel}><p className="text-xs text-ink-3">Approved membership payments</p><p className="mt-2 text-2xl font-bold tabular-nums text-ink">{money(overview.totalSales)}</p><p className="mt-1 text-xs text-ink-3">{overview.approvedPayments} approved payments</p></div>
         <div className={panel}><p className="text-xs text-ink-3">Company 35% share</p><p className="mt-2 text-2xl font-bold tabular-nums text-up">{money(overview.companyRevenue)}</p><p className="mt-1 text-xs text-ink-3">{overview.companyRevenueRecords} recorded allocations</p></div>
         <div className={panel}><p className="text-xs text-ink-3">Awaiting payment review</p><p className="mt-2 text-2xl font-bold tabular-nums text-ink">{money(overview.pendingPaymentValue)}</p><p className="mt-1 text-xs text-ink-3">{overview.pendingPayments} submissions</p></div>
         <div className={panel}><p className="text-xs text-ink-3">Rejected submissions</p><p className="mt-2 text-2xl font-bold tabular-nums text-ink">{overview.rejectedPayments}</p><p className="mt-1 text-xs text-ink-3">No commission posted for rejected payments</p></div>
