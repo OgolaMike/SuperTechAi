@@ -162,3 +162,30 @@ Before implementing or enabling the on-chain verifier, configure these server-on
 - IDs for the five financial TablesDB tables above.
 
 Do not accept deposits until the company address is independently confirmed and the verification tests pass. Do not deploy an unverified manual approval shortcut as a substitute for chain verification.
+
+
+## Company business dashboard and weekly Just 4 You draw
+
+The Appwrite company dashboard reads approved membership submissions, commission records and company-share ledger entries from the independent Worker. It displays sales by plan, the 35% company allocation, direct and Unilevel accruals, the Infinity reserve, the Just 4 You reserve, paid/pending amounts and payment-review counts. The dashboard is Genesis-only; members cannot query company-wide financial data.
+
+Create one additional TablesDB table, `just4you_draws`, with permissions empty:
+
+| Column | Type | Required | Purpose |
+|---|---|---:|---|
+| week_key | string(8) | yes | Nairobi-local Monday date, YYYYMMDD; one draw per week |
+| week_start | string(10) | yes | Local week start date |
+| week_end | string(10) | yes | Exclusive local week end date |
+| qualifying_sales | double | yes | Approved membership sales for the week |
+| prize_amount | double | yes | 5% of qualifying sales, rounded to cents |
+| eligible_members | integer | yes | Number of eligible members at draw time |
+| winner_user_id | string(36) | yes | Randomly selected member |
+| winner_name | string(256) | yes | Display name snapshot |
+| drawn_at | datetime | yes | Draw timestamp |
+| drawn_by | string(36) | yes | Genesis company account |
+| status | string(16) | yes | awarded |
+
+Use a deterministic row ID derived from the week key to prevent a second draw in the same week. Selection uses the Worker's cryptographic random generator with rejection sampling to avoid modulo bias. Eligible accounts must be active Appwrite users, have verified email, and have an approved paid membership record. The full 5% pool is awarded to one randomly selected eligible member. The draw creates an immutable commission record and pending ledger credit; it does not mark the reward paid. Company payout review remains separate.
+
+The draw endpoint is company-only and idempotent. If the draw record is written but the award write is interrupted, a retry resumes the same winner and prize rather than drawing again.
+
+**Important current limitation:** the existing membership approval endpoint records company approval of a submitted transaction reference; it does not yet independently verify a TRC20 transfer on-chain. Until the on-chain verifier and its company wallet configuration are completed, dashboard sales are labelled *approved membership payments*, not independently chain-verified receipts. Do not treat this reporting view as proof of blockchain settlement or as authorization to pay withdrawals.
