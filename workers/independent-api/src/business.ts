@@ -151,41 +151,55 @@ async function just4youDashboard(env: Env) {
 async function runJust4YouDraw(env: Env, actor: Account) {
   if (!env.JUST4YOU_DRAWS_TABLE_ID) throw new Error("just4you_draws_table_not_configured");
   const period = weekWindow();
-  const dashboard = await just4youDashboard(env);
-  if (dashboard.currentDraw) throw new Error("weekly_draw_already_completed");
-  if (dashboard.salesPool <= 0) throw new Error("no_qualifying_bonus_pool");
-  if (dashboard.eligibleMembers <= 0) throw new Error("no_eligible_members");
-  const [users, memberships] = await Promise.all([
-    listUsers(env),
-    listRows(env, env.MEMBERSHIP_TABLE_ID || "membership_requests"),
-  ]);
-  const paidIds = new Set(memberships.filter(row => row.status === "approved" && row.plan_code && row.user_id).map(row => String(row.user_id)));
-  const eligible = users.filter(user => user.$id !== env.GENESIS_ACCOUNT_ID && user.status !== false && user.emailVerification === true && paidIds.has(user.$id));
-  if (!eligible.length) throw new Error("no_eligible_members");
-  const winner = eligible[randomIndex(eligible.length)];
-  const prize = Math.round(dashboard.salesPool * 100) / 100;
-  const drawId = await stableId(`just4you:${period.weekKey}`);
-  const draw = await createUniqueRow(env, env.JUST4YOU_DRAWS_TABLE_ID, drawId, {
-    week_key: period.weekKey, week_start: period.startDate, week_end: period.endDate,
-    qualifying_sales: dashboard.qualifyingSales, prize_amount: prize, eligible_members: eligible.length,
-    winner_user_id: winner.$id, winner_name: winner.name || winner.email || "SuperTech AI member",
-    drawn_at: new Date().toISOString(), drawn_by: actor.$id, status: "awarded",
-  });
-  const commissionId = await stableId(`just4you-award:${period.weekKey}`);
-  await createUniqueRow(env, env.COMMISSION_RECORDS_TABLE_ID || "commission_records", commissionId, {
-    user_id: winner.$id, source_user_id: env.GENESIS_ACCOUNT_ID || actor.$id,
-    commission_type: "just_4_you", level: null, amount: prize, currency: "USD",
-    status: "pending", reference_id: drawId, created_at: new Date().toISOString(), paid_at: null,
-  });
-  const ledgerId = await stableId(`just4you-ledger:${period.weekKey}`);
-  await createUniqueRow(env, env.FINANCIAL_LEDGER_TABLE_ID || "financial_ledger", ledgerId, {
-    user_id: winner.$id, entry_type: "just_4_you_bonus", amount: prize, currency: "USD",
-    reference_id: drawId, status: "pending", metadata_json: JSON.stringify({ weekKey: period.weekKey, eligibleMembers: eligible.length }),
-    created_at: new Date().toISOString(),
-  });
-  return { drawn: true, weekStart: period.startDate, weekEnd: period.endDate, winnerName: winner.name || winner.email || "SuperTech AI member", winnerUserId: winner.$id, prizeAmount: prize, eligibleMembers: eligible.length, drawId: draw.$id };
-}
+  const drawId = await stableId("just4you:" + period.weekKey);
+  const drawEndpoint = table(env, env.JUST4YOU_DRAWS_TABLE_ID) + "/" + encodeURIComponent(drawId);
+  const priorResponse = await fetch(drawEndpoint, { headers: apiHeaders(env) });
+  let drawRow: Row | null = null;
+  if (priorResponse.ok) drawRow = await priorResponse.json() as Row;
+  else if (priorResponse.status !== 404) throw new Error("just4you_draw_read_failed");
 
+  if (!drawRow) {
+    const [payments, users, memberships] = await Promise.all([
+      listRows(env, env.PAYMENT_SUBMISSIONS_TABLE_ID || "payment_submissions"),
+      listUsers(env),
+      listRows(env, env.MEMBERSHIP_TABLE_ID || "membership_requests"),
+    ]);
+    const qualifying = payments.filter(row => row.status === "approved" && String(row.reviewed_at || row.submitted_at || "") >= period.start && String(row.reviewed_at || row.submitted_at || "") < period.end);
+    const sales = qualifying.reduce((sum, row) => sum + money(row.amount_usd), 0);
+    const paidIds = new Set(memberships.filter(row => row.status === "approved" && row.plan_code && row.user_id).map(row => String(row.user_id)));
+    const eligible = users.filter(user => user.$id !== env.GENESIS_ACCOUNT_ID && user.status !== false && user.emailVerification === true && paidIds.has(user.$id));
+    if (sales <= 0) throw new Error("no_qualifying_bonus_pool");
+    if (!eligible.length) throw new Error("no_eligible_members");
+    const winner = eligible[randomIndex(eligible.length)];
+    const prize = Math.round(sales * 0.05 * 100) / 100;
+    drawRow = await createUniqueRow(env, env.JUST4YOU_DRAWS_TABLE_ID, drawId, {
+      week_key: period.weekKey, week_start: period.startDate, week_end: period.endDate,
+      qualifying_sales: sales, prize_amount: prize, eligible_members: eligible.length,
+      winner_user_id: winner.$id, winner_name: winner.name || winner.email || "SuperTech AI member",
+      drawn_at: new Date().toISOString(), drawn_by: actor.$id, status: "awarded",
+    });
+  }
+
+  // Resume safely if an earlier request created the draw row but failed while
+  // recording the member award. Deterministic IDs prevent duplicate credits.
+  const winnerId = String(drawRow.winner_user_id || "");
+  const winnerName = String(drawRow.winner_name || "SuperTech AI member");
+  const prize = money(drawRow.prize_amount);
+  if (!winnerId || prize <= 0) throw new Error("just4you_draw_record_invalid");
+  const commissionId = await stableId("just4you-award:" + period.weekKey);
+  await createUniqueRow(env, env.COMMISSION_RECORDS_TABLE_ID || "commission_records", commissionId, {
+    user_id: winnerId, source_user_id: env.GENESIS_ACCOUNT_ID || actor.$id,
+    commission_type: "just_4_you", level: null, amount: prize, currency: "USD",
+    status: "pending", reference_id: drawId, created_at: String(drawRow.drawn_at || new Date().toISOString()), paid_at: null,
+  });
+  const ledgerId = await stableId("just4you-ledger:" + period.weekKey);
+  await createUniqueRow(env, env.FINANCIAL_LEDGER_TABLE_ID || "financial_ledger", ledgerId, {
+    user_id: winnerId, entry_type: "just_4_you_bonus", amount: prize, currency: "USD",
+    reference_id: drawId, status: "pending", metadata_json: JSON.stringify({ weekKey: period.weekKey, eligibleMembers: drawRow.eligible_members }),
+    created_at: String(drawRow.drawn_at || new Date().toISOString()),
+  });
+  return { drawn: true, weekStart: period.startDate, weekEnd: period.endDate, winnerName, winnerUserId: winnerId, prizeAmount: prize, eligibleMembers: money(drawRow.eligible_members), drawId };
+}
 export async function handleCompanyBusinessRequest(request: Request, env: Env, account: Account): Promise<Response | null> {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/company/business") && !url.pathname.startsWith("/api/company/just4you")) return null;
