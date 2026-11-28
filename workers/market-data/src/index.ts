@@ -3,7 +3,7 @@ const ALLOWED_HOSTS = new Set([
   "www.okx.com", "api.bybit.com", "api.kucoin.com", "api.gateio.ws",
   "api.bitget.com", "api.mexc.com", "api.coinex.com", "api-cloud.bitmart.com",
   "open-api.bingx.com", "data-api.binance.vision", "api.binance.com",
-  "api1.binance.com", "api2.binance.com", "api3.binance.com",
+  "api1.binance.com", "api2.binance.com", "api3.binance.com", "stream.binance.com",
 ]);
 const cors = (origin: string) => origin === ALLOWED_ORIGIN ? {
   "access-control-allow-origin": origin,
@@ -22,6 +22,20 @@ export default {
     if (origin && origin !== ALLOWED_ORIGIN) return json({ error: "origin_not_allowed" }, 403);
     if (request.method === "OPTIONS") return new Response(null, { status: origin === ALLOWED_ORIGIN ? 204 : 403, headers });
     const incoming = new URL(request.url);
+    if (incoming.pathname === "/stream" && request.headers.get("upgrade")?.toLowerCase() === "websocket") {
+      const rawSocketUrl = incoming.searchParams.get("url") || "";
+      let socketTarget: URL;
+      try { socketTarget = new URL(rawSocketUrl); } catch { return json({ error: "invalid_market_stream_url" }, 400, headers); }
+      if (socketTarget.protocol !== "wss:" || socketTarget.hostname !== "stream.binance.com" || socketTarget.port !== "9443" || socketTarget.pathname !== "/stream") {
+        return json({ error: "market_stream_not_allowed" }, 403, headers);
+      }
+      try {
+        const upstreamRequest = new Request(socketTarget.toString(), request);
+        return await fetch(upstreamRequest);
+      } catch {
+        return json({ error: "market_stream_unavailable" }, 502, headers);
+      }
+    }
     if (incoming.pathname === "/health" && request.method === "GET") return json({ ok: true, service: "supertechai-market-data", providers: [...ALLOWED_HOSTS] }, 200, headers);
     if (incoming.pathname !== "/api/market-proxy" || request.method !== "GET") return json({ error: "not_found" }, 404, headers);
     const raw = incoming.searchParams.get("url") || "";
