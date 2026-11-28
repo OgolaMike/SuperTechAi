@@ -135,7 +135,12 @@ jobs:
             ["Gate.io", "https://api.gateio.ws/api/v4/spot/tickers", payload => Array.isArray(payload) && payload.length > 10],
             ["Bitget", "https://api.bitget.com/api/v2/spot/market/tickers", payload => payload.code === "00000" && payload.data?.length > 10],
             ["MEXC", "https://api.mexc.com/api/v3/ticker/24hr", payload => Array.isArray(payload) && payload.length > 10],
-            ["CoinEx", "https://api.coinex.com/v2/spot/ticker", payload => payload.code === 0 && payload.data?.length > 10],
+            ["CoinEx", "https://api.coinex.com/v2/spot/ticker", payload => (payload.code === 0 || payload.code === "0") && payload.data?.length > 10],
+            ["BitMart", "https://api-cloud.bitmart.com/spot/quotation/v3/tickers", payload => payload.data?.length > 10],
+            ["BingX", "https://open-api.bingx.com/openApi/spot/v1/ticker/24hr", payload => payload.data?.tickers?.length > 10],
+            ["OKX", "https://www.okx.com/api/v5/market/tickers?instType=SPOT", payload => payload.code === "0" && payload.data?.length > 10],
+            ["Bybit", "https://api.bybit.com/v5/market/tickers?category=spot", payload => payload.retCode === 0 && payload.result?.list?.length > 10],
+            ["Binance", "https://data-api.binance.vision/api/v3/ticker/24hr", payload => Array.isArray(payload) && payload.length > 10],
           ];
           let liveFeed = null;
           for (const [name, target] of marketFeeds) {
