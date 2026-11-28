@@ -737,14 +737,24 @@ export default {
           const userId = String(body?.userId || "");
           const status = String(body?.status || "");
           if (!/^[A-Za-z0-9_-]{1,36}$/.test(userId) || !["approved", "pending", "suspended"].includes(status)) return json({ error: "invalid_membership_change" }, 400, cors);
-          if (admins.includes(userId) && status !== "approved") return json({ error: "cannot_revoke_configured_admin_access" }, 403, cors);
+          const memberResponse = await fetch(env.APPWRITE_ENDPOINT.replace(/\/$/, "") + "/users/" + encodeURIComponent(userId), { headers });
+          if (!memberResponse.ok) return json({ error: "member_account_not_found" }, 404, cors);
+          const member = await memberResponse.json() as { $id: string; email: string; name?: string };
+          const isTargetAdmin = admins.includes(userId) || (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(v => v.trim().toLowerCase()).includes(member.email.toLowerCase());
+          if (isTargetAdmin && status !== "approved") return json({ error: "cannot_revoke_configured_admin_access" }, 403, cors);
           const rowUrl = `${root}/${encodeURIComponent(userId)}`;
           const prior = await fetch(rowUrl, { headers });
-          if (!prior.ok) return json({ error: prior.status === 404 ? "member_profile_not_found" : "member_profile_read_failed" }, prior.status === 404 ? 404 : 503, cors);
-          const profile = await prior.json() as { user_id?: string };
-          if (profile.user_id !== userId) return json({ error: "member_profile_ownership_mismatch" }, 403, cors);
-          const saved = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { onboarding_status: status, updated_at: new Date().toISOString() }, permissions: [] }) });
-          if (!saved.ok) return json({ error: "membership_update_failed" }, 503, cors);
+          const now = new Date().toISOString();
+          if (prior.status === 404) {
+            const created = await fetch(root, { method: "POST", headers, body: JSON.stringify({ rowId: userId, data: { user_id: userId, display_name: member.name || "", onboarding_status: status, created_at: now, updated_at: now }, permissions: [] }) });
+            if (!created.ok) return json({ error: "membership_profile_create_failed" }, 503, cors);
+          } else {
+            if (!prior.ok) return json({ error: "member_profile_read_failed" }, 503, cors);
+            const profile = await prior.json() as { user_id?: string };
+            if (profile.user_id !== userId) return json({ error: "member_profile_ownership_mismatch" }, 403, cors);
+            const saved = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { onboarding_status: status, updated_at: now }, permissions: [] }) });
+            if (!saved.ok) return json({ error: "membership_update_failed" }, 503, cors);
+          }
           return json({ updated: true, userId, status, approvedBy: actor.$id }, 200, cors);
         }
         const usersResponse = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/users?limit=100`, { headers });
