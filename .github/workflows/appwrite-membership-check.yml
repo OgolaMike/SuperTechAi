@@ -6,6 +6,8 @@ on:
       - "src/**"
       - "workers/independent-api/**"
       - "docs/APPWRITE_MEMBERSHIP_APPROVAL.md"
+      - "docs/APPWRITE_BUSINESS_LEDGER_FOUNDATION.md"
+      - "scripts/provision-appwrite-just4you.mjs"
       - "package.json"
       - "package-lock.json"
       - "tsconfig*.json"
@@ -38,3 +40,4 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm run check:independent-worker
+      - run: node --check scripts/provision-appwrite-just4you.mjs
