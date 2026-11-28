@@ -1,4 +1,4 @@
-import type { Candle } from './deriv';
+import type { Candle } from './deriv.ts';
 
 export type WickDirection = 'BUY' | 'SELL';
 export type UnifiedConfirmation = {

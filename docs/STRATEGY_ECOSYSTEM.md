@@ -29,10 +29,12 @@ SuperTechAI is a multi-strategy platform with two separate execution paths:
 - Only one entry per H4 signal key and asset.
 - A later Unified Signal reversal does not reverse or force-close an already-open position.
 - The strategy may only manage positions carrying its own strategy identifier.
+- Its exact versioned broker label is `supertech:3h-wick:v1:<intent-uuid>`; generic SuperTech labels do not qualify for 3H Wick ownership.
+- The pure position-decision helper ignores manual, generic, closed and malformed positions; it returns only HOLD, MODIFY_STOP or CLOSE decisions. A broker adapter must verify every broker acknowledgement before recording success.
 
 ## Release boundary
 
-The web client currently provides a read-only candidate preview. It does not submit orders, persist strategy-owned positions, or run a durable three-hour position manager. cTrader's current repository UI explicitly reports that the cloud trade engine is not active. Do not enable unattended execution until a broker-side worker/cBot, idempotent order dispatch, broker stop-distance and volume validation, position reconciliation, close confirmation, exposure controls and demo end-to-end tests are complete.
+The web client currently provides a read-only candidate preview. The lifecycle helper is a pure decision layer; it does not submit orders, persist strategy-owned positions, or run a durable three-hour position manager. cTrader's current repository UI explicitly reports that the cloud trade engine is not active. Do not enable unattended execution until a broker-side worker/cBot, idempotent order dispatch, broker stop-distance and volume validation, position reconciliation, close confirmation, exposure controls and demo end-to-end tests are complete.
 
 ## Asset coverage
 
