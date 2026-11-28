@@ -45,11 +45,13 @@ async function createRow(env: Env, rowId: string, data: Omit<NetworkRow, "$id">)
 }
 async function repairOrphan(env: Env, row: NetworkRow): Promise<NetworkRow> {
   if (row.sponsor_user_id && row.team_owner_id) return row;
+  const sponsor = row.sponsor_user_id ? await getRow(env, row.sponsor_user_id) : null;
+  const hasSponsor = Boolean(row.sponsor_user_id);
   const response = await fetch(`${endpoint(env)}/${encodeURIComponent(row.$id)}`, {
     method: "PATCH", headers: headers(env),
     body: JSON.stringify({ data: {
       sponsor_user_id: row.sponsor_user_id || env.GENESIS_ACCOUNT_ID!,
-      team_owner_id: row.team_owner_id || (row.role === "owner" ? row.user_id : env.GENESIS_ACCOUNT_ID!),
+      team_owner_id: row.role === "owner" ? row.user_id : (row.team_owner_id || (hasSponsor ? sponsor?.team_owner_id : "") || env.GENESIS_ACCOUNT_ID!),
     }, permissions: [] }),
   });
   if (!response.ok) throw new Error("network_orphan_repair_failed");
