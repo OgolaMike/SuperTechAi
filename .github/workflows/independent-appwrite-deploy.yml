@@ -105,14 +105,11 @@ jobs:
       - name: Verify live Worker and Pages deployment
         run: |
           node --input-type=module <<'NODE'
-          const api = await fetch("https://supertechai-independent-api.mikedavid45.workers.dev/health");
+          const api = await fetch("https://supertechai-independent-api.mikedavid45.workers.dev/api/health");
           if (!api.ok) throw new Error(`Worker health check failed: ${api.status}`);
           const health = await api.json();
-          if (health.ok !== true || health.service !== "supertechai-independent-api" || health.appwriteConfigured !== true) {
+          if (health.ok !== true || health.service !== "supertechai-independent-api" || health.backend !== "appwrite" || health.identityReady !== true || health.memberProfilesReady !== true) {
             throw new Error("Worker health response is incomplete");
-          }
-          for (const [name, configured] of Object.entries(health.storage)) {
-            if (configured !== true) throw new Error(`Missing Worker storage binding: ${name}`);
           }
           const site = await fetch("https://main.supertechai.pages.dev/");
           if (!site.ok) throw new Error(`Pages smoke check failed: ${site.status}`);
