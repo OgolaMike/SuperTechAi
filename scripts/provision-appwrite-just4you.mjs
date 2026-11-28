@@ -111,7 +111,7 @@ for (const definition of indexes) {
 const finalTable = await request(tablePath);
 const finalColumns = await list(tablePath + "/columns?limit=100", "columns");
 const finalIndexes = await list(tablePath + "/indexes?limit=100", "indexes");
-const missingColumns = definitions.filter(def => !finalColumns.some(col => col.key === def.key && col.type === def.type && col.status === "available"));
+const missingColumns = definitions.filter(def => !finalColumns.some(col => col.key === def.key && (col.type === "double" && def.type === "float" ? "float" : col.type) === def.type && col.status === "available"));
 const missingIndexes = indexes.filter(def => !finalIndexes.some(index => index.key === def.key && index.type === def.type && index.status === "available"));
 if (missingColumns.length || missingIndexes.length || (finalTable.$permissions || []).length) {
   throw new Error("Just 4 You schema verification failed. Missing columns: " + missingColumns.map(x => x.key).join(", ") + "; missing indexes: " + missingIndexes.map(x => x.key).join(", "));
