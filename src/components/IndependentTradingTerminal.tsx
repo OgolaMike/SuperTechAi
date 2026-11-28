@@ -20,6 +20,9 @@ import { FiveMinuteMomentum } from '@/components/FiveMinuteMomentum';
 import { IndependentOptionsBoard } from '@/components/IndependentOptionsBoard';
 import { IndependentBrokerConnections } from '@/components/IndependentBrokerConnections';
 import { IndependentAlertSettings } from '@/components/IndependentAlertSettings';
+import { MemberReferralsPanel } from '@/components/MemberReferralsPanel';
+import { MembershipPaymentsPanel } from '@/components/MembershipPaymentsPanel';
+import { IndependentFinancePanel } from '@/components/IndependentFinancePanel';
 import { MarketStructureSarPanel } from '@/components/MarketStructureSarPanel';
 import { StrategyConfluencePanel } from '@/components/StrategyConfluencePanel';
 import { buildIndependentStrategyAssessments } from '@/lib/independentStrategies';
@@ -40,6 +43,7 @@ import { buildStopOrderIdeas } from '@/lib/stopOrders';
 import { flattenSignals } from '@/lib/signals';
 import { DEFAULT_ASSET } from '@/lib/sma';
 import { loadMemberAlertModes } from '@/lib/alertPreferences';
+import { getMembershipAccess } from '@/lib/independentApi';
 
 const ASSET_KEY='supertech-selected-assets';
 const SOUND_KEY='supertech-signal-sounds';
@@ -58,6 +62,7 @@ function IndependentTradingWorkspace({email,userId,isAdmin=false}:Props){
  const [selectedSymbols,setSelectedSymbols]=useState<string[]>(readSelected);
  const [soundsEnabled,setSoundsEnabled]=useState(()=>localStorage.getItem(SOUND_KEY)==='true');
  const [alertReady,setAlertReady]=useState(false);
+ const [membershipPlan,setMembershipPlan]=useState<'free'|'standard_300'|'automation_500'>(isAdmin?'automation_500':'free');
  const [now,setNow]=useState(epoch);
  const [aiModel,setAiModel]=useState<SignalLearningModel>(()=>trainSignalLearningModel([]));
  const {theme,toggle:toggleTheme}=useTheme();
@@ -65,6 +70,7 @@ function IndependentTradingWorkspace({email,userId,isAdmin=false}:Props){
  const pendingIdeas=useMemo(()=>buildStopOrderIdeas(assets,states,prices,aiModel,now),[assets,states,prices,aiModel,now]);
  const pendingAlerts=usePendingOrderAlerts(pendingIdeas,loaded&&alertReady,soundsEnabled);
  useEffect(()=>{let cancelled=false;loadMemberAlertModes(userId).finally(()=>{if(!cancelled)setAlertReady(true)});return()=>{cancelled=true}},[userId]);
+ useEffect(()=>{let active=true;getMembershipAccess().then(access=>{if(active)setMembershipPlan(access.planCode||(access.isAdmin?'automation_500':'free'))}).catch(()=>{});return()=>{active=false}},[userId]);
  const assetMap=useMemo(()=>new Map(assets.map(asset=>[asset.symbol,asset])),[assets]);
  const views=useMemo(()=>flattenSignals(assets,states),[assets,states]);
  const superSignals=useMemo(()=>buildSuperSignals(assets,states,now),[assets,states,now]);
@@ -109,7 +115,10 @@ function IndependentTradingWorkspace({email,userId,isAdmin=false}:Props){
       {view==='records'&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">Signal history</h2><p className="mt-2 text-sm text-ink-2">Confirmed signal records saved on this device: {views.length} live signal readings.</p>{views.slice(0,30).map(item=><div key={item.key} className="flex flex-wrap justify-between gap-2 border-t border-line/10 py-3 text-xs"><span>{item.assetName} · {item.timeframe} · {item.signal.direction}</span><span>{formatLocalDateTime(item.signal.signalEpoch*1000)}</span></div>)}</section>}
       {view==='alerts'&&<IndependentAlertSettings userId={userId} assets={assets} soundsEnabled={soundsEnabled} onToggleSounds={toggleSounds}/>}
       {view==='admin'&&isAdmin&&<AppwriteMembershipAdmin/>}
-      {['personal-ai','academy','referrals','earnings','finance','marketing','governance','network','smart-community'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
+      {view==='referrals'&&<MemberReferralsPanel userId={userId} email={email}/>}
+      {view==='finance'&&<IndependentFinancePanel/>}
+      {view==='smart-community'&&<section className="mt-8 space-y-4"><div className="rounded-2xl border border-line/15 bg-surface/[.035] p-5"><p className="text-xs font-bold uppercase tracking-[.18em] text-accent">Membership</p><h2 className="mt-2 text-2xl font-semibold text-ink">{membershipPlan==='automation_500'?'$500 Premium':membershipPlan==='standard_300'?'$300 Standard':'Free'} membership</h2><p className="mt-2 text-sm leading-6 text-ink-2">Paid plans activate only after the company verifies your USDT TRC20 transaction. Never share your wallet recovery phrase or private key.</p><MembershipPaymentsPanel plan={membershipPlan}/></div></section>}
+      {['personal-ai','academy','earnings','marketing','governance','network'].includes(view)&&<section className="mt-8 rounded-2xl border border-line/15 bg-surface/[.035] p-5"><h2 className="text-lg font-semibold">{view.replace(/-/g,' ')}</h2><p className="mt-2 text-sm text-ink-2">This member/business module is being connected separately from the trading engines.</p></section>}
      </div>
     </Suspense>
     <footer className="mt-10 rounded-2xl border border-line/10 bg-surface/[.03] p-5 text-xs leading-relaxed text-ink-2"><p className="font-medium text-ink">Trading involves risk. Past signals do not guarantee future results.</p><p className="mt-1">Signals and tracked ideas are not proof of broker execution.</p></footer>

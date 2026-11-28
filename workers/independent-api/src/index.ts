@@ -1,3 +1,7 @@
+import { handlePaymentRequest } from "./payments";
+import { handleCompanyOwnerRequest, handleReferralRequest } from "./referrals";
+import { handleAcademyProgress } from "./academy";
+
 export interface Env {
   APPWRITE_ENDPOINT: string;
   APPWRITE_PROJECT_ID: string;
@@ -10,6 +14,14 @@ export interface Env {
   APPWRITE_API_KEY?: string;
   APPWRITE_ADMIN_USER_IDS?: string;
   APPWRITE_ADMIN_EMAILS?: string;
+  MEMBERSHIP_TABLE_ID?: string;
+  MEMBER_NETWORK_TABLE_ID?: string;
+  GENESIS_ACCOUNT_ID?: string;
+  GENESIS_ADMIN_TOKEN?: string;
+  PAYMENT_SUBMISSIONS_TABLE_ID?: string;
+  FINANCIAL_LEDGER_TABLE_ID?: string;
+  COMMISSION_RECORDS_TABLE_ID?: string;
+  ACADEMY_PROGRESS_TABLE_ID?: string;
 }
 
 type AppwriteAccount = {
@@ -712,14 +724,23 @@ export default {
           const now = new Date().toISOString();
           const created = await fetch(`${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBER_PROFILES_TABLE_ID}/rows`, { method: "POST", headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ rowId: account.$id, data: { user_id: account.$id, display_name: account.name || "", onboarding_status: isAdmin ? "approved" : "pending", created_at: now, updated_at: now }, permissions: [] }) });
           if (!created.ok && created.status !== 409) return json({ error: "membership_profile_initialization_failed" }, 503, cors);
-          return json({ status: isAdmin ? "approved" : "pending", approved: isAdmin, isAdmin }, 200, cors);
+          return json({ status: isAdmin ? "approved" : "pending", approved: isAdmin, isAdmin, planCode: isAdmin ? "automation_500" : "free" }, 200, cors);
         }
         if (!response.ok) return json({ error: "membership_status_unavailable" }, 503, cors);
         const profile = await response.json() as { user_id?: string; onboarding_status?: string };
         if (profile.user_id !== account.$id) return json({ error: "membership_profile_ownership_mismatch" }, 403, cors);
         const isAdmin = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(v => v.trim()).includes(account.$id);
         const status = isAdmin ? "approved" : (["approved", "suspended"].includes(profile.onboarding_status || "") ? profile.onboarding_status! : "pending");
-        return json({ status, approved: status === "approved", isAdmin }, 200, cors);
+        let planCode = isAdmin ? "automation_500" : "free";
+        if (!isAdmin && env.MEMBERSHIP_TABLE_ID && env.APPWRITE_API_KEY) {
+          const planUrl = `${env.APPWRITE_ENDPOINT.replace(/\/$/, "")}/tablesdb/${env.APPWRITE_DATABASE_ID}/tables/${env.MEMBERSHIP_TABLE_ID}/rows/${encodeURIComponent(account.$id)}`;
+          const planResponse = await fetch(planUrl, { headers: { "X-Appwrite-Project": env.APPWRITE_PROJECT_ID, "X-Appwrite-Key": env.APPWRITE_API_KEY } });
+          if (planResponse.ok) {
+            const membership = await planResponse.json() as { user_id?: string; status?: string; plan_code?: string };
+            if (membership.user_id === account.$id && membership.status === "approved" && ["free", "standard_300", "automation_500"].includes(membership.plan_code || "")) planCode = membership.plan_code!;
+          }
+        }
+        return json({ status, approved: status === "approved", isAdmin, planCode }, 200, cors);
       } catch { return json({ error: "membership_status_unavailable" }, 503, cors); }
     }
 
@@ -1153,6 +1174,31 @@ export default {
       }, 200, cors);
     }
 
+    const companyOwnerResponse = await handleCompanyOwnerRequest(request, env);
+    if (companyOwnerResponse) return withCors(companyOwnerResponse, cors);
+
+    const paymentPath = url.pathname.startsWith("/api/payments/")
+      || url.pathname.startsWith("/api/admin/payments")
+      || url.pathname === "/api/finance/ledger"
+      || url.pathname === "/api/finance/commissions";
+    if (paymentPath) {
+      const account = await authenticate(request, env);
+      if (!account) return json({ error: "unauthorized" }, 401, cors);
+      const response = await handlePaymentRequest(request, env, account);
+      if (response) return withCors(response, cors);
+    }
+    if (url.pathname.startsWith("/api/referrals/")) {
+      const account = await authenticate(request, env);
+      if (!account) return json({ error: "unauthorized" }, 401, cors);
+      const response = await handleReferralRequest(request, env, account);
+      if (response) return withCors(response, cors);
+    }
+    if (url.pathname === "/api/academy/progress") {
+      const account = await authenticate(request, env);
+      if (!account) return json({ error: "unauthorized" }, 401, cors);
+      const response = await handleAcademyProgress(request, env, account);
+      if (response) return withCors(response, cors);
+    }
     return json({ error: "not_found" }, 404, cors);
   },
 };
