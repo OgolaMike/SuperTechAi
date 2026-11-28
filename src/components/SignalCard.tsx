@@ -7,6 +7,7 @@ import type { Signal } from '@/lib/signals';
 import type { Candle } from '@/lib/deriv';
 import { SignalChartSnapshot } from '@/components/SignalChartSnapshot';
 import type { SignalLearningModel } from '@/lib/aiLearning';
+import { buildBreakRetestSetups, type BreakRetestSetup } from '@/lib/breakRetest';
 
 type Props = {
   asset: Asset;
@@ -30,6 +31,7 @@ export function SignalCard({ asset, tf, loaded, price, confluenceCount, unifiedO
   const marketClosed = asset.exchange === 'DERIV' && isWeekend && !weekendTrading;
   const isBuy = signal?.direction === 'BUY';
   const isSell = signal?.direction === 'SELL';
+  const breakRetestSetup: BreakRetestSetup | undefined = buildBreakRetestSetups([asset], { [asset.symbol]: { [tf.granularity]: tf } })[0];
   const gradeTone = confluenceCount === 13
     ? 'border-up/60 bg-up/15 text-up shadow-[0_0_22px_rgba(34,197,94,0.18)]'
     : confluenceCount !== undefined && confluenceCount >= 10
@@ -90,7 +92,7 @@ export function SignalCard({ asset, tf, loaded, price, confluenceCount, unifiedO
           <EntryTime epoch={signal.signalEpoch + tf.granularity} direction={signal.direction} />
           <CurrentPrice price={price} entry={signal.levels.entry} direction={signal.direction} digits={asset.digits} />
           <LevelList rows={buildRows(signal)} digits={asset.digits} />
-          <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} />
+          <SignalChartSnapshot candles={tf.chartCandles ?? tf.candles} levels={signal.levels} signalEpoch={signal.signalEpoch} direction={signal.direction} timeframe={tf.label} granularity={tf.granularity} digits={asset.digits} assetName={asset.fullName} symbol={asset.symbol} anchorId={`signal-chart-${encodeURIComponent(asset.symbol)}-${tf.granularity}`} livePrice={price} breakRetestSetup={breakRetestSetup} />
 
           {signal.outcome.tp3Epoch != null && (
             <div className="flex items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">
