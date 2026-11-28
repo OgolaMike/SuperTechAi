@@ -95,9 +95,18 @@ export const appwriteAccount = {
     });
     const user = await appwriteRequest<AppwriteUser>('/account');
     if (!user.emailVerification) {
-      await appwriteRequest<void>('/account/sessions/current', { method: 'DELETE' });
-      const error = new Error('Please verify your email address before signing in.') as Error & { code?: string };
+      let verificationResent = false;
+      try {
+        await appwriteRequest('/account/verification', { method: 'POST', body: { url: callbackUrl('verify') } });
+        verificationResent = true;
+      } catch { /* Keep email verification mandatory if Appwrite cannot resend. */ }
+      try { await appwriteRequest<void>('/account/sessions/current', { method: 'DELETE' }); } catch { /* Keep the verification gate closed. */ }
+      const error = new Error(verificationResent
+        ? 'A fresh SuperTech AI verification email has been sent.'
+        : 'Your email is not verified yet, and a new verification email could not be sent. Check your inbox and spam folder for the original message.',
+      ) as Error & { code?: string; verificationResent?: boolean };
       error.code = 'email_not_confirmed';
+      error.verificationResent = verificationResent;
       throw error;
     }
     return user;

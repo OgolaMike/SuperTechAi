@@ -45,13 +45,15 @@ export function clearAuthRedirect(): void {
 }
 
 export function friendlyAuthError(error: unknown): string {
-  const e = error as { message?: string; code?: string };
+  const e = error as { message?: string; code?: string; verificationResent?: boolean };
   const message = error instanceof Error ? error.message : e?.message ?? '';
   if (message === 'AUTH_RECOVERY_SESSION_MISSING' || /auth session missing|session_not_found/i.test(message)) {
     return 'This password-reset link is incomplete or has expired. Return to sign in, choose Forgot password, and request a fresh link. Open the newest email on this same site.';
   }
   if (e?.code === 'email_not_confirmed' || /email not confirmed|verify your email/i.test(message)) {
-    return 'Please verify your email address first. Open the verification message sent by SuperTech AI, then return here and sign in.';
+    return e?.verificationResent
+      ? 'A fresh verification email has just been sent to this address. Open it, select Verify email, then return here and sign in. Check your spam folder if it is not in your inbox.'
+      : message || 'Your email is not verified yet. Check your inbox and spam folder for the latest SuperTech AI verification message, then return here and sign in.';
   }
   if (/user_already_exists|already registered/i.test(message)) return 'An account with this email already exists. Try signing in instead.';
   if (/rate.?limit|too many requests|email.*limit/i.test(message)) {

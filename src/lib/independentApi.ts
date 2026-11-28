@@ -189,7 +189,7 @@ export function disconnectBinanceFutures(): Promise<{ disconnected: boolean; pro
   return authenticatedRequest('/api/brokers/binance-futures/disconnect', { method: 'POST', body: JSON.stringify({}) });
 }
 
-export type MembershipAccess = { status: "pending" | "approved" | "suspended"; approved: boolean; isAdmin: boolean };
+export type MembershipAccess = { status: "pending" | "approved" | "suspended"; approved: boolean; isAdmin: boolean; planCode?: "free" | "standard_300" | "automation_500" };
 export function getMembershipAccess(): Promise<MembershipAccess> {
   return authenticatedRequest<MembershipAccess>('/api/membership/status');
 }
@@ -199,4 +199,25 @@ export function getAdminMembers(): Promise<{ members: AdminMember[] }> {
 }
 export function setAdminMemberStatus(userId: string, status: "approved" | "pending" | "suspended"): Promise<{ updated: boolean; userId: string; status: string }> {
   return authenticatedRequest('/api/admin/members', { method: 'PATCH', body: JSON.stringify({ userId, status }) });
+}
+
+
+export type MemberReferralProfile = { assigned: boolean; referralCode?: string; sponsorUserId?: string; teamOwnerId?: string; role?: 'member' | 'owner'; status?: string; reason?: string };
+export type MemberNetwork = { teamOwnerId: string; directCount: number; teamCount: number; members: Array<{ memberId: string; sponsorId: string; role: string; joinedAt: string }> };
+export function getMemberReferralProfile(): Promise<MemberReferralProfile> { return authenticatedRequest('/api/referrals/me'); }
+export function activateMemberReferral(referralCode: string): Promise<MemberReferralProfile> { return authenticatedRequest('/api/referrals/activate', { method: 'POST', body: JSON.stringify({ referralCode }) }); }
+export function getMemberNetwork(): Promise<MemberNetwork> { return authenticatedRequest('/api/referrals/network'); }
+export type IndependentPayment = { id: string; planCode: string; amountUsd: number; currency: string; reference: string; status: string; submittedAt: string; reviewedAt?: string | null; reviewNote?: string | null };
+export function listMyIndependentPayments(): Promise<{ payments: IndependentPayment[] }> { return authenticatedRequest('/api/payments/me'); }
+export function submitIndependentPayment(planCode: 'standard_300' | 'automation_500', transactionReference: string): Promise<{ submitted: boolean; payment: { id: string; planCode: string; amountUsd: number; status: string } }> {
+  return authenticatedRequest('/api/payments/submit', { method: 'POST', body: JSON.stringify({ planCode, currency: 'USDT-TRC20', transactionReference }) });
+}
+export type IndependentLedgerEntry = { type: string; amount: number; currency: string; referenceId: string; status: string; createdAt: string };
+export function getIndependentFinancialLedger(): Promise<{ entries: IndependentLedgerEntry[] }> { return authenticatedRequest('/api/finance/ledger'); }
+export type IndependentCommission = { id: string; type: string; level: number | null; amount: number; currency: string; status: string; sourceUserId: string; referenceId: string; createdAt: string };
+export function getIndependentCommissions(): Promise<{ commissions: IndependentCommission[] }> { return authenticatedRequest('/api/finance/commissions'); }
+export type IndependentAcademyProgress = { lessonId: string; progress: number; completedAt: string | null; updatedAt: string };
+export function getIndependentAcademyProgress(): Promise<{ lessons: IndependentAcademyProgress[] }> { return authenticatedRequest('/api/academy/progress'); }
+export function saveIndependentAcademyProgress(lessonId: string, progress: number): Promise<IndependentAcademyProgress> {
+  return authenticatedRequest('/api/academy/progress', { method: 'PUT', body: JSON.stringify({ lessonId, progress }) });
 }

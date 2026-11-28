@@ -1,0 +1,125 @@
+name: Independent Appwrite production pipeline
+
+on:
+  pull_request:
+    branches: [feat/appwrite-independent-platform-foundation]
+  push:
+    branches: [feat/appwrite-independent-platform-foundation]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appwrite-production-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build and verify independent edition
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:independent
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run check:independent-worker
+      - name: Validate Appwrite provisioning script syntax
+        run: node --check scripts/provision-appwrite-membership.mjs
+      - name: Validate Appwrite core provisioning script syntax
+        run: node --check scripts/provision-appwrite-core.mjs
+      - name: Validate Worker deployment bundle
+        run: npx --yes wrangler deploy --dry-run --config workers/independent-api/wrangler.toml
+
+  deploy:
+    name: Deploy independent Pages and Worker
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Configure Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          APPWRITE_PROJECT_ID: "6b06de46003dde834eb6"
+          APPWRITE_DATABASE_ID: "6b06e4d900325c304d98"
+          GENESIS_ACCOUNT_ID: ${{ secrets.GENESIS_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing GitHub secret CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing GitHub secret CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          test -n "$APPWRITE_API_KEY" || { echo "Missing GitHub secret APPWRITE_API_KEY"; exit 1; }
+          test -n "$GENESIS_ACCOUNT_ID" || { echo "Missing GitHub secret GENESIS_ACCOUNT_ID"; exit 1; }
+      - name: Provision and verify private Appwrite membership table
+        env:
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          APPWRITE_PROJECT_ID: "6b06de46003dde834eb6"
+          APPWRITE_DATABASE_ID: "6b06e4d900325c304d98"
+          APPWRITE_ENDPOINT: "https://fra.cloud.appwrite.io/v1"
+          MEMBERSHIP_TABLE_ID: "membership_requests"
+        run: npm run provision:appwrite-membership
+      - name: Provision and verify private Appwrite service tables
+        env:
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          APPWRITE_PROJECT_ID: "6b06de46003dde834eb6"
+          APPWRITE_DATABASE_ID: "6b06e4d900325c304d98"
+          APPWRITE_ENDPOINT: "https://fra.cloud.appwrite.io/v1"
+        run: npm run provision:appwrite-core
+      - name: Deploy independent Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler deploy --config workers/independent-api/wrangler.toml
+      - name: Configure member-network Worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          GENESIS_ACCOUNT_ID: ${{ secrets.GENESIS_ACCOUNT_ID }}
+          GENESIS_ADMIN_TOKEN: ${{ secrets.GENESIS_ADMIN_TOKEN }}
+        run: |
+          for name in APPWRITE_API_KEY GENESIS_ACCOUNT_ID GENESIS_ADMIN_TOKEN; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              printf '%s' "$value" | npx --yes wrangler secret put "$name" --config workers/independent-api/wrangler.toml
+            fi
+          done
+      - name: Deploy independent Pages site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler pages deploy dist --project-name supertechai --branch main
+      - name: Verify live Worker and Pages deployment
+        run: |
+          node --input-type=module <<'NODE'
+          const api = await fetch("https://supertechai-independent-api.mikedavid45.workers.dev/api/health");
+          if (!api.ok) throw new Error(`Worker health check failed: ${api.status}`);
+          const health = await api.json();
+          if (health.ok !== true || health.service !== "supertechai-independent-api" || health.backend !== "appwrite" || health.identityReady !== true || health.memberProfilesReady !== true) {
+            throw new Error("Worker health response is incomplete");
+          }
+          const site = await fetch("https://main.supertechai.pages.dev/");
+          if (!site.ok) throw new Error(`Pages smoke check failed: ${site.status}`);
+          const html = await site.text();
+          if (!html.includes('id="root"') || !html.includes("/assets/")) throw new Error("Pages response did not contain the application shell and built assets");
+          const scriptPath = html.match(/src="([^"]+)"/)?.[1];
+          if (!scriptPath || !scriptPath.endsWith(".js")) throw new Error("Pages response did not reference the application bundle");
+          const bundle = await fetch(new URL(scriptPath, site.url));
+          if (!bundle.ok) throw new Error(`Pages JavaScript bundle failed: ${bundle.status}`);
+          console.log("Live Worker health, Appwrite bindings, Pages shell and JavaScript bundle checks passed.");
+          NODE
+
+
