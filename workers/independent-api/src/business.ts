@@ -146,7 +146,7 @@ async function just4youDashboard(env: Env) {
   ]);
   const approved = payments.filter(row => row.status === "approved" && String(row.reviewed_at || row.submitted_at || "") >= period.start && String(row.reviewed_at || row.submitted_at || "") < period.end);
   const sales = approved.reduce((sum, row) => sum + money(row.amount_usd), 0);
-  const eligibleIds = new Set(memberships.filter(row => row.status === "approved" && row.plan_code && row.user_id).map(row => String(row.user_id)));
+  const eligibleIds = new Set(memberships.filter(row => row.status === "approved" && ["standard_300", "automation_500"].includes(String(row.plan_code)) && row.user_id).map(row => String(row.user_id)));
   const eligible = users.filter(user => user.$id !== env.GENESIS_ACCOUNT_ID && user.status !== false && user.emailVerification === true && eligibleIds.has(user.$id));
   const latest = draws.sort((a, b) => String(b.drawn_at || "").localeCompare(String(a.drawn_at || "")))[0] || null;
   const existing = draws.find(row => row.week_key === period.weekKey) || null;
