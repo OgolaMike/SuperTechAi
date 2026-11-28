@@ -96,7 +96,7 @@ export type Asset = {
 export const DEFAULT_ASSET = 'R_25';
 export const MAX_MONITORED_ASSETS = 1;
 
-const SMA_PERIOD = 20;
+const SMA_PERIOD = 1440;
 const BB_DEVIATION = 2.5;
 
 export type TfState = {
@@ -151,7 +151,7 @@ function rollingStats(values: number[], period: number): Stats[] {
   });
 }
 
-// Signals follow the simple rule: a confirmed close above SMA20 is BUY; below is SELL.
+// Signals follow the simple rule: a confirmed close above SMA 1440 is BUY; below is SELL.
 // Emit a fresh signal when the direction changes, avoiding duplicate alerts on every candle.
 
 // Only candles whose period has fully closed are used; the forming candle is ignored.
