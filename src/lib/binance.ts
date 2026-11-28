@@ -83,7 +83,9 @@ export class BinanceStream {
     this.stop();
     if (symbols.length === 0) return;
     const intervals = new Map(Object.entries(INTERVALS).map(([seconds, interval]) => [interval, Number(seconds)]));
-    const streams = symbols.flatMap((symbol) => timeframes.map((timeframe) => {
+    const supportedTimeframes = timeframes.filter((timeframe) => Boolean(INTERVALS[timeframe.granularity]));
+    if (supportedTimeframes.length === 0) return;
+    const streams = symbols.flatMap((symbol) => supportedTimeframes.map((timeframe) => {
       const interval = INTERVALS[timeframe.granularity];
       return `${symbol.toLowerCase()}@kline_${interval}`;
     }));
