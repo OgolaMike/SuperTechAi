@@ -88,6 +88,21 @@ function databaseReady(env: Env): boolean {
   return Boolean(env.APPWRITE_API_KEY && env.APPWRITE_DATABASE_ID && env.MEMBER_PROFILES_TABLE_ID);
 }
 
+function appwriteFailure(response: Response, fallback: string): Response {
+  return response.clone().json().catch(() => ({})).then((payload: unknown) => {
+    const detail = payload && typeof payload === "object" ? payload as { type?: unknown; message?: unknown } : {};
+    const safe = (value: unknown) => typeof value === "string"
+      ? value.replace(/[\r\n\t]+/g, " ").replace(/[^\x20-\x7E]/g, "").slice(0, 180)
+      : undefined;
+    return json({
+      error: fallback,
+      appwriteStatus: response.status,
+      appwriteType: safe(detail.type),
+      appwriteMessage: safe(detail.message),
+    }, 503);
+  });
+}
+
 function isConfiguredAdmin(account: AppwriteAccount, env: Env): boolean {
   const ids = (env.APPWRITE_ADMIN_USER_IDS || "").split(",").map(value => value.trim()).filter(Boolean);
   const emails = (env.APPWRITE_ADMIN_EMAILS || "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
@@ -769,13 +784,13 @@ export default {
           const now = new Date().toISOString();
           if (prior.status === 404) {
             const created = await fetch(root, { method: "POST", headers, body: JSON.stringify({ rowId: userId, data: { user_id: userId, display_name: member.name || "", onboarding_status: status, created_at: now, updated_at: now }, permissions: [] }) });
-            if (!created.ok) return json({ error: "membership_profile_create_failed" }, 503, cors);
+            if (!created.ok) return withCors(await appwriteFailure(created, "membership_profile_create_failed"), cors);
           } else {
-            if (!prior.ok) return json({ error: "member_profile_read_failed" }, 503, cors);
+            if (!prior.ok) return withCors(await appwriteFailure(prior, "member_profile_read_failed"), cors);
             const profile = await prior.json() as { user_id?: string };
             if (profile.user_id !== userId) return json({ error: "member_profile_ownership_mismatch" }, 403, cors);
             const saved = await fetch(rowUrl, { method: "PATCH", headers, body: JSON.stringify({ data: { onboarding_status: status, updated_at: now }, permissions: [] }) });
-            if (!saved.ok) return json({ error: "membership_update_failed" }, 503, cors);
+            if (!saved.ok) return withCors(await appwriteFailure(saved, "membership_update_failed"), cors);
           }
           return json({ updated: true, userId, status, approvedBy: actor.$id }, 200, cors);
         }
