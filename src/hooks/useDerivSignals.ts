@@ -114,6 +114,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     let derivLoaded = false;
     let binanceLoaded = false;
     let stopped = false;
+    let hasOpenedBefore = false;
     const publishAssets = () => setAssets([...derivAssets, ...binanceAssets]);
     const markLoaded = () => { if (!stopped && derivLoaded && binanceLoaded) setLoaded(true); };
     candlesRef.current = {};
@@ -280,7 +281,7 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
     const unsubOpen = client.onOpen(() => {
       setLoaded(false);
       derivLoaded = false;
-      client.forgetAllCandles().finally(() => {
+      const loadSymbols = () => {
         client
           .loadActiveSymbols()
           .then((symbols) => {
@@ -358,7 +359,14 @@ export function useDerivSignals(selectedSymbols: string[]): DashboardData {
           .catch((error: Error) => {
             setStatus({ status: 'error', detail: error.message });
           });
-      });
+      };
+      if (hasOpenedBefore) {
+        // Preserve cleanup on reconnects; a fresh first socket has no old subscriptions.
+        client.forgetAllCandles().finally(loadSymbols);
+      } else {
+        hasOpenedBefore = true;
+        loadSymbols();
+      }
     });
 
     const unsubOhlc = client.onOhlc(({ granularity, candle }) => {
